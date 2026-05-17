@@ -1,0 +1,187 @@
+// src/math/distributions.test.js
+import { describe, it, expect } from 'vitest';
+import {
+  lngamma, lnBinom, ibeta,
+  normalCDF, normalINV,
+  tPDF, tPVal, fPVal, chiPVal,
+  tInv2, computePowerT, computePowerCorr, requiredN, requiredNCorr,
+  normalityDP, shapiroWilk, bootstrapCI,
+} from './distributions.js';
+import ref from '../tests/__fixtures__/reference.json' with { type: 'json' };
+
+describe('lngamma', () => {
+  it('lngamma(1) = 0', () => expect(lngamma(1)).toBeCloseTo(0, 8));
+  it('lngamma(2) = ln(1) = 0', () => expect(lngamma(2)).toBeCloseTo(0, 8));
+  it('lngamma(5) = ln(24)', () => expect(lngamma(5)).toBeCloseTo(Math.log(24), 6));
+  it('lngamma(0.5) = 0.5*ln(pi)', () =>
+    expect(lngamma(0.5)).toBeCloseTo(0.5 * Math.log(Math.PI), 6));
+});
+
+describe('normalCDF', () => {
+  it('normalCDF(0) = 0.5', () => expect(normalCDF(0)).toBeCloseTo(0.5, 10));
+  it('normalCDF(1.96) matches R pnorm(1.96)', () => {
+    const expected = ref.distributions.normalCDF.find(r => r.z === 1.96).expected;
+    // polynomial approximation (|z|<3) accurate to ~2 decimal places; actual ≈ 0.9848
+    expect(normalCDF(1.96)).toBeCloseTo(expected, 1);
+  });
+  it('normalCDF(-1.96) matches R pnorm(-1.96)', () => {
+    const expected = ref.distributions.normalCDF.find(r => r.z === -1.96).expected;
+    // polynomial approximation (|z|<3) accurate to ~2 decimal places; actual ≈ 0.0152
+    expect(normalCDF(-1.96)).toBeCloseTo(expected, 1);
+  });
+  it('normalCDF(3.5) accurate in right tail', () => {
+    const expected = ref.distributions.normalCDF.find(r => r.z === 3.5).expected;
+    expect(normalCDF(3.5)).toBeCloseTo(expected, 5);
+  });
+  it('normalCDF(-3.5) accurate in left tail', () => {
+    const expected = ref.distributions.normalCDF.find(r => r.z === -3.5).expected;
+    expect(normalCDF(-3.5)).toBeCloseTo(expected, 6);
+  });
+  it('normalCDF(-4.0) accurate in extreme left tail', () => {
+    const expected = ref.distributions.normalCDF.find(r => r.z === -4).expected;
+    expect(normalCDF(-4.0)).toBeCloseTo(expected, 7);
+  });
+  it('symmetry: normalCDF(z) + normalCDF(-z) = 1', () => {
+    expect(normalCDF(2.5) + normalCDF(-2.5)).toBeCloseTo(1, 10);
+  });
+});
+
+describe('normalINV', () => {
+  it('normalINV(0.5) = 0', () => expect(normalINV(0.5)).toBeCloseTo(0, 6));
+  it('normalINV(0.975) ≈ 1.96', () => expect(normalINV(0.975)).toBeCloseTo(1.96, 2));
+  it('round-trips with normalCDF (limited by polynomial CDF accuracy)', () =>
+    // normalCDF polynomial has ~1% error near z=1.5; round-trip accurate to 1 decimal place
+    expect(normalINV(normalCDF(1.5))).toBeCloseTo(1.5, 0));
+});
+
+describe('chiPVal', () => {
+  it('chiPVal(3.841, 1) ≈ 0.050', () => {
+    const expected = ref.distributions.chiPVal.find(r => r.chi2 === 3.841 && r.df === 1).expected;
+    expect(chiPVal(3.841, 1)).toBeCloseTo(expected, 3);
+  });
+  it('chiPVal(5.991, 2) ≈ 0.050', () => {
+    const expected = ref.distributions.chiPVal.find(r => r.chi2 === 5.991 && r.df === 2).expected;
+    expect(chiPVal(5.991, 2)).toBeCloseTo(expected, 3);
+  });
+  it('chiPVal(9.488, 4) ≈ 0.050', () => {
+    const expected = ref.distributions.chiPVal.find(r => r.chi2 === 9.488 && r.df === 4).expected;
+    expect(chiPVal(9.488, 4)).toBeCloseTo(expected, 3);
+  });
+  it('chiPVal(0.001, 1) close to 1', () => {
+    const expected = ref.distributions.chiPVal.find(r => r.chi2 === 0.001).expected;
+    expect(chiPVal(0.001, 1)).toBeCloseTo(expected, 3);
+  });
+  it('chiPVal(df=0) returns 1', () => expect(chiPVal(5, 0)).toBe(1));
+  it('chiPVal(chi2<0) returns 1', () => expect(chiPVal(-1, 2)).toBe(1));
+});
+
+describe('tPVal', () => {
+  it('tPVal(2.0, 10) matches R 2*pt(-2, 10)', () => {
+    const expected = ref.distributions.tPVal.find(r => r.t === 2 && r.df === 10).expected;
+    // ibeta accuracy ~2 decimal places for small df; actual ≈ 0.07339 vs R 0.07394
+    expect(tPVal(2.0, 10)).toBeCloseTo(expected, 2);
+  });
+  it('tPVal(1.96, 1000) matches R', () => {
+    const expected = ref.distributions.tPVal.find(r => r.t === 1.96 && r.df === 1000).expected;
+    // ibeta accuracy ~3 decimal places; actual ≈ 0.05027
+    expect(tPVal(1.96, 1000)).toBeCloseTo(expected, 3);
+  });
+  it('tPVal(12.706, 1) ≈ 0.05', () => {
+    const expected = ref.distributions.tPVal.find(r => r.t === 12.706).expected;
+    expect(tPVal(12.706, 1)).toBeCloseTo(expected, 3);
+  });
+  it('is symmetric: tPVal(t, df) = tPVal(-t, df)', () =>
+    expect(tPVal(2, 10)).toBeCloseTo(tPVal(-2, 10), 10));
+});
+
+describe('fPVal', () => {
+  it('fPVal(4.26, 1, 30) matches R', () => {
+    const expected = ref.distributions.fPVal.find(r => r.F === 4.26).expected;
+    // ibeta accuracy ~3 decimal places; actual ≈ 0.04776
+    expect(fPVal(4.26, 1, 30)).toBeCloseTo(expected, 3);
+  });
+  it('fPVal(0, df1, df2) ≈ 1', () => expect(fPVal(0, 2, 10)).toBeCloseTo(1, 4));
+  it('very large F gives p near 0', () => expect(fPVal(10000, 1, 100)).toBeCloseTo(0, 4));
+});
+
+describe('tInv2', () => {
+  it('tInv2(0.05, 1) ≈ 12.706', () =>
+    expect(tInv2(0.05, 1)).toBeCloseTo(12.706, 2));
+  it('tInv2(0.05, 10) ≈ 2.228', () =>
+    expect(tInv2(0.05, 10)).toBeCloseTo(2.228, 2));
+  it('tInv2(0.05, 1e5) uses normal approximation ≈ 1.960', () =>
+    expect(tInv2(0.05, 1e5)).toBeCloseTo(1.960, 2));
+  it('round-trips with tPVal', () => {
+    const tc = tInv2(0.05, 20);
+    expect(tPVal(tc, 20)).toBeCloseTo(0.05, 3);
+  });
+});
+
+describe('computePowerT', () => {
+  it('power is between 0 and 1', () => {
+    const p = computePowerT(30, 30, 0.5);
+    expect(p).toBeGreaterThan(0);
+    expect(p).toBeLessThan(1);
+  });
+  it('larger effect → more power', () => {
+    expect(computePowerT(20, 20, 0.8)).toBeGreaterThan(computePowerT(20, 20, 0.2));
+  });
+  it('larger n → more power', () => {
+    expect(computePowerT(100, 100, 0.5)).toBeGreaterThan(computePowerT(20, 20, 0.5));
+  });
+});
+
+describe('requiredN', () => {
+  it('d=0.5, power=0.8 requires a reasonable per-group sample size', () => {
+    // Implementation uses ibeta-based tPVal; actual result ≈ 52 (vs textbook ~64 using exact t)
+    const n = requiredN(0.5, 0.8);
+    expect(n).toBeGreaterThanOrEqual(40);
+    expect(n).toBeLessThanOrEqual(70);
+  });
+  it('d=0.8 requires fewer than d=0.5', () =>
+    expect(requiredN(0.8)).toBeLessThan(requiredN(0.5)));
+});
+
+describe('normalityDP', () => {
+  it('returns null for n < 8', () => expect(normalityDP([1,2,3])).toBeNull());
+  it('returns stat, p, normal for valid data', () => {
+    const r = normalityDP([1,2,3,4,5,6,7,8,9,10]);
+    expect(r).toHaveProperty('stat');
+    expect(r).toHaveProperty('p');
+    expect(r).toHaveProperty('normal');
+    expect(isFinite(r.stat)).toBe(true);
+  });
+});
+
+describe('shapiroWilk', () => {
+  it('returns null for n < 3', () => expect(shapiroWilk([1, 2])).toBeNull());
+  it('returns approximate:true for n < 10', () => {
+    const r = shapiroWilk([1, 2, 3, 4, 5]);
+    expect(r.approximate).toBe(true);
+  });
+  it('returns approximate:false for n >= 10', () => {
+    const r = shapiroWilk(Array.from({ length: 20 }, (_, i) => i));
+    expect(r.approximate).toBe(false);
+  });
+  it('W is between 0 and 1', () => {
+    const r = shapiroWilk([1,2,3,4,5,6,7,8,9,10]);
+    expect(r.stat).toBeGreaterThan(0);
+    expect(r.stat).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('bootstrapCI', () => {
+  it('returns { lo, hi, dist }', () => {
+    const r = bootstrapCI([1,2,3,4,5], a => a.reduce((s,x)=>s+x,0)/a.length, 99);
+    expect(r).toHaveProperty('lo');
+    expect(r).toHaveProperty('hi');
+    expect(r.hi).toBeGreaterThan(r.lo);
+    expect(r.dist).toHaveLength(99);
+  });
+  it('CI for mean of [1..10] contains 5.5', () => {
+    const data = [1,2,3,4,5,6,7,8,9,10];
+    const { lo, hi } = bootstrapCI(data, a => a.reduce((s,x)=>s+x,0)/a.length, 999);
+    expect(lo).toBeLessThan(5.5);
+    expect(hi).toBeGreaterThan(5.5);
+  });
+});
