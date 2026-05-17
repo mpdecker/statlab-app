@@ -21,13 +21,11 @@ describe('normalCDF', () => {
   it('normalCDF(0) = 0.5', () => expect(normalCDF(0)).toBeCloseTo(0.5, 10));
   it('normalCDF(1.96) matches R pnorm(1.96)', () => {
     const expected = ref.distributions.normalCDF.find(r => r.z === 1.96).expected;
-    // polynomial approximation (|z|<3) accurate to ~2 decimal places; actual ≈ 0.9848
-    expect(normalCDF(1.96)).toBeCloseTo(expected, 1);
+    expect(normalCDF(1.96)).toBeCloseTo(expected, 4);
   });
   it('normalCDF(-1.96) matches R pnorm(-1.96)', () => {
     const expected = ref.distributions.normalCDF.find(r => r.z === -1.96).expected;
-    // polynomial approximation (|z|<3) accurate to ~2 decimal places; actual ≈ 0.0152
-    expect(normalCDF(-1.96)).toBeCloseTo(expected, 1);
+    expect(normalCDF(-1.96)).toBeCloseTo(expected, 4);
   });
   it('normalCDF(3.5) accurate in right tail', () => {
     const expected = ref.distributions.normalCDF.find(r => r.z === 3.5).expected;
