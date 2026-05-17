@@ -1,5 +1,5 @@
-import { avg, sampleVar, sampleSD, winsorize, trimmedMean, corr, effD } from '../math/core.js';
-import { tPVal, tInv2, normalCDF, computePowerT, requiredN, lnBinom, fmtP } from '../math/distributions.js';
+import { avg, sampleVar, sampleSD, winsorize, trimmedMean, corr, effD, fmtP } from '../math/core.js';
+import { tPVal, tInv2, normalCDF, computePowerT, requiredN, lnBinom } from '../math/distributions.js';
 
 // ── Welch two-sample t-test ───────────────────────────────────────────────────
 export function tWelch(a, b) {
