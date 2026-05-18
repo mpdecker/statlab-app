@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { C } from '../palette.js';
 import { TREE } from '../config/tree.js';
 import { InferenceConfig } from './InferenceConfig.jsx';
@@ -54,7 +54,7 @@ function Navigator({ active, setActive }) {
 }
 
 // ── Main panel ────────────────────────────────────────────────────────────────
-export function InferencePanel({ data, ds, active, setActive }) {
+export function InferencePanel({ data, ds, active, setActive, onResultChange }) {
   const numeric     = ds?.numeric     || [];
   const categorical = ds?.categorical || [];
 
@@ -217,6 +217,11 @@ export function InferencePanel({ data, ds, active, setActive }) {
     nFactors, ssType, ssPow, ssD, ssR, effFrom, effVal, pairsInput, corrMeth,
     numeric, groups, leveneTest, bartlettTest,
   ]);
+
+  useEffect(() => {
+    if (active === 'bootstrap' && bsResult) onResultChange?.(bsResult);
+    else onResultChange?.(result);
+  }, [result, bsResult, active, onResultChange]);
 
   // ── config state bundle (passed to InferenceConfig) ────────────────────────
   const configState = {

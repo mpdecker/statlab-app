@@ -7,6 +7,7 @@ import {
   ReferenceLine, ErrorBar,
 } from 'recharts';
 import { CTip } from './ui.jsx';
+import { fitOLS } from '../utils/vizHelpers.js';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
@@ -366,32 +367,37 @@ function corrColor(r) {
   return `rgba(255,77,109,${0.1 + 0.75 * t})`;
 }
 
-export function HeatmapCorr({ matrix, labels, width = 240, height = 240, onCellClick }) {
-  if (!matrix?.length || !labels?.length) return null;
-  const n = labels.length;
+export function HeatmapCorr({ matrix, labels, rowLabels, width = 240, height = 240, onCellClick }) {
+  if (!matrix?.length) return null;
+  const rowLabs = rowLabels ?? labels;
+  const colLabs = labels ?? rowLabels;
+  if (!rowLabs?.length || !colLabs?.length) return null;
+  const nR = rowLabs.length;
+  const nC = colLabs.length;
   const labelW = 60, pad = 4;
-  const cellSize = (Math.min(width, height) - labelW - pad) / n;
+  const cellW = (width - labelW - pad) / nC;
+  const cellH = (height - pad - 16) / nR;
   return (
     <svg width={width} height={height}>
-      {labels.map((l, i) => (
-        <text key={`yl${i}`} x={labelW - 4} y={pad + i * cellSize + cellSize / 2 + 4}
+      {rowLabs.map((l, i) => (
+        <text key={`yl${i}`} x={labelW - 4} y={pad + 16 + i * cellH + cellH / 2 + 4}
           textAnchor="end" fontSize={9} fill="#555">{l}</text>
       ))}
-      {labels.map((l, j) => (
-        <text key={`xl${j}`} x={labelW + j * cellSize + cellSize / 2} y={pad + 10}
+      {colLabs.map((l, j) => (
+        <text key={`xl${j}`} x={labelW + j * cellW + cellW / 2} y={pad + 10}
           textAnchor="middle" fontSize={9} fill="#555">{l}</text>
       ))}
       {matrix.map((row, i) => row.map((val, j) => (
-        <g key={`${i}-${j}`} onClick={() => onCellClick?.({ row: labels[i], col: labels[j], r: val })}
+        <g key={`${i}-${j}`} onClick={() => onCellClick?.({ row: rowLabs[i], col: colLabs[j], r: val })}
           style={{ cursor: onCellClick ? 'pointer' : 'default' }}>
           <rect
-            x={labelW + j * cellSize} y={pad + 16 + i * cellSize}
-            width={cellSize - 2} height={cellSize - 2}
+            x={labelW + j * cellW} y={pad + 16 + i * cellH}
+            width={cellW - 2} height={cellH - 2}
             fill={corrColor(val)} rx={2}
           />
-          <text x={labelW + j * cellSize + cellSize / 2} y={pad + 16 + i * cellSize + cellSize / 2 + 4}
+          <text x={labelW + j * cellW + cellW / 2} y={pad + 16 + i * cellH + cellH / 2 + 4}
             textAnchor="middle" fontSize={9} fill="#ccc">
-            {val.toFixed(2)}
+            {Number(val).toFixed(2)}
           </text>
         </g>
       )))}
@@ -461,6 +467,29 @@ export function QuickScatter({ data, xVar, yVar, colorVar, colorMap, groups }) {
         <YAxis dataKey="y" type="number" tick={axTick} stroke={C.border} label={{ value: yVar, angle: -90, position: "insideLeft", offset: 8, fill: C.dim, fontSize: 8 }} />
         <Tooltip content={<CTip />} />
         {scData.map(s => <Scatter key={s.name} name={s.name} data={s.pts} fill={s.color} opacity={.7} r={3} />)}
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function QuickScatterFit({ data, xVar, yVar, colorVar, colorMap, groups }) {
+  const axTick = { fontSize: 9, fill: C.dim, ...mono };
+  const valid = data.filter(r => !isNaN(+r[xVar]) && !isNaN(+r[yVar]));
+  const xs = valid.map(r => +r[xVar]);
+  const ys = valid.map(r => +r[yVar]);
+  const fit = fitOLS(xs, ys);
+  const scData = colorVar && colorVar !== '(none)'
+    ? (groups || []).map(g => ({ name: g, color: colorMap?.[g] || PAL[0], pts: valid.filter(r => r[colorVar] === g).map(r => ({ x: +r[xVar], y: +r[yVar] })) }))
+    : [{ name: 'all', color: PAL[0], pts: valid.map(r => ({ x: +r[xVar], y: +r[yVar] })) }];
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart margin={{ top: 4, right: 4, bottom: 18, left: 4 }}>
+        <CartesianGrid stroke={C.border} strokeOpacity={.4} />
+        <XAxis dataKey="x" type="number" tick={axTick} stroke={C.border} />
+        <YAxis dataKey="y" type="number" tick={axTick} stroke={C.border} />
+        <Tooltip content={<CTip />} />
+        {scData.map(s => <Scatter key={s.name} data={s.pts} fill={s.color} opacity={.65} r={3} />)}
+        {fit && <RLine data={fit.line} dataKey="y" stroke={C.accent} strokeWidth={2} dot={false} name={`fit r=${fit.r.toFixed(2)}`} />}
       </ComposedChart>
     </ResponsiveContainer>
   );

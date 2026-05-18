@@ -7,7 +7,8 @@ import { computeStats, corr, sampleSD } from './math/core.js';
 import { InferencePanel } from './components/InferencePanel.jsx';
 import ExplorePanel from './components/ExplorePanel.jsx';
 import {
-  QuickScatter, ViolinPlot, BarCI, HistogramDensity, HeatmapCorr, MosaicPlot, PowerCurve,
+  QuickScatter, QuickScatterFit, ViolinPlot, BarCI, HistogramDensity, HeatmapCorr, MosaicPlot,
+  PowerCurve, PathDiagram, ForestPlot, QQPlot, ScreePlot, ResidualPlot, BootstrapHist,
 } from './components/charts.jsx';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -24,12 +25,17 @@ const CHART_ICONS = [
 const MODE_TO_EXPLORE_LABEL = {
   violin: 'Violin',
   scatter: 'Scatter+fit',
+  scatterfit: 'Scatter+fit',
   histogram: 'Histogram',
   barci: 'Bar+CI',
   heatmap: 'Correlogram',
   mosaic: 'Mosaic',
   loading: 'Load. heatmap',
   forest: 'Scatter+fit',
+  path: 'Scatter+fit',
+  qq: 'Histogram',
+  scree: 'PCA biplot',
+  residual: 'Scatter+fit',
   power: 'Histogram',
 };
 
@@ -54,8 +60,11 @@ function computeCorrMatrix(data, vars) {
   }));
 }
 
-function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, groups }) {
+function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, groups, inferenceResult, activeTest }) {
   const numVals = (col) => data.map(r => +r[col]).filter(v => !isNaN(v));
+  const emptyHint = (msg) => (
+    <div style={{ padding: 12, fontSize: 9, color: C.dim, ...mono, textAlign: 'center', lineHeight: 1.5 }}>{msg}</div>
+  );
   switch (mode) {
     case 'violin': {
       const gVar = colorVar && colorVar !== '(none)' ? colorVar : null;
@@ -82,6 +91,36 @@ function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, grou
           colorMap={colorMap} groups={groups}
         />
       );
+    case 'scatterfit':
+      return (
+        <QuickScatterFit
+          data={data} xVar={xVar} yVar={yVar}
+          colorVar={colorVar !== '(none)' ? colorVar : null}
+          colorMap={colorMap} groups={groups}
+        />
+      );
+    case 'path':
+      return inferenceResult && activeTest === 'mediation'
+        ? <PathDiagram r={inferenceResult} />
+        : emptyHint('Run Mediation in Inference to see the path diagram.');
+    case 'forest':
+      return inferenceResult?.studies?.length
+        ? <ForestPlot items={inferenceResult.studies.map(s => ({ label: s.label, est: s.d, lo: s.d - 1.96 * s.se, hi: s.d + 1.96 * s.se, p: s.p }))} />
+        : emptyHint('Enter study effects in Meta-analysis, then run.');
+    case 'qq':
+      return <QQPlot vals={numVals(yVar || xVar)} label={yVar || xVar} />;
+    case 'scree':
+      return inferenceResult?.eigenvalues?.length
+        ? <ScreePlot eigenvalues={inferenceResult.eigenvalues} />
+        : emptyHint('Run PCA with scale variables selected.');
+    case 'residual':
+      return inferenceResult?.fitted && inferenceResult?.residuals
+        ? <ResidualPlot fitted={inferenceResult.fitted} residuals={inferenceResult.residuals} />
+        : emptyHint('Run Simple OLS to view residuals vs fitted.');
+    case 'boot':
+      return inferenceResult?.dist
+        ? <BootstrapHist dist={inferenceResult.dist} lo={inferenceResult.lo} hi={inferenceResult.hi} />
+        : <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
     case 'histogram':
       return <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
     case 'barci':
@@ -106,7 +145,7 @@ function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, grou
 }
 
 // ── Header ────────────────────────────────────────────────────────────────────
-function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uploadMsg, xVar, setXVar, yVar, setYVar, colorVar, setColorVar, ds, data }) {
+function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uploadMsg, datasetStatus, xVar, setXVar, yVar, setYVar, colorVar, setColorVar, ds, data }) {
   const numeric     = ds?.numeric     || [];
   const categorical = ds?.categorical || [];
   return (
@@ -180,17 +219,21 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
             </select>
           </div>
         ))}
-        <span style={{ fontSize: 9, color: C.dim, ...mono }}>n={data.length} · {ds?.desc}</span>
+        <span style={{ fontSize: 9, color: datasetStatus === 'loading' ? C.warn : C.dim, ...mono }}>
+          {datasetStatus === 'loading' ? 'loading dataset…' : `n=${data.length} · ${ds?.desc}`}
+        </span>
       </div>
     </div>
   );
 }
 
 // ── Quick-view sidebar ────────────────────────────────────────────────────────
-function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setChartMode }) {
+function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setChartMode, inferenceResult }) {
   const groups   = useMemo(() => colorVar && colorVar !== '(none)' ? [...new Set(data.map(r => r[colorVar]))] : [], [data, colorVar]);
   const colorMap = useMemo(() => Object.fromEntries(groups.map((g, i) => [g, PAL[i % PAL.length]])), [groups]);
-  const effectiveMode = chartMode ?? (CHART_FOR_TEST[activeTest] ?? 'scatter');
+  const autoMode = CHART_FOR_TEST[activeTest] ?? 'scatter';
+  const effectiveMode = chartMode ?? autoMode;
+  const isAuto = chartMode == null;
   const xStats = useMemo(() => computeStats(data.map(r => +r[xVar]).filter(v => !isNaN(v))), [data, xVar]);
   const yStats = useMemo(() => computeStats(data.map(r => +r[yVar]).filter(v => !isNaN(v))), [data, yVar]);
   const pearsonR = useMemo(() => {
@@ -208,7 +251,10 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
         Quick View · {xVar} × {yVar}
       </div>
 
-      <div style={{ padding: '4px 6px', display: 'flex', gap: 4, flexWrap: 'wrap', borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ padding: '4px 6px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', borderBottom: `1px solid ${C.border}` }}>
+        {isAuto && (
+          <span style={{ fontSize: 7, color: C.accent, ...mono, padding: '2px 5px', border: `1px solid ${C.accent}`, borderRadius: 2, letterSpacing: '.08em' }}>AUTO</span>
+        )}
         {CHART_ICONS.map(({ id, label }) => (
           <button
             key={id}
@@ -231,7 +277,7 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
           {/* Subtle grid */}
           <div style={{ position: 'absolute', inset: 0, opacity: .15, backgroundImage: `linear-gradient(${C.border} 1px,transparent 1px),linear-gradient(90deg,${C.border} 1px,transparent 1px)`, backgroundSize: '30px 30px', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>
-            {renderQuickChart({ mode: effectiveMode, data, xVar, yVar, colorVar, ds, colorMap, groups })}
+            {renderQuickChart({ mode: effectiveMode, data, xVar, yVar, colorVar, ds, colorMap, groups, inferenceResult, activeTest })}
           </div>
         </div>
       </div>
@@ -285,6 +331,8 @@ export default function App() {
   const [chartMode, setChartMode] = useState(null);
   const [activeTab, setActiveTab] = useState('inference');
   const [exploreSeed, setExploreSeed] = useState(null);
+  const [inferenceResult, setInferenceResult] = useState(null);
+  const [datasetStatus, setDatasetStatus] = useState('ready');
   const fileRef = useRef();
 
   useEffect(() => { setChartMode(null); }, [activeTest]);
@@ -306,11 +354,24 @@ export default function App() {
     setYVar(d.numeric[1] || d.numeric[0]);
     setColorVar(d.categorical[0] || '(none)');
     if (d.url) {
-      loadDataset(key).then(() => setDataVersion(v => v + 1));
+      setDatasetStatus('loading');
+      loadDataset(key)
+        .then(() => { setDataVersion(v => v + 1); setDatasetStatus('ready'); })
+        .catch(() => setDatasetStatus('error'));
     } else {
+      setDatasetStatus('ready');
       setDataVersion(v => v + 1);
     }
   }, []);
+
+  useEffect(() => {
+    const entry = BUILTIN[dsKey];
+    if (!entry?.url || _cache[dsKey]) return;
+    setDatasetStatus('loading');
+    loadDataset(dsKey)
+      .then(() => { setDataVersion(v => v + 1); setDatasetStatus('ready'); })
+      .catch(() => setDatasetStatus('error'));
+  }, [dsKey]);
 
   const handleTabSwitch = useCallback(tab => {
     if (tab === 'explore' && activeTab === 'inference') {
@@ -368,7 +429,7 @@ export default function App() {
       <Header
         dsKey={dsKey} setDsKey={setDsKey}
         customDef={customDef} switchDs={switchDs}
-        fileRef={fileRef} handleCSV={handleCSV} uploadMsg={uploadMsg}
+        fileRef={fileRef} handleCSV={handleCSV} uploadMsg={uploadMsg} datasetStatus={datasetStatus}
         xVar={xVar} setXVar={setXVar}
         yVar={yVar} setYVar={setYVar}
         colorVar={colorVar} setColorVar={setColorVar}
@@ -388,6 +449,7 @@ export default function App() {
           activeTest={activeTest}
           chartMode={chartMode}
           setChartMode={setChartMode}
+          inferenceResult={inferenceResult}
         />
 
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -413,7 +475,10 @@ export default function App() {
                 ⊢ 55 statistical tests · mediation · moderation · TOST · Bayes · PCA/EFA · ICC · meta-analysis · DiD · APA 7 output
               </div>
               <div style={{ flex: 1, overflow: 'hidden' }}>
-                <InferencePanel data={data} ds={ds} active={activeTest} setActive={setActiveTest} />
+                <InferencePanel
+                  data={data} ds={ds} active={activeTest} setActive={setActiveTest}
+                  onResultChange={(r) => setInferenceResult(r)}
+                />
               </div>
             </>
           )}

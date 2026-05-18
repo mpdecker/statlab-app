@@ -3,6 +3,7 @@ import {
   Scatter, ScatterChart, BarChart, ReferenceLine, ErrorBar,
 } from 'recharts';
 import { ViolinPlot, BoxPlot, HeatmapCorr, MosaicPlot } from './charts.jsx';
+import { fitOLS } from '../utils/vizHelpers.js';
 
 function histBins(values, nBins = 20) {
   const min = Math.min(...values), max = Math.max(...values);
@@ -146,13 +147,17 @@ export function ExECDF({ data, xVar, width = 400, height = 240 }) {
 
 export function ExScatterFit({ data, xVar, yVar, groupVar, width = 400, height = 280 }) {
   const points = data.map(r => ({ x: r[xVar], y: r[yVar], g: r[groupVar] })).filter(p => typeof p.x === 'number' && typeof p.y === 'number');
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  const fit = fitOLS(xs, ys);
   return (
     <ResponsiveContainer width={width} height={height}>
-      <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
+      <ComposedChart margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
         <XAxis dataKey="x" type="number" name={xVar} tick={{ fill: '#555', fontSize: 9 }} />
         <YAxis dataKey="y" type="number" name={yVar} tick={{ fill: '#555', fontSize: 9 }} />
         <Scatter data={points} fill="#c4ff00" fillOpacity={0.6} r={3} />
-      </ScatterChart>
+        {fit && <Line data={fit.line} dataKey="y" stroke="#4daaff" strokeWidth={2} dot={false} name={`r=${fit.r.toFixed(3)}`} />}
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }
@@ -512,7 +517,7 @@ export function ExLoadingHeatmap({ data, vars, width = 360, height = 280 }) {
   const cov2 = cov.map((row, i) => row.map((c, j) => c - pc1[i] * pc1[j] * cov.reduce((s, r, k) => s + r[k], 0)));
   const pc2 = powerIterationPC1(cov2);
   const loadings = [pc1, pc2];
-  return <HeatmapCorr matrix={loadings.map(pc => pc)} labels={vars} width={width} height={height} />;
+  return <HeatmapCorr matrix={loadings} labels={['PC1', 'PC2']} rowLabels={vars} width={width} height={height} />;
 }
 
 export function ExDendrogram({ data, vars, width = 400, height = 320 }) {

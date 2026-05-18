@@ -1,4 +1,8 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import {
+  getChartInsight, exportSvgFromCanvas,
+  EXPLORE_CHARTS_XY, EXPLORE_CHARTS_SIZE, EXPLORE_CHARTS_CAT_PAIR,
+} from '../utils/vizHelpers.js';
 import {
   ExHistogram, ExViolin, ExBox, ExRainCloud, ExECDF,
   ExScatterFit, ExCorrelogram, ExBubble, ExScatterMatrix,
@@ -17,12 +21,12 @@ const CHART_SECTIONS = [
   { label: 'Multivariate', charts: ['PCA biplot', 'Load. heatmap', 'Dendrogram', 'Silhouette'] },
 ];
 
-function renderChart({ chart, data, includeVars, groupVar, canvasSize, onBridgeToInference }) {
+function renderChart({ chart, data, includeVars, groupVar, xVar, yVar, sizeVar, canvasSize, onBridgeToInference }) {
   const { w, h } = canvasSize;
-  const firstNum = includeVars.find(v => data[0] && typeof data[0][v] === 'number');
-  const secondNum = includeVars.filter(v => data[0] && typeof data[0][v] === 'number')[1];
-  const gv = groupVar !== '(none)' ? groupVar : undefined;
   const numVars = includeVars.filter(v => data[0] && typeof data[0][v] === 'number');
+  const firstNum = xVar || numVars[0];
+  const secondNum = yVar || numVars[1];
+  const gv = groupVar !== '(none)' ? groupVar : undefined;
 
   switch (chart) {
     case 'Histogram': return <ExHistogram data={data} xVar={firstNum} groupVar={gv} width={w} height={h} />;
@@ -35,7 +39,7 @@ function renderChart({ chart, data, includeVars, groupVar, canvasSize, onBridgeT
       <ExCorrelogram data={data} vars={numVars} width={w} height={h}
         onCellClick={({ row, col }) => onBridgeToInference?.({ row, col })} />
     );
-    case 'Bubble': return <ExBubble data={data} xVar={firstNum} yVar={secondNum} sizeVar={includeVars[2]} groupVar={gv} width={w} height={h} />;
+    case 'Bubble': return <ExBubble data={data} xVar={firstNum} yVar={secondNum} sizeVar={sizeVar || numVars[2]} groupVar={gv} width={w} height={h} />;
     case 'Scatt. matrix': return <ExScatterMatrix data={data} vars={numVars.slice(0, 5)} width={w} height={h} />;
     case 'Bar+CI': return <ExBarCI data={data} xVar={gv ?? includeVars[0]} yVar={firstNum} width={w} height={h} />;
     case 'Dot+CI': return <ExDotCI data={data} xVar={gv ?? includeVars[0]} yVar={firstNum} width={w} height={h} />;
@@ -56,10 +60,22 @@ function renderChart({ chart, data, includeVars, groupVar, canvasSize, onBridgeT
 }
 
 export default function ExplorePanel({ data, ds, seed, onBridgeToInference }) {
-  const [activeChart, setActiveChart] = useState(seed?.chartLabel ?? seed?.chartType ?? 'Scatter+fit');
+  const [activeChart, setActiveChart] = useState(seed?.chartLabel ?? 'Scatter+fit');
   const [includeVars, setIncludeVars] = useState(seed?.includeVars ?? []);
   const [groupVar, setGroupVar] = useState(seed?.groupVar ?? '(none)');
+  const [xVar, setXVar] = useState(seed?.xVar ?? '');
+  const [yVar, setYVar] = useState(seed?.yVar ?? '');
+  const [sizeVar, setSizeVar] = useState('');
   const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (!seed) return;
+    if (seed.chartLabel) setActiveChart(seed.chartLabel);
+    if (seed.includeVars?.length) setIncludeVars(seed.includeVars);
+    if (seed.groupVar) setGroupVar(seed.groupVar);
+    if (seed.xVar) setXVar(seed.xVar);
+    if (seed.yVar) setYVar(seed.yVar);
+  }, [seed]);
 
   const cols = useMemo(() => {
     if (!data?.length) return [];
@@ -68,22 +84,25 @@ export default function ExplorePanel({ data, ds, seed, onBridgeToInference }) {
 
   const catCols = useMemo(() => cols.filter(c => typeof data[0]?.[c] === 'string' || typeof data[0]?.[c] === 'boolean'), [cols, data]);
 
+  const numCols = useMemo(() => cols.filter(c => typeof data[0]?.[c] === 'number'), [cols, data]);
+
   const effectiveInclude = includeVars.length
     ? includeVars
-    : (ds?.numeric?.length ? ds.numeric : cols.filter(c => typeof data[0]?.[c] === 'number')).slice(0, Math.min(5, cols.length));
+    : (ds?.numeric?.length ? ds.numeric : numCols).slice(0, Math.min(6, cols.length));
+
+  const effectiveX = xVar || effectiveInclude.find(c => typeof data[0]?.[c] === 'number') || '';
+  const effectiveY = yVar || effectiveInclude.filter(c => typeof data[0]?.[c] === 'number')[1] || effectiveX;
+
+  const insight = useMemo(() => getChartInsight(activeChart, {
+    data, xVar: effectiveX, yVar: effectiveY, groupVar,
+    numVars: effectiveInclude.filter(c => typeof data[0]?.[c] === 'number'),
+  }), [activeChart, data, effectiveX, effectiveY, groupVar, effectiveInclude]);
+
+  const showXY = EXPLORE_CHARTS_XY.has(activeChart);
+  const showSize = EXPLORE_CHARTS_SIZE.has(activeChart);
 
   const handleExportSVG = () => {
-    const svgEl = canvasRef.current?.querySelector('svg');
-    if (!svgEl) return;
-    const serializer = new XMLSerializer();
-    const svgStr = serializer.serializeToString(svgEl);
-    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `statlab-${activeChart.toLowerCase().replace(/\s+/g, '-')}.svg`;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportSvgFromCanvas(canvasRef.current, `statlab-${activeChart.toLowerCase().replace(/\s+/g, '-')}.svg`);
   };
 
   return (
@@ -146,6 +165,34 @@ export default function ExplorePanel({ data, ds, seed, onBridgeToInference }) {
               {catCols.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+          {showXY && (
+            <>
+              <div style={{ padding: '5px 8px' }}>
+                <div style={{ fontSize: 7, color: '#444', textTransform: 'uppercase', marginBottom: 2 }}>X</div>
+                <select style={{ width: '100%', background: '#111', border: '1px solid #333', color: '#c4ff00', fontSize: 9, fontFamily: 'IBM Plex Mono, monospace', padding: '3px 5px', borderRadius: 2 }}
+                  value={effectiveX} onChange={e => setXVar(e.target.value)}>
+                  {numCols.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{ padding: '5px 8px' }}>
+                <div style={{ fontSize: 7, color: '#444', textTransform: 'uppercase', marginBottom: 2 }}>Y</div>
+                <select style={{ width: '100%', background: '#111', border: '1px solid #333', color: '#c4ff00', fontSize: 9, fontFamily: 'IBM Plex Mono, monospace', padding: '3px 5px', borderRadius: 2 }}
+                  value={effectiveY} onChange={e => setYVar(e.target.value)}>
+                  {numCols.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </>
+          )}
+          {showSize && (
+            <div style={{ padding: '5px 8px' }}>
+              <div style={{ fontSize: 7, color: '#444', textTransform: 'uppercase', marginBottom: 2 }}>Size</div>
+              <select style={{ width: '100%', background: '#111', border: '1px solid #333', color: '#c4ff00', fontSize: 9, fontFamily: 'IBM Plex Mono, monospace', padding: '3px 5px', borderRadius: 2 }}
+                value={sizeVar} onChange={e => setSizeVar(e.target.value)}>
+                <option value="">(auto)</option>
+                {numCols.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
         </div>
 
         <button
@@ -163,18 +210,26 @@ export default function ExplorePanel({ data, ds, seed, onBridgeToInference }) {
           {effectiveInclude.length ? ` · ${effectiveInclude.join(' · ')}` : ''}
           {groupVar !== '(none)' ? ` · grouped by ${groupVar}` : ''}
         </div>
-        <div ref={canvasRef} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflow: 'auto' }}>
+        <div ref={canvasRef} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 12, overflow: 'auto' }}>
           {data?.length
             ? renderChart({
               chart: activeChart,
               data,
               includeVars: effectiveInclude,
               groupVar,
-              canvasSize: { w: 560, h: 400 },
+              xVar: effectiveX,
+              yVar: effectiveY,
+              sizeVar,
+              canvasSize: { w: 560, h: 360 },
               onBridgeToInference,
             })
             : <span style={{ color: '#333', fontSize: 10 }}>No data loaded</span>
           }
+          {insight && data?.length > 0 && (
+            <div style={{ marginTop: 8, maxWidth: 520, padding: '6px 10px', background: 'rgba(196,255,0,.04)', border: '1px solid rgba(196,255,0,.15)', borderRadius: 3, fontSize: 8, color: '#888', lineHeight: 1.45, fontFamily: 'IBM Plex Mono, monospace' }}>
+              {insight}
+            </div>
+          )}
         </div>
       </div>
     </div>

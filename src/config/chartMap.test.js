@@ -6,8 +6,8 @@ describe('CHART_FOR_TEST', () => {
     expect(CHART_FOR_TEST.t_welch).toBe('violin');
   });
 
-  test('maps pearson to scatter', () => {
-    expect(CHART_FOR_TEST.pearson).toBe('scatter');
+  test('maps pearson to scatterfit', () => {
+    expect(CHART_FOR_TEST.pearson).toBe('scatterfit');
   });
 
   test('maps chisq to mosaic', () => {
