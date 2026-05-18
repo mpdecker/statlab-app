@@ -54,7 +54,7 @@ function Navigator({ active, setActive }) {
 }
 
 // ── Main panel ────────────────────────────────────────────────────────────────
-export function InferencePanel({ data, ds, active, setActive, onResultChange }) {
+export function InferencePanel({ data, ds, active, setActive, onResultChange, onContextChange }) {
   const numeric     = ds?.numeric     || [];
   const categorical = ds?.categorical || [];
 
@@ -222,6 +222,12 @@ export function InferencePanel({ data, ds, active, setActive, onResultChange }) 
     if (active === 'bootstrap' && bsResult) onResultChange?.(bsResult);
     else onResultChange?.(result);
   }, [result, bsResult, active, onResultChange]);
+
+  useEffect(() => {
+    onContextChange?.({
+      active, grpVar, tgtVar, g1, g2, xVar, yVar, zVar, cat1, cat2, scaleVars,
+    });
+  }, [active, grpVar, tgtVar, g1, g2, xVar, yVar, zVar, cat1, cat2, scaleVars, onContextChange]);
 
   // ── config state bundle (passed to InferenceConfig) ────────────────────────
   const configState = {

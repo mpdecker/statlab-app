@@ -13,4 +13,8 @@ describe('CHART_FOR_TEST', () => {
   test('maps chisq to mosaic', () => {
     expect(CHART_FOR_TEST.chisq).toBe('mosaic');
   });
+
+  test('maps moderation to slopes', () => {
+    expect(CHART_FOR_TEST.moderation).toBe('slopes');
+  });
 });

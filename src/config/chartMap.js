@@ -30,7 +30,7 @@ export const CHART_FOR_TEST = {
   logistic: 'scatterfit',
   mediation: 'path',
   med_bootstrap: 'histogram',
-  moderation: 'scatterfit',
+  moderation: 'slopes',
 
   chisq: 'mosaic',
   chigof: 'histogram',

@@ -2,7 +2,7 @@
 import React from 'react';
 import { describe, test, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import { ViolinPlot, BoxPlot, BarCI, HeatmapCorr } from './charts.jsx';
+import { ViolinPlot, BoxPlot, BarCI, HeatmapCorr, QuickSlopes } from './charts.jsx';
 
 describe('charts', () => {
   test('ViolinPlot renders an SVG', () => {
@@ -19,6 +19,12 @@ describe('charts', () => {
     const groups = [{ name: 'A', mean: 5, se: 0.5 }, { name: 'B', mean: 8, se: 0.7 }];
     const { container } = render(<BarCI groups={groups} width={300} height={200} />);
     expect(container.querySelector('.recharts-bar')).toBeTruthy();
+  });
+
+  test('QuickSlopes renders bars for simple slopes', () => {
+    const slopes = [{ z: 'Z-1SD', slope: 0.2 }, { z: 'Z̄', slope: 0.5 }, { z: 'Z+1SD', slope: 0.8 }];
+    const { container } = render(<QuickSlopes slopes={slopes} />);
+    expect(container.querySelectorAll('rect').length).toBe(3);
   });
 
   test('HeatmapCorr renders n×n SVG cells', () => {

@@ -1,25 +1,31 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import Papa from 'papaparse';
 import { FONTS, GLOBAL_CSS, C, PAL } from './palette.js';
-import { BUILTIN, detectCols, loadDataset, _cache } from './data/datasets.js';
+import { BUILTIN, detectCols, loadDataset, _cache, DATASET_DEFAULTS } from './data/datasets.js';
+import {
+  resolveQuickViewVars, barGroupsFromResult, loadingFromResult,
+  formatInferenceSummary, CHART_MODE_LABELS,
+} from './utils/vizHelpers.js';
 import { CHART_FOR_TEST } from './config/chartMap.js';
-import { computeStats, corr, sampleSD } from './math/core.js';
+import { computeStats, corr } from './math/core.js';
 import { InferencePanel } from './components/InferencePanel.jsx';
 import ExplorePanel from './components/ExplorePanel.jsx';
 import {
   QuickScatter, QuickScatterFit, ViolinPlot, BarCI, HistogramDensity, HeatmapCorr, MosaicPlot,
   PowerCurve, PathDiagram, ForestPlot, QQPlot, ScreePlot, ResidualPlot, BootstrapHist,
+  QuickSlopes, BoxPlotGrid,
 } from './components/charts.jsx';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
 const CHART_ICONS = [
-  { id: 'violin', label: '♪' },
-  { id: 'scatter', label: '⊹' },
-  { id: 'histogram', label: '▦' },
-  { id: 'barci', label: '⊟' },
-  { id: 'heatmap', label: '⊞' },
-  { id: 'mosaic', label: '⊠' },
+  { id: 'violin', label: '♪', title: 'Violin' },
+  { id: 'box', label: '▤', title: 'Box plot' },
+  { id: 'scatter', label: '⊹', title: 'Scatter' },
+  { id: 'histogram', label: '▦', title: 'Histogram' },
+  { id: 'barci', label: '⊟', title: 'Bar + CI' },
+  { id: 'heatmap', label: '⊞', title: 'Correlogram' },
+  { id: 'mosaic', label: '⊠', title: 'Mosaic' },
 ];
 
 const MODE_TO_EXPLORE_LABEL = {
@@ -37,17 +43,10 @@ const MODE_TO_EXPLORE_LABEL = {
   scree: 'PCA biplot',
   residual: 'Scatter+fit',
   power: 'Histogram',
+  slopes: 'Simp. slopes',
+  box: 'Box',
+  loading: 'Load. heatmap',
 };
-
-function computeBarCIGroups(data, groupVar, yVar) {
-  if (!groupVar || groupVar === '(none)' || !yVar) return [];
-  return [...new Set(data.map(r => r[groupVar]))].slice(0, 8).map(name => {
-    const vals = data.filter(r => r[groupVar] === name).map(r => +r[yVar]).filter(v => !isNaN(v));
-    const n = vals.length;
-    const mean = vals.reduce((a, b) => a + b, 0) / n;
-    return { name: String(name), mean, se: sampleSD(vals) / Math.sqrt(n || 1) };
-  });
-}
 
 function computeCorrMatrix(data, vars) {
   return vars.map(v1 => vars.map(v2 => {
@@ -124,13 +123,33 @@ function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, grou
     case 'histogram':
       return <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
     case 'barci':
-      return <BarCI groups={computeBarCIGroups(data, colorVar, yVar)} width={210} height={160} />;
+      return <BarCI groups={barGroupsFromResult(inferenceResult, activeTest, data, gVar, yVar)} width={210} height={160} />;
+    case 'box':
+      return gVar
+        ? <BoxPlotGrid data={data} groupVar={gVar} yVar={yVar} width={210} height={160} />
+        : emptyHint('Select a Color / group variable for box plots.');
+    case 'slopes':
+      return inferenceResult?.simpleSlopes?.length
+        ? <QuickSlopes slopes={inferenceResult.simpleSlopes} />
+        : emptyHint('Run Moderation in Inference to see simple slopes at ±1 SD.');
+    case 'loading': {
+      const load = loadingFromResult(inferenceResult, activeTest, ds?.numeric);
+      if (load) {
+        return (
+          <HeatmapCorr
+            matrix={load.matrix} labels={load.colLabels} rowLabels={load.rowLabels}
+            width={210} height={210}
+          />
+        );
+      }
+      return emptyHint('Run PCA, EFA, or Cronbach α in Inference.');
+    }
     case 'heatmap': {
       const vars = (ds?.numeric || []).slice(0, 6);
       return <HeatmapCorr matrix={computeCorrMatrix(data, vars)} labels={vars} width={210} height={210} />;
     }
     case 'mosaic':
-      return <MosaicPlot data={data} xVar={colorVar !== '(none)' ? colorVar : xVar} yVar={yVar} width={210} height={160} />;
+      return <MosaicPlot data={data} xVar={gVar || xVar} yVar={yVar} width={210} height={160} />;
     case 'power':
       return <PowerCurve d={0.5} currentN={Math.floor(data.length / 2)} />;
     default:
@@ -228,37 +247,51 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
 }
 
 // ── Quick-view sidebar ────────────────────────────────────────────────────────
-function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setChartMode, inferenceResult }) {
-  const groups   = useMemo(() => colorVar && colorVar !== '(none)' ? [...new Set(data.map(r => r[colorVar]))] : [], [data, colorVar]);
+function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setChartMode, inferenceResult, inferenceContext }) {
+  const resolved = useMemo(
+    () => resolveQuickViewVars(activeTest, { xVar, yVar, groupVar: colorVar }, inferenceContext),
+    [activeTest, xVar, yVar, colorVar, inferenceContext],
+  );
+  const vizX = resolved.xVar || xVar;
+  const vizY = resolved.yVar || yVar;
+  const vizGroup = resolved.groupVar ?? colorVar;
+  const groups   = useMemo(() => vizGroup && vizGroup !== '(none)' ? [...new Set(data.map(r => r[vizGroup]))] : [], [data, vizGroup]);
   const colorMap = useMemo(() => Object.fromEntries(groups.map((g, i) => [g, PAL[i % PAL.length]])), [groups]);
   const autoMode = CHART_FOR_TEST[activeTest] ?? 'scatter';
   const effectiveMode = chartMode ?? autoMode;
   const isAuto = chartMode == null;
-  const xStats = useMemo(() => computeStats(data.map(r => +r[xVar]).filter(v => !isNaN(v))), [data, xVar]);
-  const yStats = useMemo(() => computeStats(data.map(r => +r[yVar]).filter(v => !isNaN(v))), [data, yVar]);
+  const modeLabel = CHART_MODE_LABELS[effectiveMode] ?? effectiveMode;
+  const inferLine = useMemo(() => formatInferenceSummary(inferenceResult, activeTest), [inferenceResult, activeTest]);
+  const xStats = useMemo(() => computeStats(data.map(r => +r[vizX]).filter(v => !isNaN(v))), [data, vizX]);
+  const yStats = useMemo(() => computeStats(data.map(r => +r[vizY]).filter(v => !isNaN(v))), [data, vizY]);
   const pearsonR = useMemo(() => {
     if (!xStats || !yStats) return null;
-    const xs = data.map(r => +r[xVar]).filter(v => !isNaN(v));
-    const ys = data.map(r => +r[yVar]).filter(v => !isNaN(v));
+    const xs = data.map(r => +r[vizX]).filter(v => !isNaN(v));
+    const ys = data.map(r => +r[vizY]).filter(v => !isNaN(v));
     if (xs.length !== ys.length || xs.length < 3) return null;
     return corr(xs, ys).toFixed(3);
-  }, [data, xVar, yVar, xStats, yStats]);
+  }, [data, vizX, vizY, xStats, yStats]);
 
   return (
     <div style={{ width: 230, borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
       {/* Label bar */}
       <div style={{ padding: '5px 8px', borderBottom: `1px solid ${C.border}`, fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em' }}>
-        Quick View · {xVar} × {yVar}
+        Quick View · {vizX} × {vizY}
+        {resolved.usingInference && (
+          <span style={{ marginLeft: 6, color: C.warn, fontSize: 6 }}>⊢ inference vars</span>
+        )}
       </div>
 
       <div style={{ padding: '4px 6px', display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', borderBottom: `1px solid ${C.border}` }}>
         {isAuto && (
-          <span style={{ fontSize: 7, color: C.accent, ...mono, padding: '2px 5px', border: `1px solid ${C.accent}`, borderRadius: 2, letterSpacing: '.08em' }}>AUTO</span>
+          <span style={{ fontSize: 7, color: C.accent, ...mono, padding: '2px 5px', border: `1px solid ${C.accent}`, borderRadius: 2, letterSpacing: '.08em' }} title={`Auto: ${modeLabel}`}>AUTO</span>
         )}
-        {CHART_ICONS.map(({ id, label }) => (
+        <span style={{ fontSize: 7, color: C.dim, ...mono }}>{modeLabel}</span>
+        {CHART_ICONS.map(({ id, label, title }) => (
           <button
             key={id}
             type="button"
+            title={title}
             onClick={() => setChartMode(id === chartMode ? null : id)}
             style={{
               background: effectiveMode === id ? 'rgba(196,255,0,.15)' : 'transparent',
@@ -277,7 +310,7 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
           {/* Subtle grid */}
           <div style={{ position: 'absolute', inset: 0, opacity: .15, backgroundImage: `linear-gradient(${C.border} 1px,transparent 1px),linear-gradient(90deg,${C.border} 1px,transparent 1px)`, backgroundSize: '30px 30px', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>
-            {renderQuickChart({ mode: effectiveMode, data, xVar, yVar, colorVar, ds, colorMap, groups, inferenceResult, activeTest })}
+            {renderQuickChart({ mode: effectiveMode, data, xVar: vizX, yVar: vizY, colorVar: vizGroup, ds, colorMap, groups, inferenceResult, activeTest })}
           </div>
         </div>
       </div>
@@ -286,14 +319,14 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
       <div style={{ padding: '5px 8px', borderTop: `1px solid ${C.border}`, ...mono, fontSize: 9, flexShrink: 0 }}>
         {xStats && (
           <div style={{ marginBottom: 2 }}>
-            <span style={{ color: C.dim }}>{xVar}: </span>
+            <span style={{ color: C.dim }}>{vizX}: </span>
             <span style={{ color: C.accent }}>M={xStats.mean}</span>
             <span style={{ color: C.dim }}> SD={xStats.sd} n={xStats.n}</span>
           </div>
         )}
         {yStats && (
           <div style={{ marginBottom: 2 }}>
-            <span style={{ color: C.dim }}>{yVar}: </span>
+            <span style={{ color: C.dim }}>{vizY}: </span>
             <span style={{ color: C.accent }}>M={yStats.mean}</span>
             <span style={{ color: C.dim }}> SD={yStats.sd} n={yStats.n}</span>
           </div>
@@ -301,8 +334,11 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
         {pearsonR != null && (
           <div><span style={{ color: C.dim }}>r = </span><span style={{ color: C.pos }}>{pearsonR}</span></div>
         )}
+        {inferLine && (
+          <div style={{ marginTop: 3, color: C.warn, fontSize: 8 }}>{inferLine}</div>
+        )}
         {/* Color legend */}
-        {groups.length > 0 && colorVar !== '(none)' && (
+        {groups.length > 0 && vizGroup !== '(none)' && (
           <div style={{ marginTop: 4, borderTop: `1px solid ${C.border}`, paddingTop: 4 }}>
             {groups.slice(0, 6).map(g => (
               <div key={g} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
@@ -332,6 +368,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('inference');
   const [exploreSeed, setExploreSeed] = useState(null);
   const [inferenceResult, setInferenceResult] = useState(null);
+  const [inferenceContext, setInferenceContext] = useState(null);
   const [datasetStatus, setDatasetStatus] = useState('ready');
   const fileRef = useRef();
 
@@ -350,9 +387,10 @@ export default function App() {
     setDsKey(key);
     if (key === 'custom') return;
     const d = BUILTIN[key];
-    setXVar(d.numeric[0]);
-    setYVar(d.numeric[1] || d.numeric[0]);
-    setColorVar(d.categorical[0] || '(none)');
+    const defs = DATASET_DEFAULTS[key];
+    setXVar(defs?.x ?? d.numeric[0]);
+    setYVar(defs?.y ?? d.numeric[1] || d.numeric[0]);
+    setColorVar(defs?.color ?? d.categorical[0] || '(none)');
     if (d.url) {
       setDatasetStatus('loading');
       loadDataset(key)
@@ -376,15 +414,23 @@ export default function App() {
   const handleTabSwitch = useCallback(tab => {
     if (tab === 'explore' && activeTab === 'inference') {
       const mode = CHART_FOR_TEST[activeTest] ?? 'scatter';
+      const resolved = resolveQuickViewVars(activeTest, { xVar, yVar, groupVar: colorVar }, inferenceContext);
+      const inc = inferenceContext?.scaleVars?.length
+        ? inferenceContext.scaleVars
+        : [resolved.xVar, resolved.yVar, ...(ds?.numeric || []).slice(0, 4)];
       setExploreSeed({
         chartType: mode,
         chartLabel: MODE_TO_EXPLORE_LABEL[mode] ?? 'Scatter+fit',
-        xVar, yVar, groupVar: colorVar,
-        includeVars: [xVar, yVar, ...(ds?.numeric || []).slice(0, 4)].filter((v, i, a) => a.indexOf(v) === i),
+        xVar: resolved.xVar,
+        yVar: resolved.yVar,
+        groupVar: resolved.groupVar,
+        catX: resolved.catX,
+        catY: resolved.catY,
+        includeVars: [...inc].filter((v, i, a) => v && a.indexOf(v) === i),
       });
     }
     setActiveTab(tab);
-  }, [activeTab, activeTest, xVar, yVar, colorVar, ds]);
+  }, [activeTab, activeTest, xVar, yVar, colorVar, ds, inferenceContext]);
 
   const handleBridgeToInference = useCallback(({ row, col }) => {
     setXVar(row);
@@ -450,6 +496,7 @@ export default function App() {
           chartMode={chartMode}
           setChartMode={setChartMode}
           inferenceResult={inferenceResult}
+          inferenceContext={inferenceContext}
         />
 
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -478,12 +525,13 @@ export default function App() {
                 <InferencePanel
                   data={data} ds={ds} active={activeTest} setActive={setActiveTest}
                   onResultChange={(r) => setInferenceResult(r)}
+                  onContextChange={setInferenceContext}
                 />
               </div>
             </>
           )}
           {activeTab === 'explore' && (
-            <ExplorePanel data={data} ds={ds} seed={exploreSeed} onBridgeToInference={handleBridgeToInference} />
+            <ExplorePanel data={data} ds={ds} seed={exploreSeed} inferenceContext={inferenceContext} onBridgeToInference={handleBridgeToInference} />
           )}
         </div>
       </div>

@@ -294,6 +294,55 @@ export function ViolinPlot({ data, width = 200, height = 140, color = '#c4ff00' 
   );
 }
 
+export function QuickSlopes({ slopes, width = 210, height = 120 }) {
+  if (!slopes?.length) return null;
+  const pad = { l: 36, r: 8, t: 14, b: 22 };
+  const w = width - pad.l - pad.r;
+  const h = height - pad.t - pad.b;
+  const vals = slopes.map(s => s.slope);
+  const minS = Math.min(...vals, 0);
+  const maxS = Math.max(...vals, 0);
+  const range = maxS - minS || 1;
+  const zeroY = pad.t + h - ((0 - minS) / range) * h;
+  return (
+    <svg width={width} height={height}>
+      <line x1={pad.l} y1={zeroY} x2={width - pad.r} y2={zeroY} stroke={C.border} strokeDasharray="2,2" />
+      {slopes.map((s, i) => {
+        const cx = pad.l + (i + 0.5) * (w / slopes.length);
+        const barH = Math.abs(s.slope / range) * h * 0.75;
+        const y = s.slope >= 0 ? zeroY - barH : zeroY;
+        return (
+          <g key={s.z}>
+            <rect x={cx - 18} y={y} width={36} height={Math.max(barH, 2)} fill={C.accent} fillOpacity={0.55} rx={2} />
+            <text x={cx} y={height - 5} textAnchor="middle" fontSize={8} fill={C.dim} {...mono}>{s.z}</text>
+            <text x={cx} y={y - 3} textAnchor="middle" fontSize={8} fill={C.accent} {...mono}>{s.slope.toFixed(3)}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+export function BoxPlotGrid({ data, groupVar, yVar, width = 210, height = 150 }) {
+  if (!data?.length || !groupVar || groupVar === '(none)' || !yVar) return null;
+  const groups = [...new Set(data.map(r => r[groupVar]))].slice(0, 4);
+  const gw = Math.max(48, Math.floor((width - 8) / groups.length) - 4);
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      {groups.map((g, i) => (
+        <div key={g} style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 7, color: C.dim, ...mono, marginBottom: 2 }}>{String(g).slice(0, 8)}</div>
+          <BoxPlot
+            data={data.filter(r => r[groupVar] === g).map(r => +r[yVar]).filter(v => !isNaN(v))}
+            width={gw} height={height - 14}
+            color={PAL[i % PAL.length]}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function BoxPlot({ data, width = 200, height = 80, color = '#c4ff00' }) {
   if (!data?.length) return null;
   const sorted = [...data].sort((a, b) => a - b);

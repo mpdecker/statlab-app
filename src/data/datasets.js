@@ -19,8 +19,18 @@ export async function loadDataset(key) {
         let rows = data;
         if (key === 'schools') {
           rows = data.map(r => {
-            const { school, ...rest } = r;
-            return { school_id: school, ...rest };
+            const id = r.school ?? r.School ?? r.school_id;
+            const { school, School, school_id, ...rest } = r;
+            return { school_id: id, ...rest };
+          });
+        }
+        if (key === 'mathachieve') {
+          rows = data.map(r => {
+            const id = r.School ?? r.school;
+            const copy = { ...r };
+            if (id != null) copy.school_id = id;
+            delete copy.School;
+            return copy;
           });
         }
         _cache[key] = rows;
@@ -114,6 +124,19 @@ export function makeGapminder() {
   ];
 }
 
+/** Per-dataset default axes for Quick View after switch */
+export const DATASET_DEFAULTS = {
+  iris: { x: 'sepalLength', y: 'petalLength', color: 'species' },
+  diamonds: { x: 'carat', y: 'price', color: 'cut' },
+  gapminder: { x: 'gdpPercap', y: 'lifeExp', color: 'continent' },
+  cps: { x: 'education', y: 'wage', color: 'sex' },
+  salaries: { x: 'yrs.since.phd', y: 'salary', color: 'rank' },
+  schools: { x: 'standLRT', y: 'normexam', color: 'type' },
+  mathachieve: { x: 'SES', y: 'MathAch', color: 'Sex' },
+  sleep: { x: 'Days', y: 'Reaction', color: 'Subject' },
+  affairs: { x: 'age', y: 'affairs', color: 'gender' },
+};
+
 export const BUILTIN = {
   iris: {
     label: "Iris", desc: "150 flowers · Fisher 1936",
@@ -151,11 +174,19 @@ export const BUILTIN = {
   },
   schools: {
     label: 'Schools',
-    desc: 'multilevel · normexam · standLRT',
+    desc: 'mlmRev · nested schools · HLM demos',
     url: 'https://vincentarelbundock.github.io/Rdatasets/csv/mlmRev/Schools.csv',
     make: null,
     numeric: ['normexam', 'standLRT'],
     categorical: ['school_id', 'sex', 'type'],
+  },
+  mathachieve: {
+    label: 'Math Achieve',
+    desc: 'nlme · MathAch · SES · school nested',
+    url: 'https://vincentarelbundock.github.io/Rdatasets/csv/nlme/MathAchieve.csv',
+    make: null,
+    numeric: ['SES', 'MathAch'],
+    categorical: ['school_id', 'Minority', 'Sex'],
   },
   sleep: {
     label: 'Sleep Study',
