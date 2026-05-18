@@ -1,3 +1,6 @@
+import { avg, sampleSD, clamp } from './core.js';
+import { mulberry32, bootstrapIndices, boxMullerN } from './rng.js';
+
 // ── Special functions ─────────────────────────────────────────────────────────
 export function lngamma(x) {
   const c = [76.18009172947146,-86.50532032941677,24.01409824083091,
@@ -120,10 +123,24 @@ export function tInv2(alpha, df) {
   return (lo + hi) / 2;
 }
 
-// ── Power for two-sample t ────────────────────────────────────────────────────
-export function computePowerT(n1, n2, d, alpha = .05) {
-  const df = n1 + n2 - 2, ncp = d * Math.sqrt(n1 * n2 / (n1 + n2)), tc = tInv2(alpha, df);
-  return normalCDF(ncp - tc) + normalCDF(-ncp - tc);
+// ── Power for two-sample t (Monte Carlo non-central t when df ≤ 30) ───────────
+export function computePowerT(n1, n2, d, alpha = .05, seed = 42) {
+  const df = n1 + n2 - 2;
+  if (df < 1 || !Number.isFinite(d)) return 0;
+  const delta = Math.abs(d) * Math.sqrt(n1 * n2 / (n1 + n2));
+  const tc = tInv2(alpha, df);
+  if (df > 30) return normalCDF(delta - tc) + normalCDF(-delta - tc);
+  const rand = mulberry32(seed ?? 42);
+  let hits = 0;
+  const R = 10000;
+  for (let rep = 0; rep < R; rep++) {
+    let chi = 0;
+    for (let i = 0; i < df; i++) chi += boxMullerN(rand) ** 2;
+    const scale = Math.sqrt(chi / df) || 1;
+    const t = (boxMullerN(rand) + delta) / scale;
+    if (Math.abs(t) > tc) hits++;
+  }
+  return hits / R;
 }
 export function computePowerCorr(n, r, alpha = .05) {
   const z = .5 * Math.log((1 + r) / (1 - r)), se = 1 / Math.sqrt(n - 3), zc = normalINV(1 - alpha / 2);
@@ -141,11 +158,10 @@ export function requiredNCorr(r, power = .8, alpha = .05) {
 }
 
 // ── Normality tests ───────────────────────────────────────────────────────────
-import { avg, sampleSD, clamp } from './core.js';
-
 export function normalityDP(vals) {
   const n = vals.length; if (n < 8) return null;
-  const m = avg(vals), s = sampleSD(vals) || 1;
+  const m = avg(vals), s = sampleSD(vals);
+  if (!s || s < 1e-14) return null;
   const sk = vals.reduce((a, x) => a + ((x - m) / s) ** 3, 0) / n;
   const ku = vals.reduce((a, x) => a + ((x - m) / s) ** 4, 0) / n - 3;
   const b2 = (3 * (n ** 2 + 27 * n - 70) * (n + 1) * (n + 3)) / ((n - 2) * (n + 5) * (n + 7) * (n + 9));
@@ -164,6 +180,7 @@ export function shapiroWilk(x) {
   const m = Array.from({ length: n }, (_, i) => normalINV((i + 1 - .375) / (n + .25)));
   const mm = Math.sqrt(m.reduce((a, v) => a + v * v, 0));
   const a = m.slice(0, Math.floor(n / 2)).map(v => v / mm);
+  if (!ss || ss < 1e-14) return null;
   let W = 0;
   for (let i = 0; i < Math.floor(n / 2); i++) W += a[i] * (s[n - 1 - i] - s[i]);
   W = W * W / ss;
@@ -173,16 +190,21 @@ export function shapiroWilk(x) {
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
-export function bootstrapCI(vals, fn, B = 1999, alpha = .05) {
-  const n = vals.length, stats = [];
+export function bootstrapCI(vals, fn, B = 1999, alpha = .05, seed = 42) {
+  const clean = vals.filter(Number.isFinite);
+  const n = clean.length;
+  if (n < 2 || B < 1) return null;
+  const rand = mulberry32(seed ?? 42);
+  const stats = [];
   for (let b = 0; b < B; b++) {
-    const s = Array.from({ length: n }, () => vals[Math.floor(Math.random() * n)]);
-    stats.push(fn(s));
+    const idx = bootstrapIndices(rand, n);
+    const s = idx.map(i => clean[i]);
+    const v = fn(s);
+    if (Number.isFinite(v)) stats.push(v);
   }
+  if (!stats.length) return null;
   stats.sort((a, b) => a - b);
-  return {
-    lo:   stats[Math.floor(alpha / 2 * B)],
-    hi:   stats[Math.floor((1 - alpha / 2) * B)],
-    dist: stats,
-  };
+  const loIdx = Math.floor(alpha / 2 * stats.length);
+  const hiIdx = Math.min(stats.length - 1, Math.floor((1 - alpha / 2) * stats.length));
+  return { lo: stats[loIdx], hi: stats[hiIdx], dist: stats, B: stats.length, seed: seed ?? 42 };
 }

@@ -1,6 +1,7 @@
 import { avg, sampleSD, sampleVar, corr, rank, effR, effD, fmtP, sig } from '../math/core.js';
-import { tPVal, fPVal, normalCDF, tInv2, lnBinom } from '../math/distributions.js';
+import { tPVal, fPVal, normalCDF, tInv2, chiPVal } from '../math/distributions.js';
 import { matTrans, matMul, matInv } from '../math/matrix.js';
+import { mulberry32, bootstrapIndices } from '../math/rng.js';
 
 // ── Pearson r ─────────────────────────────────────────────────────────────────
 export function pearsonTest(xs, ys) {
@@ -38,7 +39,9 @@ export function kendallTau(xs, ys) {
     else if ((dx > 0 && dy > 0) || (dx < 0 && dy < 0)) C++;
     else D++;
   }
-  const tau = (C - D) / Math.sqrt((C + D + Tx) * (C + D + Ty));
+  const denom = Math.sqrt((C + D + Tx) * (C + D + Ty));
+  if (!denom) return null;
+  const tau = (C - D) / denom;
   const z = (3 * tau * Math.sqrt(n * (n - 1))) / Math.sqrt(2 * (2 * n + 5));
   const p = 2 * (1 - normalCDF(Math.abs(z)));
   return {
@@ -67,6 +70,7 @@ export function pointBiserial(binary, cont) {
   if (binary.length < 3) return null;
   const n = binary.length;
   const groups = [0, 1].map(g => cont.filter((_, i) => binary[i] === g));
+  if (!groups[0].length || !groups[1].length) return null;
   const M0 = avg(groups[0]), M1 = avg(groups[1]);
   const sAll = Math.sqrt(sampleVar(cont));
   const p_ = groups[1].length / n, q_ = 1 - p_;
@@ -93,8 +97,10 @@ export function simpleOLS(xs, ys) {
   const ssTot = ys.reduce((s, y) => s + (y - my) ** 2, 0);
   const r2 = ssTot ? 1 - ssRes / ssTot : 0;
   const adj = 1 - (1 - r2) * (n - 1) / (n - 2);
-  const mse = ssRes / (n - 2), se = Math.sqrt(mse / sxx), t = b1 / se;
-  const p = tPVal(t, n - 2), ci = tInv2(.05, n - 2) * se;
+  const mse = ssRes / (n - 2), se = Math.sqrt(mse / sxx);
+  const t = se > 1e-14 ? b1 / se : 0;
+  const p = se > 1e-14 ? tPVal(t, n - 2) : 0;
+  const ci = se > 1e-14 ? tInv2(.05, n - 2) * se : 0;
   const beta = (b1 * sampleSD(xs)) / (sampleSD(ys) || 1);
   const residuals = ys.map((y, i) => y - fitted[i]);
   const dw = residuals.slice(1).reduce((s, r, i) => s + (r - residuals[i]) ** 2, 0) /
@@ -140,15 +146,25 @@ export function multipleOLS(Y, Xraw, names = []) {
     const bs = j === 0 ? null : +(b * (sdX[j - 1] || 1) / sdY).toFixed(4);
     return { name: j === 0 ? "Intercept" : (names[j - 1] || `X${j}`), b: +b.toFixed(5), beta: bs, se: +se.toFixed(5), t: +t.toFixed(3), p: pv, sig: sig(pv), vif: j > 0 ? vif[j - 1] : null };
   });
-  const F = (r2 / p) / ((1 - r2) / (n - p - 1)), pF = fPVal(F, p, n - p - 1);
+  const fDen = (1 - r2) / (n - p - 1);
+  let F = null;
+  let pF = 1;
+  if (fDen > 1e-14 && p >= 1) {
+    F = (r2 / p) / fDen;
+    if (!Number.isFinite(F)) return null;
+    pF = fPVal(F, p, n - p - 1);
+  } else if (!(r2 > 1 - 1e-10 && ssTot > 1e-14)) {
+    return null;
+  }
   const residuals = Y.map((y, i) => y - fitted[i]);
   const dw = residuals.slice(1).reduce((s, r, i) => s + (r - residuals[i]) ** 2, 0) /
     (residuals.reduce((s, r) => s + r ** 2, 0) || 1e-9);
+  const fStr = F != null ? `F(${p},${n - p - 1}) = ${F.toFixed(2)}, ${fmtP(pF)}` : 'perfect fit';
   return {
     test: "Multiple OLS", coeffs, r2: +r2.toFixed(4), adj: +adj.toFixed(4),
-    F: +F.toFixed(4), df1: p, df2: n - p - 1, pF, mse: +mse.toFixed(5),
+    F: F != null ? +F.toFixed(4) : null, df1: p, df2: n - p - 1, pF, mse: +mse.toFixed(5),
     n, residuals, fitted, durbinWatson: +dw.toFixed(4),
-    apa: `R² = ${r2.toFixed(3)}, adj.R² = ${adj.toFixed(3)}, F(${p},${n - p - 1}) = ${F.toFixed(2)}, ${fmtP(pF)}`,
+    apa: `R² = ${r2.toFixed(3)}, adj.R² = ${adj.toFixed(3)}, ${fStr}`,
   };
 }
 
@@ -166,7 +182,12 @@ export function hierarchicalOLS(Y, X1raw, X2raw, n1, n2) {
   const m2 = multipleOLS(Y, combined, [...n1, ...n2]);
   if (!m1 || !m2) return null;
   const dr2 = m2.r2 - m1.r2, dfChange = X2raw[0].length, dfErr = Y.length - X1raw[0].length - X2raw[0].length - 1;
-  const F_change = (dr2 / dfChange) / ((1 - m2.r2) / dfErr), p_change = fPVal(F_change, dfChange, dfErr);
+  if (dfChange < 1 || dfErr < 1) return null;
+  const fDen = (1 - m2.r2) / dfErr;
+  if (!(fDen > 1e-14)) return null;
+  const F_change = (dr2 / dfChange) / fDen;
+  if (!Number.isFinite(F_change)) return null;
+  const p_change = fPVal(F_change, dfChange, dfErr);
   return {
     test: "Hierarchical OLS",
     model1: { r2: m1.r2, adj: m1.adj, F: m1.F, p: m1.pF },
@@ -182,6 +203,8 @@ export function hierarchicalOLS(Y, X1raw, X2raw, n1, n2) {
 export function logisticReg(Y, Xraw, names = []) {
   const n = Y.length, p = Xraw[0].length;
   if (n < p + 5) return null;
+  const ySum = Y.reduce((s, y) => s + y, 0);
+  if (ySum === 0 || ySum === n) return null;
   const X = Xraw.map(r => [1, ...r]);
   let beta = Array(p + 1).fill(0);
   const sig_ = z => 1 / (1 + Math.exp(-Math.max(-20, Math.min(20, z))));
@@ -205,7 +228,9 @@ export function logisticReg(Y, Xraw, names = []) {
     return s + Y[i] * Math.log(pr + 1e-12) + (1 - Y[i]) * Math.log(1 - pr + 1e-12);
   }, 0);
   const ll0 = Y.reduce((s, y) => { const pm = avg(Y); return s + y * Math.log(pm + 1e-12) + (1 - y) * Math.log(1 - pm + 1e-12); }, 0);
-  const McF = 1 - ll / ll0, AIC = -2 * ll + 2 * (p + 1), BIC = -2 * ll + (p + 1) * Math.log(n);
+  if (!Number.isFinite(ll) || !Number.isFinite(ll0)) return null;
+  const McF = Math.abs(ll0) > 1e-14 ? 1 - ll / ll0 : 0;
+  const AIC = -2 * ll + 2 * (p + 1), BIC = -2 * ll + (p + 1) * Math.log(n);
   const fitted = X.map(row => sig_(row.reduce((s, x, j) => s + x * beta[j], 0)));
   const pred = fitted.map(pr => pr >= .5 ? 1 : 0);
   const acc = pred.filter((pr, i) => pr === Y[i]).length / n;
@@ -215,7 +240,16 @@ export function logisticReg(Y, Xraw, names = []) {
   const TN = pred.filter((pr, i) => pr === 0 && Y[i] === 0).length;
   const precision = TP / (TP + FP || 1), recall = TP / (TP + FN || 1);
   const f1 = 2 * precision * recall / (precision + recall || 1);
-  const coeffs = beta.map((b, j) => ({ name: j === 0 ? "Intercept" : (names[j - 1] || `X${j}`), b: +b.toFixed(4), OR: +Math.exp(b).toFixed(4) }));
+
+  const fisher = Array.from({ length: p + 1 }, () => Array(p + 1).fill(0));
+  X.forEach((row, i) => {
+    const mu = sig_(row.reduce((s, x, j) => s + x * beta[j], 0));
+    const w = mu * (1 - mu);
+    row.forEach((x, j) => row.forEach((x2, k) => { fisher[j][k] += x * x2 * w; }));
+  });
+  const cov = matInv(fisher);
+  const coeffs = waldCoeffs(beta, cov, names, { orAll: true });
+
   return {
     test: "Logistic Regression", coeffs, McFaddenR2: +McF.toFixed(4), AIC: +AIC.toFixed(2), BIC: +BIC.toFixed(2),
     ll: +ll.toFixed(4), acc: +acc.toFixed(4), precision: +precision.toFixed(4),
@@ -246,7 +280,9 @@ export function mediation(X, M, Y) {
   const ab = (a?.b1 || 0) * b_c;
   const se_ab = Math.sqrt(b_c ** 2 * (a?.se || 0) ** 2 + (a?.b1 || 0) ** 2 * se_b ** 2);
   const z_sob = se_ab ? ab / se_ab : 0, p_sob = 2 * (1 - normalCDF(Math.abs(z_sob)));
-  const propMed = c?.b1 ? ab / c.b1 : null;
+  const propMed = c?.b1 != null && Math.abs(c.b1) > 1e-10
+    ? Math.max(-1, Math.min(1, ab / c.b1))
+    : null;
   return {
     test: "Mediation (Baron-Kenny)", c_total: c?.b1, c_p: c?.p,
     a_path: a?.b1, a_se: a?.se, a_p: a?.p,
@@ -260,15 +296,26 @@ export function mediation(X, M, Y) {
   };
 }
 
-export function bootstrapMediation(X, M, Y, B = 1999, alpha = .05) {
-  const n = X.length, ab_obs = mediation(X, M, Y)?.ab || 0, samples = [];
+export function bootstrapMediation(X, M, Y, B = 1999, alpha = .05, seed = 42) {
+  const n = X.length;
+  if (!n || n !== M.length || n !== Y.length) return null;
+  const ab_obs = mediation(X, M, Y)?.ab || 0;
+  const rand = mulberry32(seed ?? 42);
+  const samples = [];
   for (let b = 0; b < B; b++) {
-    const idx = Array.from({ length: n }, () => Math.floor(Math.random() * n));
+    const idx = bootstrapIndices(rand, n);
     const res = mediation(idx.map(i => X[i]), idx.map(i => M[i]), idx.map(i => Y[i]));
     if (res) samples.push(res.ab);
   }
+  if (!samples.length) return null;
   samples.sort((a, b) => a - b);
-  return { ab: ab_obs, lo: samples[Math.floor(alpha / 2 * B)], hi: samples[Math.floor((1 - alpha / 2) * B)], B, sig: samples[Math.floor(alpha / 2 * B)] > 0 || samples[Math.floor((1 - alpha / 2) * B)] < 0, dist: samples };
+  const lo = samples[Math.floor(alpha / 2 * samples.length)];
+  const hi = samples[Math.floor((1 - alpha / 2) * samples.length) - 1] ?? samples[samples.length - 1];
+  return {
+    ab: ab_obs, lo, hi, B: samples.length,
+    sig: lo > 0 || hi < 0,
+    dist: samples,
+  };
 }
 
 // ── Moderation (interaction X×Z) ─────────────────────────────────────────────
@@ -286,3 +333,427 @@ export function moderation(X, Z, Y, xL = "X", zL = "Z") {
   });
   return { ...res, test: "Moderation (Interaction)", intCoeff: ic, simpleSlopes: ss, xL, zL, apa: `${xL}×${zL}: b = ${ic?.b.toFixed(4)}, t = ${ic?.t?.toFixed(2)}, ${fmtP(ic?.p || 1)}, R² = ${res.r2.toFixed(3)}` };
 }
+
+// ── GLM Wald helpers (logistic / ordinal / Poisson / NB) ────────────────────
+function logisticClamped(z) {
+  const t = Math.max(-35, Math.min(35, z));
+  return 1 / (1 + Math.exp(-t));
+}
+
+function logisticPdf(z) {
+  const p = logisticClamped(z);
+  return p * (1 - p);
+}
+
+/** Wald SE, z, p from covariance diagonal; OR = exp(b) for predictors (optional intercept). */
+function waldCoeffs(beta, covB, names, { bDec = 4, orPredictorsOnly = false, orAll = false } = {}) {
+  return beta.map((b, jj) => {
+    const se = covB?.[jj]?.[jj] != null ? Math.sqrt(Math.max(covB[jj][jj], 1e-14)) : null;
+    const z = se && se > 1e-14 ? b / se : null;
+    const p = z != null ? 2 * (1 - normalCDF(Math.abs(z))) : null;
+    let OR = null;
+    if (orAll) OR = +Math.exp(b).toFixed(4);
+    else if (orPredictorsOnly && jj > 0) OR = +Math.exp(b).toFixed(4);
+    return {
+      name: jj === 0 ? 'Intercept' : (names[jj - 1] || `X${jj}`),
+      b: +b.toFixed(bDec),
+      OR,
+      se: se != null ? +se.toFixed(bDec) : null,
+      z: z != null ? +z.toFixed(4) : null,
+      p,
+      sig: p != null ? sig(p) : false,
+      t: z,
+    };
+  });
+}
+
+// ── Ordinal (proportional odds) ─────────────────────────────────────────────
+
+/** logits P(Y≤j|x)=σ(α_j + x′β); j=0…K−2; Monotone α via α_0=τ₀, α_q=α_{q−1}+softplus(u_{q−1}). */
+export function ordinalLogisticRegression(y, Xraw, names = [], maxIter = 120) {
+  const n = y.length;
+  const pPlus1 = Xraw[0]?.length + 1;
+  if (!n || n !== Xraw.length || pPlus1 < 2 || n < pPlus1 + 3) return null;
+  const X = Xraw.map(r => [1, ...r]);
+  const uniq = [...new Set(y)].sort((a, b) => {
+    const na = +a, nb = +b;
+    if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+    return String(a).localeCompare(String(b));
+  });
+  const K = uniq.length;
+  if (K < 2 || K >= n - 3) return null;
+  const map = Object.fromEntries(uniq.map((v, i) => [v, i]));
+  const ym = y.map(v => map[v]);
+  const Lm1 = K - 1; // # thresholds α_0 … α_{K−2}
+
+  const buildAlphas = (tau0, uvec) => {
+    const alphas = [tau0];
+    for (let j = 0; j < uvec.length; j++) {
+      const sp = Math.log1p(Math.exp(Math.min(20, Math.max(-20, uvec[j]))));
+      alphas.push(alphas[alphas.length - 1] + Math.max(sp, 1e-8));
+    }
+    return alphas;
+  };
+
+  /** cdf gamma_j(i) with j = −1 ⇒ 0 and j≥K−1 ⇒ 1 */
+  const gamma = (alphas, etai, j) => {
+    if (j <= -1) return 0;
+    if (j >= K - 1) return 1;
+    return logisticClamped(alphas[j] + etai);
+  };
+
+  /** Log-likelihood at current τ₀,u[],β[] */
+  const fullLL = (tau0, uvec, beta) => {
+    const alphas = buildAlphas(tau0, uvec);
+    let ll = 0;
+    for (let i = 0; i < n; i++) {
+      let etai = X[i].reduce((s, xv, jj) => s + xv * beta[jj], 0);
+      const m = ym[i];
+      const gh = gamma(alphas, etai, m);
+      const gl = gamma(alphas, etai, m - 1);
+      const poi = gh - gl;
+      ll += Math.log(Math.max(poi, 1e-12));
+    }
+    return ll;
+  };
+
+  /** Full gradient */
+  const fullGrad = (tau0, uvec, beta) => {
+    const alphas = buildAlphas(tau0, uvec);
+    let gTau = 0;
+    const gu = Array(uvec.length).fill(0);
+    const gB = Array(pPlus1).fill(0);
+    for (let i = 0; i < n; i++) {
+      const etai = X[i].reduce((s, xv, jj) => s + xv * beta[jj], 0);
+      const m = ym[i];
+
+      let pobs;
+      let dpDt;
+      const dLdAlpha = Array(Lm1).fill(0);
+      if (m === 0) {
+        const g0 = logisticClamped(alphas[0] + etai);
+        pobs = g0;
+        dpDt = g0 * (1 - g0);
+        dLdAlpha[0] = g0 * (1 - g0);
+      } else if (m <= K - 2) {
+        const gh = logisticClamped(alphas[m] + etai), gl = logisticClamped(alphas[m - 1] + etai);
+        pobs = gh - gl;
+        dpDt = gh * (1 - gh) - gl * (1 - gl);
+        dLdAlpha[m] += gh * (1 - gh);
+        dLdAlpha[m - 1] -= gl * (1 - gl);
+      } else {
+        const gl = logisticClamped(alphas[Lm1 - 1] + etai);
+        pobs = 1 - gl;
+        dpDt = -gl * (1 - gl);
+        dLdAlpha[Lm1 - 1] -= gl * (1 - gl);
+      }
+      pobs = Math.max(pobs, 1e-10);
+      const invp = 1 / pobs;
+      gTau += dLdAlpha.reduce((s, dq) => s + dq, 0) * invp;
+      for (let q = 0; q < Lm1; q++) {
+        for (let j = 0; j < gu.length; j++) {
+          if (q > j) gu[j] += dLdAlpha[q] * logisticClamped(uvec[j]) * invp;
+        }
+      }
+      for (let k = 0; k < pPlus1; k++) gB[k] += invp * dpDt * X[i][k];
+    }
+    return { gTau, gu, gB };
+  };
+
+  let tau0 = 0;
+  const uvec = Array(Lm1 - 1).fill(0);
+  let beta = Array(pPlus1).fill(0);
+
+  /** Null model β=0, estimate τ,u only via same gradient ascent */
+  const fitNull = () => {
+    let t0 = 0, uv = Array(Lm1 - 1).fill(0), b0 = Array(pPlus1).fill(0), lr = .15;
+    for (let it = 0; it < 120; it++) {
+      const al = buildAlphas(t0, uv);
+      let gTau = 0, gu = uv.map(() => 0);
+      for (let i = 0; i < n; i++) {
+        const etai = 0;
+        const m = ym[i];
+        let pobs, dpDt = 0, dLdAlpha = Array(Lm1).fill(0);
+        if (m === 0) {
+          const g0 = logisticClamped(al[0] + etai);
+          pobs = g0; dpDt = g0 * (1 - g0); dLdAlpha[0] = dpDt;
+        } else if (m <= K - 2) {
+          const gh = logisticClamped(al[m] + etai), gl = logisticClamped(al[m - 1] + etai);
+          pobs = gh - gl;
+          dpDt = gh * (1 - gh) - gl * (1 - gl);
+          dLdAlpha[m] += gh * (1 - gh); dLdAlpha[m - 1] -= gl * (1 - gl);
+        } else {
+          const gl = logisticClamped(al[Lm1 - 1] + etai);
+          pobs = 1 - gl; dpDt = -gl * (1 - gl); dLdAlpha[Lm1 - 1] -= gl * (1 - gl);
+        }
+        const invp = 1 / Math.max(pobs, 1e-10);
+        gTau += dLdAlpha.reduce((s, dq) => s + dq, 0) * invp;
+        for (let q = 0; q < Lm1; q++) for (let j = 0; j < uv.length; j++) if (q > j)
+          gu[j] += dLdAlpha[q] * logisticClamped(uv[j]) * invp;
+      }
+      const gg = [...[gTau], ...gu];
+      const gnorm = Math.sqrt(gg.reduce((s, v) => s + v * v, 0));
+      if (gnorm < 1e-5) break;
+      t0 += lr * gTau / (gnorm + 1); uv.forEach((_, jj) => { uv[jj] += lr * gu[jj] / (gnorm + 1); });
+      lr *= .998;
+    }
+    return fullLL(t0, uv, b0);
+  };
+
+  let lr = .12;
+  for (let iter = 0; iter < maxIter; iter++) {
+    const { gTau, gu, gB } = fullGrad(tau0, uvec, beta);
+    const gnorm = Math.sqrt(gTau ** 2 + gu.reduce((s, v) => s + v * v, 0) + gB.reduce((s, v) => s + v * v, 0));
+    if (gnorm < 1e-6) break;
+    const scale = Math.sqrt(Lm1 + pPlus1);
+    tau0 += (lr * gTau) / scale;
+    for (let jj = 0; jj < uvec.length; jj++) uvec[jj] += (lr * gu[jj]) / scale;
+    for (let jj = 0; jj < pPlus1; jj++) beta[jj] += (lr * gB[jj]) / scale;
+    lr *= .999;
+  }
+
+  const alphasHat = buildAlphas(tau0, uvec);
+  const llFit = fullLL(tau0, uvec, beta);
+  const llNull = fitNull();
+
+  /** Observed Fisher for β: Σ (dP/dη)² / P · x x′ at fixed thresholds */
+  const infoB = Array.from({ length: pPlus1 }, () => Array(pPlus1).fill(0));
+  for (let i = 0; i < n; i++) {
+    const etai = X[i].reduce((s, xv, jj) => s + xv * beta[jj], 0);
+    const m = ym[i];
+    let pobs;
+    let dPdEta;
+    if (m === 0) {
+      const z0 = alphasHat[0] + etai;
+      pobs = logisticClamped(z0);
+      dPdEta = logisticPdf(z0);
+    } else if (m <= K - 2) {
+      const zh = alphasHat[m] + etai;
+      const zl = alphasHat[m - 1] + etai;
+      pobs = logisticClamped(zh) - logisticClamped(zl);
+      dPdEta = logisticPdf(zh) - logisticPdf(zl);
+    } else {
+      const zl = alphasHat[Lm1 - 1] + etai;
+      pobs = 1 - logisticClamped(zl);
+      dPdEta = -logisticPdf(zl);
+    }
+    const w = (dPdEta ** 2) / Math.max(pobs, 1e-10);
+    for (let a = 0; a < pPlus1; a++) for (let bcol = 0; bcol < pPlus1; bcol++)
+      infoB[a][bcol] += w * X[i][a] * X[i][bcol];
+  }
+  const covB = matInv(infoB);
+  const coeffs = waldCoeffs(beta, covB, names, { bDec: 5, orPredictorsOnly: true });
+  const dof = Lm1 + pPlus1; // monotone cutpoints count as K−1 intercept-like + full β-vector
+  const AIC = -2 * llFit + 2 * dof;
+  const BIC = -2 * llFit + dof * Math.log(n);
+  const McFaddenR2 = Math.max(0, Math.min(1, 1 - llFit / llNull));
+
+  return {
+    test: 'Ordinal Logistic (proportional odds)',
+    K,
+    levels: uniq,
+    ll: +llFit.toFixed(4),
+    llNull: +llNull.toFixed(4),
+    McFaddenR2: +McFaddenR2.toFixed(4),
+    AIC: +AIC.toFixed(2),
+    BIC: +BIC.toFixed(2),
+    thresholds: alphasHat.map(w => +w.toFixed(4)),
+    coeffs,
+    apa: `Proportional odds (K=${K}), McFadden R²=${McFaddenR2.toFixed(3)}, AIC=${AIC.toFixed(1)}, thresholds ${alphasHat.length} cutpoints (monotone+)`,
+    n,
+  };
+}
+
+// ── Count helpers (factorial · Γ · NB2 pmf log) ───────────────────────────────
+
+function logFac(k) {
+  if (k < 2) return 0;
+  let s = 0;
+  for (let kk = 2; kk <= k; kk++) s += Math.log(kk);
+  return s;
+}
+
+/** log Γ(z), z real > 0; adequate for diagnostics / NB likelihood */
+function lgammaLN(z) {
+  if (!(z > 1e-9)) return Infinity;
+  let x = z, s = 0;
+  while (x < 12) { s -= Math.log(x); x++; }
+  return s + (.5 * Math.log(2 * Math.PI / x) + (x - .5) * Math.log(x) - x + 1 / (12 * x) - 1 / (360 * x ** 3));
+}
+
+function nbLogPmfy(yi, mu, theta) {
+  const m = Math.max(mu, 1e-10), th = Math.max(theta, 1e-6);
+  const yVal = yi + th;
+  // NB2: size θ (R MASS parametrization), p = θ/(θ+µ)
+  return lgammaLN(yVal) - lgammaLN(th) - logFac(Math.floor(yi + 1e-9))
+    + th * Math.log(th) + yi * Math.log(m) - yVal * Math.log(th + m);
+}
+
+// ─ Poisson (log link · IRLS) ─────────────────────────────────────────────────
+
+/** Count outcome y ≥ 0; Xraw rows omit intercept (prepended internally). */
+export function poissonRegression(y, Xraw, names = [], maxIter = 60) {
+  const n = y.length;
+  const pPlus1 = Xraw[0]?.length + 1;
+  if (!n || n !== Xraw.length || pPlus1 < 2 || n < pPlus1 + 3) return null;
+  if (!y.every(v => v >= 0 && Number.isFinite(v))) return null;
+  const X = Xraw.map(r => [1, ...r]);
+
+  let beta = Array(pPlus1).fill(0);
+  beta[0] = Math.log((y.reduce((s, yi) => s + yi, 0) / n || 0.25) + 1e-3);
+
+  for (let it = 0; it < maxIter; it++) {
+    const grad = Array(pPlus1).fill(0);
+    const H = Array.from({ length: pPlus1 }, () => Array(pPlus1).fill(0));
+    for (let i = 0; i < n; i++) {
+      const eta = X[i].reduce((s, x, j) => s + x * beta[j], 0);
+      const mu = Math.exp(Math.min(Math.max(eta, -30), 30));
+      for (let jj = 0; jj < pPlus1; jj++) grad[jj] += X[i][jj] * (y[i] - mu);
+      for (let a = 0; a < pPlus1; a++) for (let bcol = 0; bcol < pPlus1; bcol++)
+        H[a][bcol] += X[i][a] * X[i][bcol] * mu;
+    }
+    const Hi = matInv(H);
+    if (!Hi) break;
+    const step = matMul(Hi, grad.map(g => [g])).map(r => r[0]);
+    if (step.every(x => Math.abs(x) < 1e-7)) break;
+    beta = beta.map((b, j) => b + step[j]);
+  }
+
+  const fitted = [], pearsonPieces = [], devPieces = [];
+  let llSat = 0;
+  let ll = 0;
+  for (let i = 0; i < n; i++) {
+    const eta = Math.min(30, Math.max(-30, X[i].reduce((s, x, j) => s + x * beta[j], 0)));
+    const mu = Math.exp(eta);
+    fitted.push(mu);
+    ll += -mu + y[i] * eta - logFac(Math.floor(Math.abs(y[i] + 1e-9)));
+    pearsonPieces.push((y[i] - mu) ** 2 / (mu || 1e-10));
+    if (y[i] === 0) devPieces.push(2 * mu);
+    else devPieces.push(2 * (y[i] * Math.log(Math.max(y[i], 1) / mu) - (y[i] - mu)));
+    llSat += -y[i] + y[i] * Math.log(Math.max(y[i], 1)) - logFac(Math.floor(Math.abs(y[i] + 1e-9)));
+  }
+
+  const pearsonChi = pearsonPieces.reduce((s, x) => s + x, 0);
+  const dispersion = pearsonChi / Math.max(n - pPlus1, 1);
+  const overdispChi2P = chiPVal(pearsonChi, Math.max(n - pPlus1, 1));
+
+  /** Fisher cov at β hat */
+  const H = Array.from({ length: pPlus1 }, () => Array(pPlus1).fill(0));
+  for (let i = 0; i < n; i++) {
+    const eta = Math.min(30, Math.max(-30, X[i].reduce((s, x, j) => s + x * beta[j], 0)));
+    const mu = Math.exp(eta);
+    for (let a = 0; a < pPlus1; a++) for (let bcol = 0; bcol < pPlus1; bcol++)
+      H[a][bcol] += X[i][a] * X[i][bcol] * mu;
+  }
+  const covB = matInv(H);
+  const coeffs = waldCoeffs(beta, covB, names, { bDec: 5, orPredictorsOnly: true });
+
+  const deviance = devPieces.reduce((s, x) => s + x, 0);
+  const dof = n - pPlus1;
+  const AIC = -2 * ll + 2 * pPlus1;
+  const McFaddenR2 = Math.abs(llSat) > 1e-14 ? Math.max(0, Math.min(1, 1 - ll / llSat)) : 0;
+
+  return {
+    test: 'Poisson Regression',
+    coeffs, fitted,
+    dispersion: +dispersion.toFixed(4),
+    pearsonChi2: +pearsonChi.toFixed(3),
+    overdispPearsonDf: dof,
+    overdispPearsonP: overdispChi2P,
+    deviance: +deviance.toFixed(3),
+    McFaddenR2: +McFaddenR2.toFixed(4),
+    ll: +ll.toFixed(3),
+    AIC: +AIC.toFixed(2),
+    n,
+    apa: `Poisson glm: IRR on log scale • Pearson X²(${dof})=${pearsonChi.toFixed(2)} (${fmtP(overdispChi2P)}) • φ̂=X²/(n−p)=${dispersion.toFixed(3)} • pseudo-R²(McF)~${McFaddenR2.toFixed(3)}`,
+  };
+}
+
+// ─ Negative binomial NB2 Var=µ+µ²/θ ──────────────────────────────────────────
+
+/** GLM NB2 alternating IRLS for θ fixed; Pearson update for θ. */
+export function negativeBinomialRegression(y, Xraw, names = [], maxAlt = 20, innerIter = 12) {
+  const n = y.length;
+  const pPlus1 = Xraw[0]?.length + 1;
+  if (!n || n !== Xraw.length || pPlus1 < 2 || n < pPlus1 + 3) return null;
+  if (!y.every(v => v >= 0 && Number.isFinite(v))) return null;
+  const X = Xraw.map(r => [1, ...r]);
+
+  let beta = Array(pPlus1).fill(0);
+  beta[0] = Math.log((y.reduce((s, yi) => s + yi, 0) / n || 0.3) + 1e-4);
+  /** θ in Var = µ + µ²/θ — start from Pearson moment on Poisson fit */
+  const initPois = poissonRegression(y, Xraw, [], 40);
+  if (!initPois) return null;
+  let theta = Math.max(.08, Math.min(50, Math.max(initPois.dispersion - 1, Math.sqrt(initPois.dispersion))));
+
+  const dof = Math.max(n - pPlus1, 1);
+  for (let alt = 0; alt < maxAlt; alt++) {
+    let lastStep = Infinity;
+    for (let _ = 0; _ < innerIter; _++) {
+      const XtWX = Array.from({ length: pPlus1 }, () => Array(pPlus1).fill(0));
+      const XtWz = Array(pPlus1).fill(0);
+      for (let i = 0; i < n; i++) {
+        let eta = X[i].reduce((s, x, j) => s + x * beta[j], 0);
+        eta = Math.min(30, Math.max(-30, eta));
+        const mu = Math.exp(eta);
+        const wi = mu / (1 + mu / theta);
+        const yi = Math.max(y[i], 0);
+        const zAdj = eta + (yi - mu) / (mu || 1e-10);
+        for (let a = 0; a < pPlus1; a++) {
+          XtWz[a] += X[i][a] * wi * zAdj;
+          for (let bcol = 0; bcol < pPlus1; bcol++)
+            XtWX[a][bcol] += X[i][a] * wi * X[i][bcol];
+        }
+      }
+      const XtWXi = matInv(XtWX);
+      if (!XtWXi) break;
+      const betaStep = matMul(XtWXi, XtWz.map(v => [v])).map(row => row[0]);
+      lastStep = Math.max(...betaStep.map(Math.abs));
+      beta = betaStep;
+      if (lastStep < 1e-6) break;
+    }
+
+    /** θ from Pearson discrepancy on NB variance */
+    let pch = 0;
+    for (let i = 0; i < n; i++) {
+      const eta = Math.min(30, Math.max(-30, X[i].reduce((s, x, j) => s + x * beta[j], 0)));
+      const mu = Math.exp(eta);
+      const V = mu + (mu * mu) / theta;
+      pch += (y[i] - mu) ** 2 / (V || 1e-10);
+    }
+    theta = Math.max(.05, Math.min(500, theta * (pch / dof)));
+    if (lastStep < 1e-6 && alt > 4) break;
+  }
+
+  let ll = 0;
+  const fitted = [];
+  for (let i = 0; i < n; i++) {
+    const eta = Math.min(30, Math.max(-30, X[i].reduce((s, x, j) => s + x * beta[j], 0)));
+    const mu = Math.exp(eta);
+    fitted.push(mu);
+    ll += nbLogPmfy(y[i], mu, theta);
+  }
+
+  const H = Array.from({ length: pPlus1 }, () => Array(pPlus1).fill(0));
+  for (let i = 0; i < n; i++) {
+    const eta = Math.min(30, Math.max(-30, X[i].reduce((s, x, j) => s + x * beta[j], 0)));
+    const mu = Math.exp(eta);
+    const wi = mu / (1 + mu / theta);
+    for (let a = 0; a < pPlus1; a++) for (let bcol = 0; bcol < pPlus1; bcol++)
+      H[a][bcol] += X[i][a] * X[i][bcol] * wi;
+  }
+  const covB = matInv(H);
+  const coeffs = waldCoeffs(beta, covB, names, { bDec: 5, orPredictorsOnly: true });
+
+  const kParams = pPlus1 + 1;
+  const AIC = -2 * ll + 2 * kParams;
+  const BIC = -2 * ll + kParams * Math.log(n);
+
+  return {
+    test: 'Negative Binomial (NB2)',
+    coeffs, theta: +theta.toFixed(4), fitted,
+    ll: +ll.toFixed(3), AIC: +AIC.toFixed(2), BIC: +BIC.toFixed(2), n,
+    apa: `NB2 GLM θ=${theta.toFixed(3)} • Var(Y)=µ+µ²/θ • AIC=${AIC.toFixed(1)} IRR on log-linear scale`,
+  };
+}
+

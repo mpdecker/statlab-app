@@ -5,6 +5,7 @@ export const TESTS_USE_INFERENCE_GROUPS = new Set([
   't_welch', 't_paired', 'trimmed', 'sign', 'mwu', 'wilcoxon',
   'anova', 'welch_anova', 'twoway', 'ancova', 'rm_anova', 'kruskal', 'friedman',
   'cochranQ', 'homogeneity', 'levene', 'pointbis', 'prop2',
+  'manova', 'lda',
 ]);
 
 export const TESTS_USE_INFERENCE_XY = new Set([
@@ -17,6 +18,7 @@ export const TESTS_USE_INFERENCE_CATS = new Set([
   'chisq', 'fisher', 'mcnemar', 'kappa',
 ]);
 
+/** Single source of truth for Explore / Quick View chart mode labels */
 export const CHART_MODE_LABELS = {
   violin: 'Violin',
   scatter: 'Scatter',
@@ -35,7 +37,73 @@ export const CHART_MODE_LABELS = {
   power: 'Power',
   slopes: 'Simple slopes',
   box: 'Box plot',
+  irtplot: 'IRT curves',
+  lca: 'LCA profiles',
+  spaghetti: 'Spaghetti',
+  caterpillar: 'Caterpillar',
+  its: 'ITS',
+  rddplot: 'RDD',
+  sociogram: 'Sociogram',
 };
+
+export function exploreChartLabel(mode) {
+  return CHART_MODE_LABELS[mode] ?? 'Scatter + fit';
+}
+
+/** Explore tab chart ids (match ExplorePanel switch cases) */
+export const EXPLORE_PANEL_DEFAULT_CHART = 'Scatter+fit';
+
+/** Quick View / Inference chart mode → Explore tab chart id */
+export const EXPLORE_PANEL_CHART_FOR_MODE = {
+  violin: 'Violin',
+  histogram: 'Histogram',
+  scatter: 'Scatter+fit',
+  scatterfit: 'Scatter+fit',
+  barci: 'Bar+CI',
+  heatmap: 'Correlogram',
+  mosaic: 'Mosaic',
+  loading: 'Load. heatmap',
+  forest: 'Bar+CI',
+  path: 'Scatter+fit',
+  qq: 'ECDF',
+  scree: 'PCA biplot',
+  residual: 'Scatter+fit',
+  boot: 'Histogram',
+  power: 'Histogram',
+  slopes: 'Simp. slopes',
+  box: 'Box',
+  irtplot: 'Histogram',
+  lca: 'Mosaic',
+  spaghetti: 'Violin',
+  caterpillar: 'Bar+CI',
+  its: 'Interact. plot',
+  rddplot: 'Scatter+fit',
+  sociogram: 'Dendrogram',
+};
+
+const EXPLORE_PANEL_LABEL_ALIASES = {
+  'Scatter + fit': 'Scatter+fit',
+  'Bar + CI': 'Bar+CI',
+  'Loadings': 'Load. heatmap',
+  'Simple slopes': 'Simp. slopes',
+  'Correlogram': 'Correlogram',
+};
+
+export function explorePanelChartFromMode(mode) {
+  return EXPLORE_PANEL_CHART_FOR_MODE[mode] ?? EXPLORE_PANEL_DEFAULT_CHART;
+}
+
+/** Map display labels from exploreChartLabel to Explore tab ids */
+export function normalizeExplorePanelChart(label) {
+  if (!label) return EXPLORE_PANEL_DEFAULT_CHART;
+  return EXPLORE_PANEL_LABEL_ALIASES[label] ?? label;
+}
+
+export function resolveExplorePanelChart(seed) {
+  if (seed?.chartType) return explorePanelChartFromMode(seed.chartType);
+  if (seed?.chartLabel) return normalizeExplorePanelChart(seed.chartLabel);
+  return EXPLORE_PANEL_DEFAULT_CHART;
+}
 
 /** Simple OLS fit for scatter overlays */
 export function fitOLS(xs, ys) {
@@ -71,13 +139,62 @@ export const EXPLORE_CHARTS_CAT_PAIR = new Set(['Mosaic', 'Stacked%', 'Diverg. L
 export function resolveQuickViewVars(activeTest, header, inference) {
   const h = header || {};
   const inf = inference || {};
-  if (TESTS_USE_INFERENCE_GROUPS.has(activeTest) && inf.grpVar && inf.tgtVar) {
+  if (
+    TESTS_USE_INFERENCE_GROUPS.has(activeTest) &&
+    inf.grpVar &&
+    inf.tgtVar &&
+    !['manova', 'lda'].includes(activeTest)
+  ) {
     return {
       xVar: inf.tgtVar,
       yVar: inf.tgtVar,
       groupVar: inf.grpVar,
       catX: inf.cat1 || h.xVar,
       catY: inf.cat2 || h.yVar,
+      usingInference: true,
+    };
+  }
+  if (
+    TESTS_USE_INFERENCE_GROUPS.has(activeTest) &&
+    activeTest === 'manova' &&
+    inf.grpVar &&
+    (inf.scaleVars?.length ?? 0) >= 2
+  ) {
+    const vx = inf.scaleVars[0];
+    const vy = inf.scaleVars[1];
+    return {
+      xVar: vx,
+      yVar: vy,
+      groupVar: inf.grpVar,
+      catX: inf.cat1 || vx,
+      catY: vy,
+      usingInference: true,
+    };
+  }
+  if (
+    TESTS_USE_INFERENCE_GROUPS.has(activeTest) &&
+    activeTest === 'lda' &&
+    inf.grpVar &&
+    (inf.preds?.length ?? 0) >= 2
+  ) {
+    return {
+      xVar: inf.preds[0],
+      yVar: inf.preds[1],
+      groupVar: inf.grpVar,
+      catX: inf.cat1,
+      catY: inf.cat2,
+      usingInference: true,
+    };
+  }
+  if (activeTest === 'cancorr' && (inf.scaleVars?.length ?? 0) >= 2) {
+    const sv = inf.scaleVars;
+    const mid = Math.max(1, Math.floor(sv.length / 2));
+    return {
+      xVar: sv[0],
+      yVar: sv[mid],
+      groupVar: inf.grpVar && inf.grpVar !== '' ? inf.grpVar : h.groupVar,
+      catX: inf.cat1,
+      catY: inf.cat2,
       usingInference: true,
     };
   }
@@ -128,7 +245,7 @@ export function barGroupsFromResult(result, activeTest, data, groupVar, yVar) {
   }
   if (!groupVar || groupVar === '(none)' || !yVar || !data?.length) return [];
   return [...new Set(data.map(r => r[groupVar]))].slice(0, 8).map(name => {
-    const vals = data.filter(r => r[groupVar] === name).map(r => +r[yVar]).filter(v => !isNaN(v));
+    const vals = data.filter(r => r[groupVar] === name).map(r => +r[yVar]).filter(Number.isFinite);
     const n = vals.length;
     const mean = vals.reduce((a, b) => a + b, 0) / (n || 1);
     return { name: String(name), mean, se: sampleSD(vals) / Math.sqrt(n || 1) };
@@ -160,7 +277,15 @@ export function formatInferenceSummary(result, activeTest) {
   if (result.r2 != null) return `R² = ${result.r2}`;
   if (result.alpha != null) return `α = ${result.alpha}`;
   if (result.test && result.p != null) return `${result.test}: p = ${result.p}`;
-  if (activeTest === 'meta' && result.pooledD != null) return `d̂ = ${result.pooledD}`;
+  if (result.test === 'MANOVA' && result.wilksLambda != null && result.prob != null) {
+    return `Wilks Λ = ${result.wilksLambda}, p = ${result.prob}`;
+  }
+  if (result.test === 'Canonical Correlation' && result.correlations?.length && result.pCanon != null) {
+    return `ρc(max) ≈ ${result.correlations[0]}, p ≈ ${result.pCanon}`;
+  }
+  if (result.test === 'LDA' && result.accuracyTrain != null) {
+    return `LDA training accuracy = ${result.accuracyTrain}%`;
+  }
   return null;
 }
 
@@ -173,8 +298,8 @@ export function getChartInsight(chart, { data, xVar, yVar, groupVar, numVars }) 
     const pairs = [];
     for (let i = 0; i < numVars.length; i++) {
       for (let j = i + 1; j < numVars.length; j++) {
-        const xs = data.map(r => +r[numVars[i]]).filter(v => !isNaN(v));
-        const ys = data.map(r => +r[numVars[j]]).filter(v => !isNaN(v));
+        const xs = data.map(r => +r[numVars[i]]).filter(Number.isFinite);
+        const ys = data.map(r => +r[numVars[j]]).filter(Number.isFinite);
         const m = Math.min(xs.length, ys.length);
         if (m >= 3) pairs.push({ a: numVars[i], b: numVars[j], r: corr(xs.slice(0, m), ys.slice(0, m)) });
       }
@@ -183,8 +308,8 @@ export function getChartInsight(chart, { data, xVar, yVar, groupVar, numVars }) 
     if (top) lines.push(`Strongest pair: ${top.a} × ${top.b}, r = ${top.r.toFixed(3)}.`);
   }
   if (chart === 'Scatter+fit' && xVar && yVar) {
-    const xs = data.map(r => +r[xVar]).filter(v => !isNaN(v));
-    const ys = data.map(r => +r[yVar]).filter(v => !isNaN(v));
+    const xs = data.map(r => +r[xVar]).filter(Number.isFinite);
+    const ys = data.map(r => +r[yVar]).filter(Number.isFinite);
     const fit = xs.length === ys.length ? fitOLS(xs, ys) : null;
     if (fit) lines.push(`OLS: y = ${fit.b0.toFixed(2)} + ${fit.b1.toFixed(3)}x · r = ${fit.r.toFixed(3)} · n = ${fit.n}`);
   }

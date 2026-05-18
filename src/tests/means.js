@@ -28,6 +28,7 @@ export function tWelch(a, b) {
 export function tOne(vals, mu0 = 0) {
   if (vals.length < 2) return null;
   const n = vals.length, m = avg(vals), sd = sampleSD(vals), se = sd / Math.sqrt(n);
+  if (!se) return null;
   const t = (m - mu0) / se, df = n - 1, d = (m - mu0) / (sd || 1);
   const p = tPVal(t, df), ci = tInv2(.05, df) * se;
   return {
@@ -43,6 +44,7 @@ export function tPaired(a, b) {
   if (a.length !== b.length || a.length < 2) return null;
   const diffs = a.map((v, i) => v - b[i]), r = corr(a, b);
   const res = tOne(diffs, 0);
+  if (!res) return null;
   return { ...res, test: "Paired t-test", r: +r.toFixed(4) };
 }
 
@@ -72,6 +74,7 @@ export function yuentTest(a, b, p = 0.2) {
 
 // ── z-test (known σ) ──────────────────────────────────────────────────────────
 export function zTestKnownSD(xbar, mu0, sigma, n) {
+  if (!Number.isFinite(n) || n < 1 || !Number.isFinite(sigma) || sigma <= 0) return null;
   const se = sigma / Math.sqrt(n), z = (xbar - mu0) / se;
   const p = 2 * (1 - normalCDF(Math.abs(z))), ci = 1.96 * se, d = (xbar - mu0) / sigma;
   return {

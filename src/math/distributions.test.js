@@ -7,6 +7,7 @@ import {
   tInv2, computePowerT, computePowerCorr, requiredN, requiredNCorr,
   normalityDP, shapiroWilk, bootstrapCI,
 } from './distributions.js';
+import { avg } from './core.js';
 import ref from '../tests/__fixtures__/reference.json' with { type: 'json' };
 
 describe('lngamma', () => {
@@ -164,7 +165,22 @@ describe('shapiroWilk', () => {
   });
 });
 
+describe('computePowerT', () => {
+  it('small-sample power uses Monte Carlo (differs from crude normal)', () => {
+    const mc = computePowerT(15, 15, 0.8, 0.05, 1);
+    expect(mc).toBeGreaterThan(0.5);
+    expect(mc).toBeLessThan(1);
+  });
+});
+
 describe('bootstrapCI', () => {
+  it('is reproducible with the same seed', () => {
+    const vals = [3, 5, 7, 9, 11, 13];
+    const a = bootstrapCI(vals, v => avg(v), 300, 0.05, 123);
+    const b = bootstrapCI(vals, v => avg(v), 300, 0.05, 123);
+    expect(a.lo).toBeCloseTo(b.lo, 8);
+    expect(a.hi).toBeCloseTo(b.hi, 8);
+  });
   it('returns { lo, hi, dist }', () => {
     const r = bootstrapCI([1,2,3,4,5], a => a.reduce((s,x)=>s+x,0)/a.length, 99);
     expect(r).toHaveProperty('lo');
@@ -177,5 +193,9 @@ describe('bootstrapCI', () => {
     const { lo, hi } = bootstrapCI(data, a => a.reduce((s,x)=>s+x,0)/a.length, 999);
     expect(lo).toBeLessThan(5.5);
     expect(hi).toBeGreaterThan(5.5);
+  });
+  it('returns null for empty or single-value input', () => {
+    expect(bootstrapCI([], a => a.length)).toBeNull();
+    expect(bootstrapCI([3], a => a[0])).toBeNull();
   });
 });

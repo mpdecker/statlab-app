@@ -224,8 +224,11 @@ describe('tost', () => {
 });
 
 describe('bayesFactorT', () => {
-  it('returns null for missing t', () =>
-    expect(bayesFactorT(0, 10)).toBeNull());
+  it('returns null for invalid n', () =>
+    expect(bayesFactorT(2, 0)).toBeNull());
+
+  it('accepts t=0 as valid', () =>
+    expect(bayesFactorT(0, 10)).not.toBeNull());
 
   it('returns BF10 and BF01 for valid t and n', () => {
     const res = bayesFactorT(2.5, 20);

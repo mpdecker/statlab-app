@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+dist/
+.vite/
+*.log
+.env
+.env.*
+.superpowers/
+.claude/

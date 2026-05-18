@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   pca, efa, cronbachAlpha, icc, cohensKappa,
   splitHalf, metaAnalysis, differencesInDifferences, convertEffectSize,
+  manova, canonicalCorr, linearDiscriminant,
 } from './multivariate.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
 
@@ -95,6 +96,69 @@ describe('cronbachAlpha', () => {
     const matrix = Array.from({ length: 10 }, (_, i) => [i+1, i+1.2, i+0.8]);
     const res = cronbachAlpha(matrix);
     expect(typeof res.label).toBe('string');
+  });
+});
+
+describe('manova', () => {
+  const data = [];
+  for (let i = 0; i < 36; i++) {
+    const g = i < 18 ? 'A' : 'B';
+    const off = i < 18 ? 0 : 15;
+    data.push({ species: g, y1: (i % 9) + off + Math.random() * .1, y2: (i % 9) * 2 + off + Math.random() * .1 });
+  }
+
+  it('returns null when only one factor level on data rows', () => {
+    const oneGrp = data.filter(r => r.species === 'A');
+    expect(manova(oneGrp, ['y1', 'y2'], 'species')).toBeNull();
+  });
+
+  it('reports Wilks Λ and p for small design', () => {
+    const m = manova(data, ['y1', 'y2'], 'species');
+    expect(m).not.toBeNull();
+    expect(m.wilksLambda).toBeGreaterThan(0);
+    expect(m.wilksLambda).toBeLessThanOrEqual(1);
+    expect(m.prob).toBeGreaterThanOrEqual(0);
+    expect(m.prob).toBeLessThanOrEqual(1);
+    expect(m.pillaiTrace).not.toBeNaN();
+    expect(m.ndep).toBe(2);
+  });
+});
+
+describe('canonicalCorr', () => {
+  const rows = mkData();
+
+  it('returns null when X or Y block is empty', () => {
+    expect(canonicalCorr(rows, [], ['x1', 'x2'])).toBeNull();
+    expect(canonicalCorr(rows, ['x1', 'x2'], [])).toBeNull();
+  });
+
+  it('extracts correlations for two-blocks', () => {
+    const ccRows = rows.map((r, ix) => ({ ...r, ySyn: +(r.x1 + r.x3) / 3 + ix * .001 }));
+    const cc = canonicalCorr(ccRows, ['x1', 'x2'], ['x3', 'ySyn']);
+    expect(cc).not.toBeNull();
+    expect(cc.correlations.length).toBeGreaterThan(0);
+    expect(cc.correlations[0]).toBeGreaterThan(0);
+    expect(cc.pCanon).not.toBeNaN();
+  });
+});
+
+describe('linearDiscriminant', () => {
+  const ldaRows = Array.from({ length: 40 }, (_, i) => ({
+    x1: (i % 12) / 11 + (i >= 22 ? .9 : 0),
+    x2: (i % 7) / 7 + Math.sin(i) * .07 + (i >= 22 ? .35 : 0),
+    grp: i < 20 ? 'Low' : 'High',
+  }));
+
+  it('returns null when groupVar column is absent', () => {
+    expect(linearDiscriminant(ldaRows, 'missing_col', ['x1', 'x2'])).toBeNull();
+  });
+
+  it('returns coefficients and training-set accuracy %', () => {
+    const L = linearDiscriminant(ldaRows, 'grp', ['x1', 'x2']);
+    expect(L).not.toBeNull();
+    expect(L.coefficients?.length).toBe(2);
+    expect(L.accuracyTrain).toBeGreaterThanOrEqual(0);
+    expect(L.accuracyTrain).toBeLessThanOrEqual(100);
   });
 });
 

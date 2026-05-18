@@ -6,8 +6,13 @@ export const CHART_FOR_TEST = {
   trimmed: 'violin',
   z_known: 'histogram',
   sign: 'violin',
+
   mwu: 'violin',
   wilcoxon: 'violin',
+
+  tost: 'violin',
+  bayes_t: 'violin',
+  bayes_r: 'scatterfit',
 
   anova: 'barci',
   welch_anova: 'barci',
@@ -28,6 +33,9 @@ export const CHART_FOR_TEST = {
   polynomial: 'scatterfit',
   hierarchical: 'scatterfit',
   logistic: 'scatterfit',
+  ordinal: 'scatterfit',
+  poisson: 'scatterfit',
+  negbinom: 'scatterfit',
   mediation: 'path',
   med_bootstrap: 'histogram',
   moderation: 'slopes',
@@ -42,17 +50,54 @@ export const CHART_FOR_TEST = {
 
   pca: 'scree',
   efa: 'loading',
+
+  manova: 'scatterfit',
+  cancorr: 'heatmap',
+  lda: 'scatterfit',
+
   cronbach: 'barci',
   splithalf: 'barci',
   icc: 'barci',
   kappa: 'mosaic',
 
+  omega: 'barci',
+  parallel: 'scree',
+  irt_1pl: 'irtplot',
+  irt_2pl: 'irtplot',
+  scale_score: 'histogram',
+
+  hlm_ri: 'caterpillar',
+  hlm_rs: 'spaghetti',
+  icc_ml: 'barci',
+
+  kmeans: 'histogram',
+  hclust: 'histogram',
+  lca: 'lca',
+
+  centrality: 'histogram',
+  community: 'barci',
+  sociogram: 'sociogram',
+
   meta: 'forest',
   did: 'scatter',
+  psm: 'scatterfit',
+  iv2sls: 'scatterfit',
+  its: 'its',
+  rdd: 'rddplot',
 
   normality: 'qq',
   homogeneity: 'barci',
   bootstrap: 'histogram',
   samplesize: 'power',
   grubbs: 'histogram',
+
+  pow_anova: 'power',
+  pow_chi: 'power',
+  pow_logit: 'power',
+  pow_mixed: 'power',
+  pow_med: 'power',
+
+  effectconv: 'histogram',
+  corrections: 'histogram',
+  sensitivity: 'barci',
 };

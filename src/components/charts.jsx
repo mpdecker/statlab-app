@@ -333,7 +333,7 @@ export function BoxPlotGrid({ data, groupVar, yVar, width = 210, height = 150 })
         <div key={g} style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 7, color: C.dim, ...mono, marginBottom: 2 }}>{String(g).slice(0, 8)}</div>
           <BoxPlot
-            data={data.filter(r => r[groupVar] === g).map(r => +r[yVar]).filter(v => !isNaN(v))}
+            data={data.filter(r => r[groupVar] === g).map(r => +r[yVar]).filter(Number.isFinite)}
             width={gw} height={height - 14}
             color={PAL[i % PAL.length]}
           />
@@ -501,9 +501,10 @@ export function MosaicPlot({ data, xVar, yVar, width = 300, height = 200 }) {
 
 // ── Scatter quick-view ────────────────────────────────────────────────────────
 export function QuickScatter({ data, xVar, yVar, colorVar, colorMap, groups }) {
+  if (!xVar || !yVar) return null;
   const axTick = { fontSize: 9, fill: C.dim, ...mono };
   const scData = (() => {
-    const valid = data.filter(r => !isNaN(+r[xVar]) && !isNaN(+r[yVar]));
+    const valid = data.filter(r => Number.isFinite(+r[xVar]) && Number.isFinite(+r[yVar]));
     return colorVar
       ? (groups || []).map(g => ({ name: g, color: colorMap?.[g] || PAL[0], pts: valid.filter(r => r[colorVar] === g).map(r => ({ x: +r[xVar], y: +r[yVar] })) }))
       : [{ name: 'all', color: PAL[0], pts: valid.map(r => ({ x: +r[xVar], y: +r[yVar] })) }];
@@ -522,8 +523,9 @@ export function QuickScatter({ data, xVar, yVar, colorVar, colorMap, groups }) {
 }
 
 export function QuickScatterFit({ data, xVar, yVar, colorVar, colorMap, groups }) {
+  if (!xVar || !yVar) return null;
   const axTick = { fontSize: 9, fill: C.dim, ...mono };
-  const valid = data.filter(r => !isNaN(+r[xVar]) && !isNaN(+r[yVar]));
+  const valid = data.filter(r => Number.isFinite(+r[xVar]) && Number.isFinite(+r[yVar]));
   const xs = valid.map(r => +r[xVar]);
   const ys = valid.map(r => +r[yVar]);
   const fit = fitOLS(xs, ys);
@@ -541,5 +543,169 @@ export function QuickScatterFit({ data, xVar, yVar, colorVar, colorMap, groups }
         {fit && <RLine data={fit.line} dataKey="y" stroke={C.accent} strokeWidth={2} dot={false} name={`fit r=${fit.r.toFixed(2)}`} />}
       </ComposedChart>
     </ResponsiveContainer>
+  );
+}
+
+/** IRT item characteristic curves */
+export function IRTCurves({ icc, itemCount = 3 }) {
+  if (!icc?.length) return null;
+  const cols = PAL.slice(0, Math.min(itemCount, icc[0]?.curves?.length || 0));
+  const data = icc.map(pt => {
+    const row = { theta: pt.theta };
+    pt.curves?.forEach((p, j) => { if (j < cols.length) row[`I${j + 1}`] = p; });
+    return row;
+  });
+  const axTick = { fontSize: 7, fill: C.dim, ...mono };
+  return (
+    <div style={{ height: 100 }}>
+      <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 1 }}>ICC (θ vs P)</div>
+      <ResponsiveContainer width="100%" height="90%">
+        <LineChart data={data} margin={{ top: 2, right: 8, bottom: 14, left: 8 }}>
+          <CartesianGrid stroke={C.border} strokeOpacity={.35} />
+          <XAxis dataKey="theta" tick={axTick} stroke={C.border} />
+          <YAxis domain={[0, 1]} tick={axTick} stroke={C.border} />
+          <Tooltip content={<CTip />} />
+          {cols.map((col, j) => (
+            <Line key={j} type="monotone" dataKey={`I${j + 1}`} stroke={col} strokeWidth={1.5} dot={false} name={`Item ${j + 1}`} />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** LCA class profile bar chart */
+export function LCAProfiles({ profiles }) {
+  if (!profiles?.length) return null;
+  const data = profiles.flatMap(p =>
+    (p.items || []).map(it => ({ class: `C${p.class}`, var: it.var, prop: p.proportion })));
+  const axTick = { fontSize: 7, fill: C.dim, ...mono };
+  return (
+    <div style={{ height: 95 }}>
+      <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 1 }}>Class proportions</div>
+      <ResponsiveContainer width="100%" height="90%">
+        <BarChart data={profiles.map(p => ({ name: `C${p.class}`, pct: +(100 * p.proportion).toFixed(1) }))} margin={{ top: 2, right: 8, bottom: 14, left: 8 }}>
+          <CartesianGrid stroke={C.border} strokeOpacity={.35} vertical={false} />
+          <XAxis dataKey="name" tick={axTick} stroke={C.border} />
+          <YAxis tick={axTick} stroke={C.border} domain={[0, 100]} />
+          <Tooltip content={<CTip />} />
+          <Bar dataKey="pct" fill={C.accent} name="%" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** Spaghetti plot for multilevel / longitudinal */
+export function SpaghettiPlot({ data, xVar, yVar, groupVar }) {
+  if (!data?.length || !xVar || !yVar || !groupVar) return null;
+  const groups = [...new Set(data.map(r => r[groupVar]))].slice(0, 12);
+  const axTick = { fontSize: 7, fill: C.dim, ...mono };
+  return (
+    <div style={{ height: 110 }}>
+      <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 1 }}>Spaghetti · {groupVar}</div>
+      <ResponsiveContainer width="100%" height="90%">
+        <ComposedChart margin={{ top: 2, right: 6, bottom: 14, left: 6 }}>
+          <CartesianGrid stroke={C.border} strokeOpacity={.35} />
+          <XAxis dataKey="x" type="number" tick={axTick} stroke={C.border} />
+          <YAxis dataKey="y" type="number" tick={axTick} stroke={C.border} />
+          <Tooltip content={<CTip />} />
+          {groups.map((g, i) => {
+            const pts = data.filter(r => r[groupVar] === g).map(r => ({ x: +r[xVar], y: +r[yVar] })).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+            return <RLine key={g} data={pts} dataKey="y" stroke={PAL[i % PAL.length]} strokeWidth={1} dot={false} opacity={.55} name={String(g)} />;
+          })}
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** Caterpillar plot of group means */
+export function CaterpillarPlot({ groups }) {
+  if (!groups?.length) return null;
+  const sorted = [...groups].sort((a, b) => a.mean - b.mean);
+  const W = 320, H = Math.max(70, sorted.length * 18 + 20), PL = 70, PR = 40;
+  const vals = sorted.map(g => g.mean);
+  const vMin = Math.min(...vals), vMax = Math.max(...vals), vR = vMax - vMin || 1;
+  const sx = v => PL + ((v - vMin) / vR) * (W - PL - PR);
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={mono}>
+      {sorted.map((g, i) => {
+        const y = 12 + i * 18;
+        return (
+          <g key={i}>
+            <text x={PL - 4} y={y + 3} textAnchor="end" fontSize={7} fill={C.dim}>{String(g.name).slice(0, 10)}</text>
+            <circle cx={sx(g.mean)} cy={y} r={3} fill={C.accent} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** ITS segmented means */
+export function ITSPlot({ series }) {
+  if (!series?.length) return null;
+  const axTick = { fontSize: 7, fill: C.dim, ...mono };
+  return (
+    <div style={{ height: 95 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={series} margin={{ top: 2, right: 8, bottom: 14, left: 8 }}>
+          <CartesianGrid stroke={C.border} strokeOpacity={.35} />
+          <XAxis dataKey="t" type="number" tick={axTick} stroke={C.border} />
+          <YAxis dataKey="y" type="number" tick={axTick} stroke={C.border} />
+          <Tooltip content={<CTip />} />
+          <Line type="monotone" dataKey="y" stroke={C.accent} strokeWidth={2} dot={{ r: 2 }} name="y" />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** RDD local scatter */
+export function RDPlot({ points, cutoff }) {
+  if (!points?.length) return null;
+  const axTick = { fontSize: 7, fill: C.dim, ...mono };
+  const left = points.filter(p => p.x < cutoff);
+  const right = points.filter(p => p.x >= cutoff);
+  return (
+    <div style={{ height: 100 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart margin={{ top: 2, right: 6, bottom: 14, left: 6 }}>
+          <CartesianGrid stroke={C.border} strokeOpacity={.35} />
+          <XAxis dataKey="x" type="number" tick={axTick} stroke={C.border} />
+          <YAxis dataKey="y" type="number" tick={axTick} stroke={C.border} />
+          <Tooltip content={<CTip />} />
+          <ReferenceLine x={cutoff} stroke={C.neg} strokeDasharray="4,2" />
+          <Scatter data={left} fill={C.pos} opacity={.6} r={2} name="left" />
+          <Scatter data={right} fill={C.warn} opacity={.6} r={2} name="right" />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/** Sociogram force layout */
+export function SociogramPlot({ nodes, edges }) {
+  if (!nodes?.length) return null;
+  const xs = nodes.map(n => n.x);
+  const ys = nodes.map(n => n.y);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMin = Math.min(...ys), yMax = Math.max(...ys);
+  const W = 300, H = 120, pad = 20;
+  const sx = x => pad + ((x - xMin) / (xMax - xMin || 1)) * (W - 2 * pad);
+  const sy = y => pad + ((y - yMin) / (yMax - yMin || 1)) * (H - 2 * pad);
+  const pos = Object.fromEntries(nodes.map(n => [n.id, n]));
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={mono}>
+      {(edges || []).map((e, i) => {
+        const a = pos[e.from], b = pos[e.to];
+        if (!a || !b) return null;
+        return <line key={i} x1={sx(a.x)} y1={sy(a.y)} x2={sx(b.x)} y2={sy(b.y)} stroke={C.border} strokeWidth={1} opacity={.6} />;
+      })}
+      {nodes.map(n => (
+        <circle key={n.id} cx={sx(n.x)} cy={sy(n.y)} r={4} fill={C.accent} />
+      ))}
+    </svg>
   );
 }

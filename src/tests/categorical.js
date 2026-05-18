@@ -32,7 +32,9 @@ export function chiSquare(data, col1, col2) {
 export function chiGoF(observed, expected) {
   if (!observed.length || observed.length !== expected.length) return null;
   const n = observed.reduce((s, v) => s + v, 0);
-  const chi2 = observed.reduce((s, o, i) => s + (o - expected[i]) ** 2 / (expected[i] || 1), 0);
+  if (n < 1) return null;
+  if (expected.some(e => !(e > 0))) return null;
+  const chi2 = observed.reduce((s, o, i) => s + (o - expected[i]) ** 2 / expected[i], 0);
   const df = observed.length - 1, p = chiPVal(chi2, df), w = Math.sqrt(chi2 / n);
   return {
     test: "Chi-Square GoF", chi2: +chi2.toFixed(4), df, p, w: +w.toFixed(4),
@@ -43,7 +45,9 @@ export function chiGoF(observed, expected) {
 
 // ── Fisher's Exact ────────────────────────────────────────────────────────────
 export function fisherExact(a, b, c, d) {
+  if (![a, b, c, d].every(v => Number.isFinite(v) && v >= 0)) return null;
   const n = a + b + c + d;
+  if (n === 0) return null;
   if (n > 500) return { test: "Fisher's Exact", p: null, OR: null, warning: "n > 500: use chi-square instead" };
   const r1 = a + b, r2 = c + d, c1 = a + c;
   const lnP0 = lnBinom(r1, a) + lnBinom(r2, c) - lnBinom(n, c1);
@@ -67,13 +71,17 @@ export function fisherExact(a, b, c, d) {
 
 // ── McNemar's Test ────────────────────────────────────────────────────────────
 export function mcnemar(b, c) {
+  if (!Number.isFinite(b) || !Number.isFinite(c) || b < 0 || c < 0) return null;
   if (b + c < 10) return null;
+  if (b + c === 0) return null;
   const chi2 = (Math.abs(b - c) - 1) ** 2 / (b + c), p = chiPVal(chi2, 1);
   return { test: "McNemar's Test", chi2: +chi2.toFixed(4), p, b, c, apa: `χ²(1) = ${chi2.toFixed(2)}, ${fmtP(p)}` };
 }
 
 // ── Binomial exact test ───────────────────────────────────────────────────────
 export function binomialTest(k, n, p0 = .5) {
+  if (!Number.isInteger(n) || n < 1 || !Number.isInteger(k) || k < 0 || k > n) return null;
+  if (!(p0 > 0 && p0 < 1)) return null;
   const binom = k_ => Math.exp(lnBinom(n, k_) + k_ * Math.log(p0) + (n - k_) * Math.log(1 - p0));
   const obs = binom(k);
   let p = 0;
@@ -89,7 +97,11 @@ export function binomialTest(k, n, p0 = .5) {
 
 // ── One-proportion z ──────────────────────────────────────────────────────────
 export function onePropZ(x, n, p0 = .5) {
-  const ph = x / n, se = Math.sqrt(p0 * (1 - p0) / n), z = (ph - p0) / se;
+  if (!Number.isFinite(n) || n < 1 || !Number.isFinite(x) || x < 0 || x > n) return null;
+  if (!(p0 > 0 && p0 < 1)) return null;
+  const ph = x / n, se = Math.sqrt(p0 * (1 - p0) / n);
+  if (!se) return null;
+  const z = (ph - p0) / se;
   const p = 2 * (1 - normalCDF(Math.abs(z)));
   const h = 2 * Math.asin(Math.sqrt(ph)) - 2 * Math.asin(Math.sqrt(p0));
   const ciSe = Math.sqrt(ph * (1 - ph) / n);
@@ -103,8 +115,12 @@ export function onePropZ(x, n, p0 = .5) {
 
 // ── Two-proportion z ──────────────────────────────────────────────────────────
 export function twoPropZ(x1, n1, x2, n2) {
+  if ([n1, n2].some(n => !Number.isFinite(n) || n < 1)) return null;
+  if ([x1, x2].some((x, i) => !Number.isFinite(x) || x < 0 || x > [n1, n2][i])) return null;
   const p1 = x1 / n1, p2 = x2 / n2, pp = (x1 + x2) / (n1 + n2);
-  const se = Math.sqrt(pp * (1 - pp) * (1 / n1 + 1 / n2)), z = (p1 - p2) / se;
+  const se = Math.sqrt(pp * (1 - pp) * (1 / n1 + 1 / n2));
+  if (!se) return null;
+  const z = (p1 - p2) / se;
   const p = 2 * (1 - normalCDF(Math.abs(z)));
   const OR = (x1 * (n2 - x2)) / ((x2 * (n1 - x1)) || 1);
   const ARR = p1 - p2, RR = p1 / (p2 || 1e-9);
@@ -174,7 +190,7 @@ export function tost(a, b, dL, dU, alpha = .05) {
 // ── Bayes factor for t-test (JZS Cauchy prior) ───────────────────────────────
 import { tPDF } from '../math/distributions.js';
 export function bayesFactorT(t, n1, n2, r = 0.707) {
-  if (!t || !n1) return null;
+  if (!Number.isFinite(t) || !Number.isFinite(n1) || n1 < 1) return null;
   const n = n2 ? n1 * n2 / (n1 + n2) : n1, df = n2 ? n1 + n2 - 2 : n1 - 1;
   const nPts = 500, lo = -6, hi = 6, dx = (hi - lo) / (nPts - 1);
   const logH0 = Math.log(tPDF(t, df) + 1e-300);
@@ -206,14 +222,16 @@ export function bayesFactorCorr(r, n) {
     BF10 > 3 ? "moderate H₁" : BF10 > 1 ? "anecdotal H₁" : "H₀ favoured";
   return {
     test: "Bayesian Correlation", r: +r.toFixed(4), n, BF10: +BF10.toFixed(4), label,
-    apa: `BF₁₀ ≈ ${BF10.toFixed(3)} [${label}] for r = ${r.toFixed(3)}, n = ${n}`,
+    approximate: true,
+    apa: `BF₁₀ ≈ ${BF10.toFixed(3)} [${label}] for r = ${r.toFixed(3)}, n = ${n} (Jeffreys approx.)`,
   };
 }
 
 // ── Grubbs outlier test ───────────────────────────────────────────────────────
 export function grubbsTest(vals) {
   const n = vals.length; if (n < 7) return null;
-  const m = avg(vals), s = sampleSD(vals) || 1;
+  const m = avg(vals), s = sampleSD(vals);
+  if (!s || s < 1e-14) return null;
   const devs = vals.map((x, i) => ({ val: x, z: Math.abs(x - m) / s, idx: i })).sort((a, b) => b.z - a.z);
   const G = devs[0].z, p = Math.min(1, 1 - Math.pow(1 - normalCDF(-G * Math.sqrt(n / (n - 1))), n));
   return {
@@ -263,7 +281,12 @@ export function bh(pairs) {
 // ── Leave-one-out sensitivity ─────────────────────────────────────────────────
 export function sensitivityLOO(vals, testFn) {
   const n = vals.length; if (n < 10) return null;
-  const ps = vals.map((_, i) => { const sub = vals.filter((_, j) => j !== i); const res = testFn(sub); return res?.p || 1; }).filter(p => !isNaN(p));
+  const ps = vals.map((_, i) => {
+    const sub = vals.filter((_, j) => j !== i);
+    const res = testFn(sub);
+    return res?.p;
+  }).filter(p => Number.isFinite(p));
+  if (ps.length < n) return null;
   const mp = avg(ps), sdp = Math.sqrt(ps.reduce((s, p) => s + (p - mp) ** 2, 0) / ps.length);
   const nSig = ps.filter(p => p < .05).length;
   return { n, nSig, propSig: +(nSig / n).toFixed(3), mean_p: +mp.toFixed(4), sd_p: +sdp.toFixed(4), stable: sdp < .1, ps };

@@ -4,7 +4,7 @@ import { FONTS, GLOBAL_CSS, C, PAL } from './palette.js';
 import { BUILTIN, detectCols, loadDataset, _cache, DATASET_DEFAULTS } from './data/datasets.js';
 import {
   resolveQuickViewVars, barGroupsFromResult, loadingFromResult,
-  formatInferenceSummary, CHART_MODE_LABELS,
+  formatInferenceSummary, CHART_MODE_LABELS, exploreChartLabel, explorePanelChartFromMode,
 } from './utils/vizHelpers.js';
 import { CHART_FOR_TEST } from './config/chartMap.js';
 import { computeStats, corr } from './math/core.js';
@@ -13,7 +13,8 @@ import ExplorePanel from './components/ExplorePanel.jsx';
 import {
   QuickScatter, QuickScatterFit, ViolinPlot, BarCI, HistogramDensity, HeatmapCorr, MosaicPlot,
   PowerCurve, PathDiagram, ForestPlot, QQPlot, ScreePlot, ResidualPlot, BootstrapHist,
-  QuickSlopes, BoxPlotGrid,
+  QuickSlopes, BoxPlotGrid, IRTCurves, LCAProfiles, SpaghettiPlot, CaterpillarPlot,
+  ITSPlot, RDPlot, SociogramPlot,
 } from './components/charts.jsx';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -28,31 +29,11 @@ const CHART_ICONS = [
   { id: 'mosaic', label: '⊠', title: 'Mosaic' },
 ];
 
-const MODE_TO_EXPLORE_LABEL = {
-  violin: 'Violin',
-  scatter: 'Scatter+fit',
-  scatterfit: 'Scatter+fit',
-  histogram: 'Histogram',
-  barci: 'Bar+CI',
-  heatmap: 'Correlogram',
-  mosaic: 'Mosaic',
-  loading: 'Load. heatmap',
-  forest: 'Scatter+fit',
-  path: 'Scatter+fit',
-  qq: 'Histogram',
-  scree: 'PCA biplot',
-  residual: 'Scatter+fit',
-  power: 'Histogram',
-  slopes: 'Simp. slopes',
-  box: 'Box',
-  loading: 'Load. heatmap',
-};
-
 function computeCorrMatrix(data, vars) {
   return vars.map(v1 => vars.map(v2 => {
     if (v1 === v2) return 1;
-    const xs = data.map(r => +r[v1]).filter(v => !isNaN(v));
-    const ys = data.map(r => +r[v2]).filter(v => !isNaN(v));
+    const xs = data.map(r => +r[v1]).filter(Number.isFinite);
+    const ys = data.map(r => +r[v2]).filter(Number.isFinite);
     const n = Math.min(xs.length, ys.length);
     if (n < 2) return 0;
     return corr(xs.slice(0, n), ys.slice(0, n));
@@ -60,7 +41,8 @@ function computeCorrMatrix(data, vars) {
 }
 
 function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, groups, inferenceResult, activeTest }) {
-  const numVals = (col) => data.map(r => +r[col]).filter(v => !isNaN(v));
+  const numVals = (col) => data.map(r => +r[col]).filter(Number.isFinite);
+  const gVar = colorVar && colorVar !== '(none)' ? colorVar : null;
   const emptyHint = (msg) => (
     <div style={{ padding: 12, fontSize: 9, color: C.dim, ...mono, textAlign: 'center', lineHeight: 1.5 }}>{msg}</div>
   );
@@ -74,7 +56,7 @@ function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, grou
             <div key={g} style={{ flex: 1, textAlign: 'center' }}>
               <div style={{ fontSize: 8, color: C.dim }}>{g}</div>
               <ViolinPlot
-                data={(gVar ? data.filter(r => r[gVar] === g) : data).map(r => +r[yVar]).filter(v => !isNaN(v))}
+                data={(gVar ? data.filter(r => r[gVar] === g) : data).map(r => +r[yVar]).filter(Number.isFinite)}
                 width={90} height={100}
               />
             </div>
@@ -152,6 +134,34 @@ function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, grou
       return <MosaicPlot data={data} xVar={gVar || xVar} yVar={yVar} width={210} height={160} />;
     case 'power':
       return <PowerCurve d={0.5} currentN={Math.floor(data.length / 2)} />;
+    case 'irtplot':
+      return inferenceResult?.icc?.length
+        ? <IRTCurves icc={inferenceResult.icc} itemCount={inferenceResult.k} />
+        : emptyHint('Run IRT 1PL or 2PL with scale items selected.');
+    case 'lca':
+      return inferenceResult?.profiles?.length
+        ? <LCAProfiles profiles={inferenceResult.profiles} />
+        : emptyHint('Run Latent Class Analysis with two categorical indicators.');
+    case 'spaghetti':
+      return gVar && yVar
+        ? <SpaghettiPlot data={data} xVar={xVar || ds?.numeric?.[0]} yVar={yVar} groupVar={gVar} />
+        : emptyHint('Select cluster ID and outcome for spaghetti plot.');
+    case 'caterpillar':
+      return inferenceResult?.groupMeans?.length
+        ? <CaterpillarPlot groups={inferenceResult.groupMeans} />
+        : emptyHint('Run HLM random intercept to see caterpillar plot.');
+    case 'its':
+      return inferenceResult?.series?.length
+        ? <ITSPlot series={inferenceResult.series} />
+        : emptyHint('Run Interrupted Time Series with time and outcome vectors.');
+    case 'rddplot':
+      return inferenceResult?.points?.length
+        ? <RDPlot points={inferenceResult.points} cutoff={inferenceResult.cutoff} />
+        : emptyHint('Run Regression Discontinuity with X and Y variables.');
+    case 'sociogram':
+      return inferenceResult?.nodes?.length
+        ? <SociogramPlot nodes={inferenceResult.nodes} edges={inferenceResult.edges} />
+        : emptyHint('Run Sociogram / enter edge list (A-B,B-C).');
     default:
       return (
         <QuickScatter
@@ -174,7 +184,7 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
         <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: '.05em', color: '#fff' }}>
           STAT<span style={{ color: C.accent }}>LAB</span>
         </div>
-        <div style={{ fontSize: 8, color: C.dim, ...mono }}>v6 · 55 tests · social science edition</div>
+        <div style={{ fontSize: 8, color: C.dim, ...mono }}>v7 · 85 tests · social science edition</div>
       </div>
 
       {/* Dataset pills */}
@@ -262,12 +272,12 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
   const isAuto = chartMode == null;
   const modeLabel = CHART_MODE_LABELS[effectiveMode] ?? effectiveMode;
   const inferLine = useMemo(() => formatInferenceSummary(inferenceResult, activeTest), [inferenceResult, activeTest]);
-  const xStats = useMemo(() => computeStats(data.map(r => +r[vizX]).filter(v => !isNaN(v))), [data, vizX]);
-  const yStats = useMemo(() => computeStats(data.map(r => +r[vizY]).filter(v => !isNaN(v))), [data, vizY]);
+  const xStats = useMemo(() => computeStats(data.map(r => +r[vizX]).filter(Number.isFinite)), [data, vizX]);
+  const yStats = useMemo(() => computeStats(data.map(r => +r[vizY]).filter(Number.isFinite)), [data, vizY]);
   const pearsonR = useMemo(() => {
     if (!xStats || !yStats) return null;
-    const xs = data.map(r => +r[vizX]).filter(v => !isNaN(v));
-    const ys = data.map(r => +r[vizY]).filter(v => !isNaN(v));
+    const xs = data.map(r => +r[vizX]).filter(Number.isFinite);
+    const ys = data.map(r => +r[vizY]).filter(Number.isFinite);
     if (xs.length !== ys.length || xs.length < 3) return null;
     return corr(xs, ys).toFixed(3);
   }, [data, vizX, vizY, xStats, yStats]);
@@ -420,7 +430,8 @@ export default function App() {
         : [resolved.xVar, resolved.yVar, ...(ds?.numeric || []).slice(0, 4)];
       setExploreSeed({
         chartType: mode,
-        chartLabel: MODE_TO_EXPLORE_LABEL[mode] ?? 'Scatter+fit',
+        chartLabel: explorePanelChartFromMode(mode),
+        chartLabelDisplay: exploreChartLabel(mode),
         xVar: resolved.xVar,
         yVar: resolved.yVar,
         groupVar: resolved.groupVar,
@@ -445,8 +456,10 @@ export default function App() {
     setUploadMsg('parsing…');
     Papa.parse(file, {
       header: true, skipEmptyLines: true, dynamicTyping: true,
-      complete: ({ data: rows }) => {
-        if (!rows.length) { setUploadMsg('empty file'); return; }
+      complete: ({ data: rows, errors }) => {
+        if (errors?.length) console.warn('CSV upload warnings:', errors);
+        if (!rows?.length) { setUploadMsg('empty file'); return; }
+        if (rows.length > 100_000) { setUploadMsg('file too large (max 100k rows)'); return; }
         const { numeric, categorical } = detectCols(rows);
         setCustomData(rows);
         setCustomDef({

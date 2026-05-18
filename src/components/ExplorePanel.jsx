@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   getChartInsight, exportSvgFromCanvas, exportCanvasAsPng,
   EXPLORE_CHARTS_XY, EXPLORE_CHARTS_SIZE, EXPLORE_CHARTS_CAT_PAIR,
+  resolveExplorePanelChart, exploreChartLabel,
 } from '../utils/vizHelpers.js';
 import {
   ExHistogram, ExViolin, ExBox, ExRainCloud, ExECDF,
@@ -80,7 +81,7 @@ function renderChart({ chart, data, includeVars, groupVar, xVar, yVar, sizeVar, 
 }
 
 export default function ExplorePanel({ data, ds, seed, inferenceContext, onBridgeToInference }) {
-  const [activeChart, setActiveChart] = useState(seed?.chartLabel ?? 'Scatter+fit');
+  const [activeChart, setActiveChart] = useState(() => resolveExplorePanelChart(seed));
   const [includeVars, setIncludeVars] = useState(seed?.includeVars ?? []);
   const [groupVar, setGroupVar] = useState(seed?.groupVar ?? '(none)');
   const [xVar, setXVar] = useState(seed?.xVar ?? '');
@@ -93,7 +94,7 @@ export default function ExplorePanel({ data, ds, seed, inferenceContext, onBridg
 
   useEffect(() => {
     if (!seed) return;
-    if (seed.chartLabel) setActiveChart(seed.chartLabel);
+    setActiveChart(resolveExplorePanelChart(seed));
     if (seed.includeVars?.length) setIncludeVars(seed.includeVars);
     if (seed.groupVar) setGroupVar(seed.groupVar);
     if (seed.xVar) setXVar(seed.xVar);
@@ -142,7 +143,7 @@ export default function ExplorePanel({ data, ds, seed, inferenceContext, onBridg
         {seed && (
           <div style={{ margin: '6px 8px', background: 'rgba(196,255,0,.06)', border: '1px solid rgba(196,255,0,.2)', borderRadius: 3, padding: '4px 6px', fontSize: 8, color: '#c4ff00', lineHeight: 1.4 }}>
             ◈ seeded from Inference<br />
-            <span style={{ color: '#fff' }}>{seed.chartLabel ?? seed.chartType}</span>
+            <span style={{ color: '#fff' }}>{seed.chartLabelDisplay ?? exploreChartLabel(seed.chartType) ?? seed.chartLabel}</span>
             {inferenceContext?.active && (
               <><br /><span style={{ color: '#555', fontSize: 7 }}>test: {inferenceContext.active}</span></>
             )}

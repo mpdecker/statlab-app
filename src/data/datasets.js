@@ -4,6 +4,8 @@ import { clamp } from '../math/core.js';
 const _cache = {};
 export { _cache };
 
+const MAX_CSV_ROWS = 100_000;
+
 export async function loadDataset(key) {
   if (_cache[key]) return _cache[key];
   const entry = BUILTIN[key];
@@ -16,7 +18,12 @@ export async function loadDataset(key) {
       skipEmptyLines: true,
       complete: ({ data, errors }) => {
         if (errors.length) console.warn('CSV parse warnings:', errors);
-        let rows = data;
+        let rows = Array.isArray(data) ? data : [];
+        if (!rows.length) {
+          reject(new Error(`Dataset "${key}" returned no rows`));
+          return;
+        }
+        if (rows.length > MAX_CSV_ROWS) rows = rows.slice(0, MAX_CSV_ROWS);
         if (key === 'schools') {
           rows = data.map(r => {
             const id = r.school ?? r.School ?? r.school_id;
@@ -212,7 +219,8 @@ export function detectCols(rows) {
   const numeric = [], categorical = [];
   Object.keys(rows[0]).forEach(k => {
     const vals = rows.map(r => r[k]).filter(v => v != null && v !== "");
-    const numCount = vals.filter(v => !isNaN(+v) && v !== "").length;
+    if (!vals.length) { categorical.push(k); return; }
+    const numCount = vals.filter(v => Number.isFinite(+v)).length;
     (numCount / vals.length > 0.6 ? numeric : categorical).push(k);
   });
   return { numeric, categorical };

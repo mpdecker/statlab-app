@@ -13,4 +13,11 @@ describe('ExplorePanel', () => {
     const { container } = render(<ExplorePanel data={mockData} seed={null} />);
     expect(container.firstChild).toBeTruthy();
   });
+
+  test('seeds active chart from chartType mode', () => {
+    const { container } = render(
+      <ExplorePanel data={mockData} seed={{ chartType: 'heatmap', chartLabelDisplay: 'Correlogram' }} />,
+    );
+    expect(container.textContent).toMatch(/Correlogram\s+·\s+x/);
+  });
 });

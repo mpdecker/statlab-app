@@ -12,7 +12,7 @@ export function oneWayANOVA(groups) {
   if (!dfW || !ssW) return null;
   const msB = ssB / dfB, msW = ssW / dfW, F = msB / msW;
   const eta2 = ssB / (ssB + ssW), omega2 = (ssB - dfB * msW) / (ssB + ssW + msW);
-  const cohenF = Math.sqrt(eta2 / (1 - eta2));
+  const cohenF = eta2 < 1 - 1e-10 ? Math.sqrt(eta2 / (1 - eta2)) : null;
   const tukey = [];
   for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) {
     const diff = gMeans[i] - gMeans[j];
@@ -34,17 +34,23 @@ export function oneWayANOVA(groups) {
 
 // ── Welch's ANOVA (robust to unequal variances) ───────────────────────────────
 export function welchANOVA(groups) {
-  if (groups.length < 2) return null;
-  const k = groups.length;
-  const ws = groups.map(g => g.vals.length / sampleVar(g.vals));
+  const valid = groups.filter(g => g.vals.length >= 2);
+  if (valid.length < 2) return null;
+  const k = valid.length;
+  const ws = valid.map(g => {
+    const v = sampleVar(g.vals);
+    return v > 1e-14 ? g.vals.length / v : 0;
+  });
   const Ws = ws.reduce((s, w) => s + w, 0);
-  const Xw = groups.reduce((s, g, i) => s + ws[i] * avg(g.vals), 0) / Ws;
-  const F_num = groups.reduce((s, g, i) => s + ws[i] * (avg(g.vals) - Xw) ** 2, 0) / (k - 1);
-  const lam = groups.reduce((s, g, i) => s + (1 - ws[i] / Ws) ** 2 / (g.vals.length - 1), 0) * 2 / (k ** 2 - 1);
+  if (!Ws || !ws.some(w => w > 0)) return null;
+  const Xw = valid.reduce((s, g, i) => s + ws[i] * avg(g.vals), 0) / Ws;
+  const F_num = valid.reduce((s, g, i) => s + ws[i] * (avg(g.vals) - Xw) ** 2, 0) / (k - 1);
+  const lam = valid.reduce((s, g, i) => s + (1 - ws[i] / Ws) ** 2 / (g.vals.length - 1), 0) * 2 / (k ** 2 - 1);
+  if (!lam || !Number.isFinite(lam)) return null;
   const F_stat = F_num / (1 + lam), df2 = 3 / lam, p = fPVal(F_stat, k - 1, df2);
   return {
     test: "Welch's ANOVA", F: +F_stat.toFixed(4), df1: k - 1, df2: +df2.toFixed(1), p,
-    gMeans: groups.map(g => ({ name: g.name, mean: +avg(g.vals).toFixed(4), sd: +sampleSD(g.vals).toFixed(4), n: g.vals.length })),
+    gMeans: valid.map(g => ({ name: g.name, mean: +avg(g.vals).toFixed(4), sd: +sampleSD(g.vals).toFixed(4), n: g.vals.length })),
     apa: `Welch F(${k - 1},${df2.toFixed(1)}) = ${F_stat.toFixed(2)}, ${fmtP(p)}`,
   };
 }
@@ -54,12 +60,12 @@ export function twoWayANOVA(data, factA, factB, resp) {
   const aLevs = [...new Set(data.map(r => r[factA]))].filter(v => v != null);
   const bLevs = [...new Set(data.map(r => r[factB]))].filter(v => v != null);
   if (aLevs.length < 2 || bLevs.length < 2) return null;
-  const cells = aLevs.map(al => bLevs.map(bl => data.filter(r => r[factA] === al && r[factB] === bl).map(r => +r[resp]).filter(v => !isNaN(v))));
+  const cells = aLevs.map(al => bLevs.map(bl => data.filter(r => r[factA] === al && r[factB] === bl).map(r => +r[resp]).filter(Number.isFinite)));
   const cellMeans = cells.map(row => row.map(avg));
   const rowMeans = cellMeans.map(row => avg(row));
   const colMeans = bLevs.map((_, j) => avg(cellMeans.map(row => row[j])));
   const N = cells.flat().reduce((s, c) => s + c.length, 0);
-  const gm = avg(data.map(r => +r[resp]).filter(v => !isNaN(v)));
+  const gm = avg(data.map(r => +r[resp]).filter(Number.isFinite));
   const n_per = cells.flat().map(c => c.length), an = avg(n_per);
   const ssA = bLevs.length * an * aLevs.reduce((s, _, i) => s + (rowMeans[i] - gm) ** 2, 0);
   const ssB = aLevs.length * an * bLevs.reduce((s, _, j) => s + (colMeans[j] - gm) ** 2, 0);
@@ -71,6 +77,7 @@ export function twoWayANOVA(data, factA, factB, resp) {
   const FA = msA / msW, FB = msB / msW, FAB = msAB / msW;
   const pA = fPVal(FA, dfA, dfW), pB = fPVal(FB, dfBf, dfW), pAB = fPVal(FAB, dfAB, dfW);
   const tot = ssA + ssB + ssAB + ssW;
+  if (!tot || tot < 1e-14 || !Number.isFinite(msW)) return null;
   return {
     test: "Two-Way ANOVA", FA: +FA.toFixed(4), FB: +FB.toFixed(4), FAB: +FAB.toFixed(4),
     dfA, dfB: dfBf, dfAB, dfW, pA, pB, pAB,
@@ -83,7 +90,7 @@ export function twoWayANOVA(data, factA, factB, resp) {
 // ── ANCOVA ────────────────────────────────────────────────────────────────────
 export function ancova(groups, cov) {
   if (groups.length < 2) return null;
-  const all = groups.flatMap((g, gi) => g.vals.map((v, i) => ({ y: v, x: cov[gi][i], g: gi }))).filter(r => !isNaN(r.x));
+  const all = groups.flatMap((g, gi) => g.vals.map((v, i) => ({ y: v, x: cov[gi][i], g: gi }))).filter(r => Number.isFinite(r.x));
   const N = all.length, k = groups.length, xbar = avg(all.map(r => r.x));
   const W = groups.map((_, gi) => all.filter(r => r.g === gi));
   const ssxx = W.reduce((s, g) => { const mx = avg(g.map(r => r.x)); return s + g.reduce((a, r) => a + (r.x - mx) ** 2, 0); }, 0);
@@ -105,6 +112,7 @@ export function ancova(groups, cov) {
 
 // ── One-Way RM ANOVA (Greenhouse-Geisser) ────────────────────────────────────
 export function rmANOVA(matrix) {
+  if (!matrix?.length || !matrix[0]?.length) return null;
   const n = matrix.length, k = matrix[0].length;
   if (n < 2 || k < 2) return null;
   const gm = avg(matrix.flat()), colM = Array.from({ length: k }, (_, j) => avg(matrix.map(r => r[j]))), rowM = matrix.map(r => avg(r));
@@ -136,6 +144,7 @@ export function rmANOVA(matrix) {
 // ── Friedman test ─────────────────────────────────────────────────────────────
 import { rank } from '../math/core.js';
 export function friedman(matrix) {
+  if (!matrix?.length || !matrix[0]?.length) return null;
   const n = matrix.length, k = matrix[0].length;
   if (n < 2 || k < 2) return null;
   const rowRanks = matrix.map(row => rank(row));
@@ -156,7 +165,11 @@ export function kruskalWallis(groups) {
   const N = all.length, k = groups.length;
   let i = 0;
   while (i < all.length) { let j = i; while (j < all.length && all[j].v === all[i].v) j++; const mr = (i + j + 1) / 2; for (let p = i; p < j; p++) all[p].rank = mr; i = j; }
-  const H = (12 / (N * (N + 1))) * groups.reduce((s, g, gi) => { const rs = all.filter(x => x.gi === gi).reduce((a, x) => a + x.rank, 0); return s + rs ** 2 / g.vals.length; }, 0) - 3 * (N + 1);
+  const H = (12 / (N * (N + 1))) * groups.reduce((s, g, gi) => {
+    if (!g.vals.length) return s;
+    const rs = all.filter(x => x.gi === gi).reduce((a, x) => a + x.rank, 0);
+    return s + rs ** 2 / g.vals.length;
+  }, 0) - 3 * (N + 1);
   const df = k - 1, p = chiPVal(H, df), eta2 = (H - k + 1) / (N - k);
   return {
     test: "Kruskal-Wallis", H: +H.toFixed(4), df, p, eta2: +eta2.toFixed(4), effEta: effEta(eta2), k, N,
@@ -166,12 +179,15 @@ export function kruskalWallis(groups) {
 
 // ── Cochran's Q ───────────────────────────────────────────────────────────────
 export function cochranQ(matrix) {
+  if (!matrix?.length || !matrix[0]?.length) return null;
   const n = matrix.length, k = matrix[0].length;
   if (n < 5 || k < 2) return null;
   const colSums = Array.from({ length: k }, (_, j) => matrix.reduce((s, r) => s + r[j], 0));
   const rowSums = matrix.map(r => r.reduce((s, v) => s + v, 0));
   const L = colSums.reduce((s, C) => s + C ** 2, 0), Lrow = rowSums.reduce((s, R) => s + R ** 2, 0), total = colSums.reduce((s, C) => s + C, 0);
-  const Q = (k - 1) * (k * L - total ** 2) / (k * total - Lrow), p = chiPVal(Q, k - 1);
+  const denom = k * total - Lrow;
+  if (!denom) return null;
+  const Q = (k - 1) * (k * L - total ** 2) / denom, p = chiPVal(Q, k - 1);
   return {
     test: "Cochran's Q", Q: +Q.toFixed(4), df: k - 1, p,
     colProps: colSums.map(C => +(C / n).toFixed(4)), n, k,

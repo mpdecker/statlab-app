@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Sel, Inp, TA, CheckList } from './ui.jsx';
 import { C } from '../palette.js';
+import { methodNoteForTest } from '../config/methodNotes.js';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
@@ -14,15 +15,26 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     bfPrior, setBfPrior, ssType, setSsType, ssPow, setSsPow,
     ssD, setSsD, ssR, setSsR, effFrom, setEffFrom, effVal, setEffVal,
     corrMeth, setCorrMeth, pairsInput, setPairsInput,
-    bsStat, setBsStat, nFactors, setNFactors,
+    bsStat, setBsStat, bsSeed, setBsSeed, bsB, setBsB, nFactors, setNFactors,
     fx_a, setFxa, fx_b, setFxb, fx_c, setFxc, fx_d, setFxd,
     p1x, setP1x, p1n, setP1n, p2x, setP2x, p2n, setP2n,
     binoK, setBinoK, binoN, setBinoN, binoP, setBinoP,
     didPCStr, setDidPCStr, didPOStr, setDidPOStr,
     didPTStr, setDidPTStr, didPTtStr, setDidPTtStr,
     onRunBs, bsRunning, onRunMedBs, medBsRunning,
+    powAnovaF, setPowAnovaF, powKgroups, setPowKgroups, powNperGrp, setPowNperGrp,
+    powChiW, setPowChiW, powChiDf, setPowChiDf, powChiN, setPowChiN,
+    powLogitOr, setPowLogitOr, powLogitP0, setPowLogitP0, powLogitN, setPowLogitN,
+    powMixedIcc, setPowMixedIcc, powMixedM, setPowMixedM, powMixedJ, setPowMixedJ, powMixedD, setPowMixedD,
+    powMedA, setPowMedA, powMedB, setPowMedB, powMedSea, setPowMedSea, powMedSeb, setPowMedSeb,
+    clusterK, setClusterK, linkage, setLinkage, nLcaClasses, setNLcaClasses,
+    level2Var, setLevel2Var, treatVar, setTreatVar, edgeList, setEdgeList,
+    itsTimeStr, setItsTimeStr, itsValStr, setItsValStr, itsCut, setItsCut,
+    rddCutoff, setRddCutoff, rddBw, setRddBw, ivInstrument, setIvInstrument,
+    scaleMethod, setScaleMethod, reverseItems, setReverseItems,
   } = state;
 
+  const scaffold = txt => (<div style={{ fontSize: 9, color: C.dim, ...mono, lineHeight: 1.45 }}>{txt}</div>);
   const numeric = ds?.numeric || [];
   const categorical = ds?.categorical || [];
   const groups = useMemo(() =>
@@ -142,6 +154,18 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
       <Sel label="Binary outcome" value={cat1} onChange={setCat1} options={categorical} width={130} />
       <CheckList label="Predictors" items={numeric} selected={preds} onChange={setPreds} />
     </>,
+    ordinal: <>
+      <Sel label="Ordinal outcome (categorical)" value={cat1} onChange={setCat1} options={categorical} width={158} />
+      <CheckList label="Predictors" items={numeric} selected={preds} onChange={setPreds} />
+    </>,
+    poisson: <>
+      <Sel label="Count outcome Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <CheckList label="Predictors X" items={numeric.filter(c => c !== yVar)} selected={preds} onChange={setPreds} />
+    </>,
+    negbinom: <>
+      <Sel label="Count outcome Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <CheckList label="Predictors X" items={numeric.filter(c => c !== yVar)} selected={preds} onChange={setPreds} />
+    </>,
     mediation: <>
       <Sel label="X (predictor)" value={xVar} onChange={setXVar} options={numeric} width={130} />
       <Sel label="M (mediator)"  value={mVar} onChange={setMVar} options={numeric} width={130} />
@@ -151,11 +175,13 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
       <Sel label="X" value={xVar} onChange={setXVar} options={numeric} width={130} />
       <Sel label="M" value={mVar} onChange={setMVar} options={numeric} width={130} />
       <Sel label="Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <Inp label="B (replicates)" value={bsB} onChange={setBsB} width={70} />
+      <Inp label="RNG seed" value={bsSeed} onChange={setBsSeed} width={70} />
       <button
         onClick={onRunMedBs} disabled={medBsRunning}
         style={{ marginTop: 6, background: C.accent, color: '#000', border: 'none', ...mono, fontWeight: 700, fontSize: 10, padding: '5px 12px', borderRadius: 3, cursor: 'pointer' }}
       >
-        {medBsRunning ? 'bootstrapping…' : 'RUN (B=1999)'}
+        {medBsRunning ? 'bootstrapping…' : `RUN (B=${bsB || 1999})`}
       </button>
     </>,
     moderation: <>
@@ -170,6 +196,18 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     </>,
     bayes_t: <>{grpCfg}{twoGrp}<Inp label="Prior r (Cauchy)" value={bfPrior} onChange={setBfPrior} width={80} /></>,
     bayes_r: xyPick,
+    manova: <>
+      <Sel label="Grouping" value={grpVar} onChange={v => { setGrpVar(v); setG1('—'); setG2('—'); }} options={categorical} width={130} />
+      <CheckList label="DVs — 2+ numeric" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+    </>,
+    cancorr: <>
+      <div style={{ fontSize: 7, color: C.dim, ...mono, marginBottom: 4 }}>First half → X-set, rest → Y-set.</div>
+      <CheckList label="Variables (4+ → split)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+    </>,
+    lda: <>
+      <Sel label="Grouping" value={grpVar} onChange={v => { setGrpVar(v); setG1('—'); setG2('—'); }} options={categorical} width={130} />
+      <CheckList label="Predictors X" items={numeric} selected={preds} onChange={setPreds} />
+    </>,
     pca:       <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />,
     efa: <>
       <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />
@@ -221,14 +259,110 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
       ]} width={205} />
       <Inp label="p-values (comma-separated)" value={pairsInput} onChange={setPairsInput} width={205} placeholder="0.02,0.04,0.001" />
     </>,
+
+    pow_anova: <>
+      <Inp label="Cohen's f" value={powAnovaF} onChange={setPowAnovaF} width={70} />
+      <Inp label="k groups (≥2)" value={powKgroups} onChange={setPowKgroups} width={72} />
+      <Inp label="n / group" value={powNperGrp} onChange={setPowNperGrp} width={72} />
+    </>,
+    pow_chi: <>
+      <Inp label="Cohen's w" value={powChiW} onChange={setPowChiW} width={70} />
+      <Inp label="df" value={powChiDf} onChange={setPowChiDf} width={54} />
+      <Inp label="N total" value={powChiN} onChange={setPowChiN} width={72} />
+    </>,
+    pow_logit: <>
+      <Inp label="OR" value={powLogitOr} onChange={setPowLogitOr} width={60} />
+      <Inp label="p (control)" value={powLogitP0} onChange={setPowLogitP0} width={80} />
+      <Inp label="n / group" value={powLogitN} onChange={setPowLogitN} width={74} />
+    </>,
+    pow_mixed: <>
+      <Inp label="ICC" value={powMixedIcc} onChange={setPowMixedIcc} width={60} />
+      <Inp label="clusters / arm" value={powMixedM} onChange={setPowMixedM} width={90} />
+      <Inp label="subs / cluster" value={powMixedJ} onChange={setPowMixedJ} width={94} />
+      <Inp label="Cohen's d" value={powMixedD} onChange={setPowMixedD} width={70} />
+    </>,
+    pow_med: <>
+      <Inp label="a path est." value={powMedA} onChange={setPowMedA} width={74} />
+      <Inp label="b path est." value={powMedB} onChange={setPowMedB} width={74} />
+      <Inp label="SE(a)" value={powMedSea} onChange={setPowMedSea} width={62} />
+      <Inp label="SE(b)" value={powMedSeb} onChange={setPowMedSeb} width={62} />
+      <div style={{ fontSize: 7, color: C.dim, ...mono }}>Monte Carlo B=2000 (Sobel z hybrid)</div>
+    </>,
+
+    omega: <CheckList label="Scale items" items={numeric} selected={scaleVars} onChange={setScaleVars} />,
+    parallel: <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />,
+    irt_1pl: <>
+      <CheckList label="Items (dichotomized at M)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <div style={{ fontSize: 7, color: C.dim, ...mono }}>0/1 coding via item mean split</div>
+    </>,
+    irt_2pl: <CheckList label="Items (dichotomized)" items={numeric} selected={scaleVars} onChange={setScaleVars} />,
+    scale_score: <>
+      <Sel label="Method" value={scaleMethod} onChange={setScaleMethod} options={['sum', 'mean']} width={90} />
+      <CheckList label="Items" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <CheckList label="Reverse items" items={scaleVars} selected={reverseItems} onChange={setReverseItems} />
+    </>,
+    kmeans: <>
+      <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="k (2–8)" value={clusterK} onChange={setClusterK} width={60} />
+    </>,
+    hclust: <>
+      <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Sel label="Linkage" value={linkage} onChange={setLinkage} options={['ward', 'single', 'complete']} width={120} />
+    </>,
+    lca: <>
+      <Sel label="Indicator 1" value={cat1} onChange={setCat1} options={categorical} width={130} />
+      <Sel label="Indicator 2" value={cat2} onChange={setCat2} options={categorical} width={130} />
+      <Inp label="Classes (2–4)" value={nLcaClasses} onChange={setNLcaClasses} width={70} />
+    </>,
+    hlm_ri: <>
+      <Sel label="Outcome Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <Sel label="Cluster (L2)" value={level2Var} onChange={setLevel2Var} options={categorical} width={130} />
+      <CheckList label="L1 predictor (optional)" items={numeric.filter(c => c !== yVar)} selected={preds.slice(0, 1)} onChange={v => setPreds(v)} />
+    </>,
+    hlm_rs: <>
+      <Sel label="Outcome Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <Sel label="Cluster" value={level2Var} onChange={setLevel2Var} options={categorical} width={130} />
+      <Sel label="Slope predictor" value={xVar} onChange={setXVar} options={numeric} width={130} />
+    </>,
+    icc_ml: <>
+      <Sel label="Outcome Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <Sel label="Cluster" value={level2Var} onChange={setLevel2Var} options={categorical} width={130} />
+    </>,
+    psm: <>
+      <Sel label="Treatment" value={treatVar} onChange={setTreatVar} options={categorical} width={130} />
+      <Sel label="Outcome" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <CheckList label="Covariates" items={numeric.filter(c => c !== yVar)} selected={preds} onChange={setPreds} />
+    </>,
+    iv2sls: <>
+      <Sel label="Outcome Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <Sel label="Endogenous X" value={xVar} onChange={setXVar} options={numeric} width={130} />
+      <Sel label="Instrument Z" value={ivInstrument} onChange={setIvInstrument} options={numeric} width={130} />
+      <CheckList label="Controls" items={numeric.filter(c => c !== yVar && c !== xVar)} selected={preds} onChange={setPreds} />
+    </>,
+    its: <>
+      <Inp label="Time points" value={itsTimeStr} onChange={setItsTimeStr} width={180} />
+      <Inp label="Outcome series" value={itsValStr} onChange={setItsValStr} width={180} />
+      <Inp label="Intervention at t" value={itsCut} onChange={setItsCut} width={90} />
+    </>,
+    rdd: <>
+      {xyPick}
+      <Inp label="Cutoff on X" value={rddCutoff} onChange={setRddCutoff} width={80} />
+      <Inp label="Bandwidth (opt.)" value={rddBw} onChange={setRddBw} width={100} placeholder="auto" />
+    </>,
+    centrality: <Inp label="Edges (A-B,B-C)" value={edgeList} onChange={setEdgeList} width={200} />,
+    community: <Inp label="Edges (A-B,B-C)" value={edgeList} onChange={setEdgeList} width={200} />,
+    sociogram: <Inp label="Edges (A-B,B-C)" value={edgeList} onChange={setEdgeList} width={200} />,
+
     bootstrap: <>
       <Sel label="Variable"  value={tgtVar}  onChange={setTgtVar}  options={numeric} width={130} />
       <Sel label="Statistic" value={bsStat}  onChange={setBsStat}  options={['mean', 'median', 'sd']} width={100} />
+      <Inp label="B (replicates)" value={bsB} onChange={setBsB} width={70} />
+      <Inp label="RNG seed" value={bsSeed} onChange={setBsSeed} width={70} />
       <button
         onClick={onRunBs} disabled={bsRunning}
         style={{ background: C.accent, color: '#000', border: 'none', ...mono, fontWeight: 700, fontSize: 10, padding: '5px 12px', borderRadius: 3, cursor: 'pointer' }}
       >
-        {bsRunning ? 'running…' : 'RUN (B=1999)'}
+        {bsRunning ? 'running…' : `RUN (B=${bsB || 1999})`}
       </button>
     </>,
     sensitivity: <>{grpCfg}<Inp label="μ₀" value={mu0} onChange={setMu0} /></>,
@@ -238,6 +372,12 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     <div style={{ width: 220, borderRight: `1px solid ${C.border}`, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flexShrink: 0 }}>
       <Inp label="α (significance)" value={alpha} onChange={setAlpha} width={65} />
       {configMap[active] || <div style={{ color: C.dim, ...mono, fontSize: 10 }}>Select a test</div>}
+      {methodNoteForTest(active, null) && (
+        <div style={{ marginTop: 8, padding: '6px 8px', background: 'rgba(96,165,250,.08)', border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 8, color: C.dim, ...mono, lineHeight: 1.4 }}>
+          <div style={{ color: C.accent, fontWeight: 600, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.08em' }}>Methods</div>
+          {methodNoteForTest(active, null)}
+        </div>
+      )}
     </div>
   );
 }

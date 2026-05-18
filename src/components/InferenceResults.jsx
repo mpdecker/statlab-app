@@ -5,9 +5,10 @@ import { computePowerT, requiredN } from '../math/distributions.js';
 import {
   Chip, APABlock, SigBadge, SectionHead, LinkBtn, NormBadge,
 } from './ui.jsx';
+import { methodNoteForTest, METHOD_NOTES } from '../config/methodNotes.js';
 import {
   TDistViz, QQPlot, ResidualPlot, PowerCurve, ScreePlot,
-  ForestPlot, PathDiagram, BootstrapHist,
+  ForestPlot, PathDiagram, BootstrapHist, IRTCurves,
 } from './charts.jsx';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -62,9 +63,10 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
   }
   if (r.error) return <div style={{ color: C.neg, ...mono, fontSize: 11 }}>{r.error}</div>;
 
-  const aval = parseFloat(alpha) || .05;
-  const isSig = r.p != null ? sig(r.p, aval) : false;
-  const pColor = r.p != null ? (isSig ? C.ok : C.neg) : C.dim;
+  const aval = (() => { const v = parseFloat(alpha); return Number.isFinite(v) ? v : 0.05; })();
+  const pCombined = r.p ?? r.prob ?? r.pCanon;
+  const isSig = pCombined != null ? sig(pCombined, aval) : false;
+  const pColor = pCombined != null ? (isSig ? C.ok : C.neg) : C.dim;
 
   const forestItems = (() => {
     if (!r) return null;
@@ -89,8 +91,23 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         copyMsg={copyMsg}
       />
 
+      {r.warning && (
+        <div style={{ fontSize: 9, color: C.warn, ...mono, padding: '4px 8px', background: 'rgba(255,180,0,.08)', borderRadius: 3, border: `1px solid ${C.warn}` }}>
+          ⚠ {r.warning}
+        </div>
+      )}
+
+      {(r.approximate || r.sw?.approximate || methodNoteForTest(active, r)) && (
+        <div style={{ fontSize: 9, color: C.accent, ...mono, padding: '4px 8px', background: 'rgba(96,165,250,.06)', borderRadius: 3, border: `1px solid ${C.border}` }}>
+          {r.approximate || r.sw?.approximate ? 'Approximate method. ' : ''}
+          {methodNoteForTest(active, r) || (r.sw?.approximate ? 'Shapiro–Wilk p-value is approximate for small n.' : '')}
+        </div>
+      )}
+
       {/* Significance badge */}
-      {r.p != null && <SigBadge p={r.p} alpha={aval} />}
+      {(r.p != null || r.prob != null || r.pCanon != null) && (
+        <SigBadge p={r.p ?? r.prob ?? r.pCanon} alpha={aval} />
+      )}
 
       {/* ── Sample size planning ── */}
       {active === 'samplesize' && r.ntTest && <>
@@ -101,6 +118,12 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         </Row>
         <PowerCurve d={r.d} alpha={aval} />
       </>}
+
+      {active === 'pow_anova' && r.power != null && <Row><Chip label="ANOVA empirical power" value={r.power} color={C.accent} /><Chip label="f" value={r.cohenF} color={C.dim} /><Chip label="k" value={r.kGroups} color={C.dim} /><Chip label="n grp" value={r.nPerGroup} color={C.dim} /></Row>}
+      {active === 'pow_chi' && r.power != null && <Row><Chip label="χ² approx. power" value={r.power} color={C.accent} /><Chip label="w" value={r.cohenW} color={C.dim} /><Chip label="df" value={r.df} color={C.dim} /><Chip label="N" value={r.n} color={C.dim} /></Row>}
+      {active === 'pow_logit' && r.power != null && <Row><Chip label="logistic power" value={r.power} color={C.accent} /><Chip label="OR" value={r.oddRatio} color={C.dim} /><Chip label="p₀" value={r.pControl} color={C.dim} /><Chip label="n/group" value={r.nPerGroup} color={C.dim} /></Row>}
+      {active === 'pow_mixed' && r.power != null && <Row><Chip label="cluster RT power" value={r.power} color={C.accent} /><Chip label="ICC" value={r.ICC} color={C.dim} /><Chip label="clust/arm" value={r.clustersPerArm} color={C.dim} /><Chip label="subs/clust" value={r.subjectsPerCluster} color={C.dim} /><Chip label="d" value={r.CohenD} color={C.dim} /></Row>}
+      {active === 'pow_med' && r.powerMC != null && <Row><Chip label="mediation MC power" value={r.powerMC} color={C.accent} /><Chip label="Sobel power" value={r.powerAsymp} color={C.dim} /><Chip label="z (ab)" value={r.zObs} color={C.dim} /></Row>}
 
       {/* ── Effect size converter ── */}
       {active === 'effectconv' && r.d != null && <>
@@ -273,7 +296,7 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
             <thead><tr><th style={{ padding: '2px 8px', color: C.dim, borderBottom: `1px solid ${C.border}` }}></th>
               {r.bLevs.map(b => <th key={b} style={{ padding: '2px 8px', color: C.pos, borderBottom: `1px solid ${C.border}`, textAlign: 'center' }}>{b}</th>)}</tr></thead>
             <tbody>{r.aLevs.map((a, i) => <tr key={a}><td style={{ padding: '2px 8px', color: PAL[i % PAL.length] }}>{a}</td>
-              {r.cellMeans[i].map((m, j) => <td key={j} style={{ padding: '2px 8px', textAlign: 'center', color: C.text }}>{m.toFixed(3)}</td>)}</tr>)}
+              {(r.cellMeans[i] ?? []).map((m, j) => <td key={j} style={{ padding: '2px 8px', textAlign: 'center', color: C.text }}>{Number.isFinite(m) ? m.toFixed(3) : '—'}</td>)}</tr>)}
             </tbody>
           </table>
         </div>
@@ -295,7 +318,7 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
             <thead><tr><th style={{ padding: '2px 8px', color: C.dim, borderBottom: `1px solid ${C.border}`, textAlign: 'left' }}></th>
               {r.cats2.map(c => <th key={c} style={{ padding: '2px 8px', color: C.pos, borderBottom: `1px solid ${C.border}`, textAlign: 'center' }}>{c}</th>)}</tr></thead>
             <tbody>{r.cats1.map((c1, i) => <tr key={c1}><td style={{ padding: '2px 8px', color: PAL[i % PAL.length] }}>{c1}</td>
-              {r.obs[i].map((o, j) => <td key={j} style={{ padding: '2px 8px', textAlign: 'center', color: C.text }}>{o} <span style={{ color: C.dim }}>({r.exp[i][j]})</span></td>)}</tr>)}
+              {(r.obs[i] ?? []).map((o, j) => <td key={j} style={{ padding: '2px 8px', textAlign: 'center', color: C.text }}>{o} <span style={{ color: C.dim }}>({r.exp?.[i]?.[j] ?? '—'})</span></td>)}</tr>)}
             </tbody>
           </table>
           {r.lowExp && <div style={{ fontSize: 8, color: C.warn, ...mono, marginTop: 2 }}>⚠ Expected &lt; 5 — consider Fisher's Exact</div>}
@@ -320,14 +343,49 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
             <Chip label="FP" value={r.confMatrix.FP} color={C.neg} />
             <Chip label="FN" value={r.confMatrix.FN} color={C.neg} />
             <Chip label="TN" value={r.confMatrix.TN} color={C.ok} />
-            <Chip label="accuracy" value={`${(r.acc * 100).toFixed(1)}%`} color={C.accent} />
-            <Chip label="precision" value={r.precision.toFixed(3)} color={C.warn} />
-            <Chip label="recall" value={r.recall.toFixed(3)} color={C.warn} />
-            <Chip label="F1" value={r.f1.toFixed(3)} color={r.f1 > .7 ? C.ok : C.warn} />
-            <Chip label="AIC" value={r.AIC.toFixed(1)} color={C.dim} />
-            <Chip label="R²(McF)" value={r.McFaddenR2.toFixed(3)} color={C.dim} />
+            <Chip label="accuracy" value={r.acc != null ? `${(r.acc * 100).toFixed(1)}%` : '—'} color={C.accent} />
+            <Chip label="precision" value={r.precision?.toFixed(3) ?? '—'} color={C.warn} />
+            <Chip label="recall" value={r.recall?.toFixed(3) ?? '—'} color={C.warn} />
+            <Chip label="F1" value={r.f1?.toFixed(3) ?? '—'} color={(r.f1 ?? 0) > .7 ? C.ok : C.warn} />
+            <Chip label="AIC" value={r.AIC?.toFixed(1) ?? '—'} color={C.dim} />
+            <Chip label="R²(McF)" value={r.McFaddenR2?.toFixed(3) ?? '—'} color={C.dim} />
           </Row>
         </>}
+      </>}
+
+      {r.test === 'Ordinal Logistic (proportional odds)' && <>
+        <CoeffTable coeffs={r.coeffs} />
+        <Row>
+          <Chip label="levels K" value={r.K} color={C.dim} />
+          <Chip label="McFadden R²" value={r.McFaddenR2} color={C.dim} />
+          <Chip label="AIC" value={r.AIC} color={C.dim} />
+          <Chip label="BIC" value={r.BIC} color={C.dim} />
+        </Row>
+        {!!r.thresholds?.length && (
+          <div style={{ fontSize: 9, ...mono, color: C.dim }}>Cutpoints α (monotone): {r.thresholds.join(', ')}</div>
+        )}
+      </>}
+
+      {r.test === 'Poisson Regression' && <>
+        <CoeffTable coeffs={r.coeffs} />
+        <Row>
+          <Chip label="Pearson X²" value={r.pearsonChi2} color={C.dim} />
+          <Chip label="φ̂ dispersion" value={r.dispersion} color={r.dispersion > 1.5 ? C.warn : C.dim} />
+          <Chip label="p(X²)" value={fmtP(r.overdispPearsonP)} color={r.dispersion > 1.5 ? C.neg : C.dim} />
+          <Chip label="Deviance" value={r.deviance} color={C.dim} />
+          <Chip label="pseudo-R²(McF)" value={r.McFaddenR2} color={C.dim} />
+          <Chip label="AIC" value={r.AIC} color={C.dim} />
+        </Row>
+      </>}
+
+      {r.test === 'Negative Binomial (NB2)' && <>
+        <CoeffTable coeffs={r.coeffs} />
+        <Row>
+          <Chip label="θ (disp.)" value={r.theta} color={C.accent} sub="Var=µ+µ²/θ" />
+          <Chip label="ℓℓ" value={r.ll} color={C.dim} />
+          <Chip label="AIC" value={r.AIC} color={C.dim} />
+          <Chip label="BIC" value={r.BIC} color={C.dim} />
+        </Row>
       </>}
 
       {/* ── OLS / polynomial / moderation coefficient tables ── */}
@@ -364,7 +422,7 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
           {r.propMed != null && <Chip label="% mediated" value={`${(r.propMed * 100).toFixed(1)}%`} color={C.warn} />}
         </Row>
         <div style={{ fontSize: 9, ...mono, color: C.dim }}>
-          Steps: {r.steps.cSig ? '✓' : '✗'} c · {r.steps.aSig ? '✓' : '✗'} a · {r.steps.bSig ? '✓' : '✗'} b · {r.steps.cpSig ? 'direct remains' : 'fully mediated (c\'≈0)'}
+          Steps: {r.steps?.cSig ? '✓' : '✗'} c · {r.steps?.aSig ? '✓' : '✗'} a · {r.steps?.bSig ? '✓' : '✗'} b · {r.steps?.cpSig ? 'direct remains' : 'fully mediated (c\'≈0)'}
         </div>
       </>}
 
@@ -394,6 +452,174 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         </div>
         <div style={{ fontSize: 8, ...mono, color: C.dim }}>Loadings |&gt;.40| highlighted · {r.nSig} comp. (λ&gt;1)</div>
       </>}
+
+      {r.test === 'MANOVA' && <>
+        <SectionHead label={`MANOVA · ${r.kGroups} groups × ${r.ndep} DVs · N=${r.n}`} />
+        <Row>
+          <Chip label="Wilks Λ" value={r.wilksLambda} color={C.dim} />
+          <Chip label="Pillai" value={r.pillaiTrace} color={C.dim} />
+          <Chip label="H–L trace" value={r.hotellingLawleyTrace} color={C.dim} />
+          {r.roysLargestRoot != null && <Chip label="Roy" value={r.roysLargestRoot} color={C.dim} />}
+          <Chip label="df H/E" value={`${r.dfHyp}/${r.dfErr}`} color={C.dim} />
+          <Chip label="p" value={fmtP(r.prob)} color={sig(r.prob, aval) ? C.ok : C.neg} />
+        </Row>
+      </>}
+
+      {r.test === 'Canonical Correlation' && <>
+        <SectionHead label={`Canonical correlations · ${r.correlations?.length ?? 0} roots · N=${r.n}`} />
+        <Row>
+          {(r.correlations ?? []).slice(0, 5).map((c, i) => (
+            <Chip key={i} label={`ρc${i + 1}`} value={c} color={C.pos} />
+          ))}
+          {r.pCanon != null && <Chip label="p (max ρ)" value={fmtP(r.pCanon)} color={sig(r.pCanon, aval) ? C.ok : C.neg} />}
+        </Row>
+      </>}
+
+      {r.test === 'LDA' && <>
+        <SectionHead label={`LDA · training-set rule · accuracy ${r.accuracyTrain}%`} />
+        <Row>
+          <Chip label="accuracy" value={`${r.accuracyTrain}%`} color={C.ok} />
+          <Chip label="k classes" value={r.nGroups} color={C.dim} />
+          <Chip label="# predictors" value={r.nFeatures} color={C.dim} />
+        </Row>
+        <div style={{ fontSize: 8, ...mono, color: C.dim }}>
+          coeffs (standardized direction): {(r.coefficients ?? []).map((c, i) => `${(r.xVars?.[i] ?? `β${i + 1}`)}=${c}`).join(', ')}
+        </div>
+      </>}
+
+      {r.test === "McDonald's ω" && (
+        <Row>
+          <Chip label="ω total" value={r.omegaTotal} color={r.omegaTotal >= .8 ? C.ok : C.warn} sub={r.label} />
+          <Chip label="ω hierarchical" value={r.omegaHierarchical} color={C.dim} />
+          <Chip label="k items" value={r.k} color={C.dim} />
+          <Chip label="N" value={r.n} color={C.dim} />
+        </Row>
+      )}
+
+      {r.test === 'Parallel Analysis' && <>
+        <Row>
+          <Chip label="factors retained" value={r.nFactors} color={r.nFactors > 0 ? C.ok : C.dim} />
+          <Chip label="p variables" value={r.p} color={C.dim} />
+          <Chip label="N" value={r.n} color={C.dim} />
+        </Row>
+        <ScreePlot eigenvalues={r.scree?.map(s => s.data) ?? []} />
+      </>}
+
+      {(r.test === 'IRT Rasch (1PL)' || r.test === 'IRT 2PL') && <>
+        <Row>
+          <Chip label="items" value={r.k} color={C.dim} />
+          <Chip label="N" value={r.n} color={C.dim} />
+          {r.thetaMean != null && <Chip label="θ M" value={r.thetaMean} color={C.pos} sub={`SD=${r.thetaSD}`} />}
+        </Row>
+        {r.icc?.length > 0 && <IRTCurves icc={r.icc} itemCount={r.k} />}
+      </>}
+
+      {r.test === 'Scale Scoring' && (
+        <Row>
+          <Chip label="method" value={r.method} color={C.dim} />
+          <Chip label="M" value={r.mean} color={C.accent} sub={`SD=${r.sd}`} />
+          <Chip label="reversed" value={r.nReversed} color={C.dim} />
+          <Chip label="N" value={r.n} color={C.dim} />
+        </Row>
+      )}
+
+      {r.test === 'k-Means' && (
+        <Row>
+          <Chip label="k" value={r.k} color={C.accent} />
+          <Chip label="WCSS" value={r.wcss} color={C.dim} />
+          {r.silhouette != null && <Chip label="silhouette" value={r.silhouette} color={r.silhouette > .5 ? C.ok : C.warn} />}
+          <Chip label="N" value={r.n} color={C.dim} />
+        </Row>
+      )}
+
+      {r.test === 'Hierarchical Cluster' && (
+        <Row>
+          <Chip label="linkage" value={r.linkage} color={C.dim} />
+          <Chip label="merges" value={r.merges?.length ?? 0} color={C.accent} />
+          <Chip label="N" value={r.n} color={C.dim} />
+        </Row>
+      )}
+
+      {r.test === 'Latent Class Analysis' && (
+        <Row>
+          <Chip label="classes" value={r.nClasses} color={C.accent} />
+          <Chip label="BIC" value={r.BIC} color={C.dim} />
+          <Chip label="N" value={r.n} color={C.dim} />
+        </Row>
+      )}
+
+      {(r.test === 'HLM Random Intercept' || r.test === 'HLM Random Slope' || r.test === 'Multilevel ICC') && (
+        <Row>
+          <Chip label="ICC" value={r.icc} color={r.icc >= .1 ? C.warn : C.ok} />
+          <Chip label="τ₀₀" value={r.tau00} color={C.dim} />
+          <Chip label="σ²" value={r.sigma2} color={C.dim} />
+          <Chip label="design effect" value={r.designEffect} color={C.purple} />
+          <Chip label="clusters" value={r.nClusters} color={C.dim} />
+          {r.meanSlope != null && <Chip label="mean slope" value={r.meanSlope} color={C.pos} sub={`var=${r.slopeVariance}`} />}
+        </Row>
+      )}
+
+      {r.test === 'Propensity Score Match' && (
+        <Row>
+          <Chip label="ATT" value={r.att} color={isSig ? C.ok : C.dim} />
+          <Chip label="t" value={r.t} color={C.dim} sub={`df=${r.df}`} />
+          <Chip label="p" value={fmtP(r.p)} color={sig(r.p, aval) ? C.ok : C.neg} />
+          <Chip label="matched n" value={r.nMatched} color={C.dim} />
+        </Row>
+      )}
+
+      {r.test === 'IV / 2SLS' && (
+        <Row>
+          <Chip label="β (X)" value={r.coef} color={C.accent} />
+          <Chip label="SE" value={r.se} color={C.dim} />
+          <Chip label="t" value={r.t} color={C.dim} />
+          <Chip label="p" value={fmtP(r.p)} color={sig(r.p, aval) ? C.ok : C.neg} />
+          <Chip label="F (1st stage)" value={r.fFirst} color={r.fFirst > 10 ? C.ok : C.warn} />
+        </Row>
+      )}
+
+      {r.test === 'Interrupted Time Series' && (
+        <Row>
+          <Chip label="level Δ" value={r.levelChange} color={C.accent} />
+          <Chip label="slope Δ" value={r.slopeChange} color={C.pos} />
+          <Chip label="intervention t" value={r.interventionTime} color={C.dim} />
+          <Chip label="N" value={r.n} color={C.dim} />
+        </Row>
+      )}
+
+      {r.test === 'Regression Discontinuity' && (
+        <Row>
+          <Chip label="jump @ cutoff" value={r.jump} color={isSig ? C.ok : C.dim} />
+          <Chip label="left" value={r.leftIntercept} color={PAL[0]} />
+          <Chip label="right" value={r.rightIntercept} color={PAL[1]} />
+          <Chip label="bandwidth" value={r.bandwidth} color={C.dim} />
+          <Chip label="p" value={fmtP(r.p)} color={sig(r.p, aval) ? C.ok : C.neg} />
+        </Row>
+      )}
+
+      {r.test === 'Centrality Measures' && (
+        <Row>
+          <Chip label="nodes" value={r.n} color={C.dim} />
+          {(r.nodes ?? []).slice(0, 6).map((nd, i) => (
+            <Chip key={i} label={String(nd.id ?? i)} value={nd.degree} color={PAL[i % PAL.length]} sub={`btw=${nd.betweenness}`} />
+          ))}
+        </Row>
+      )}
+
+      {r.test === 'Community Detection' && (
+        <Row>
+          <Chip label="modules" value={r.nCommunities} color={C.accent} />
+          <Chip label="modularity Q" value={r.modularity} color={r.modularity > .3 ? C.ok : C.warn} />
+          <Chip label="n" value={r.n} color={C.dim} />
+        </Row>
+      )}
+
+      {r.test === 'Sociogram' && (
+        <Row>
+          <Chip label="nodes" value={r.n} color={C.dim} />
+          <Chip label="edges" value={r.edges?.length ?? 0} color={C.accent} />
+        </Row>
+      )}
 
       {/* ── EFA ── */}
       {r.test?.includes('EFA') && r.loadings && <>
@@ -426,13 +652,18 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         </Row>
         <table style={{ borderCollapse: 'collapse', ...mono, fontSize: 9, width: '100%' }}>
           <thead><tr>{['item', 'item-total r', 'α if deleted'].map(h => <th key={h} style={{ padding: '2px 7px', textAlign: 'left', color: C.dim, borderBottom: `1px solid ${C.border}`, fontSize: 7, textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
-          <tbody>{(scaleVars || []).filter(c => ds?.numeric?.includes(c)).map((item, i) => (
+          <tbody>{Array.from({ length: r.itc.length }, (_, i) => {
+            const item = scaleVars?.[i] ?? `Item ${i + 1}`;
+            const itc = r.itc[i];
+            const aDel = r.aDel[i];
+            return (
             <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : C.panel }}>
               <td style={{ padding: '2px 7px', color: PAL[i % PAL.length] }}>{item}</td>
-              <td style={{ padding: '2px 7px', color: r.itc[i] >= .3 ? C.ok : C.warn }}>{r.itc[i]?.toFixed(4)}</td>
-              <td style={{ padding: '2px 7px', color: r.aDel[i] > r.alpha ? C.warn : C.dim }}>{r.aDel[i]?.toFixed(4)} {r.aDel[i] > r.alpha ? '↑' : ''}</td>
+              <td style={{ padding: '2px 7px', color: itc >= .3 ? C.ok : C.warn }}>{itc?.toFixed(4) ?? '—'}</td>
+              <td style={{ padding: '2px 7px', color: aDel != null && aDel > r.alpha ? C.warn : C.dim }}>{aDel?.toFixed(4) ?? '—'} {aDel != null && aDel > r.alpha ? '↑' : ''}</td>
             </tr>
-          ))}</tbody>
+            );
+          })}</tbody>
         </table>
       </>}
 

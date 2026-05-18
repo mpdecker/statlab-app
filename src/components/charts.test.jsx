@@ -2,7 +2,7 @@
 import React from 'react';
 import { describe, test, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import { ViolinPlot, BoxPlot, BarCI, HeatmapCorr, QuickSlopes } from './charts.jsx';
+import { ViolinPlot, BoxPlot, BarCI, HeatmapCorr, QuickSlopes, IRTCurves } from './charts.jsx';
 
 describe('charts', () => {
   test('ViolinPlot renders an SVG', () => {
@@ -25,6 +25,16 @@ describe('charts', () => {
     const slopes = [{ z: 'Z-1SD', slope: 0.2 }, { z: 'Z̄', slope: 0.5 }, { z: 'Z+1SD', slope: 0.8 }];
     const { container } = render(<QuickSlopes slopes={slopes} />);
     expect(container.querySelectorAll('rect').length).toBe(3);
+  });
+
+  test('IRTCurves renders ICC label and chart shell', () => {
+    const icc = Array.from({ length: 10 }, (_, i) => ({
+      theta: -2 + i * 0.4,
+      curves: [0.2, 0.5, 0.8],
+    }));
+    const { getByText, container } = render(<IRTCurves icc={icc} itemCount={3} />);
+    expect(getByText(/ICC/)).toBeTruthy();
+    expect(container.querySelector('.recharts-responsive-container')).toBeTruthy();
   });
 
   test('HeatmapCorr renders n×n SVG cells', () => {

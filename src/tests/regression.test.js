@@ -3,7 +3,12 @@ import { describe, it, expect } from 'vitest';
 import {
   pearsonTest, spearman, kendallTau, partialCorr, pointBiserial,
   simpleOLS, multipleOLS, polynomialOLS, hierarchicalOLS,
-  logisticReg, mediation, moderation,
+  logisticReg,
+  ordinalLogisticRegression,
+  poissonRegression,
+  negativeBinomialRegression,
+  mediation,
+  moderation,
 } from './regression.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
 
@@ -346,6 +351,68 @@ describe('logisticReg', () => {
     expect(res.McFaddenR2).toBeGreaterThanOrEqual(0);
     expect(res.McFaddenR2).toBeLessThanOrEqual(1);
   });
+
+  it('coefficients include Wald SE and p-values', () => {
+    const Y = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+    const X = Y.map((_, i) => [i]);
+    const res = logisticReg(Y, X, ['x1']);
+    const slope = res.coeffs.find(c => c.name === 'x1');
+    expect(slope.se).toBeGreaterThan(0);
+    expect(slope.p).toBeGreaterThan(0);
+    expect(slope.p).toBeLessThan(1);
+    expect(Number.isFinite(slope.z)).toBe(true);
+    expect(slope).toHaveProperty('sig');
+  });
+});
+
+describe('ordinalLogisticRegression', () => {
+  const yOrd = Array.from({ length: 36 }, (_, i) => [0, 0, 1, 1, 2, 2][i % 6]);
+  const X = yOrd.map((_, i) => [i * 0.2 + Math.sin(i)]);
+  const r = ordinalLogisticRegression(yOrd, X, ['pred']);
+
+  it('runs on 3-category ordinal + 1 predictor', () => expect(r).not.toBeNull());
+  it('reports K categories', () => { if (r) expect(r.K).toBeGreaterThanOrEqual(2); });
+  it('has coefficient table entries', () => { if (r) expect(Array.isArray(r.coeffs)).toBeTruthy(); });
+
+  it('coefficients include Wald SE and p-values', () => {
+    if (!r) return;
+    const pred = r.coeffs.find(c => c.name === 'pred');
+    expect(pred).toBeTruthy();
+    expect(pred.se).toBeGreaterThan(0);
+    expect(pred.p).toBeGreaterThan(0);
+    expect(pred.p).toBeLessThanOrEqual(1);
+    expect(Number.isFinite(pred.z)).toBe(true);
+    expect(pred).toHaveProperty('sig');
+  });
+});
+
+describe('poissonRegression', () => {
+  const x = [[0], [.5], [1], [1.2], [.3], [.8], [1.5], [.2], [.9], [1.1], [.7], [.4], [.6], [.35], [.95]].map(r => r);
+  const eta = [-.2, -.1, .1, .2, 0, .05, .15, -.05, .12, .18, -.02, .08, -.12, .03, -.08];
+  const y = eta.map(z => Math.max(0, Math.round(Math.exp(z) * 3)));
+  const r = poissonRegression(y, x, ['lx']);
+
+  it('runs on count outcomes', () => expect(r).not.toBeNull());
+  it('shows dispersion Pearson summary', () => { if (r) expect(typeof r.pearsonChi2).toBe('number'); });
+
+  it('coefficients include Wald SE and p-values', () => {
+    if (!r) return;
+    const pred = r.coeffs.find(c => c.name === 'lx');
+    expect(pred).toBeTruthy();
+    expect(pred.se).toBeGreaterThan(0);
+    expect(pred.p).toBeGreaterThan(0);
+    expect(pred.p).toBeLessThanOrEqual(1);
+    expect(Number.isFinite(pred.z)).toBe(true);
+    expect(pred).toHaveProperty('sig');
+  });
+});
+
+describe('negativeBinomialRegression', () => {
+  const x = [[.2], [.4], [.5], [.8], [.3], [.6], [.9], [.25], [.45], [.35], [.7], [.55], [.42], [.5], [.6], [.8], [.3], [.4], [.5], [.52]];
+  const y = x.map(([v]) => Math.max(0, Math.round(2 + 18 * Math.exp(.4 * Math.log(v)) * .6)));
+  const r = negativeBinomialRegression(y, x, ['lx']);
+  it('runs end-to-end', () => expect(r).not.toBeNull());
+  it('estimates dispersion θ > 0', () => { if (r) expect(r.theta).toBeGreaterThan(0); });
 });
 
 describe('mediation', () => {
