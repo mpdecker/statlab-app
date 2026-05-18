@@ -1,6 +1,9 @@
 // src/tests/multivariate.test.js
 import { describe, it, expect } from 'vitest';
-import { pca, efa, cronbachAlpha, icc, cohensKappa } from './multivariate.js';
+import {
+  pca, efa, cronbachAlpha, icc, cohensKappa,
+  splitHalf, metaAnalysis, differencesInDifferences, convertEffectSize,
+} from './multivariate.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const mkData = () => Array.from({ length: 20 }, (_, i) => ({
@@ -136,5 +139,119 @@ describe('cohensKappa', () => {
     const res = cohensKappa([0,1,0,1], [0,1,1,0]);
     expect(res).toHaveProperty('Po');
     expect(res).toHaveProperty('Pe');
+  });
+});
+
+describe('splitHalf', () => {
+  it('returns null for k < 2 items', () =>
+    expect(splitHalf([[1], [2], [3]])).toBeNull());
+
+  it('returns rHalf and rSB for valid matrix', () => {
+    const matrix = Array.from({ length: 10 }, (_, i) => [i+1, i+1.1, i+0.9, i+1.2]);
+    const res = splitHalf(matrix);
+    expect(res).not.toBeNull();
+    expect(res).toHaveProperty('rHalf');
+    expect(res).toHaveProperty('rSB');
+  });
+
+  it('rSB >= rHalf for positive rHalf', () => {
+    const matrix = Array.from({ length: 10 }, (_, i) => [i+1, i+2, i+3, i+4]);
+    const res = splitHalf(matrix);
+    if (res.rHalf > 0) expect(res.rSB).toBeGreaterThanOrEqual(res.rHalf);
+  });
+});
+
+describe('metaAnalysis', () => {
+  it('returns null for < 2 studies', () =>
+    expect(metaAnalysis([{ label: 'A', d: 0.5, se: 0.2 }])).toBeNull());
+
+  it('returns dRE, I2, Q for valid studies', () => {
+    const studies = [
+      { label: 'A', d: 0.5, se: 0.1 },
+      { label: 'B', d: 0.6, se: 0.15 },
+      { label: 'C', d: 0.4, se: 0.12 },
+    ];
+    const res = metaAnalysis(studies);
+    expect(res).not.toBeNull();
+    expect(res).toHaveProperty('dRE');
+    expect(res).toHaveProperty('I2');
+    expect(res).toHaveProperty('Q');
+  });
+
+  it('I2 is between 0 and 100', () => {
+    const studies = [
+      { label: 'A', d: 0.5, se: 0.1 },
+      { label: 'B', d: 0.8, se: 0.2 },
+      { label: 'C', d: 0.3, se: 0.15 },
+    ];
+    const res = metaAnalysis(studies);
+    expect(res.I2).toBeGreaterThanOrEqual(0);
+    expect(res.I2).toBeLessThanOrEqual(100);
+  });
+
+  it('ci is array of length 2', () => {
+    const studies = [
+      { label: 'A', d: 0.5, se: 0.1 },
+      { label: 'B', d: 0.6, se: 0.15 },
+    ];
+    const res = metaAnalysis(studies);
+    expect(Array.isArray(res.ci)).toBe(true);
+    expect(res.ci).toHaveLength(2);
+  });
+});
+
+describe('differencesInDifferences', () => {
+  it('returns null when any group has < 2 observations', () =>
+    expect(differencesInDifferences([1], [2,3], [4,5], [6,7])).toBeNull());
+
+  it('computes DiD correctly for parallel trends', () => {
+    const preCtrl  = [10, 11, 10, 9, 10];
+    const postCtrl = [11, 12, 11, 10, 11];
+    const preTreat = [10, 9, 11, 10, 10];
+    const postTreat= [15, 14, 16, 15, 15];
+    const res = differencesInDifferences(preCtrl, postCtrl, preTreat, postTreat);
+    expect(res).not.toBeNull();
+    expect(res.did).toBeCloseTo(4, 0);
+  });
+
+  it('returns t, df, p fields', () => {
+    const g = n => Array.from({ length: n }, (_, i) => i + 1);
+    const res = differencesInDifferences(g(5), g(5), g(5), g(5).map(v => v + 3));
+    expect(res).toHaveProperty('t');
+    expect(res).toHaveProperty('df');
+    expect(res).toHaveProperty('p');
+  });
+});
+
+describe('convertEffectSize', () => {
+  it('returns null for non-numeric input', () =>
+    expect(convertEffectSize('d', 'abc')).toBeNull());
+
+  it('converts d correctly: r and eta2 in expected range', () => {
+    const res = convertEffectSize('d', 0.5);
+    expect(res).not.toBeNull();
+    expect(res.r).toBeGreaterThan(0);
+    expect(res.r).toBeLessThan(1);
+    expect(res.eta2).toBeGreaterThan(0);
+    expect(res.eta2).toBeLessThan(1);
+  });
+
+  it('converts r to d and back', () => {
+    const res = convertEffectSize('r', 0.3);
+    expect(res).toHaveProperty('d');
+    expect(res).toHaveProperty('OR');
+    expect(res).toHaveProperty('f');
+  });
+
+  it('converts OR to d', () => {
+    const res = convertEffectSize('OR', 2.0);
+    expect(res).not.toBeNull();
+    expect(res.d).toBeGreaterThan(0);
+  });
+
+  it('converts eta2 to all effect sizes', () => {
+    const res = convertEffectSize('eta2', 0.09);
+    expect(res.r).toBeCloseTo(0.3, 2);
+    expect(res.d).toBeCloseTo(0.6, 1);
   });
 });

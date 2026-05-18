@@ -1,0 +1,22 @@
+{
+  "name": "statlab",
+  "version": "6.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "papaparse": "latest",
+    "react": "^18",
+    "recharts": "latest"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.3.1",
+    "@vitest/coverage-v8": "^2.0.0",
+    "happy-dom": "^20.9.0",
+    "react-dom": "^18.3.1",
+    "vitest": "^2.0.0"
+  }
+}

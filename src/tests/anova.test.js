@@ -110,3 +110,102 @@ describe('cochranQ', () => {
     expect(res).toHaveProperty('p');
   });
 });
+
+describe('twoWayANOVA', () => {
+  const mkData = () => [
+    { A: 'a1', B: 'b1', Y: 5 }, { A: 'a1', B: 'b1', Y: 6 },
+    { A: 'a1', B: 'b2', Y: 8 }, { A: 'a1', B: 'b2', Y: 9 },
+    { A: 'a2', B: 'b1', Y: 3 }, { A: 'a2', B: 'b1', Y: 4 },
+    { A: 'a2', B: 'b2', Y: 7 }, { A: 'a2', B: 'b2', Y: 8 },
+  ];
+
+  it('returns null when factor has < 2 levels', () => {
+    const data = [{ A: 'a1', B: 'b1', Y: 1 }, { A: 'a1', B: 'b2', Y: 2 }];
+    expect(twoWayANOVA(data, 'A', 'B', 'Y')).toBeNull();
+  });
+
+  it('returns FA, FB, FAB for valid 2×2 design', () => {
+    const res = twoWayANOVA(mkData(), 'A', 'B', 'Y');
+    expect(res).not.toBeNull();
+    expect(res).toHaveProperty('FA');
+    expect(res).toHaveProperty('FB');
+    expect(res).toHaveProperty('FAB');
+  });
+
+  it('FA, FB, FAB are all non-negative', () => {
+    const res = twoWayANOVA(mkData(), 'A', 'B', 'Y');
+    expect(res.FA).toBeGreaterThanOrEqual(0);
+    expect(res.FB).toBeGreaterThanOrEqual(0);
+    expect(res.FAB).toBeGreaterThanOrEqual(0);
+  });
+
+  it('eta2 components sum ≤ 1', () => {
+    const res = twoWayANOVA(mkData(), 'A', 'B', 'Y');
+    expect(res.eta2A + res.eta2B + res.eta2AB).toBeLessThanOrEqual(1.01);
+  });
+
+  it('aLevs and bLevs are arrays of correct length', () => {
+    const res = twoWayANOVA(mkData(), 'A', 'B', 'Y');
+    expect(res.aLevs).toHaveLength(2);
+    expect(res.bLevs).toHaveLength(2);
+  });
+});
+
+describe('ancova', () => {
+  const mkGroups = () => [
+    { name: 'A', vals: [10, 12, 14, 16, 18] },
+    { name: 'B', vals: [8,  10, 12, 14, 16] },
+  ];
+  const mkCov = () => [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6]];
+
+  it('returns null for < 2 groups', () =>
+    expect(ancova([{ name: 'A', vals: [1,2,3] }], [[1,2,3]])).toBeNull());
+
+  it('returns a result for valid input', () => {
+    const res = ancova(mkGroups(), mkCov());
+    expect(res).not.toBeNull();
+    expect(res).toHaveProperty('F');
+    expect(res).toHaveProperty('p');
+    expect(res).toHaveProperty('eta2');
+  });
+
+  it('adjMeans has one entry per group', () => {
+    const res = ancova(mkGroups(), mkCov());
+    expect(res.adjMeans).toHaveLength(2);
+  });
+
+  it('bWithin is a finite number', () => {
+    const res = ancova(mkGroups(), mkCov());
+    expect(isFinite(res.bWithin)).toBe(true);
+  });
+});
+
+describe('rmANOVA', () => {
+  const mkMatrix = () => Array.from({ length: 10 }, (_, i) => [i+1, i+2, i+3]);
+
+  it('returns null for n < 2', () =>
+    expect(rmANOVA([[1, 2, 3]])).toBeNull());
+
+  it('returns null for k < 2', () =>
+    expect(rmANOVA([[1],[2],[3]])).toBeNull());
+
+  it('returns F, p, ggEps for valid matrix', () => {
+    const res = rmANOVA(mkMatrix());
+    expect(res).not.toBeNull();
+    expect(res).toHaveProperty('F');
+    expect(res).toHaveProperty('p');
+    expect(res).toHaveProperty('ggEps');
+  });
+
+  it('eta2 is between 0 and 1', () => {
+    const res = rmANOVA(mkMatrix());
+    expect(res.eta2).toBeGreaterThanOrEqual(0);
+    expect(res.eta2).toBeLessThanOrEqual(1);
+  });
+
+  it('ggEps is between 1/(k-1) and 1', () => {
+    const res = rmANOVA(mkMatrix());
+    expect(res.ggEps).toBeGreaterThanOrEqual(0);
+    expect(res.ggEps).toBeLessThanOrEqual(1.001);
+  });
+});

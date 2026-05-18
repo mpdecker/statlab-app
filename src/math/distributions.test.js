@@ -76,13 +76,11 @@ describe('chiPVal', () => {
 describe('tPVal', () => {
   it('tPVal(2.0, 10) matches R 2*pt(-2, 10)', () => {
     const expected = ref.distributions.tPVal.find(r => r.t === 2 && r.df === 10).expected;
-    // ibeta accuracy ~2 decimal places for small df; actual ≈ 0.07339 vs R 0.07394
-    expect(tPVal(2.0, 10)).toBeCloseTo(expected, 2);
+    expect(tPVal(2.0, 10)).toBeCloseTo(expected, 4);
   });
   it('tPVal(1.96, 1000) matches R', () => {
     const expected = ref.distributions.tPVal.find(r => r.t === 1.96 && r.df === 1000).expected;
-    // ibeta accuracy ~3 decimal places; actual ≈ 0.05027
-    expect(tPVal(1.96, 1000)).toBeCloseTo(expected, 3);
+    expect(tPVal(1.96, 1000)).toBeCloseTo(expected, 4);
   });
   it('tPVal(12.706, 1) ≈ 0.05', () => {
     const expected = ref.distributions.tPVal.find(r => r.t === 12.706).expected;
@@ -95,8 +93,7 @@ describe('tPVal', () => {
 describe('fPVal', () => {
   it('fPVal(4.26, 1, 30) matches R', () => {
     const expected = ref.distributions.fPVal.find(r => r.F === 4.26).expected;
-    // ibeta accuracy ~3 decimal places; actual ≈ 0.04776
-    expect(fPVal(4.26, 1, 30)).toBeCloseTo(expected, 3);
+    expect(fPVal(4.26, 1, 30)).toBeCloseTo(expected, 4);
   });
   it('fPVal(0, df1, df2) ≈ 1', () => expect(fPVal(0, 2, 10)).toBeCloseTo(1, 4));
   it('very large F gives p near 0', () => expect(fPVal(10000, 1, 100)).toBeCloseTo(0, 4));
@@ -130,10 +127,9 @@ describe('computePowerT', () => {
 });
 
 describe('requiredN', () => {
-  it('d=0.5, power=0.8 requires a reasonable per-group sample size', () => {
-    // Implementation uses ibeta-based tPVal; actual result ≈ 52 (vs textbook ~64 using exact t)
+  it('d=0.5, power=0.8 requires ~64 per group', () => {
     const n = requiredN(0.5, 0.8);
-    expect(n).toBeGreaterThanOrEqual(40);
+    expect(n).toBeGreaterThanOrEqual(60);
     expect(n).toBeLessThanOrEqual(70);
   });
   it('d=0.8 requires fewer than d=0.5', () =>

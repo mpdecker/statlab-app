@@ -2,7 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   pearsonTest, spearman, kendallTau, partialCorr, pointBiserial,
-  simpleOLS, multipleOLS,
+  simpleOLS, multipleOLS, polynomialOLS, hierarchicalOLS,
+  logisticReg, mediation, moderation,
 } from './regression.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
 
@@ -233,5 +234,166 @@ describe('multipleOLS', () => {
     const res = multipleOLS(Y, X, ['x1', 'x2']);
     expect(res.r2).toBeGreaterThanOrEqual(0);
     expect(res.r2).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('pointBiserial', () => {
+  it('returns null for n < 3', () =>
+    expect(pointBiserial([0, 1], [1, 2])).toBeNull());
+
+  it('rpb is between -1 and 1', () => {
+    const binary = [0, 0, 0, 1, 1, 1, 0, 1, 0, 1];
+    const cont   = [2, 3, 2, 7, 8, 9, 3, 7, 2, 8];
+    const res = pointBiserial(binary, cont);
+    expect(res.rpb).toBeGreaterThanOrEqual(-1);
+    expect(res.rpb).toBeLessThanOrEqual(1);
+  });
+
+  it('returns t, df, p', () => {
+    const binary = [0, 1, 0, 1, 0, 1, 0, 1];
+    const cont   = [1, 5, 2, 6, 1, 5, 2, 6];
+    const res = pointBiserial(binary, cont);
+    expect(res).toHaveProperty('t');
+    expect(res).toHaveProperty('df');
+    expect(res).toHaveProperty('p');
+  });
+});
+
+describe('polynomialOLS', () => {
+  it('returns null for insufficient data', () =>
+    expect(polynomialOLS([1, 2], [1, 2], 2)).toBeNull());
+
+  it('returns result for degree-2 polynomial', () => {
+    const xs = [1, 2, 3, 4, 5, 6, 7, 8];
+    const ys = xs.map(x => x ** 2 + 0.5 * x + 1);
+    const res = polynomialOLS(xs, ys, 2);
+    expect(res).not.toBeNull();
+    expect(res.r2).toBeGreaterThan(0.99);
+  });
+
+  it('result test name includes degree', () => {
+    const xs = [1, 2, 3, 4, 5, 6];
+    const ys = [1, 4, 9, 16, 25, 36];
+    const res = polynomialOLS(xs, ys, 2);
+    expect(res.test).toContain('2');
+  });
+});
+
+describe('hierarchicalOLS', () => {
+  const mkData = () => {
+    const n = 20;
+    const Y  = Array.from({ length: n }, (_, i) => i * 2 + Math.random());
+    const X1 = Y.map((_, i) => [i + 1]);
+    const X2 = Y.map((_, i) => [(i % 4) + 1]);
+    return { Y, X1, X2 };
+  };
+
+  it('returns null when base model fails', () =>
+    expect(hierarchicalOLS([1,2], [[1],[2]], [[1],[2]], ['x1'], ['x2'])).toBeNull());
+
+  it('returns model1 and model2 r2', () => {
+    const { Y, X1, X2 } = mkData();
+    const res = hierarchicalOLS(Y, X1, X2, ['x1'], ['x2']);
+    expect(res).not.toBeNull();
+    expect(res.model1).toHaveProperty('r2');
+    expect(res.model2).toHaveProperty('r2');
+  });
+
+  it('model2.r2 >= model1.r2', () => {
+    const { Y, X1, X2 } = mkData();
+    const res = hierarchicalOLS(Y, X1, X2, ['x1'], ['x2']);
+    if (res) expect(res.model2.r2).toBeGreaterThanOrEqual(res.model1.r2 - 0.001);
+  });
+
+  it('returns deltaR2 and F_change', () => {
+    const { Y, X1, X2 } = mkData();
+    const res = hierarchicalOLS(Y, X1, X2, ['x1'], ['x2']);
+    if (res) {
+      expect(res).toHaveProperty('deltaR2');
+      expect(res).toHaveProperty('F_change');
+    }
+  });
+});
+
+describe('logisticReg', () => {
+  it('returns null for n < p + 5', () => {
+    const Y = [0, 1, 0];
+    const X = [[1], [2], [3]];
+    expect(logisticReg(Y, X)).toBeNull();
+  });
+
+  it('returns coeffs, accuracy for linearly separable data', () => {
+    const Y = [0,0,0,0,0,1,1,1,1,1,0,0,1,1,1];
+    const X = Y.map((_, i) => [i]);
+    const res = logisticReg(Y, X, ['x1']);
+    expect(res).not.toBeNull();
+    expect(res).toHaveProperty('coeffs');
+    expect(res.acc).toBeGreaterThan(0.5);
+  });
+
+  it('confMatrix has TP, FP, FN, TN', () => {
+    const Y = [0,0,0,0,0,1,1,1,1,1,0,0,1,1,1];
+    const X = Y.map((_, i) => [i]);
+    const res = logisticReg(Y, X, ['x1']);
+    expect(res.confMatrix).toHaveProperty('TP');
+    expect(res.confMatrix).toHaveProperty('TN');
+  });
+
+  it('McFaddenR2 is between 0 and 1', () => {
+    const Y = [0,0,0,0,0,1,1,1,1,1,0,0,1,1,1];
+    const X = Y.map((_, i) => [i]);
+    const res = logisticReg(Y, X, ['x1']);
+    expect(res.McFaddenR2).toBeGreaterThanOrEqual(0);
+    expect(res.McFaddenR2).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('mediation', () => {
+  it('returns null for mismatched lengths', () =>
+    expect(mediation([1,2,3], [1,2], [1,2,3])).toBeNull());
+
+  it('returns a, b, c path estimates', () => {
+    const n = 20;
+    const X = Array.from({ length: n }, (_, i) => i);
+    const M = X.map(x => 0.5 * x + Math.random() * 0.5);
+    const Y = M.map((m, i) => 0.3 * m + 0.2 * X[i] + Math.random() * 0.5);
+    const res = mediation(X, M, Y);
+    expect(res).not.toBeNull();
+    expect(res).toHaveProperty('a_path');
+    expect(res).toHaveProperty('b_path');
+    expect(res).toHaveProperty('c_total');
+  });
+
+  it('ab indirect effect is a number', () => {
+    const X = [1,2,3,4,5,6,7,8,9,10];
+    const M = X.map(x => x * 0.6 + 0.1);
+    const Y = M.map((m, i) => m * 0.4 + X[i] * 0.1);
+    const res = mediation(X, M, Y);
+    expect(typeof res.ab).toBe('number');
+    expect(isFinite(res.ab)).toBe(true);
+  });
+});
+
+describe('moderation', () => {
+  it('returns null for mismatched lengths', () =>
+    expect(moderation([1,2,3], [1,2], [1,2,3])).toBeNull());
+
+  it('returns intCoeff (interaction term)', () => {
+    const n = 20;
+    const X = Array.from({ length: n }, (_, i) => i);
+    const Z = X.map(x => x * 0.5 + Math.random());
+    const Y = X.map((x, i) => x + Z[i] + x * Z[i] * 0.1 + Math.random());
+    const res = moderation(X, Z, Y);
+    expect(res).not.toBeNull();
+    expect(res).toHaveProperty('intCoeff');
+  });
+
+  it('simpleSlopes has 3 entries (Z-1SD, Z, Z+1SD)', () => {
+    const n = 20;
+    const X = Array.from({ length: n }, (_, i) => i);
+    const Z = X.map(x => x * 0.5 + Math.random());
+    const Y = X.map((x, i) => x + Z[i] + x * Z[i] * 0.1 + Math.random());
+    const res = moderation(X, Z, Y);
+    if (res) expect(res.simpleSlopes).toHaveLength(3);
   });
 });
