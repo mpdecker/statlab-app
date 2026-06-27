@@ -265,3 +265,61 @@ export function mewmaChart(data, vars, { lambda = 0.2, subgroupSize = 5 } = {}) 
   }
   return { test: 'MEWMA Chart', T2, lambda, nSubgroups: nsg, p, apa: `MEWMA: lambda=${lambda}, ${nsg} subgroups, p=${p}` };
 }
+
+// OC Curve
+export function ocCurve(n, c, p) {
+  if (!n || !Number.isFinite(c) || !p || !p.length) return null;
+  if (!Array.isArray(p)) p = [p];
+  const Pa = p.map(pi => {
+    let prob = 0, cum = 0;
+    for (let k = 0; k <= c; k++) {
+      prob += binomialProb(n, k, pi);
+    }
+    return { p: +pi.toFixed(4), Pa: +prob.toFixed(4) };
+  });
+  return { test: 'OC Curve', curve: Pa, n, c, apa: `OC: n=${n}, c=${c}, ${Pa.length} points` };
+}
+
+function binomialProb(n, k, p) {
+  if (k < 0 || k > n) return 0;
+  let logP = 0;
+  for (let i = 1; i <= k; i++) logP += Math.log(n - i + 1) - Math.log(i);
+  logP += k * Math.log(p) + (n - k) * Math.log(1 - p);
+  return Math.exp(logP);
+}
+
+// AOQ Curve
+export function aoqCurve(n, c, p, N) {
+  if (!n || !Number.isFinite(c) || !N || !p || !p.length) return null;
+  if (!Array.isArray(p)) p = [p];
+  const aoq = p.map(pi => {
+    const pa = ocCurve(n, c, [pi])?.curve?.[0]?.Pa || 0;
+    return { p: +pi.toFixed(4), aoq: +(pa * pi * (N - n) / N).toFixed(6) };
+  });
+  return { test: 'AOQ Curve', aoq, n, c, N, apa: `AOQ: n=${n}, c=${c}, N=${N}` };
+}
+
+// Rectifying Inspection
+export function rectifyingInspection(n, c, p, N) {
+  if (!n || !Number.isFinite(c) || !N || !Number.isFinite(p)) return null;
+  const pa = ocCurve(n, c, [p])?.curve?.[0]?.Pa || 0;
+  const ati = n + (1 - pa) * (N - n);
+  const aoq2 = pa * p * (N - n) / N;
+  return { test: 'Rectifying Inspection', ati: +ati.toFixed(2), aoql: +aoq2.toFixed(6), pa: +pa.toFixed(4), n, c, N, apa: `ATI = ${ati.toFixed(0)}, AOQL = ${aoq2.toFixed(5)}` };
+}
+
+// Reliability Acceptance Sampling
+export function reliabilitySampling(t, r, { alpha = 0.05, beta = 0.1 } = {}) {
+  if (!t || !r || t < 1 || r < 0) return null;
+  const n2 = Math.ceil(Math.log(beta) / Math.log(1 - r) / t);
+  const n = Math.ceil(Math.log(alpha) / Math.log(1 - r) / t);
+  return { test: 'Reliability Sampling', n: Math.max(n, 5), t, r, alpha, beta, apa: `Reliability: test ${Math.max(n, 5)} units for ${t} hrs with r = ${r}` };
+}
+
+// ASN Curve
+export function asnCurve(n, c, p) {
+  if (!n || !Number.isFinite(c) || !p || !p.length) return null;
+  if (!Array.isArray(p)) p = [p];
+  const asn = p.map(pi => ({ p: +pi.toFixed(4), asn: n }));
+  return { test: 'ASN Curve', asn, n, c, apa: `ASN: n=${n}, c=${c}` };
+}
