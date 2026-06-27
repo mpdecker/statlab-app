@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { adfTest, acf, pacf, arima, autoArima, simpleExpSmooth, holtsLinearSmooth, holtWinters, seasonalDecompose, varModel, grangerCausality, chowTest, garch, kalmanFilter, johansenTest, structuralBreak, bottomUpReconciliation, topDownReconciliation, middleOutReconciliation, minTReconciliation, forecastAccuracy, markovSwitchingAR, regimeVolatility, transitionMatrix, filteredProbabilities, expectedDuration, peltChangePoint, binarySegmentation, singleChangepoint, changepointPenalty, segmentedMeans } from './timeseries.js';
+import { adfTest, acf, pacf, arima, autoArima, simpleExpSmooth, holtsLinearSmooth, holtWinters, seasonalDecompose, varModel, grangerCausality, chowTest, garch, kalmanFilter, johansenTest, structuralBreak, bottomUpReconciliation, topDownReconciliation, middleOutReconciliation, minTReconciliation, forecastAccuracy, markovSwitchingAR, regimeVolatility, transitionMatrix, filteredProbabilities, expectedDuration, peltChangePoint, binarySegmentation, singleChangepoint, changepointPenalty, segmentedMeans, rollingOriginCV, slidingWindow, gapValidation, tsFeatures, forecastReconciliation } from './timeseries.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const stationarySeries = [
@@ -520,3 +520,9 @@ describe('binarySegmentation', () => { it('contract keys', () => expectKeys(bina
 describe('singleChangepoint', () => { it('contract keys', () => expectKeys(singleChangepoint([1,2,3,4,5,6,7,8,9,10]),['test','changePoint','fStat','n','apa'])); });
 describe('changepointPenalty', () => { it('contract keys', () => expectKeys(changepointPenalty([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]),['test','penalties','n','apa'])); });
 describe('segmentedMeans', () => { it('contract keys', () => expectKeys(segmentedMeans([10],[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]),['test','segments','n','apa'])); });
+
+describe('rollingOriginCV', () => { it('contract keys', () => expectKeys(rollingOriginCV([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], train => [train[0]*2]), ['test', 'rmse', 'nFolds', 'initialWindow', 'horizon', 'n', 'apa'])); });
+describe('slidingWindow', () => { it('contract keys', () => expectKeys(slidingWindow([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20], train => train[0]), ['test', 'values', 'windowSize', 'step', 'n', 'apa'])); });
+describe('gapValidation', () => { it('contract keys', () => expectKeys(gapValidation([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20], (train, h) => [train[0]]), ['test', 'rmse', 'gapSize', 'n', 'apa'])); });
+describe('tsFeatures', () => { it('contract keys', () => expectKeys(tsFeatures([1,2,3,4,5,6,7,8,9,10]), ['test', 'features', 'n', 'apa'])); });
+describe('forecastReconciliation', () => { it('contract keys', () => expectKeys(forecastReconciliation([10, 20, 30], [[0,1,2]], [12, 22, 28]), ['test', 'reconciled', 'n', 'apa'])); });

@@ -6,6 +6,7 @@ import {
   grubbsTest, leveneTest, bartlettTest, bonferroni, holm, bh, sensitivityLOO,
   cmhTest, relativeRisk, cramersV,
   kendallW, dunnTest, nemenyiTest, cochranQPost,
+  storeyQValue, benjaminiYekutieli, localFDR, stratifiedFDR, fwerControl,
 } from './categorical.js';
 import { mannWhitney, wilcoxonSR } from './nonparametric.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
@@ -365,8 +366,14 @@ describe('bh', () => {
     res.forEach(r => {
       expect(r.pAdj).toBeGreaterThanOrEqual(0);
       expect(r.pAdj).toBeLessThanOrEqual(1);
-    });
   });
+});
+
+describe('storeyQValue', () => { it('contract keys', () => expectKeys(storeyQValue([0.01, 0.05, 0.1, 0.2, 0.5]), ['test', 'qValues', 'pi0', 'n', 'apa'])); });
+describe('benjaminiYekutieli', () => { it('contract keys', () => expectKeys(benjaminiYekutieli([0.01, 0.05, 0.1]), ['test', 'thresholds', 'n', 'apa'])); });
+describe('localFDR', () => { it('contract keys', () => expectKeys(localFDR([0.01, 0.05, 0.1, 0.2]), ['test', 'lfdr', 'pi0', 'n', 'apa'])); });
+describe('stratifiedFDR', () => { it('contract keys', () => expectKeys(stratifiedFDR([0.01, 0.05, 0.1, 0.2], [1, 1, 2, 2]), ['test', 'results', 'n', 'nStrata', 'apa'])); });
+describe('fwerControl', () => { it('contract keys', () => expectKeys(fwerControl([0.001, 0.01, 0.05, 0.5]), ['test', 'rejected', 'method', 'n', 'apa'])); });
 });
 
 describe('sensitivityLOO', () => {

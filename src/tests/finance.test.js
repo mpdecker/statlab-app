@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { capmBeta, sharpeRatio, sortinoRatio, maxDrawdown, historicalVaR, parametricVaR, rollingWindow, famaFrench3F, carhart4F, egarch, tgarch, treynorRatio } from './finance.js';
+import { capmBeta, sharpeRatio, sortinoRatio, maxDrawdown, historicalVaR, parametricVaR, rollingWindow, famaFrench3F, carhart4F, egarch, tgarch, treynorRatio, blackScholes, impliedVolatility, optionGreeks, binomialTree, monteCarloPricing, varReduction } from './finance.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const stock = [0.01, -0.02, 0.03, 0.015, -0.005, 0.02, 0.01, -0.01, 0.005, 0.025, -0.015, 0.03];
@@ -74,3 +74,10 @@ describe('treynorRatio', () => {
   it('contract keys', () => expectKeys(treynorRatio(stock, 1.2), ['test', 'treynor', 'beta', 'mean', 'riskFree', 'n', 'apa']));
   it('null for zero beta', () => expect(treynorRatio(stock, 0)).toBeNull());
 });
+
+describe('blackScholes', () => { it('contract keys', () => expectKeys(blackScholes(100, 100, 1, 0.05, 0.2), ['test', 'price', 'type', 'spot', 'strike', 'time', 'rate', 'sigma', 'apa'])); });
+describe('impliedVolatility', () => { it('contract keys', () => expectKeys(impliedVolatility(10, 100, 100, 1, 0.05), ['test', 'iv', 'marketPrice', 'spot', 'strike', 'time', 'rate', 'type', 'apa'])); });
+describe('optionGreeks', () => { it('contract keys', () => expectKeys(optionGreeks(100, 100, 1, 0.05, 0.2), ['test', 'delta', 'gamma', 'theta', 'vega', 'rho', 'apa'])); });
+describe('binomialTree', () => { it('contract keys', () => expectKeys(binomialTree(100, 100, 1, 0.05, 0.2, 50), ['test', 'price', 'steps', 'type', 'apa'])); });
+describe('monteCarloPricing', () => { it('contract keys', () => expectKeys(monteCarloPricing(100, 100, 1, 0.05, 0.2, 500), ['test', 'price', 'nPaths', 'type', 'apa'])); });
+describe('varReduction', () => { it('contract keys', () => expectKeys(varReduction([1.1,2.2,3.3,4.4,5.5], 3), ['test', 'rawVar', 'reducedVar', 'reduction', 'n', 'apa'])); });

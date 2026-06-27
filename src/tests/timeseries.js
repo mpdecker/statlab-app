@@ -1323,4 +1323,66 @@ export function segmentedMeans(breakpoints, data) {
   return { test: 'Segmented Means', segments, n, apa: `Segments: ${segments.length} from ${breakpoints.length} breakpoints` };
 }
 
+// Rolling Origin CV
+export function rollingOriginCV(data, modelFn, { initialWindow = 10, horizon = 1 } = {}) {
+  if (!data || data.length < initialWindow + horizon) return null;
+  const n = data.length;
+  const errors = [];
+  for (let i = initialWindow; i <= n - horizon; i++) {
+    const train = data.slice(0, i);
+    const actual = data.slice(i, i + horizon);
+    const forecast = modelFn(train, horizon);
+    errors.push(actual.map((a, j) => (forecast[j] - a) ** 2).reduce((s, v) => s + v, 0) / horizon);
+  }
+  const rmse = Math.sqrt(errors.reduce((s, v) => s + v, 0) / errors.length);
+  return { test: 'Rolling Origin CV', rmse: +rmse.toFixed(4), nFolds: errors.length, initialWindow, horizon, n, apa: `Rolling CV: RMSE = ${rmse.toFixed(3)}` };
+}
+
+// Sliding Window
+export function slidingWindow(data, modelFn, { windowSize = 20, step = 1 } = {}) {
+  if (!data || data.length < windowSize) return null;
+  const n = data.length;
+  const values = [];
+  for (let i = 0; i + windowSize <= n; i += step) {
+    const train = data.slice(i, i + windowSize);
+    const pred = modelFn(train);
+    values.push(+pred.toFixed(4));
+  }
+  return { test: 'Sliding Window', values, windowSize, step, n, apa: `Sliding: ${values.length} windows of ${windowSize}` };
+}
+
+// Gap Validation
+export function gapValidation(data, modelFn, { gapSize = 0 } = {}) {
+  if (!data || data.length < 20) return null;
+  const n = data.length;
+  const trainSize = Math.floor(n * 0.7);
+  const train = data.slice(0, trainSize - gapSize);
+  const test = data.slice(trainSize);
+  const pred = modelFn(train, test.length);
+  const errors = test.map((a, j) => (pred[j] - a) ** 2);
+  const rmse = Math.sqrt(errors.reduce((s, v) => s + v, 0) / errors.length);
+  return { test: 'Gap Validation', rmse: +rmse.toFixed(4), gapSize, n, apa: `Gap CV: RMSE = ${rmse.toFixed(3)}` };
+}
+
+// Time Series Features
+export function tsFeatures(series) {
+  if (!series || series.length < 10) return null;
+  const n = series.length;
+  const mu = series.reduce((s, v) => s + v, 0) / n;
+  const v = series.reduce((s, v) => s + (v - mu) ** 2, 0) / n;
+  const inc = series.slice(1).map((v, i) => v - series[i]);
+  const meanInc = inc.reduce((s, v) => s + v, 0) / inc.length;
+  const entropy = -[...new Set(series)].reduce((s, val) => { const p = series.filter(v => Math.abs(v - val) < 0.01).length / n; return p > 0 ? s + p * Math.log2(p) : s; }, 0);
+  return { test: 'Time Series Features', features: { mean: +mu.toFixed(4), variance: +v.toFixed(4), meanChange: +meanInc.toFixed(4), entropy: +entropy.toFixed(4) }, n, apa: `TS features: μ = ${mu.toFixed(2)}, σ² = ${v.toFixed(2)}` };
+}
+
+// Forecast Reconciliation Diagnostics
+export function forecastReconciliation(forecasts, hierarchy, actuals) {
+  if (!forecasts || !hierarchy || !forecasts.length) return null;
+  const n = forecasts.length;
+  const base = hierarchy?.[0] || forecasts;
+  const reconciled = base.map((f, i) => (+f.toFixed(4) + +((forecasts[i] || 0).toFixed(4))) / 2);
+  return { test: 'Forecast Reconciliation', reconciled: reconciled.slice(0, 10), n, apa: `Reconciled: ${n} forecasts` };
+}
+
 

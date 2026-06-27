@@ -228,3 +228,84 @@ export function treynorRatio(returns, beta, riskFree = 0) {
   const treynor = excess / beta;
   return { test: 'Treynor Ratio', treynor: +treynor.toFixed(4), beta, mean: +avg(returns).toFixed(6), riskFree, n, apa: `Treynor = ${treynor.toFixed(2)} (β = ${beta.toFixed(2)})` };
 }
+
+// Black-Scholes
+export function blackScholes(spot, strike, time, rate, sigma, type = 'call') {
+  if (![spot, strike, time, rate, sigma].every(Number.isFinite) || spot <= 0 || strike <= 0 || sigma <= 0) return null;
+  const d1 = (Math.log(spot / strike) + (rate + sigma * sigma / 2) * time) / (sigma * Math.sqrt(time));
+  const d2 = d1 - sigma * Math.sqrt(time);
+  const phi = 0.5 * (1 + Math.tanh(d1 / Math.SQRT2));
+  const phi2 = 0.5 * (1 + Math.tanh(d2 / Math.SQRT2));
+  const price = type === 'call' ? spot * phi - strike * Math.exp(-rate * time) * phi2 : strike * Math.exp(-rate * time) * (1 - phi2) - spot * (1 - phi);
+  return { test: 'Black-Scholes', price: +price.toFixed(4), type, spot, strike, time, rate, sigma, apa: `BS ${type}: ${price.toFixed(2)}` };
+}
+
+// Implied Volatility
+export function impliedVolatility(marketPrice, spot, strike, time, rate, type = 'call') {
+  if (![marketPrice, spot, strike, time, rate].every(Number.isFinite)) return null;
+  let lo = 0.01, hi = 3;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    const price = blackScholes(spot, strike, time, rate, mid, type)?.price || 0;
+    if (price < marketPrice) lo = mid; else hi = mid;
+    if (Math.abs(price - marketPrice) < 0.001) break;
+  }
+  return { test: 'Implied Volatility', iv: +((lo + hi) / 2).toFixed(4), marketPrice, spot, strike, time, rate, type, apa: `IV = ${((lo + hi) / 2 * 100).toFixed(1)}%` };
+}
+
+// Option Greeks
+export function optionGreeks(spot, strike, time, rate, sigma) {
+  if (![spot, strike, time, rate, sigma].every(Number.isFinite)) return null;
+  const d1 = (Math.log(spot / strike) + (rate + sigma * sigma / 2) * time) / (sigma * Math.sqrt(time));
+  const phi = 0.5 * (1 + Math.tanh(d1 / Math.SQRT2));
+  const pdf = Math.exp(-0.5 * d1 * d1) / Math.sqrt(2 * Math.PI);
+  const delta = phi;
+  const gamma = pdf / (spot * sigma * Math.sqrt(time));
+  const theta = -spot * pdf * sigma / (2 * Math.sqrt(time)) - rate * strike * Math.exp(-rate * time) * 0.5;
+  const vega = spot * Math.sqrt(time) * pdf / 100;
+  const rho = strike * time * Math.exp(-rate * time) * 0.5 / 100;
+  return { test: 'Option Greeks', delta: +delta.toFixed(4), gamma: +gamma.toFixed(4), theta: +theta.toFixed(4), vega: +vega.toFixed(4), rho: +rho.toFixed(4), apa: `Greeks: δ=${delta.toFixed(3)}, γ=${gamma.toFixed(4)}` };
+}
+
+// Binomial Tree (CRR)
+export function binomialTree(spot, strike, time, rate, sigma, steps = 100, type = 'call') {
+  if (![spot, strike, time, rate, sigma].every(Number.isFinite) || steps < 2) return null;
+  const dt = time / steps;
+  const u = Math.exp(sigma * Math.sqrt(dt));
+  const d = 1 / u;
+  const p = (Math.exp(rate * dt) - d) / (u - d);
+  let prices = Array.from({ length: steps + 1 }, (_, i) => {
+    const sT = spot * Math.pow(u, steps - i) * Math.pow(d, i);
+    return type === 'call' ? Math.max(0, sT - strike) : Math.max(0, strike - sT);
+  });
+  for (let j = steps - 1; j >= 0; j--) {
+    for (let i = 0; i <= j; i++) prices[i] = Math.exp(-rate * dt) * (p * prices[i] + (1 - p) * prices[i + 1]);
+  }
+  return { test: 'Binomial Tree', price: +prices[0].toFixed(4), steps, type, apa: `Binomial: ${prices[0].toFixed(2)} (${steps} steps)` };
+}
+
+// Monte Carlo Pricing
+export function monteCarloPricing(spot, strike, time, rate, sigma, nPaths = 10000, type = 'call') {
+  if (![spot, strike, time, rate, sigma].every(Number.isFinite) || nPaths < 100) return null;
+  let sumPayoff = 0;
+  for (let i = 0; i < nPaths; i++) {
+    const z = Math.sqrt(-2 * Math.log(Math.max(Math.random(), 0.001))) * Math.cos(2 * Math.PI * Math.random());
+    const sT = spot * Math.exp((rate - sigma * sigma / 2) * time + sigma * Math.sqrt(time) * z);
+    const payoff = type === 'call' ? Math.max(0, sT - strike) : Math.max(0, strike - sT);
+    sumPayoff += payoff;
+  }
+  const price = Math.exp(-rate * time) * sumPayoff / nPaths;
+  return { test: 'Monte Carlo Pricing', price: +price.toFixed(4), nPaths, type, apa: `MC price: ${price.toFixed(2)} (${nPaths} paths)` };
+}
+
+// Variance Reduction
+export function varReduction(payoffs, target) {
+  if (!payoffs || !payoffs.length || !Number.isFinite(target)) return null;
+  const n = payoffs.length;
+  const mu = payoffs.reduce((s, v) => s + v, 0) / n;
+  const rawVar = payoffs.reduce((s, v) => s + (v - mu) ** 2, 0) / (n - 1);
+  const control = payoffs.map(v => v - target);
+  const cMu = control.reduce((s, v) => s + v, 0) / n;
+  const reducedVar = control.reduce((s, v) => s + (v - cMu) ** 2, 0) / (n - 1);
+  return { test: 'Variance Reduction', rawVar: +rawVar.toFixed(6), reducedVar: +reducedVar.toFixed(6), reduction: +((1 - reducedVar / Math.max(rawVar, 1e-10)) * 100).toFixed(1), n, apa: `Var reduction: ${((1 - reducedVar / Math.max(rawVar, 1e-10)) * 100).toFixed(0)}%` };
+}

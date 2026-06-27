@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { moransI, gearysC, semivariogram, ordinaryKriging, idw, ripleysK, localMoransI, moranScatterplot, spaceTimeVariogram, getisOrdGi, spatialScan, spatialRegression, spatialDurbinModel, spatialErrorModel, spatialSAC, spatialSLX, directIndirectEffects, spatialLRTest, kCross, lCross, pairCorrelation, nearestNeighborG, envelopeTest, stepLengthAngle, minimumConvexPolygon, kernelUD, movementCorrelation, homeRangeOverlap, gwrCoefficients, gwrBandwidth, spatialPanelFE, spatialPanelRE, localR2 } from './spatial.js';
+import { moransI, gearysC, semivariogram, ordinaryKriging, idw, ripleysK, localMoransI, moranScatterplot, spaceTimeVariogram, getisOrdGi, spatialScan, spatialRegression, spatialDurbinModel, spatialErrorModel, spatialSAC, spatialSLX, directIndirectEffects, spatialLRTest, kCross, lCross, pairCorrelation, nearestNeighborG, envelopeTest, stepLengthAngle, minimumConvexPolygon, kernelUD, movementCorrelation, homeRangeOverlap, gwrCoefficients, gwrBandwidth, spatialPanelFE, spatialPanelRE, localR2, universalKriging, coKriging, stochasticKriging, expectedImprovement, latinHypercube } from './spatial.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const clustered = [
@@ -307,3 +307,9 @@ describe('gwrBandwidth', () => { it('is defined', () => expect(typeof gwrBandwid
 describe('spatialPanelFE', () => { it('is defined', () => expect(typeof spatialPanelFE).toBe('function')); });
 describe('spatialPanelRE', () => { it('is defined', () => expect(typeof spatialPanelRE).toBe('function')); });
 describe('localR2', () => { it('contract keys', () => { const r = localR2({ betas: [[0.5, 0.3], [0.4, 0.2]] }, [1, 2]); if (r) expectKeys(r, ['test', 'r2', 'n', 'apa']); }); });
+
+describe('universalKriging', () => { it('contract keys', () => { const r = universalKriging(clustered, 'value', [{name:'x'}], [{x:1,y:1}]); if (r) expectKeys(r, ['test', 'predictions', 'n', 'nPredicted', 'apa']); }); });
+describe('coKriging', () => { it('contract keys', () => { const r = coKriging(clustered, 'value', [], [{x:1,y:1}]); if (r) expectKeys(r, ['test', 'predictions', 'n', 'nPredicted', 'apa']); }); });
+describe('stochasticKriging', () => { it('contract keys', () => { const r = stochasticKriging(clustered, 'value', 3, [{x:1,y:1}]); if (r) expectKeys(r, ['test', 'predictions', 'n', 'nReplicates', 'nPredicted', 'apa']); }); });
+describe('expectedImprovement', () => { it('contract keys', () => expectKeys(expectedImprovement({ predictions: [{ x: 1, y: 1, value: 3, variance: 0.1 }] }, 2), ['test', 'EI', 'n', 'apa'])); });
+describe('latinHypercube', () => { it('contract keys', () => expectKeys(latinHypercube(3, 10), ['test', 'design', 'nFactors', 'nPoints', 'apa'])); });

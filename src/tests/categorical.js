@@ -474,3 +474,56 @@ function sampleSDp(arr) {
   const m = avg(arr);
   return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (n - 1));
 }
+
+// Storey q-value
+export function storeyQValue(pValues) {
+  if (!pValues || !pValues.length) return null;
+  const n = pValues.length;
+  const sorted = [...pValues].sort((a, b) => a - b);
+  const pi0 = Math.min(1, sorted.filter(p => p > 0.5).length / n * 2);
+  const qVals = sorted.map((p, i) => Math.min(1, n * pi0 * p / (i + 1)));
+  return { test: 'Storey q-value', qValues: qVals.slice(0, 10).map(v => +v.toFixed(4)), pi0: +pi0.toFixed(4), n, apa: `q-values: π₀ = ${pi0.toFixed(2)}, n = ${n}` };
+}
+
+// Benjamini-Yekutieli
+export function benjaminiYekutieli(pValues) {
+  if (!pValues || !pValues.length) return null;
+  const n = pValues.length;
+  const sorted = [...pValues].sort((a, b) => a - b);
+  const cNorm = Array.from({ length: n }, (_, i) => 1 / (i + 1)).reduce((s, v) => s + v, 0);
+  const thresholds = sorted.map((p, i) => p * cNorm / (i + 1) * n);
+  return { test: 'Benjamini-Yekutieli', thresholds: thresholds.slice(0, 10).map(v => +v.toFixed(4)), n, apa: `BY: ${thresholds.filter((t, i) => sorted[i] <= t).length} discoveries` };
+}
+
+// Local FDR
+export function localFDR(pValues, { nullProportion = null } = {}) {
+  if (!pValues || !pValues.length) return null;
+  const n = pValues.length;
+  const pi0 = nullProportion || 0.9;
+  const lfdrs = pValues.map(p => Math.min(1, pi0 / Math.max(p, 0.001) / n));
+  return { test: 'Local FDR', lfdr: lfdrs.slice(0, 10).map(v => +v.toFixed(4)), pi0: +pi0.toFixed(4), n, apa: `Local FDR: π₀ = ${pi0.toFixed(2)}, n = ${n}` };
+}
+
+// Stratified FDR
+export function stratifiedFDR(pValues, strata) {
+  if (!pValues || !strata || pValues.length !== strata.length || !pValues.length) return null;
+  const n = pValues.length;
+  const uniqueStrata = [...new Set(strata)];
+  const results = uniqueStrata.map(s => {
+    const idx = strata.reduce((arr, v, i) => { if (v === s) arr.push(i); return arr; }, []);
+    const ps2 = idx.map(i => pValues[i]);
+    const bhSorted = [...ps2].sort((a, b) => a - b).map((p, i) => p * idx.length / (i + 1));
+    return { stratum: s, n: idx.length, nDisc: bhSorted.filter((t, i) => ps2.sort()[i] <= t).length };
+  });
+  return { test: 'Stratified FDR', results, n, nStrata: uniqueStrata.length, apa: `Strat FDR: ${uniqueStrata.length} strata` };
+}
+
+// FWER Control (Hochberg)
+export function fwerControl(pValues, { method = 'hochberg' } = {}) {
+  if (!pValues || !pValues.length) return null;
+  const n = pValues.length;
+  const sorted = [...pValues].sort((a, b) => a - b);
+  const hoThresh = sorted.map((p, i) => 0.05 / (n - i));
+  const rejected = sorted.filter((p, i) => p <= hoThresh[i]).length;
+  return { test: 'FWER Control', rejected, method, n, apa: `FWER (${method}): ${rejected} rejected` };
+}

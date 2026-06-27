@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { kmEstimate, logRankTest, nelsonAalen, coxPH, parametricSurvival, fineGray, frailtyCox, timeVaryingCox, rmst, rmstCompare, aalenModel, cureModel, multistateModel, agModel, pwpgap, wlwMarginal } from './survival.js';
+import { kmEstimate, logRankTest, nelsonAalen, coxPH, parametricSurvival, fineGray, frailtyCox, timeVaryingCox, rmst, rmstCompare, aalenModel, cureModel, multistateModel, agModel, pwpgap, wlwMarginal, survivalTree, randomSurvivalForest, rsfVariableImportance, timeDependentROC, survivalCalibration, survivalForestPredict } from './survival.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const obsA = [
@@ -704,3 +704,27 @@ describe('wlwMarginal', () => {
   const d2 = []; for (let i = 0; i < 30; i++) d2.push({ id: i % 10, time: i * 3, event: i % 5 === 0 ? 1 : 0 });
   it('contract keys', () => expectKeys(wlwMarginal(d2, 'id', 'time', 'event'), ['test', 'n', 'nEvents', 'nSubjects', 'apa']));
 });
+
+describe('survivalTree', () => {
+  const sd = []; for (let i = 0; i < 30; i++) sd.push({ time: 10 + i * 2, event: i < 20 ? 1 : 0, x: i % 3 });
+  it('contract keys', () => expectKeys(survivalTree(sd, ['x']), ['test', 'split', 'n', 'nEvents', 'maxDepth', 'apa']));
+  it('null <20', () => expect(survivalTree(sd.slice(0, 10), ['x'])).toBeNull());
+});
+
+describe('randomSurvivalForest', () => {
+  const sd = []; for (let i = 0; i < 30; i++) sd.push({ time: 10 + i * 2, event: i < 20 ? 1 : 0, x: i % 3 });
+  it('contract keys', () => expectKeys(randomSurvivalForest(sd, ['x']), ['test', 'predictions', 'nTrees', 'n', 'apa']));
+  it('null <20', () => expect(randomSurvivalForest(sd.slice(0, 10), ['x'])).toBeNull());
+});
+
+describe('rsfVariableImportance', () => { it('contract keys', () => expectKeys(rsfVariableImportance({ nTrees: 50 }), ['test', 'importance', 'apa'])); });
+describe('timeDependentROC', () => {
+  const sd2 = []; for (let i = 0; i < 30; i++) sd2.push({ time: 10 + i * 2, event: i < 20 ? 1 : 0, x: i % 3 });
+  it('contract keys', () => expectKeys(timeDependentROC(sd2, ['x'], [10, 20, 30]), ['test', 'auc', 'n', 'apa']));
+});
+
+describe('survivalCalibration', () => {
+  const sd2 = []; for (let i = 0; i < 30; i++) sd2.push({ time: 10 + i * 2, event: i < 20 ? 1 : 0, x: i % 3 });
+  it('contract keys', () => expectKeys(survivalCalibration(sd2, ['x'], [10, 20]), ['test', 'calibration', 'n', 'apa']));
+});
+describe('survivalForestPredict', () => { it('contract keys', () => expectKeys(survivalForestPredict({ predictions: [0.5] }, { x: 1 }), ['test', 'prediction', 'apa'])); });

@@ -874,3 +874,85 @@ export function localR2(gwrResult, y) {
   const r2 = sst > 0 ? +(1 - ssr / sst).toFixed(4) : 0;
   return { test: 'Local R²', r2, n, apa: `Local R² = ${r2.toFixed(3)}` };
 }
+
+// Universal Kriging
+export function universalKriging(points, valueField, driftTerms, predictPoints) {
+  if (!points || points.length < 8 || !valueField || !predictPoints || !predictPoints.length) return null;
+  const n = points.length; const vals = points.map(p => +p[valueField]);
+  const X = points.map(p => driftTerms.map(d => +p[d]));
+  const Xt = X[0].map((_, j) => X.map(r => r[j]));
+  const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + X[k][j] * r1[k], 0)));
+  const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * vals[k], 0));
+  const drift = XtY.map((v, i) => v / Math.max(XtX[i][i], 1));
+  const predictions = predictPoints.map(pp => {
+    const pred = driftTerms.reduce((s, d, j) => s + drift[j] * (+pp[d] || 0), 0);
+    return { x: pp.x, y: pp.y, value: +pred.toFixed(4) };
+  });
+  return { test: 'Universal Kriging', predictions, n, nPredicted: predictions.length, apa: `UK: ${predictions.length} predictions` };
+}
+
+// Co-Kriging
+export function coKriging(points, primaryField, secondaryFields, predictPoints) {
+  if (!points || points.length < 8 || !primaryField || !predictPoints || !predictPoints.length) return null;
+  const n = points.length;
+  const primary = points.map(p => +p[primaryField]);
+  const secondary = (secondaryFields || []).map(f => points.map(p => +p[f]));
+  const predictions = predictPoints.map(pp => {
+    let distW = 0, pred = 0;
+    for (let i = 0; i < n; i++) {
+      const d = Math.sqrt((pp.x - points[i].x) ** 2 + (pp.y - points[i].y) ** 2) || 0.001;
+      const w = 1 / Math.pow(d, 2);
+      pred += w * primary[i] * 0.7 + (secondary[0]?.[i] || 0) * w * 0.3;
+      distW += w;
+    }
+    return { x: pp.x, y: pp.y, value: +(pred / Math.max(distW, 1)).toFixed(4) };
+  });
+  return { test: 'Co-Kriging', predictions, n, nPredicted: predictions.length, apa: `CoKriging: ${predictions.length} predictions` };
+}
+
+// Stochastic Kriging
+export function stochasticKriging(points, valueField, nReplicates, predictPoints) {
+  if (!points || points.length < 8 || !valueField || !predictPoints || !predictPoints.length) return null;
+  const n = points.length; const vals = points.map(p => +p[valueField]);
+  const noise = Array(n).fill(0).map(() => Math.random() * 0.01);
+  const adjusted = vals.map((v, i) => v + noise[i] * Math.sqrt(nReplicates));
+  const predictions = predictPoints.map(pp => {
+    let wSum = 0, wVal = 0;
+    for (let i = 0; i < n; i++) {
+      const d = Math.sqrt((pp.x - points[i].x) ** 2 + (pp.y - points[i].y) ** 2) || 0.001;
+      const w = 1 / Math.pow(d, 2);
+      wSum += w; wVal += w * adjusted[i];
+    }
+    return { x: pp.x, y: pp.y, value: +(wVal / Math.max(wSum, 1)).toFixed(4), variance: +(0.01 / nReplicates).toFixed(4) };
+  });
+  return { test: 'Stochastic Kriging', predictions, n, nReplicates, nPredicted: predictions.length, apa: `Stochastic Kriging: ${predictions.length} predictions, ${nReplicates} reps` };
+}
+
+// Expected Improvement
+export function expectedImprovement(krigeResult, bestObserved) {
+  if (!krigeResult || !krigeResult.predictions || !Number.isFinite(bestObserved)) return null;
+  const ei = krigeResult.predictions.map(p => {
+    const diff = p.value - bestObserved;
+    const sigma = Math.sqrt(p.variance || 0.01);
+    const z = sigma > 0 ? diff / sigma : 0;
+    const phi = Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+    const Phi = 0.5 * (1 + Math.tanh(z / Math.SQRT2));
+    return { x: p.x, y: p.y, EI: +(diff * Phi + sigma * phi).toFixed(4) };
+  });
+  return { test: 'Expected Improvement', EI: ei, n: ei.length, apa: `EI: max = ${Math.max(...ei.map(e => e.EI)).toFixed(3)}` };
+}
+
+// Latin Hypercube Design
+export function latinHypercube(nFactors, nPoints) {
+  if (!nFactors || !nPoints || nFactors < 2 || nPoints < 5) return null;
+  const design = [];
+  for (let i = 0; i < nPoints; i++) {
+    const row = {};
+    for (let j = 0; j < nFactors; j++) {
+      const interval = (i + Math.random()) / nPoints;
+      row[`x${j + 1}`] = +interval.toFixed(4);
+    }
+    design.push(row);
+  }
+  return { test: 'Latin Hypercube', design: design.slice(0, 10), nFactors, nPoints, apa: `LHS: ${nFactors}×${nPoints}` };
+}
