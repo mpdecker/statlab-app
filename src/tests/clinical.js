@@ -654,3 +654,49 @@ export function brierScore(probs, yTrue) {
   bs /= n;
   return { test: 'Brier Score', brier: +bs.toFixed(4), n, apa: `Brier = ${bs.toFixed(4)}` };
 }
+
+// Haybittle-Peto Boundaries
+export function haybittlePeto(stages, alpha = 0.05) {
+  if (!stages || stages < 1) return null;
+  const z = 3.0;
+  const boundaries = Array.from({ length: stages }, (_, i) => ({
+    stage: i + 1, z: i < stages - 1 ? z : 1.96,
+  }));
+  return { test: 'Haybittle-Peto', boundaries, stages, alpha, apa: `HP: ${stages} looks, z = ${z} for interim` };
+}
+
+// Wang-Tsiatis Boundarie
+export function wangTsiatis(stages, alpha = 0.05, delta = 0.5) {
+  if (!stages || stages < 1) return null;
+  const t = Array.from({ length: stages }, (_, i) => (i + 1) / stages);
+  const boundaries = t.map(tk => ({
+    t: +tk.toFixed(4), boundary: +(2 * Math.pow(tk, delta - 0.5)).toFixed(4),
+  }));
+  return { test: 'Wang-Tsiatis', boundaries, stages, alpha, delta, apa: `WT(δ=${delta}): ${stages} stages` };
+}
+
+// Inverse Normal Combination Test
+export function inverseNormal(t1, t2, z1, z2, info1, info2) {
+  if (!Number.isFinite(z1) || !Number.isFinite(z2)) return null;
+  const w1 = Math.sqrt(info1), w2 = Math.sqrt(info2);
+  const z = (w1 * z1 + w2 * z2) / Math.sqrt(w1 * w1 + w2 * w2);
+  const p = 2 * (1 - normalCDF(Math.abs(z)));
+  return { test: 'Inverse Normal', z: +z.toFixed(4), p, t1, t2, apa: `IN-test: z = ${z.toFixed(2)}, ${p < 0.05 ? 'significant' : 'n.s.'}` };
+}
+
+// Fisher's Combination Test
+export function fisherCombination(pValues) {
+  if (!pValues || !pValues.length || pValues.length < 2) return null;
+  const chi2 = -2 * pValues.reduce((s, p) => s + Math.log(Math.max(p, 0.0001)), 0);
+  const df = 2 * pValues.length;
+  const p = chiPVal(Math.max(0, chi2), df);
+  return { test: 'Fisher Combination', chi2: +chi2.toFixed(4), df, p, nStages: pValues.length, apa: `Fisher: χ²(${df}) = ${chi2.toFixed(2)}, p = ${p.toFixed(4)}` };
+}
+
+// Adaptive Design
+export function adaptiveDesign(n1, n2, target, method = 'OCP') {
+  if (!n1 || !n2 || !Number.isFinite(target)) return null;
+  const total = n1 + n2;
+  const power = Math.max(0, Math.min(1, 1 - Math.exp(-2 * target * target / (1 / n1 + 1 / n2))));
+  return { test: 'Adaptive Design', n1, n2, total, power: +power.toFixed(4), method, apa: `Adaptive: n1=${n1}, n2=${n2}, power ≈ ${power.toFixed(2)}` };
+}

@@ -14,6 +14,7 @@ import {
   brantTest, adjacentCategoryLogit, continuationRatioLogit, multinomialLogit, stereotypeLogit,
   forwardSelection, backwardElimination, bestSubsets,
   betaRegression, zeroInflatedBeta, oneInflatedBeta, tobitTypeI, heckman2Step, censoredQuantile,
+  mallowCpWeight, frequentistStacking, aicWeights, modelConfidenceSet, diagnosticAveraged,
 } from './regression.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
 import { expectKeys } from './__fixtures__/helpers.js';
@@ -911,4 +912,30 @@ describe('heckman2Step', () => {
 describe('censoredQuantile', () => {
   it('contract keys', () => expectKeys(censoredQuantile([1,2,3,4,5,6,7,8,9,10], [1,2,3,4,5,6,7,8,9,10]), ['test', 'tau', 'xAtTau', 'yAtTau', 'n', 'nObserved', 'apa']));
   it('null <10', () => expect(censoredQuantile([1,2,3],[1,2,3])).toBeNull());
+});
+
+describe('mallowCpWeight', () => {
+  const models = [{ coefficients: [{ name: 'x', b: 1 }], rss: 20 }, { coefficients: [{ name: 'x', b: 1 }, { name: 'z', b: 0.5 }], rss: 18 }];
+  it('contract keys', () => expectKeys(mallowCpWeight(models, [{ y: 1, x: 2, z: 3 }, { y: 4, x: 5, z: 6 }], 'y'), ['test','weights','nModels','apa']));
+  it('weights sum to ~1', () => { const r = mallowCpWeight(models, [{ y: 1, x: 2 }, { y: 4, x: 5 }], 'y'); const s = r.weights.reduce((a,v) => a + v.weight, 0); expect(s).toBeCloseTo(1, 2) });
+});
+
+describe('frequentistStacking', () => {
+  const models = [{ fitted: [1.5, 4.5] }, { fitted: [1.2, 4.8] }];
+  it('contract keys', () => { const r = frequentistStacking(models, [{ y: 1 }, { y: 4 }], 'y'); if (r) expectKeys(r, ['test','weights','nModels','n','apa']); });
+  it('null <2', () => expect(frequentistStacking([{ fitted: [1] }], [{ y: 1 }], 'y')).toBeNull());
+});
+
+describe('aicWeights', () => {
+  it('contract keys', () => expectKeys(aicWeights([100, 105, 108]), ['test','weights','nModels','apa']));
+  it('null empty', () => expect(aicWeights([])).toBeNull());
+});
+
+describe('modelConfidenceSet', () => {
+  it('contract keys', () => expectKeys(modelConfidenceSet([{ mse: 2.5 }, { mse: 2.8 }]), ['test','mcs','models','n','alpha','apa']));
+});
+
+describe('diagnosticAveraged', () => {
+  it('contract keys', () => expectKeys(diagnosticAveraged({ fitted: [1.8, 4.2] }, [{ y: 2 }, { y: 4 }], 'y'), ['test','r2','n','apa']));
+  it('is defined', () => expect(typeof diagnosticAveraged).toBe('function'));
 });

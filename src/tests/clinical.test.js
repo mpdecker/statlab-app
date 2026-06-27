@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { blandAltman, diagnosticAccuracy, likelihoodRatios, netReclassification, weightedKappa, ac1Agreement, blandAltmanRatio, diagnosticOddsRatio, agreementTable, youdenIndex, deLongTest, partialAUC, optimalThreshold, fleissKappa, krippendorffAlpha, cliffsDelta, rankBiserial, stochasticOrdering, populationAttributableFraction, cornfieldBounds, hosmerLemeshow, calibrationPlot, netBenefit, decisionCurve, brierScore } from './clinical.js';
+import { blandAltman, diagnosticAccuracy, likelihoodRatios, netReclassification, weightedKappa, ac1Agreement, blandAltmanRatio, diagnosticOddsRatio, agreementTable, youdenIndex, deLongTest, partialAUC, optimalThreshold, fleissKappa, krippendorffAlpha, cliffsDelta, rankBiserial, stochasticOrdering, populationAttributableFraction, cornfieldBounds, hosmerLemeshow, calibrationPlot, netBenefit, decisionCurve, brierScore, haybittlePeto, wangTsiatis, inverseNormal, fisherCombination, adaptiveDesign } from './clinical.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const a = [10, 10.2, 10.5, 9.8, 10.1, 10.3, 9.9, 10.4, 10.0, 10.6];
@@ -257,3 +257,9 @@ describe('brierScore', () => {
   it('is defined', () => expect(typeof brierScore).toBe('function'));
   it('null mismatch', () => expect(brierScore([0.1], [0, 1])).toBeNull());
 });
+
+describe('haybittlePeto', () => { it('contract keys', () => expectKeys(haybittlePeto(4), ['test','boundaries','stages','alpha','apa'])); it('stages correct', () => { const r = haybittlePeto(4); expect(r.boundaries).toHaveLength(4) }) });
+describe('wangTsiatis', () => { it('contract keys', () => expectKeys(wangTsiatis(4), ['test','boundaries','stages','alpha','delta','apa'])) });
+describe('inverseNormal', () => { it('contract keys', () => expectKeys(inverseNormal(0.5, 1.0, 1.5, 2.0, 50, 50), ['test','z','p','t1','t2','apa'])) });
+describe('fisherCombination', () => { it('contract keys', () => expectKeys(fisherCombination([0.01, 0.03]), ['test','chi2','df','p','nStages','apa'])); it('chi2 > 0', () => { const r = fisherCombination([0.01, 0.03]); expect(r.chi2).toBeGreaterThan(0) }) });
+describe('adaptiveDesign', () => { it('contract keys', () => expectKeys(adaptiveDesign(50, 50, 0.5), ['test','n1','n2','total','power','method','apa'])) });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { adfTest, acf, pacf, arima, autoArima, simpleExpSmooth, holtsLinearSmooth, holtWinters, seasonalDecompose, varModel, grangerCausality, chowTest, garch, kalmanFilter, johansenTest, structuralBreak, bottomUpReconciliation, topDownReconciliation, middleOutReconciliation, minTReconciliation, forecastAccuracy, markovSwitchingAR, regimeVolatility, transitionMatrix, filteredProbabilities, expectedDuration, peltChangePoint, binarySegmentation, singleChangepoint, changepointPenalty, segmentedMeans, rollingOriginCV, slidingWindow, gapValidation, tsFeatures, forecastReconciliation, mase, smape, theilU, dieboldMariano, encompassingTest, varmax, cointegrationRank, vecm, impulseResponseCI, fevdDecomposition } from './timeseries.js';
+import { adfTest, acf, pacf, arima, autoArima, simpleExpSmooth, holtsLinearSmooth, holtWinters, seasonalDecompose, varModel, grangerCausality, chowTest, garch, kalmanFilter, johansenTest, structuralBreak, bottomUpReconciliation, topDownReconciliation, middleOutReconciliation, minTReconciliation, forecastAccuracy, markovSwitchingAR, regimeVolatility, transitionMatrix, filteredProbabilities, expectedDuration, peltChangePoint, binarySegmentation, singleChangepoint, changepointPenalty, segmentedMeans, rollingOriginCV, slidingWindow, gapValidation, tsFeatures, forecastReconciliation, mase, smape, theilU, dieboldMariano, encompassingTest, varmax, cointegrationRank, vecm, impulseResponseCI, fevdDecomposition, dccGarch, bekkGarch, cccGarch, mgarchForecast, mgarchDiagnostics } from './timeseries.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const stationarySeries = [
@@ -537,3 +537,9 @@ describe('cointegrationRank', () => { it('is defined', () => expect(typeof coint
 describe('vecm', () => { it('is defined', () => expect(typeof vecm).toBe('function')); });
 describe('impulseResponseCI', () => { it('contract keys', () => expectKeys(impulseResponseCI([1,0.8,0.6,0.4,0.2]), ['test','irf','ci','B','n','apa'])); });
 describe('fevdDecomposition', () => { it('contract keys', () => expectKeys(fevdDecomposition({k:3}), ['test','fevd','k','horizon','apa'])); });
+
+describe('dccGarch', () => { it('contract keys', () => expectKeys(dccGarch([[0.01,-0.02],[0.03,0.01],[-0.005,0.02],[0.01,-0.01],[0.005,0.025],[-0.015,0.03],[0.01,0.01],[-0.01,-0.01],[0.02,0.01],[0.01,-0.01],[0.03,-0.02],[0.01,0.02],[0.02,0.01],[0.01,-0.01],[0.015,0.01],[-0.01,0.02],[0.01,0.01],[0.02,-0.01],[0.01,0.015],[0.01,0.02]].map(r=>[r[0],r[1]])), ['test','n','k','p','q','apa'])); });
+describe('bekkGarch', () => { it('contract keys', () => expectKeys(bekkGarch([[0.01,0.02],[0.03,0.01],[-0.005,0.02],[0.01,-0.01],[0.005,0.025],[-0.015,0.03],[0.01,0.01],[-0.01,-0.01],[0.02,0.01],[0.01,-0.01],[0.03,-0.02],[0.01,0.02],[0.02,0.01],[0.01,-0.01],[0.015,0.01],[-0.01,0.02],[0.01,0.01],[0.02,-0.01],[0.01,0.015],[0.01,0.02]].map(r=>[r[0],r[1]])), ['test','C','k','T','p','q','apa'])); });
+describe('cccGarch', () => { it('is defined', () => expect(typeof cccGarch).toBe('function')); });
+describe('mgarchForecast', () => { it('contract keys', () => expectKeys(mgarchForecast({k:2}), ['test','forecast','steps','k','apa'])); });
+describe('mgarchDiagnostics', () => { it('contract keys', () => expectKeys(mgarchDiagnostics({n:100,k:2}), ['test','n','k','apa'])); });

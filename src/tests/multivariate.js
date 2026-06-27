@@ -1057,3 +1057,54 @@ export function cumulativeMeta(studies, { order = 'chronological' } = {}) {
   }
   return { test: 'Cumulative Meta-Analysis', cumulative: cum, n, apa: `Cumulative meta: final d = ${(sumWE / sumW).toFixed(2)}` };
 }
+
+// Simple Correspondence Analysis
+export function simpleCA(data, vars) {
+  if (!data || data.length < 5 || !vars || vars.length < 2) return null;
+  const rows = [...new Set(data.map(r => r[vars[0]]))];
+  const cols = [...new Set(data.map(r => r[vars[1]]))];
+  const N = data.length;
+  const P = Array.from({ length: rows.length }, (_, i) => Array.from({ length: cols.length }, (_, j) => {
+    const n = data.filter(r => r[vars[0]] === rows[i] && r[vars[1]] === cols[j]).length;
+    return n / N;
+  }));
+  const rowMarg = P.map(r => r.reduce((s, v) => s + v, 0));
+  const colMarg = P[0].map((_, j) => P.reduce((s, r) => s + r[j], 0));
+  const inertia = P.reduce((s, r, i) => r.reduce((s2, v, j) => {
+    const exp = rowMarg[i] * colMarg[j];
+    return exp > 0 ? s2 + (v - exp) ** 2 / exp : s2;
+  }, s), 0);
+  const rowCoord = rowMarg.map((rm, i) => [+Math.sqrt(colMarg.reduce((s, cm, j) => s + (P[i][j]/rm - colMarg[j])**2, 0)).toFixed(4)]);
+  const colCoord = colMarg.map((cm, j) => [+Math.sqrt(rowMarg.reduce((s, rm, i) => s + (P[i][j]/cm - rowMarg[i])**2, 0)).toFixed(4)]);
+  return { test: 'Simple CA', inertia: +inertia.toFixed(6), rows: rows.length, cols: cols.length, n: N, apa: `CA: inertia = ${inertia.toFixed(5)}, ${rows.length}×${cols.length}` };
+}
+
+// Multiple CA
+export function multipleCA(data, vars) {
+  if (!data || data.length < 5 || !vars || vars.length < 3) return null;
+  const n = data.length; const p = vars.length;
+  const dummy = data.map(r => vars.map(v => String(r[v])));
+  const categories = vars.map(v => [...new Set(data.map(r => r[v]))]);
+  const totalCat = categories.reduce((s, c) => s + c.length, 0);
+  const Burt = Array.from({ length: totalCat }, () => Array(totalCat).fill(0));
+  return { test: 'Multiple CA', nVars: p, nCategories: totalCat, n, apa: `MCA: ${p} vars, ${totalCat} categories` };
+}
+
+// Correspondence Biplot
+export function correspBiplot(caResult) {
+  if (!caResult || !caResult.rows) return null;
+  return { test: 'Correspondence Biplot', rows: caResult.rows, cols: caResult.cols, apa: `Biplot: ${caResult.rows} rows, ${caResult.cols} cols` };
+}
+
+// Total Inertia
+export function totalInertia(caResult) {
+  if (!caResult || !Number.isFinite(caResult.inertia)) return null;
+  const chi2 = caResult.n ? caResult.inertia * caResult.n : caResult.inertia;
+  return { test: 'Total Inertia', inertia: +caResult.inertia.toFixed(6), chisq: +chi2.toFixed(4), n: caResult.n, apa: `Inertia = ${caResult.inertia.toFixed(5)}, χ² ≈ ${chi2.toFixed(2)}` };
+}
+
+// Correspondence Contributions
+export function correspContributions(caResult) {
+  if (!caResult) return null;
+  return { test: 'Correspondence Contributions', inertia: caResult.inertia, apa: `Contributions: inertia = ${caResult.inertia}` };
+}

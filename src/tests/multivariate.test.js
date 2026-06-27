@@ -9,6 +9,7 @@ import {
   networkMetaAnalysis, baujatPlot, leaveOneOutMeta, metaRegressionDiagnostics,
   obliminRotation, geominRotation, quartiminRotation, targetRotation, promaxRotation,
   bivariateMeta, metaProportion, labbePlot, forestPlotData, cumulativeMeta,
+  simpleCA, multipleCA, correspBiplot, totalInertia, correspContributions,
 } from './multivariate.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
 import { expectKeys } from './__fixtures__/helpers.js';
@@ -573,3 +574,13 @@ describe('cumulativeMeta', () => {
   const s = []; for (let i = 0; i < 6; i++) s.push({ d: 0.2 + i * 0.03, se: 0.1 });
   it('contract keys', () => expectKeys(cumulativeMeta(s), ['test', 'cumulative', 'n', 'apa']));
 });
+
+describe('simpleCA', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ r: `R${i%3}`, c: `C${i%4}` });
+  it('contract keys', () => expectKeys(simpleCA(d, ['r','c']), ['test','inertia','rows','cols','n','apa']));
+});
+
+describe('multipleCA', () => { it('is defined', () => expect(typeof multipleCA).toBe('function')); });
+describe('correspBiplot', () => { it('contract keys', () => expectKeys(correspBiplot({rows:3,cols:4}), ['test','rows','cols','apa'])); });
+describe('totalInertia', () => { it('contract keys', () => expectKeys(totalInertia({inertia:0.05,n:100}), ['test','inertia','chisq','n','apa'])); });
+describe('correspContributions', () => { it('contract keys', () => expectKeys(correspContributions({inertia:0.05}), ['test','inertia','apa'])); });
