@@ -592,3 +592,95 @@ export function classificationReport(actual, predicted, labels = null) {
     apa: `Accuracy = ${cm.accuracy.toFixed(3)}, macro F1 = ${cm.macroAvg.f1.toFixed(3)}, weighted F1 = ${weightedF1.toFixed(3)}, n = ${cm.n}`,
   };
 }
+
+// Label Propagation
+export function labelPropagation(X, y, { sigma = 1, maxIter = 20 } = {}) {
+  if (!X || !y || X.length < 5 || X.length !== y.length) return null;
+  const n = X.length;
+  const W = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) =>
+    i === j ? 0 : Math.exp(-X[i].reduce((s, v, k) => s + (v - X[j][k]) ** 2, 0) / (sigma * sigma))
+  ));
+  const D = W.map(row => row.reduce((s, v) => s + v, 0) || 1);
+  const labels = [...y];
+  for (let iter = 0; iter < maxIter; iter++) {
+    const newLabels = labels.map((yi, i) => {
+      if (yi !== null && yi !== -1) return yi;
+      let s = 0, num = 0;
+      for (let j = 0; j < n; j++) { s += W[i][j] * labels[j]; num += W[i][j] * (labels[j] >= 0 ? 1 : 0); }
+      return num > 0 ? +(s / num).toFixed(4) : yi;
+    });
+    if (newLabels.every((v, i) => Math.abs(v - labels[i]) < 0.001)) break;
+    for (let i = 0; i < n; i++) labels[i] = newLabels[i];
+  }
+  return { test: 'Label Propagation', labels: labels.map(v => +v.toFixed(4)).slice(0, 20), n, apa: `LP: ${n} nodes, ${y.filter(v => v >= 0).length} labeled` };
+}
+
+// Local Outlier Factor
+export function localOutlierFactor(data, vars, { k = 5 } = {}) {
+  if (!data || data.length < k + 2 || !vars || !vars.length) return null;
+  const n = data.length;
+  const X = data.map(r => vars.map(v => +r[v]));
+  const dists = Array.from({ length: n }, (_, i) =>
+    X.map((xj, j) => ({ j, d: Math.sqrt(X[i].reduce((s, v, k2) => s + (v - xj[k2]) ** 2, 0)) }))
+      .sort((a, b) => a.d - b.d).slice(1, k + 1)
+  );
+  const lof = X.map((_, i) => {
+    const lrd = 1 / (dists[i].reduce((s, d) => s + d.d, 0) / k);
+    const lofVal = dists[i].reduce((s, d) => s + (d.d / lrd), 0) / k;
+    return { index: i, lof: +lofVal.toFixed(4) };
+  });
+  return { test: 'Local Outlier Factor', lof, k, n, apa: `LOF: k = ${k}, n = ${n}` };
+}
+
+// Isolation Score (simplified isolation forest)
+export function isolationScore(data, vars, { nTrees = 100 } = {}) {
+  if (!data || data.length < 5 || !vars || !vars.length) return null;
+  const n = data.length;
+  const scores = Array(n).fill(0);
+  for (let t = 0; t < nTrees; t++) {
+    const idx1 = Math.floor(Math.random() * n);
+    const idx2 = Math.floor(Math.random() * n);
+    if (idx1 === idx2) continue;
+    const v = vars[Math.floor(Math.random() * vars.length)];
+    const val1 = +data[idx1][v], val2 = +data[idx2][v];
+    const thresh = (val1 + val2) / 2;
+    data.forEach((r, i) => {
+      const outlier = (+r[v] > thresh && val1 > val2) || (+r[v] < thresh && val1 < val2);
+      if (!outlier) scores[i] += 1 / nTrees;
+    });
+  }
+  const anomaly = scores.map((s, i) => ({ index: i, score: +(1 - s).toFixed(4), anomaly: s < 0.6 }));
+  return { test: 'Isolation Score', anomalyScores: anomaly.slice(0, 10), nTrees, n, apa: `Isolation: ${anomaly.filter(a => a.anomaly).length} anomalies` };
+}
+
+// Self-Training (SSL)
+export function selfTraining(X, y, { nIterations = 5 } = {}) {
+  if (!X || !y || X.length < 5 || X.length !== y.length) return null;
+  const n = X.length;
+  const labels = [...y];
+  for (let iter = 0; iter < nIterations; iter++) {
+    const unlabeled = labels.map((l, i) => l < 0 ? i : -1).filter(i => i >= 0);
+    if (!unlabeled.length) break;
+    for (const i of unlabeled) {
+      let bestJ = -1, bestD = Infinity;
+      for (let j = 0; j < n; j++) {
+        if (labels[j] >= 0) {
+          const d = Math.sqrt(X[i].reduce((s, v, k) => s + (v - X[j][k]) ** 2, 0));
+          if (d < bestD) { bestD = d; bestJ = j; }
+        }
+      }
+      if (bestJ >= 0) labels[i] = labels[bestJ];
+    }
+  }
+  return { test: 'Self-Training', labels: labels.slice(0, 20), n, nIterations, apa: `Self-training: ${labels.filter(l => l >= 0).length} labeled after ${nIterations} iters` };
+}
+
+// Anomaly Threshold
+export function anomalyThreshold(scores, { pct = 95 } = {}) {
+  if (!scores || !scores.length) return null;
+  const n = scores.length;
+  const sorted = [...scores].sort((a, b) => a - b);
+  const idx = Math.floor(pct / 100 * n);
+  const threshold = sorted[Math.min(idx, n - 1)];
+  return { test: 'Anomaly Threshold', threshold: +threshold.toFixed(4), pct, n, nAnomalies: scores.filter(s => s > threshold).length, apa: `${pct}th percentile threshold = ${threshold.toFixed(4)}` };
+}

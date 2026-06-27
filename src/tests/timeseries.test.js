@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { adfTest, acf, pacf, arima, autoArima, simpleExpSmooth, holtsLinearSmooth, holtWinters, seasonalDecompose, varModel, grangerCausality, chowTest, garch, kalmanFilter, johansenTest, structuralBreak, bottomUpReconciliation, topDownReconciliation, middleOutReconciliation, minTReconciliation, forecastAccuracy, markovSwitchingAR, regimeVolatility, transitionMatrix, filteredProbabilities, expectedDuration, peltChangePoint, binarySegmentation, singleChangepoint, changepointPenalty, segmentedMeans, rollingOriginCV, slidingWindow, gapValidation, tsFeatures, forecastReconciliation } from './timeseries.js';
+import { adfTest, acf, pacf, arima, autoArima, simpleExpSmooth, holtsLinearSmooth, holtWinters, seasonalDecompose, varModel, grangerCausality, chowTest, garch, kalmanFilter, johansenTest, structuralBreak, bottomUpReconciliation, topDownReconciliation, middleOutReconciliation, minTReconciliation, forecastAccuracy, markovSwitchingAR, regimeVolatility, transitionMatrix, filteredProbabilities, expectedDuration, peltChangePoint, binarySegmentation, singleChangepoint, changepointPenalty, segmentedMeans, rollingOriginCV, slidingWindow, gapValidation, tsFeatures, forecastReconciliation, mase, smape, theilU, dieboldMariano, encompassingTest, varmax, cointegrationRank, vecm, impulseResponseCI, fevdDecomposition } from './timeseries.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const stationarySeries = [
@@ -526,3 +526,14 @@ describe('slidingWindow', () => { it('contract keys', () => expectKeys(slidingWi
 describe('gapValidation', () => { it('contract keys', () => expectKeys(gapValidation([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20], (train, h) => [train[0]]), ['test', 'rmse', 'gapSize', 'n', 'apa'])); });
 describe('tsFeatures', () => { it('contract keys', () => expectKeys(tsFeatures([1,2,3,4,5,6,7,8,9,10]), ['test', 'features', 'n', 'apa'])); });
 describe('forecastReconciliation', () => { it('contract keys', () => expectKeys(forecastReconciliation([10, 20, 30], [[0,1,2]], [12, 22, 28]), ['test', 'reconciled', 'n', 'apa'])); });
+
+describe('mase', () => { it('contract keys', () => expectKeys(mase([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5],null), ['test','mase','n','apa'])); });
+describe('smape', () => { it('contract keys', () => expectKeys(smape([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5]), ['test','smape','n','apa'])); });
+describe('theilU', () => { it('contract keys', () => expectKeys(theilU([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5]), ['test','U1','U2','n','apa'])); });
+describe('dieboldMariano', () => { it('contract keys', () => expectKeys(dieboldMariano([0.1,0.2,0.1,0.3,0.2],[0.2,0.1,0.2,0.2,0.3]), ['test','dm','p','h','n','apa'])); });
+describe('encompassingTest', () => { it('contract keys', () => expectKeys(encompassingTest([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5],[1,2,3,4,5]), ['test','t','p','n','apa'])); });
+describe('varmax', () => { it('is defined', () => expect(typeof varmax).toBe('function')); });
+describe('cointegrationRank', () => { it('is defined', () => expect(typeof cointegrationRank).toBe('function')); });
+describe('vecm', () => { it('is defined', () => expect(typeof vecm).toBe('function')); });
+describe('impulseResponseCI', () => { it('contract keys', () => expectKeys(impulseResponseCI([1,0.8,0.6,0.4,0.2]), ['test','irf','ci','B','n','apa'])); });
+describe('fevdDecomposition', () => { it('contract keys', () => expectKeys(fevdDecomposition({k:3}), ['test','fevd','k','horizon','apa'])); });

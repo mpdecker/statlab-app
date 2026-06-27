@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { elasticNet, elasticNetCV, kFoldCV, huberRegression, tukeyBisquareRegression, lowess, randomForest, gradientBoosting, confusionMatrix, rocAUC, classificationReport } from './learning.js';
+import { elasticNet, elasticNetCV, kFoldCV, huberRegression, tukeyBisquareRegression, lowess, randomForest, gradientBoosting, confusionMatrix, rocAUC, classificationReport, labelPropagation, localOutlierFactor, isolationScore, selfTraining, anomalyThreshold } from './learning.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const y = [5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43];
@@ -130,8 +130,35 @@ describe('confusionMatrix', () => {
       expect(c.precision).toBeLessThanOrEqual(1);
       expect(c.recall).toBeGreaterThanOrEqual(0);
       expect(c.recall).toBeLessThanOrEqual(1);
-    });
   });
+});
+
+describe('labelPropagation', () => {
+  it('contract keys', () => { const r = labelPropagation([[1,2],[2,3],[3,4],[4,5],[5,6]], [0, -1, -1, 1, -1]); if (r) expectKeys(r, ['test','labels','n','apa']); });
+  it('null <5', () => expect(labelPropagation([[1],[2]],[0,1])).toBeNull());
+});
+
+describe('localOutlierFactor', () => {
+  const d = []; for (let i = 0; i < 10; i++) d.push({ x: i, y: i * 0.5 });
+  it('contract keys', () => expectKeys(localOutlierFactor(d, ['x', 'y']), ['test','lof','k','n','apa']));
+  it('null for small k', () => expect(localOutlierFactor(d.slice(0, 5), ['x','y'])).toBeNull());
+});
+
+describe('isolationScore', () => {
+  const d = []; for (let i = 0; i < 15; i++) d.push({ x: i, y: i * 0.5 });
+  it('contract keys', () => expectKeys(isolationScore(d, ['x','y'], {nTrees:50}), ['test','anomalyScores','nTrees','n','apa']));
+  it('null <5', () => expect(isolationScore(d.slice(0, 3), ['x'])).toBeNull());
+});
+
+describe('selfTraining', () => {
+  it('contract keys', () => { const r = selfTraining([[1,2],[2,3],[3,4],[4,5],[5,6]],[0,-1,-1,1,-1]); if (r) expectKeys(r, ['test','labels','n','nIterations','apa']); });
+  it('null <5', () => expect(selfTraining([[1],[2]],[0,1])).toBeNull());
+});
+
+describe('anomalyThreshold', () => {
+  it('contract keys', () => expectKeys(anomalyThreshold([0.1,0.3,0.5,0.7,0.9]), ['test','threshold','pct','n','nAnomalies','apa']));
+  it('null empty', () => expect(anomalyThreshold([])).toBeNull());
+});
 
   it('contract keys', () => {
     expectKeys(confusionMatrix([0, 1, 0, 1], [0, 1, 1, 0]), ['test', 'matrix', 'perClass', 'accuracy', 'macroAvg', 'microAvg', 'n', 'apa']);
