@@ -1,6 +1,26 @@
 import { avg, sampleVar, sampleSD, fmtP } from '../math/core.js';
-import { tPVal, tInv2, chiPVal } from '../math/distributions.js';
+import { tPVal, tInv2, chiPVal, normalCDF, lngamma } from '../math/distributions.js';
 import { matTrans, matMul, matInv } from '../math/matrix.js';
+import { mleFit } from '../math/inference.js';
+
+/**
+ * Cluster-robust (sandwich) covariance for a linear model:
+ *   cov = (XᵀX)⁻¹ [ Σ_g (X_gᵀ u_g)(X_gᵀ u_g)ᵀ ] (XᵀX)⁻¹
+ * X is an n×p row matrix, resid the length-n residual vector, clusters an
+ * array of arrays of row indices. Returns the p-length SE vector or null.
+ */
+function clusterRobustSE(X, resid, clusters, bread) {
+  const p = X[0].length;
+  const meat = Array.from({ length: p }, () => Array(p).fill(0));
+  for (const idx of clusters) {
+    const sg = Array(p).fill(0);
+    for (const i of idx) for (let j = 0; j < p; j++) sg[j] += X[i][j] * resid[i];
+    for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) meat[a][b] += sg[a] * sg[b];
+  }
+  const bm = bread.map(row => meat[0].map((_, b) => row.reduce((s, v, k) => s + v * meat[k][b], 0)));
+  const cov = bm.map(row => bread[0].map((_, b) => row.reduce((s, v, k) => s + v * bread[b][k], 0)));
+  return cov.map((r, i) => Math.sqrt(Math.max(0, r[i])));
+}
 
 function groupBy(data, key) {
   const map = new Map();
@@ -793,7 +813,20 @@ export function randomEffectsPanel(data, yVar, idVar, timeVar, xVars) {
   const invG = matInv(XtXG);
   if (!invG) return null;
   const betaG = invG.map(row => row.reduce((s, v, j) => s + v * XtYG[j], 0));
-  const coeffs = xVars.map((name, j) => ({ name, b: +betaG[j].toFixed(5), se: 0.1, z: 0, p: 0.5 }));
+  // FGLS covariance: s²·(XᵀΩ⁻¹X)⁻¹, with s² the variance of the GLS-transformed
+  // residuals (the transform makes the working errors homoskedastic).
+  const pG = betaG.length;
+  let rss = 0;
+  for (let i = 0; i < yGLS.length; i++) {
+    const fit = XGLS[i].reduce((s, v, j) => s + v * betaG[j], 0);
+    rss += (yGLS[i] - fit) ** 2;
+  }
+  const s2 = rss / Math.max(1, yGLS.length - pG);
+  const coeffs = xVars.map((name, j) => {
+    const se = Math.sqrt(Math.max(0, s2 * invG[j][j]));
+    const z = se > 0 ? betaG[j] / se : 0;
+    return { name, b: +betaG[j].toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
   return {
     test: 'Panel RE', coefficients: coeffs, n, nUnits: ids.length,
     apa: `RE panel: ${coeffs.map(c => `${c.name} = ${c.b.toFixed(3)}`).join(', ')}, ${ids.length} units`,
@@ -828,13 +861,17 @@ export function arellanoBond(data, yVar, idVar, timeVar, xVars, { maxLag = 1 } =
   // Difference GMM: Δy_it = α Δy_{i,t-1} + β Δx_it
   // Simplified: compute differences, OLS
   const diffs = [];
+  const clusters = [];
   ids.forEach(id => {
     const unit = rows.filter(r => r[idVar] === id).sort((a, b) => +a[timeVar] - +b[timeVar]);
+    const idx = [];
     for (let t = 1; t < unit.length; t++) {
       const dy = +unit[t][yVar] - +unit[t - 1][yVar];
       const dx = xVars.map(v => +unit[t][v] - +unit[t - 1][v]);
+      idx.push(diffs.length);
       diffs.push({ dy, dx });
     }
+    if (idx.length) clusters.push(idx);
   });
   if (diffs.length < 10) return null;
   const X = diffs.map(d => d.dx);
@@ -845,7 +882,13 @@ export function arellanoBond(data, yVar, idVar, timeVar, xVars, { maxLag = 1 } =
   const inv = matInv(XtX);
   if (!inv) return null;
   const beta = inv.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0));
-  const coeffs = xVars.map((name, j) => ({ name, b: +beta[j].toFixed(5), se: 0.1, z: 0, p: 0.5 }));
+  // First-differenced errors are serially correlated within unit ⇒ cluster-robust SEs.
+  const resid = y.map((yi, i) => yi - X[i].reduce((s, v, j) => s + v * beta[j], 0));
+  const se = clusterRobustSE(X, resid, clusters, inv);
+  const coeffs = xVars.map((name, j) => {
+    const z = se[j] > 0 ? beta[j] / se[j] : 0;
+    return { name, b: +beta[j].toFixed(5), se: +se[j].toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
   return {
     test: 'Arellano-Bond', coefficients: coeffs, n: diffs.length, nUnits: ids.length,
     apa: `A-B: ${coeffs.map(c => `${c.name} = ${c.b.toFixed(3)}`).join(', ')}, ${ids.length} units`,
@@ -861,15 +904,55 @@ export function glmmNegBinom(data, yVar, clusterVar, xVars) {
   const n = rows.length;
   const X = rows.map(r => [1, ...xVars.map(c => +r[c])]);
   const y = rows.map(r => +r[yVar]);
-  const Xt = X[0].map((_, j) => X.map(r => r[j]));
-  const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + X[k][j] * r1[k], 0)));
-  const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * y[k], 0));
-  const inv = matInv(XtX);
-  if (!inv) return null;
-  const beta = inv.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0));
-  const resid = y.map((yi, i) => yi - X[i].reduce((s, v, j) => s + v * beta[j], 0));
-  const theta = Math.max(0.5, avg(y) * avg(y) / Math.max(avg(resid) ** 2, 0.1));
-  const coeffs = xVars.map((name, j) => ({ name, b: +beta[1 + j].toFixed(5), se: 0, z: 0, p: 0.5 }));
+  const p = xVars.length + 1;
+  if (y.some(v => v < 0)) return null;
+  // Negative-binomial (NB2) GLM with log link: μ=exp(Xβ), dispersion θ.
+  // Params: [β_0..β_{p-1}, logθ]. (Population-averaged; cluster dependence is
+  // accommodated through cluster-robust standard errors below.)
+  const negLogLik = par => {
+    const beta = par.slice(0, p), theta = Math.exp(par[p]);
+    let nll = 0;
+    for (let i = 0; i < n; i++) {
+      const eta = Math.min(30, X[i].reduce((s, v, j) => s + v * beta[j], 0));
+      const mu = Math.exp(eta);
+      const ll = lngamma(y[i] + theta) - lngamma(theta) - lngamma(y[i] + 1)
+        + theta * (Math.log(theta) - Math.log(theta + mu))
+        + y[i] * (Math.log(mu) - Math.log(theta + mu));
+      nll -= ll;
+    }
+    return nll;
+  };
+  const b0 = Array(p).fill(0); b0[0] = Math.log(Math.max(avg(y), 0.5));
+  const fit = mleFit([...b0, Math.log(1)], negLogLik, { maxIter: 80 });
+  const beta = fit.theta.slice(0, p), theta = Math.exp(fit.theta[p]);
+  // Cluster-robust SEs via the NB score, clustered by group.
+  const clusters = [...groups.values()].map(memb => memb.map(m => rows.indexOf(m)));
+  const score = i => {
+    const eta = Math.min(30, X[i].reduce((s, v, j) => s + v * beta[j], 0));
+    const mu = Math.exp(eta);
+    const w = (y[i] - mu) / (1 + mu / theta); // dℓ/dη for NB2
+    return X[i].map(xv => w * xv);
+  };
+  let infoOk = fit.cov != null;
+  let seVec;
+  if (infoOk) {
+    const bread = fit.cov.slice(0, p).map(r => r.slice(0, p));
+    const meat = Array.from({ length: p }, () => Array(p).fill(0));
+    for (const idx of clusters) {
+      const sg = Array(p).fill(0);
+      for (const i of idx) { const sc = score(i); for (let j = 0; j < p; j++) sg[j] += sc[j]; }
+      for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) meat[a][b] += sg[a] * sg[b];
+    }
+    const bm = bread.map(row => meat[0].map((_, b) => row.reduce((s, v, k) => s + v * meat[k][b], 0)));
+    const cov = bm.map(row => bread[0].map((_, b) => row.reduce((s, v, k) => s + v * bread[b][k], 0)));
+    seVec = cov.map((r, i) => Math.sqrt(Math.max(0, r[i])));
+  } else {
+    seVec = fit.se.slice(0, p);
+  }
+  const coeffs = xVars.map((name, j) => {
+    const b = beta[1 + j], se = seVec[1 + j], z = se > 0 ? b / se : 0;
+    return { name, b: +b.toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
   return { test: 'GLMM NegBin', coefficients: coeffs, theta: +theta.toFixed(4), n, nClusters: groups.size, apa: `GLMM NB: θ = ${theta.toFixed(2)}, ${groups.size} clusters` };
 }
 
@@ -901,7 +984,15 @@ export function geeAR1(data, yVar, clusterVar, xVars) {
   }
   alpha = count > 0 ? alpha / count : 0;
   alpha = Math.max(-0.9, Math.min(0.9, alpha));
-  return { test: 'GEE AR(1)', coefficients: xVars.map((name, j) => ({ name, b: +beta[1 + j].toFixed(5), se: 0, z: 0, p: 0.5 })), alpha: +alpha.toFixed(4), n, nClusters: groups.size, apa: `GEE AR(1): ${alpha.toFixed(3)}, ${groups.size} clusters` };
+  // GEE robust (sandwich) SEs clustered by group.
+  const resid = y.map((yi, i) => yi - X[i].reduce((s, v, j) => s + v * beta[j], 0));
+  const clusters = [...groups.values()].map(memb => memb.map(m => rows.indexOf(m)));
+  const se = clusterRobustSE(X, resid, clusters, inv);
+  const coeffs = xVars.map((name, j) => {
+    const b = beta[1 + j], s = se[1 + j], z = s > 0 ? b / s : 0;
+    return { name, b: +b.toFixed(5), se: +s.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
+  return { test: 'GEE AR(1)', coefficients: coeffs, alpha: +alpha.toFixed(4), n, nClusters: groups.size, apa: `GEE AR(1): ${alpha.toFixed(3)}, ${groups.size} clusters` };
 }
 
 // ── REML Estimation ───────────────────────────────────────────────
