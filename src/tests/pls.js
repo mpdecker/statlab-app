@@ -54,28 +54,43 @@ export function vipScores(plsModel) {
 }
 
 // ── RDA ───────────────────────────────────────────────────────────
-export function rda(Y, X, { permutations = 199 } = {}) {
+export function rda(Y, X, { permutations = 199, seed = 42 } = {}) {
   if (!Y || !X || Y.length < 10 || X.length < 10) return null;
   const n = Math.min(Y.length, X.length);
   const yMeans = Y[0].map((_, j) => avg(Y.map(r => r[j])));
   const yCent = Y.map(r => r.map((v, j) => v - yMeans[j]));
   let ssY = 0;
   for (const r of yCent) for (const v of r) ssY += v * v;
-  const XtX = Array.from({ length: X[0].length }, (_, i) => Array.from({ length: X[0].length }, (_, j) =>
-    X.reduce((s, r) => s + r[i] * r[j], 0)
-  ));
-  const XtY = Array.from({ length: X[0].length }, (_, i) =>
-    Y[0].map((_, j) => X.reduce((s, r, k) => s + r[i] * Y[k][j], 0))
-  );
-  let ssFit = 0;
-  for (let i = 0; i < Math.min(XtX.length, XtY.length); i++) {
-    const diag = Math.abs(XtX[i]?.[i] || 1);
-    const b = diag > 0 ? (XtY[i]?.[0] || 0) / diag : 0;
-    ssFit += b * b;
+  // Constrained sum of squares for a given pairing of X rows to (centred) Y rows.
+  const ssFitFor = order => {
+    const XtX = Array.from({ length: X[0].length }, (_, i) => Array.from({ length: X[0].length }, (_, j) =>
+      X.reduce((s, r) => s + r[i] * r[j], 0)
+    ));
+    const XtY = Array.from({ length: X[0].length }, (_, i) =>
+      yCent[0].map((_, j) => X.reduce((s, r, k) => s + r[i] * yCent[order[k]][j], 0))
+    );
+    let ssFit = 0;
+    for (let i = 0; i < Math.min(XtX.length, XtY.length); i++) {
+      const diag = Math.abs(XtX[i]?.[i] || 1);
+      const b = diag > 0 ? (XtY[i]?.[0] || 0) / diag : 0;
+      ssFit += b * b;
+    }
+    return ssFit;
+  };
+  const identity = Array.from({ length: n }, (_, i) => i);
+  const obsFit = ssFitFor(identity);
+  const rsq = ssY > 0 ? Math.min(1, obsFit / ssY) : 0;
+  // Permutation test: shuffle the X→Y row pairing to break the association.
+  let s = seed >>> 0;
+  const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+  let ge = 1;
+  for (let perm = 0; perm < permutations; perm++) {
+    const order = identity.slice();
+    for (let k = n - 1; k > 0; k--) { const m = Math.floor(rand() * (k + 1)); [order[k], order[m]] = [order[m], order[k]]; }
+    if (ssFitFor(order) >= obsFit - 1e-12) ge++;
   }
-  const rsq = ssY > 0 ? ssFit / ssY : 0;
-  const p = rsq > 0.3 ? 0.01 : rsq > 0.15 ? 0.05 : 0.5;
-  return { test: 'RDA', rSquared: +rsq.toFixed(4), p, n, apa: `RDA: R² = ${rsq.toFixed(3)}, p ≈ ${p.toFixed(3)}` };
+  const p = ge / (permutations + 1);
+  return { test: 'RDA', rSquared: +rsq.toFixed(4), constrained: +rsq.toFixed(4), p: +p.toFixed(4), permutations, n, apa: `RDA: R² = ${rsq.toFixed(3)}, p = ${p.toFixed(3)} (${permutations} perms)` };
 }
 
 // ── db-RDA ────────────────────────────────────────────────────────

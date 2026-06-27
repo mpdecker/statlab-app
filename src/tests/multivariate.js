@@ -729,32 +729,49 @@ export function henzeZirkler(data, vars) {
   if (!invS) return null;
   const z = X.map(row => row.map((v, j) => v - means[j]));
 
-  const beta = n ** (-1 / (p + 4)) * Math.pow(2, -1 / p) * Math.sqrt(n / 2);
+  // Standard Henze-Zirkler smoothing parameter (Henze & Zirkler 1990).
+  const beta = (1 / Math.sqrt(2)) * Math.pow((n * (2 * p + 1)) / 4, 1 / (p + 4));
+  const b2 = beta * beta;
+  // Pairwise term: (1/n²) Σ_i Σ_j exp(-β²/2 · D_ij) over ALL i,j (diagonal D_ii=0).
   let t1 = 0;
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
-      if (i === j) continue;
       let d2 = 0;
       for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) d2 += (z[i][a] - z[j][a]) * invS[a][b] * (z[i][b] - z[j][b]);
-      t1 += Math.exp(-beta * beta * Math.abs(d2) / 2);
+      t1 += Math.exp(-b2 / 2 * Math.max(0, d2));
     }
   }
-  t1 /= n;
-
+  t1 /= n * n;
+  // Single-sum term involving Mahalanobis distance to the mean.
   let t2 = 0;
   for (let i = 0; i < n; i++) {
     let d2 = 0;
     for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) d2 += z[i][a] * invS[a][b] * z[i][b];
-    t2 += Math.exp(-beta * beta * Math.abs(d2) / (2 * (1 + beta * beta)));
+    t2 += Math.exp(-b2 / (2 * (1 + b2)) * Math.max(0, d2));
   }
-  t2 *= 2 * Math.pow(1 + beta * beta, -p / 2) / n;
-
-  const t3 = Math.pow(1 + 2 * beta * beta, -p / 2);
-  const hz = t1 - t2 + t3;
-  const pVal = hz > 1 ? 0.01 : hz > 0.5 ? 0.05 : hz > 0.25 ? 0.10 : 0.5;
+  t2 *= 2 * Math.pow(1 + b2, -p / 2) / n;
+  const t3 = Math.pow(1 + 2 * b2, -p / 2);
+  const hz = Math.max(0, n * (t1 - t2 + t3));
+  // Asymptotic lognormal null (Henze & Zirkler 1990): match the HZ statistic's
+  // mean/variance under multivariate normality, then p = P(T > hz).
+  const a = 1 + 2 * b2;
+  const wb = (1 + b2) * (1 + 3 * b2);
+  const mu = 1 - Math.pow(a, -p / 2) * (1 + p * b2 / a + p * (p + 2) * b2 * b2 / (2 * a * a));
+  const sig2 = 2 * Math.pow(1 + 4 * b2, -p / 2)
+    + 2 * Math.pow(a, -p) * (1 + 2 * p * b2 * b2 / (a * a) + 3 * p * (p + 2) * Math.pow(b2, 4) / (4 * Math.pow(a, 4)))
+    - 4 * Math.pow(wb, -p / 2) * (1 + 3 * p * b2 * b2 / (2 * wb) + p * (p + 2) * Math.pow(b2, 4) / (2 * wb * wb));
+  let pVal;
+  if (mu > 0 && sig2 > 0 && hz > 0) {
+    const logSD = Math.sqrt(Math.log((sig2 + mu * mu) / (mu * mu)));
+    const logMean = Math.log(mu * mu / Math.sqrt(sig2 + mu * mu));
+    pVal = 1 - normalCDF((Math.log(hz) - logMean) / logSD);
+  } else {
+    pVal = hz > 1 ? 0.01 : 0.5;
+  }
+  pVal = Math.min(1, Math.max(0, pVal));
 
   return {
-    test: 'Henze-Zirkler', hz: +hz.toFixed(4), p: pVal, n, p,
+    test: 'Henze-Zirkler', hz: +hz.toFixed(4), p: +pVal.toFixed(4), dim: p, n,
     apa: `HZ = ${hz.toFixed(3)}, ${pVal < 0.05 ? 'non-normal' : 'normal'}, n = ${n}`,
   };
 }
