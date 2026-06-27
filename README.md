@@ -351,3 +351,17 @@ the config panel for reproducible bootstrap CIs.
 3. Add config controls to the `configMap` object in `InferenceConfig.jsx`.
 4. Add result rendering to `InferenceResults.jsx` (chips, tables, plots).
 5. Wire the test call in the `result` `useMemo` inside `InferencePanel.jsx`.
+
+---
+
+## Runbook
+
+See **[RUNBOOK.md](./RUNBOOK.md)** for comprehensive developer documentation including:
+- Setup and development commands
+- Full project structure
+- Step-by-step guide for adding new functions
+- Test patterns and code style rules
+- Math layer import reference
+- CLI helper usage (docs:list, docs:show, docs:search)
+- Troubleshooting common errors
+- Version history
