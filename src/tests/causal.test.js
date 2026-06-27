@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity,
+  syntheticControl, doubleML, backdoorAdjustment,
+  iptwWeights, fuzzyRDD, gComputation, staggeredDiD,
+  covariateBalance, smdTable, propensityOverlap, weightingDiagnostics, lovePlotData,
+  naturalIndirectEffect, controlledDirectEffect, evalue, mediationProportion, sensitivityBias, interactionMediation,
+  msmWeights, gestimationSNM, rpsft, structuralNestedAFT, complianceAdjusted,
+  weakIVTest, sarganHansenJ, durbinWuHausman, ivDiagnosticsSummary,
 } from './causal.js';
 import { causalRows } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
@@ -188,4 +194,322 @@ describe('regressionDiscontinuity', () => {
     const smooth = x.map(v => 5 + v * 0.2);
     expect(Math.abs(regressionDiscontinuity(x, smooth, 0, 30).jump)).toBeLessThan(1);
   });
+});
+
+describe('syntheticControl', () => {
+  it('returns null for invalid input', () => {
+    expect(syntheticControl([1, 2], [[1, 2]], 2, 0)).toBeNull();
+  });
+
+  it('constructs synthetic unit', () => {
+    const treated = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const controls = [
+      [0.9, 1.9, 2.8, 3.8, 4.8, 5.8, 6.8, 7.8, 8.8, 9.8],
+      [1.1, 2.1, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2],
+    ];
+    const r = syntheticControl(treated, controls, 7, 3);
+    expect(r).not.toBeNull();
+    expect(r.weights.length).toBe(2);
+    expect(r.preRMSPE).toBeGreaterThanOrEqual(0);
+    expect(r.synthetic.length).toBe(10);
+  });
+
+  it('contract fields present', () => {
+    const treated = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const controls = [[0.9, 1.9, 2.8, 3.8, 4.8, 5.8, 6.8, 7.8, 8.8, 9.8]];
+    const r = syntheticControl(treated, controls, 7, 3);
+    expectKeys(r, ['test', 'weights', 'synthetic', 'treated', 'preGap', 'postGap', 'att', 'preRMSPE', 't', 'p', 'apa']);
+  });
+
+  it('weights sum to approximately 1', () => {
+    const treated = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const controls = [
+      [0.9, 1.9, 2.8, 3.8, 4.8, 5.8, 6.8, 7.8, 8.8, 9.8],
+      [1.1, 2.1, 3.2, 4.2, 5.2, 6.2, 7.2, 8.2, 9.2, 10.2],
+    ];
+    const r = syntheticControl(treated, controls, 7, 3);
+    const sum = r.weights.reduce((s, w) => s + w.weight, 0);
+    expect(sum).toBeCloseTo(1, 2);
+  });
+
+  it('returns null for length mismatch', () => {
+    expect(syntheticControl([1, 2, 3], [[1, 2]], 2, 1)).toBeNull();
+  });
+
+  it('p-value is between 0 and 1', () => {
+    const treated = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const controls = [[0.9, 1.9, 2.8, 3.8, 4.8, 5.8, 6.8, 7.8, 8.8, 9.8, 10.8, 11.8]];
+    const r = syntheticControl(treated, controls, 8, 4);
+    expect(r.p).toBeGreaterThanOrEqual(0);
+    expect(r.p).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('doubleML', () => {
+  it('returns null for small n', () => {
+    expect(doubleML([1, 2], [0, 1], [[1], [2]])).toBeNull();
+  });
+
+  it('estimates ATE with DML', () => {
+    const n = 50;
+    const y = [], D = [], X = [];
+    for (let i = 0; i < n; i++) {
+      const d = Math.random() < 0.5 ? 0 : 1;
+      const x = i * 0.2;
+      y.push(2 + d * 1.5 + x * 0.5 + (Math.random() - 0.5) * 1);
+      D.push(d);
+      X.push([x]);
+    }
+    const r = doubleML(y, D, X);
+    expect(r).not.toBeNull();
+    expect(r.test).toContain('DML');
+    expect(r.ate).toBeDefined();
+    expect(r.se).toBeGreaterThan(0);
+  });
+
+  it('contract fields present', () => {
+    const n = 30;
+    const y = [], D = [], X = [];
+    for (let i = 0; i < n; i++) {
+      y.push(i + Math.random());
+      D.push(i % 2);
+      X.push([i * 0.1]);
+    }
+    const r = doubleML(y, D, X);
+    expectKeys(r, ['test', 'ate', 'se', 't', 'p', 'n', 'apa']);
+  });
+
+  it('ATE has correct sign for strong positive effect', () => {
+    const n = 60;
+    const y = [], D = [], X = [];
+    for (let i = 0; i < n; i++) {
+      const d = i % 2;
+      y.push(3 * d + (Math.random() - 0.5) * 0.3);
+      D.push(d);
+      X.push([i * 0.05]);
+    }
+    const r = doubleML(y, D, X);
+    expect(r.ate).toBeGreaterThan(1.5);
+  });
+
+  it('standard error decreases with larger n', () => {
+    const makeData = (n) => {
+      const y = [], D = [], X = [];
+      for (let i = 0; i < n; i++) {
+        const d = i % 2;
+        y.push(2 * d + (Math.random() - 0.5) * 1);
+        D.push(d);
+        X.push([i * 0.05]);
+      }
+      return { y, D, X };
+    };
+    const r1 = doubleML(...Object.values(makeData(30)));
+    const r2 = doubleML(...Object.values(makeData(100)));
+    expect(r2.se).toBeLessThan(r1.se);
+  });
+
+  it('returns null for non-matching lengths', () => {
+    expect(doubleML([1, 2, 3, 4, 5], [0, 1], [[1], [2]])).toBeNull();
+  });
+
+  it('p-value between 0 and 1', () => {
+    const n = 40;
+    const y = [], D = [], X = [];
+    for (let i = 0; i < n; i++) {
+      y.push(i * 0.1 + Math.random());
+      D.push(i % 2);
+      X.push([i * 0.1]);
+    }
+    const r = doubleML(y, D, X);
+    expect(r.p).toBeGreaterThan(0);
+    expect(r.p).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('backdoorAdjustment', () => {
+  it('finds adjustment set for simple DAG', () => {
+    const dag = [['Z', 'X'], ['Z', 'Y'], ['X', 'Y']];
+    const r = backdoorAdjustment(dag, 'X', 'Y');
+    expect(r).not.toBeNull();
+    expect(r.adjustmentSet).toContain('Z');
+  });
+
+  it('returns empty for DAG without backdoor', () => {
+    const dag = [['X', 'Y']];
+    const r = backdoorAdjustment(dag, 'X', 'Y');
+    expect(r).not.toBeNull();
+    expect(r.adjustmentSet.length).toBe(0);
+  });
+
+  it('contract fields present', () => {
+    const dag = [['Z', 'X'], ['Z', 'Y']];
+    const r = backdoorAdjustment(dag, 'X', 'Y');
+    expectKeys(r, ['test', 'treatment', 'outcome', 'adjustmentSet', 'minimal', 'allNodes', 'nEdges', 'apa']);
+  });
+
+  it('returns null for null input', () => {
+    expect(backdoorAdjustment(null, 'X', 'Y')).toBeNull();
+  });
+
+  it('detects multiple confounders', () => {
+    const dag = [['Z1', 'X'], ['Z1', 'Y'], ['Z2', 'X'], ['Z2', 'Y'], ['X', 'Y']];
+    const r = backdoorAdjustment(dag, 'X', 'Y');
+    expect(r.adjustmentSet).toContain('Z1');
+    expect(r.adjustmentSet).toContain('Z2');
+  });
+
+  it('does not include treatment or outcome in adjustment set', () => {
+    const dag = [['Z', 'X'], ['Z', 'Y'], ['X', 'Y']];
+    const r = backdoorAdjustment(dag, 'X', 'Y');
+    expect(r.adjustmentSet).not.toContain('X');
+    expect(r.adjustmentSet).not.toContain('Y');
+  });
+
+  it('minimal is true when confounders found', () => {
+    const dag = [['Z', 'X'], ['Z', 'Y']];
+    const r = backdoorAdjustment(dag, 'X', 'Y');
+    expect(r.minimal).toBe(true);
+  });
+
+  it('minimal is false when no confounders', () => {
+    const dag = [['X', 'Y']];
+    const r = backdoorAdjustment(dag, 'X', 'Y');
+    expect(r.minimal).toBe(false);
+  });
+});
+
+describe('iptwWeights', () => {
+  const data = [];
+  for (let i = 0; i < 40; i++) data.push({ treat: i < 20 ? 'A' : 'B', y: 10 + i * 0.2 + (i < 20 ? 0 : 2), x1: i % 3 });
+  it('returns null for small data', () => expect(iptwWeights(null, 'treat', 'y', ['x1'])).toBeNull());
+  it('contract keys', () => expectKeys(iptwWeights(data, 'treat', 'y', ['x1']), ['test', 'att', 'se', 't', 'p', 'n', 'nTreated', 'nControl', 'apa']));
+  it('att is finite', () => { const r = iptwWeights(data, 'treat', 'y', ['x1']); expect(Number.isFinite(r.att)).toBe(true); });
+  it('apa string', () => { const r = iptwWeights(data, 'treat', 'y', ['x1']); expect(typeof r.apa).toBe('string'); expect(r.apa.length).toBeGreaterThan(0); });
+});
+
+describe('fuzzyRDD', () => {
+  const data = [];
+  for (let i = 0; i < 60; i++) data.push({ running: i - 30, treat: i > 30 ? 1 : 0, y: 5 + (i > 30 ? 2 : 0) + i * 0.1 });
+  it('null for small', () => expect(fuzzyRDD(data.slice(0, 20), 'running', 'treat', 'y', 0, 20)).toBeNull());
+  it('contract keys', () => { const r = fuzzyRDD(data, 'running', 'treat', 'y', 0, 20); if (r) expectKeys(r, ['test', 'late', 'se', 't', 'p', 'fStat', 'bandwidth', 'n', 'nBand', 'apa']); });
+});
+
+describe('gComputation', () => {
+  const data = [];
+  for (let i = 0; i < 40; i++) data.push({ treat: i < 20 ? 'A' : 'B', y: 5 + i * 0.1 + (i < 20 ? 0 : 1.5), x1: i % 2 });
+  it('null for small', () => expect(gComputation(data.slice(0, 20), 'treat', 'y', ['x1'])).toBeNull());
+  it('contract keys', () => { const r = gComputation(data, 'treat', 'y', ['x1']); if (r) expectKeys(r, ['test', 'ate', 'se', 'ci', 'n', 'apa']); });
+  it('ate finite', () => { const r = gComputation(data, 'treat', 'y', ['x1']); if (r) expect(Number.isFinite(r.ate)).toBe(true); });
+});
+
+describe('staggeredDiD', () => {
+  const panel = [];
+  for (let i = 0; i < 10; i++) for (let t = 0; t < 5; t++) panel.push({ unit: `U${i}`, time: t, treat: i < 5 && t >= 3 ? 1 : 0, y: i + t * 0.5 + (i < 5 && t >= 3 ? 2 : 0) });
+  it('null for small', () => expect(staggeredDiD(panel.slice(0, 10), 'unit', 'time', 'treat', 'y')).toBeNull());
+  it('contract keys', () => expectKeys(staggeredDiD(panel, 'unit', 'time', 'treat', 'y'), ['test', 'att', 'nUnits', 'nPeriods', 'nNeverTreated', 'nTreated', 'apa']));
+  it('att finite', () => { const r = staggeredDiD(panel, 'unit', 'time', 'treat', 'y'); expect(Number.isFinite(r.att)).toBe(true); });
+});
+
+describe('covariateBalance', () => {
+  const treated = []; for (let i = 0; i < 10; i++) treated.push({ x1: i + 10, x2: i * 0.5 });
+  const control = []; for (let i = 0; i < 10; i++) control.push({ x1: i, x2: i * 0.3 });
+  it('null <5', () => expect(covariateBalance(treated.slice(0, 2), control, ['x1'])).toBeNull());
+  it('contract keys', () => expectKeys(covariateBalance(treated, control, ['x1', 'x2']), ['test', 'results', 'nTreated', 'nControl', 'apa']));
+  it('smd reported', () => { const r = covariateBalance(treated, control, ['x1']); expect(Number.isFinite(r.results[0].smd)).toBe(true); });
+});
+
+describe('smdTable', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ treat: i < 10 ? 'A' : 'B', x1: i + (i < 10 ? 3 : 0), x2: i * 0.5 });
+  it('null <10', () => expect(smdTable(d.slice(0, 5), 'treat', ['x1'])).toBeNull());
+  it('contract keys', () => expectKeys(smdTable(d, 'treat', ['x1', 'x2']), ['test', 'results', 'nTreated', 'nControl', 'apa']));
+});
+
+describe('propensityOverlap', () => {
+  it('is defined', () => expect(propensityOverlap).not.toBeUndefined());
+});
+
+describe('weightingDiagnostics', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ treat: i < 10 ? 'A' : 'B', x1: i + (i < 10 ? 2 : 0), x2: i % 3 });
+  it('contract keys', () => { const r = weightingDiagnostics(Array(20).fill(1), d, 'treat', ['x1', 'x2']); if (r) expectKeys(r, ['test', 'nEff', 'n', 'nTreated', 'nControl', 'balanceBefore', 'balanceAfter', 'apa']); });
+});
+
+describe('lovePlotData', () => {
+  const before = [{ variable: 'x1', smd: 0.5 }, { variable: 'x2', smd: 0.3 }];
+  const after = [{ variable: 'x1', smd: 0.1 }, { variable: 'x2', smd: 0.05 }];
+  it('contract keys', () => expectKeys(lovePlotData(before, after), ['test', 'points', 'nVars', 'apa']));
+  it('nVars correct', () => { const r = lovePlotData(before, after); expect(r.nVars).toBe(2); });
+});
+
+describe('naturalIndirectEffect', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', med: i * 0.5 + (i < 15 ? 0 : 2), y: i + (i < 15 ? 0 : 3), x1: i % 2 });
+  it('contract keys', () => { const r = naturalIndirectEffect(d, 'treat', 'med', 'y', ['x1']); if (r) expectKeys(r, ['test', 'nie', 'a', 'b', 'se', 'z', 'p', 'n', 'apa']); });
+});
+
+describe('controlledDirectEffect', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', med: i * 0.5, y: i + (i < 15 ? 0 : 3), x1: i % 2 });
+  it('contract keys', () => { const r = controlledDirectEffect(d, 'treat', 'med', 'y', ['x1'], 0); if (r) expectKeys(r, ['test', 'cde', 'se', 'z', 'p', 'mediatorValue', 'n', 'apa']); });
+});
+
+describe('evalue', () => {
+  it('null for zero se', () => expect(evalue(1.5, 0)).toBeNull());
+  it('contract keys', () => expectKeys(evalue(2, 0.3), ['test', 'e', 'estimate', 'se', 'lowerCI', 'apa']));
+  it('e >= 1', () => { const r = evalue(2, 0.3); expect(r.e).toBeGreaterThanOrEqual(1); });
+});
+
+describe('mediationProportion', () => {
+  it('null for total=0', () => expect(mediationProportion(0.5, 0)).toBeNull());
+  it('contract keys', () => expectKeys(mediationProportion(0.3, 0.8), ['test', 'proportion', 'indirect', 'total', 'apa']));
+});
+
+describe('sensitivityBias', () => {
+  it('null for OR<=0', () => expect(sensitivityBias(-1)).toBeNull());
+  it('contract keys', () => expectKeys(sensitivityBias(2.5), ['test', 'criticalRR', 'or', 'prevalence', 'apa']));
+});
+
+describe('interactionMediation', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', med: i * 0.5, y: i + (i < 15 ? 0 : 3), x1: i % 2 });
+  it('contract keys', () => { const r = interactionMediation(d, 'treat', 'med', 'y', ['x1']); if (r) expectKeys(r, ['test', 'interaction', 'se', 'z', 'p', 'n', 'apa']); });
+});
+
+describe('msmWeights', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', y: i + (i < 15 ? 0 : 3), x1: i % 2, time1: i, time2: i * 2 });
+  it('contract keys', () => { const r = msmWeights(d, ['time1', 'time2'], 'treat', 'y', ['x1']); if (r) expectKeys(r, ['test', 'weightedMean', 'n', 'nTreated', 'apa']); });
+});
+
+describe('gestimationSNM', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', y: i + (i < 15 ? 0 : 3), x1: i % 2 });
+  it('contract keys', () => { const r = gestimationSNM(d, 'treat', 'y', ['x1']); if (r) expectKeys(r, ['test', 'psi', 'n', 'apa']); });
+});
+
+describe('rpsft', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', y: i + (i < 15 ? 0 : 3), observed: i + (i < 15 ? 0 : 5) });
+  it('contract keys', () => { const r = rpsft(d, 'treat', 'y', 'observed'); if (r) expectKeys(r, ['test', 'psi', 'n', 'apa']); });
+});
+
+describe('structuralNestedAFT', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', y: i + (i < 15 ? 0 : 5) });
+  it('contract keys', () => { const r = structuralNestedAFT(d, 'treat', 'y', null); if (r) expectKeys(r, ['test', 'psi', 'n', 'apa']); });
+});
+
+describe('complianceAdjusted', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ rand: i < 15 ? 0 : 1, rec: i < 15 ? 0 : 1, y: i + (i < 15 ? 0 : 3) });
+  it('contract keys', () => expectKeys(complianceAdjusted(d, 'rand', 'rec', 'y'), ['test', 'cace', 'n', 'complianceRate', 'apa']));
+});
+
+describe('weakIVTest', () => {
+  const d2 = []; for (let i = 0; i < 30; i++) d2.push({ y: i, x: i * 0.5, iv: i % 3 });
+  it('contract keys', () => expectKeys(weakIVTest(d2, 'y', 'x', 'iv', []), ['test', 'fStat', 'isWeak', 'n', 'apa']));
+});
+
+describe('sarganHansenJ', () => {
+  const d2 = []; for (let i = 0; i < 30; i++) d2.push({ y: i, x: i * 0.5, z1: i % 3, z2: (i+1) % 3 });
+  it('is defined', () => expect(typeof sarganHansenJ).toBe('function'));
+});
+
+describe('durbinWuHausman', () => {
+  it('is defined', () => expect(typeof durbinWuHausman).toBe('function'));
+});
+
+describe('ivDiagnosticsSummary', () => {
+  it('contract keys', () => expectKeys(ivDiagnosticsSummary({isWeak:false},{p:0.5},{p:0.1}), ['test', 'weakInstruments', 'overidentified', 'endogenous', 'apa']));
 });

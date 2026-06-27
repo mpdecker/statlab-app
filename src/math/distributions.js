@@ -124,38 +124,7 @@ export function tInv2(alpha, df) {
 }
 
 // ── Power for two-sample t (Monte Carlo non-central t when df ≤ 30) ───────────
-export function computePowerT(n1, n2, d, alpha = .05, seed = 42) {
-  const df = n1 + n2 - 2;
-  if (df < 1 || !Number.isFinite(d)) return 0;
-  const delta = Math.abs(d) * Math.sqrt(n1 * n2 / (n1 + n2));
-  const tc = tInv2(alpha, df);
-  if (df > 30) return normalCDF(delta - tc) + normalCDF(-delta - tc);
-  const rand = mulberry32(seed ?? 42);
-  let hits = 0;
-  const R = 10000;
-  for (let rep = 0; rep < R; rep++) {
-    let chi = 0;
-    for (let i = 0; i < df; i++) chi += boxMullerN(rand) ** 2;
-    const scale = Math.sqrt(chi / df) || 1;
-    const t = (boxMullerN(rand) + delta) / scale;
-    if (Math.abs(t) > tc) hits++;
-  }
-  return hits / R;
-}
-export function computePowerCorr(n, r, alpha = .05) {
-  const z = .5 * Math.log((1 + r) / (1 - r)), se = 1 / Math.sqrt(n - 3), zc = normalINV(1 - alpha / 2);
-  return normalCDF(Math.abs(z) / se - zc);
-}
-export function requiredN(d, power = .8, alpha = .05) {
-  let n = 4;
-  while (n < 10000) { if (computePowerT(n, n, Math.abs(d), alpha) >= power) return n; n++; }
-  return n;
-}
-export function requiredNCorr(r, power = .8, alpha = .05) {
-  let n = 5;
-  while (n < 10000) { if (computePowerCorr(n, Math.abs(r), alpha) >= power) return n; n++; }
-  return n;
-}
+export { computePowerT, computePowerCorr, requiredN, requiredNCorr } from './power.js';
 
 // ── Normality tests ───────────────────────────────────────────────────────────
 export function normalityDP(vals) {

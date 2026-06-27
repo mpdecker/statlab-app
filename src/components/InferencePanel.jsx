@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { C } from '../palette.js';
 import { TREE } from '../config/tree.js';
+import { METHOD_NOTES } from '../config/methodNotes.js';
 import { InferenceConfig } from './InferenceConfig.jsx';
 import { InferenceResults } from './InferenceResults.jsx';
 
@@ -15,7 +16,10 @@ import {
 } from '../tests/regression.js';
 import {
   chiSquare, chiGoF, fisherExact, mcnemar, binomialTest, onePropZ, twoPropZ,
-  mannWhitney, wilcoxonSR, tost, bayesFactorT, bayesFactorCorr,
+  mannWhitney, wilcoxonSR,
+} from '../tests/nonparametric.js';
+import {
+  tost, bayesFactorT, bayesFactorCorr,
   grubbsTest, leveneTest, bartlettTest,
   bonferroni, holm, bh, sensitivityLOO,
 } from '../tests/categorical.js';
@@ -48,7 +52,8 @@ function dichotomizeMatrix(matrix) {
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
 // ── Left navigator ────────────────────────────────────────────────────────────
-function Navigator({ active, setActive }) {
+export function Navigator({ active, setActive }) {
+  const [expandedNote, setExpandedNote] = useState(null);
   return (
     <div style={{ width: 200, borderRight: `1px solid ${C.border}`, overflowY: 'auto', flexShrink: 0 }}>
       {TREE.map(cat => (
@@ -57,22 +62,61 @@ function Navigator({ active, setActive }) {
             {cat.cat}
           </div>
           {cat.tests.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setActive(t.id)}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                background: active === t.id ? 'rgba(255,255,255,.04)' : 'transparent',
-                color: active === t.id ? cat.color : C.dim,
-                border: 'none',
-                borderLeft: active === t.id ? `2px solid ${cat.color}` : '2px solid transparent',
-                fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 12,
-                padding: '4px 8px', cursor: 'pointer', lineHeight: 1.1, transition: 'all .1s',
-              }}
-            >
-              {t.label}
-              <div style={{ fontSize: 8, ...mono, color: C.dim, fontWeight: 400 }}>{t.tag}</div>
-            </button>
+            <div key={t.id}>
+              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                <button
+                  onClick={() => setActive(t.id)}
+                  style={{
+                    flex: 1, display: 'block', textAlign: 'left',
+                    background: active === t.id ? 'rgba(255,255,255,.04)' : 'transparent',
+                    color: active === t.id ? cat.color : C.dim,
+                    border: 'none',
+                    borderLeft: active === t.id ? `2px solid ${cat.color}` : '2px solid transparent',
+                    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 12,
+                    padding: '4px 8px', cursor: 'pointer', lineHeight: 1.1, transition: 'all .1s',
+                  }}
+                >
+                  {t.label}
+                  <div style={{ fontSize: 8, ...mono, color: C.dim, fontWeight: 400 }}>{t.tag}</div>
+                </button>
+                {METHOD_NOTES[t.id] && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setExpandedNote(expandedNote === t.id ? null : t.id); }}
+                    title="Method info"
+                    style={{
+                      background: 'transparent', border: 'none', color: expandedNote === t.id ? C.accent : C.dim,
+                      cursor: 'pointer', fontSize: 11, padding: '4px 6px 4px 0', ...mono,
+                    }}
+                  >
+                    ?
+                  </button>
+                )}
+              </div>
+              {expandedNote === t.id && METHOD_NOTES[t.id] && (
+                <div style={{
+                  margin: '0 8px 4px 10px', padding: '6px 8px', background: C.panel, borderRadius: 3,
+                  border: `1px solid ${C.border}`, fontSize: 9, color: C.text, lineHeight: 1.5,
+                }}>
+                  {typeof METHOD_NOTES[t.id] === 'string'
+                    ? METHOD_NOTES[t.id]
+                    : (
+                      <>
+                        <div style={{ color: cat.color, fontWeight: 600, marginBottom: 3 }}>{METHOD_NOTES[t.id].description}</div>
+                        {METHOD_NOTES[t.id].usage && <div style={{ color: C.dim, marginBottom: 4 }}><b style={{ color: C.text }}>Use:</b> {METHOD_NOTES[t.id].usage}</div>}
+                        {METHOD_NOTES[t.id].assumptions && (
+                          <div style={{ marginBottom: 4 }}>
+                            <b style={{ color: C.text }}>Assumptions:</b>
+                            <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
+                              {METHOD_NOTES[t.id].assumptions.map((a, i) => <li key={i} style={{ color: C.dim, marginBottom: 1 }}>{a}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                        {METHOD_NOTES[t.id].cite && <div style={{ color: C.dim, fontSize: 8, fontStyle: 'italic' }}>{METHOD_NOTES[t.id].cite}</div>}
+                      </>
+                    )}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       ))}
@@ -80,12 +124,12 @@ function Navigator({ active, setActive }) {
   );
 }
 
-// ── Main panel ────────────────────────────────────────────────────────────────
-export function InferencePanel({ data, ds, active, setActive, onResultChange, onContextChange }) {
+// ── useInference hook ──────────────────────────────────────────────────────────
+export function useInference(data, ds, active, setActive, onResultChange, onContextChange) {
   const numeric     = ds?.numeric     || [];
   const categorical = ds?.categorical || [];
 
-  // ── active test (lifted to App when props provided) ─────────────────────────
+  // ── active test ────────────────────────────────────────────────────────────
   const [alpha,  setAlpha]  = useState('0.05');
 
   // ── shared parameter state ─────────────────────────────────────────────────
@@ -388,7 +432,7 @@ export function InferencePanel({ data, ds, active, setActive, onResultChange, on
         return a === 'poisson' ? poissonRegression(Yi, Xmat, Xc) : negativeBinomialRegression(Yi, Xmat, Xc);
       }
       if (a === 'mediation') return mediation(medXMY.X, medXMY.M, medXMY.Y);
-      if (a === 'med_bootstrap') return null; // handled by bootstrap runner
+      if (a === 'med_bootstrap') return null;
       if (a === 'moderation') return moderation(modXZY.X, modXZY.Z, modXZY.Y, xVar, zVar);
       if (a === 'tost')      return tost(g1vals, g2vals, parseFinite(tostL, -0.5), parseFinite(tostH, 0.5), aval);
       if (a === 'bayes_t')   { const tw = tWelch(g1vals, g2vals); if (!tw) return null; return { ...tw, ...bayesFactorT(tw.t, tw.na, tw.nb, parseFinite(bfPrior, 0.707)), test: 'Bayesian t-test (JZS)' }; }
@@ -500,7 +544,7 @@ export function InferencePanel({ data, ds, active, setActive, onResultChange, on
     });
   }, [active, grpVar, tgtVar, g1, g2, xVar, yVar, zVar, mVar, cat1, cat2, scaleVars, preds, onContextChange]);
 
-  // ── config state bundle (passed to InferenceConfig) ────────────────────────
+  // ── config state bundle ────────────────────────────────────────────────────
   const configState = {
     grpVar, setGrpVar, tgtVar, setTgtVar, g1, setG1, g2, setG2,
     xVar, setXVar, yVar, setYVar, zVar, setZVar, mVar, setMVar,
@@ -530,30 +574,46 @@ export function InferencePanel({ data, ds, active, setActive, onResultChange, on
     scaleMethod, setScaleMethod, reverseItems, setReverseItems,
   };
 
+  return {
+    state: configState,
+    result: displayResult,
+    alpha, setAlpha,
+    medBs, medBsRunning,
+    bsResult, bsRunning,
+    powerResult, powerRunning,
+    bsB, bsSeed, bsStat,
+    allTgt,
+    g1, g2, g1vals, g2vals,
+    normG1, normG2,
+    levene,
+    scaleVars,
+    aval,
+    onRunBs, onRunMedBs,
+  };
+}
+
+// ── InferencePanel (backwards-compatible standalone wrapper) ──────────────────
+export function InferencePanel({ data, ds, active, setActive, onResultChange, onContextChange }) {
+  const inf = useInference(data, ds, active, setActive, onResultChange, onContextChange);
+
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      {/* Left: test navigator */}
       <Navigator active={active} setActive={setActive} />
-
-      {/* Centre: parameter controls */}
       <InferenceConfig
-        active={active} alpha={alpha} setAlpha={setAlpha}
-        ds={ds} data={data} state={configState}
+        active={active} alpha={inf.alpha} setAlpha={inf.setAlpha}
+        ds={ds} data={data} state={inf.state}
       />
-
-      {/* Right: results */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
-        {/* Bootstrap mediation path + CI */}
         {active === 'med_bootstrap' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {medBs && Number.isFinite(medBs.lo) && Number.isFinite(medBs.hi) && <>
+            {inf.medBs && Number.isFinite(inf.medBs.lo) && Number.isFinite(inf.medBs.hi) && <>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {[
-                  { label: 'indirect a×b', value: medBs.ab.toFixed(5), color: medBs.sig ? C.ok : C.warn },
-                  { label: `${Math.round((1 - aval) * 100)}% CI lo`, value: medBs.lo.toFixed(5), color: C.pos },
-                  { label: `${Math.round((1 - aval) * 100)}% CI hi`, value: medBs.hi.toFixed(5), color: C.pos },
-                  { label: 'CI excl. 0', value: medBs.sig ? 'YES' : 'NO', color: medBs.sig ? C.ok : C.neg },
-                  { label: 'B', value: medBs.B, color: C.dim },
+                  { label: 'indirect a×b', value: inf.medBs.ab.toFixed(5), color: inf.medBs.sig ? C.ok : C.warn },
+                  { label: `${Math.round((1 - inf.aval) * 100)}% CI lo`, value: inf.medBs.lo.toFixed(5), color: C.pos },
+                  { label: `${Math.round((1 - inf.aval) * 100)}% CI hi`, value: inf.medBs.hi.toFixed(5), color: C.pos },
+                  { label: 'CI excl. 0', value: inf.medBs.sig ? 'YES' : 'NO', color: inf.medBs.sig ? C.ok : C.neg },
+                  { label: 'B', value: inf.medBs.B, color: C.dim },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 3, padding: '3px 8px' }}>
                     <div style={{ fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase' }}>{label}</div>
@@ -561,13 +621,11 @@ export function InferencePanel({ data, ds, active, setActive, onResultChange, on
                   </div>
                 ))}
               </div>
-              {/* bootstrap distribution */}
               <div style={{ height: 70 }}>
-                {/* inline mini chart */}
-                <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 2 }}>Bootstrap a×b distribution (B={medBs.B})</div>
+                <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 2 }}>Bootstrap a×b distribution (B={inf.medBs.B})</div>
                 <div style={{ height: 60, background: C.panel, borderRadius: 3, display: 'flex', alignItems: 'flex-end', padding: '2px 4px', gap: 1, overflow: 'hidden' }}>
                   {(() => {
-                    const dist = medBs.dist, lo_ = Math.min(...dist), hi_ = Math.max(...dist), w = (hi_ - lo_) / 24 || 1, cs = Array(24).fill(0);
+                    const dist = inf.medBs.dist, lo_ = Math.min(...dist), hi_ = Math.max(...dist), w = (hi_ - lo_) / 24 || 1, cs = Array(24).fill(0);
                     dist.forEach(x => { cs[Math.min(Math.floor((x - lo_) / w), 23)]++; });
                     const maxC = Math.max(...cs, 1);
                     return cs.map((c, i) => (
@@ -577,20 +635,19 @@ export function InferencePanel({ data, ds, active, setActive, onResultChange, on
                 </div>
               </div>
             </>}
-            {!medBs && <div style={{ color: C.dim, ...mono, fontSize: 10 }}>Click RUN BOOTSTRAP in the config panel.</div>}
+            {!inf.medBs && <div style={{ color: C.dim, ...mono, fontSize: 10 }}>Click RUN BOOTSTRAP in the config panel.</div>}
           </div>
         )}
 
-        {/* Bootstrap CI */}
-        {active === 'bootstrap' && bsResult?.dist?.length && Number.isFinite(bsResult.lo) && Number.isFinite(bsResult.hi) && (
+        {active === 'bootstrap' && inf.bsResult?.dist?.length && Number.isFinite(inf.bsResult.lo) && Number.isFinite(inf.bsResult.hi) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {[
-                { label: bsStat, value: (bsStat === 'mean' ? avg : bsStat === 'median' ? v => { const s = [...v].sort((a, b) => a - b), n = s.length; return n % 2 ? s[Math.floor(n / 2)] : (s[n / 2 - 1] + s[n / 2]) / 2; } : sampleSD)(allTgt).toFixed(4), color: C.accent },
-                { label: `${Math.round((1 - aval) * 100)}% CI lo`, value: bsResult.lo.toFixed(4), color: C.pos },
-                { label: `${Math.round((1 - aval) * 100)}% CI hi`, value: bsResult.hi.toFixed(4), color: C.pos },
+                { label: inf.bsStat, value: (inf.bsStat === 'mean' ? avg : inf.bsStat === 'median' ? v => { const s = [...v].sort((a, b) => a - b), n = s.length; return n % 2 ? s[Math.floor(n / 2)] : (s[n / 2 - 1] + s[n / 2]) / 2; } : sampleSD)(inf.allTgt).toFixed(4), color: C.accent },
+                { label: `${Math.round((1 - inf.aval) * 100)}% CI lo`, value: inf.bsResult.lo.toFixed(4), color: C.pos },
+                { label: `${Math.round((1 - inf.aval) * 100)}% CI hi`, value: inf.bsResult.hi.toFixed(4), color: C.pos },
                 { label: 'B', value: '1999', color: C.dim },
-                { label: 'n', value: allTgt.length, color: C.dim },
+                { label: 'n', value: inf.allTgt.length, color: C.dim },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 3, padding: '3px 8px' }}>
                   <div style={{ fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase' }}>{label}</div>
@@ -601,7 +658,7 @@ export function InferencePanel({ data, ds, active, setActive, onResultChange, on
             <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 2 }}>Bootstrap distribution (B=1999)</div>
             <div style={{ height: 60, background: C.panel, borderRadius: 3, display: 'flex', alignItems: 'flex-end', padding: '2px 4px', gap: 1, overflow: 'hidden' }}>
               {(() => {
-                const dist = bsResult.dist, lo_ = Math.min(...dist), hi_ = Math.max(...dist), w = (hi_ - lo_) / 28 || 1, cs = Array(28).fill(0);
+                const dist = inf.bsResult.dist, lo_ = Math.min(...dist), hi_ = Math.max(...dist), w = (hi_ - lo_) / 28 || 1, cs = Array(28).fill(0);
                 dist.forEach(x => { cs[Math.min(Math.floor((x - lo_) / w), 27)]++; });
                 const maxC = Math.max(...cs, 1);
                 return cs.map((c, i) => (
@@ -612,21 +669,20 @@ export function InferencePanel({ data, ds, active, setActive, onResultChange, on
           </div>
         )}
 
-        {/* All other test results */}
-        {POWER_TESTS.has(active) && powerRunning && (
+        {POWER_TESTS.has(active) && inf.powerRunning && (
           <div style={{ color: C.dim, ...mono, fontSize: 10, padding: 8 }}>Computing power…</div>
         )}
 
-        {!['bootstrap', 'med_bootstrap'].includes(active) && !(POWER_TESTS.has(active) && powerRunning && !powerResult) && (
+        {!['bootstrap', 'med_bootstrap'].includes(active) && !(POWER_TESTS.has(active) && inf.powerRunning && !inf.powerResult) && (
           <InferenceResults
-            r={displayResult}
+            r={inf.result}
             active={active}
-            alpha={alpha}
-            g1={g1} g2={g2}
-            g1vals={g1vals} g2vals={g2vals}
-            normG1={normG1} normG2={normG2}
-            levene={levene}
-            scaleVars={scaleVars}
+            alpha={inf.alpha}
+            g1={inf.g1} g2={inf.g2}
+            g1vals={inf.g1vals} g2vals={inf.g2vals}
+            normG1={inf.normG1} normG2={inf.normG2}
+            levene={inf.levene}
+            scaleVars={inf.scaleVars}
             ds={ds}
           />
         )}

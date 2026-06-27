@@ -7,7 +7,7 @@ export default defineConfig({
     include: ['src/**/*.test.js', 'src/**/*.test.jsx'],
     environment: 'node',
     coverage: {
-      include: ['src/math/**', 'src/tests/**', 'src/utils/**'],
+      include: ['src/math/**', 'src/tests/**', 'src/utils/**', 'src/components/**', 'src/config/**', 'src/data/**'],
       exclude: ['src/tests/__fixtures__/**', 'src/tests/fixtures/**'],
       thresholds: { lines: 90 },
     },

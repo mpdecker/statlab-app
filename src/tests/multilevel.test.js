@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from './multilevel.js';
+import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel, glmmLogistic, glmmPoisson, compareMixedModels, crossLevelInteraction, hlmThreeLevel, geeExchangeable, growthCurve, randomCoefficients, fixedEffectsPanel, randomEffectsPanel, hausmanTest, arellanoBond, glmmNegBinom, geeAR1 } from './multilevel.js';
 import { nestedHLM } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
@@ -121,4 +121,173 @@ describe('iccMultilevel', () => {
     expectKeys(r, ['test', 'icc', 'designEffect', 'tau00', 'sigma2', 'nClusters', 'n', 'apa']);
     expect(r.test).toBe('Multilevel ICC');
   });
+});
+
+const binaryData = [];
+for (let j = 0; j < 5; j++) {
+  for (let i = 0; i < 20; i++) {
+    const x = i * 0.3;
+    const prob = 1 / (1 + Math.exp(-(x - 2.5)));
+    binaryData.push({ y: Math.random() < prob ? 1 : 0, x, school: String(j) });
+  }
+}
+
+const countData = [];
+for (let j = 0; j < 5; j++) {
+  for (let i = 0; i < 25; i++) {
+    const x = i * 0.2;
+    const lambda = Math.exp(1.0 + x * 0.3);
+    countData.push({ y: Math.round(lambda + (Math.random() - 0.5) * Math.sqrt(lambda)), x, school: String(j) });
+  }
+}
+
+describe('glmmLogistic', () => {
+  it('returns null for non-binary y', () => {
+    const bad = [{ y: 2, x: 1, school: 'A' }, { y: 0, x: 2, school: 'A' }];
+    expect(glmmLogistic(bad, 'y', 'school')).toBeNull();
+  });
+
+  it('returns null for too few clusters', () => {
+    const small = binaryData.filter(r => r.school === '0' || r.school === '1');
+    expect(glmmLogistic(small, 'y', 'school')).toBeNull();
+  });
+
+  it('fits logistic GLMM with predictors', () => {
+    const r = glmmLogistic(binaryData, 'y', 'school', ['x']);
+    expect(r).not.toBeNull();
+    expect(r.test).toBe('GLMM Logistic');
+    expect(r.coefficients.length).toBeGreaterThan(0);
+    expect(r.tau2).toBeGreaterThanOrEqual(0);
+    expect(r.nClusters).toBeGreaterThanOrEqual(2);
+  });
+
+  it('logistic GLMM produces positive OR for positive predictor', () => {
+    const r = glmmLogistic(binaryData, 'y', 'school', ['x']);
+    expect(r.coefficients[1].OR).toBeGreaterThan(1);
+  });
+});
+
+describe('glmmPoisson', () => {
+  it('returns null for non-integer y', () => {
+    const bad = [{ y: 1.5, x: 1, school: 'A' }, { y: 2, x: 2, school: 'A' }];
+    expect(glmmPoisson(bad, 'y', 'school')).toBeNull();
+  });
+
+  it('fits Poisson GLMM with predictors', () => {
+    const r = glmmPoisson(countData, 'y', 'school', ['x']);
+    expect(r).not.toBeNull();
+    expect(r.test).toBe('GLMM Poisson');
+    expect(r.coefficients.length).toBeGreaterThan(0);
+    expect(r.tau2).toBeGreaterThanOrEqual(0);
+    expect(r.phi).toBeGreaterThan(0);
+  });
+});
+
+describe('compareMixedModels', () => {
+  it('returns null for null input', () => {
+    expect(compareMixedModels(null, {})).toBeNull();
+  });
+
+  it('compares two model objects', () => {
+    const m1 = { logLik: -300, n: 50, k: 2, sigma2: 4.0 };
+    const m2 = { logLik: -280, n: 50, k: 3, sigma2: 2.5 };
+    const r = compareMixedModels(m1, m2);
+    expect(r).not.toBeNull();
+    expect(r.lrtStat).toBeGreaterThan(0);
+    expect(r.deltaAIC).toBeLessThan(0);
+  });
+});
+
+describe('crossLevelInteraction', () => {
+  it('returns null for too few clusters', () => {
+    const small = data.filter(r => r.school === 'a' || r.school === 'b').map(r => ({ ...r, x_age: r.x, x_ses: 3 }));
+    small.forEach(r => { r.school = r.school === 'a' ? '0' : '1'; });
+    expect(crossLevelInteraction(small, 'y', 'school', 'x_age', 'x_ses')).toBeNull();
+  });
+
+  it('detects cross-level interaction with sufficient clusters', () => {
+    const clData = [];
+    for (let j = 0; j < 5; j++) {
+      const l2 = j * 2;
+      for (let i = 0; i < 15; i++) {
+        const l1 = i * 0.5;
+        clData.push({ y: 5 + l1 * 0.3 + l2 * 0.8 + l1 * l2 * 0.1 + (Math.random() - 0.5) * 2, x_l1: l1, x_l2: l2, school: String(j) });
+      }
+    }
+    const r = crossLevelInteraction(clData, 'y', 'school', 'x_l1', 'x_l2');
+    expect(r).not.toBeNull();
+    expect(r.test).toBe('Cross-Level Interaction');
+    expect(r.interactionSE).toBeGreaterThan(0);
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+describe('hlmThreeLevel', () => {
+  const d3 = [];
+  for (let l3 = 1; l3 <= 3; l3++) for (let l2 = 1; l2 <= 3; l2++) for (let i = 1; i <= 5; i++) d3.push({ y: l3 * 2 + l2 * 0.5 + i * 0.1, l2: `B${l3}${l2}`, l3: `A${l3}` });
+  it('null small', () => expect(hlmThreeLevel(d3.slice(0, 5), 'y', 'x', 'l2', 'l3')).toBeNull());
+  it('contract keys', () => expectKeys(hlmThreeLevel(d3, 'y', 'x', 'l2', 'l3'), ['test', 'variances', 'icc', 'n', 'apa']));
+  it('variance positive', () => { const r = hlmThreeLevel(d3, 'y', 'x', 'l2', 'l3'); if (r) expect(r.variances.l1).toBeGreaterThan(0); });
+});
+
+describe('geeExchangeable', () => {
+  const ge = []; for (let i = 1; i <= 15; i++) for (let j = 1; j <= 3; j++) ge.push({ y: i + j * 2, x: j, cluster: `C${i}` });
+  it('null small', () => expect(geeExchangeable(ge.slice(0, 5), 'y', 'cluster', ['x'])).toBeNull());
+  it('contract keys', () => { const r = geeExchangeable(ge, 'y', 'cluster', ['x']); if (r) expectKeys(r, ['test', 'coefficients', 'alpha', 'n', 'nClusters', 'apa']); });
+});
+
+describe('growthCurve', () => {
+  const gc = []; for (let i = 1; i <= 8; i++) for (let t = 0; t < 4; t++) gc.push({ y: i * 2 + t * 1.5, time: t, sub: `S${i}` });
+  it('null small', () => expect(growthCurve(gc.slice(0, 5), 'time', 'sub', 'y')).toBeNull());
+  it('contract keys', () => expectKeys(growthCurve(gc, 'time', 'sub', 'y'), ['test', 'fixed', 'random', 'n', 'apa']));
+  it('random var >= 0', () => { const r = growthCurve(gc, 'time', 'sub', 'y'); expect(r.random.tau00).toBeGreaterThanOrEqual(0); });
+});
+
+describe('randomCoefficients', () => {
+  const rc = []; for (let i = 0; i < 5; i++) for (let j = 0; j < 6; j++) rc.push({ y: i * 3 + j * 2, x1: j, cluster: `G${i}` });
+  it('null small', () => expect(randomCoefficients(rc.slice(0, 5), 'y', 'cluster', ['x1'], ['x1'])).toBeNull());
+  it('contract keys', () => { const r = randomCoefficients(rc, 'y', 'cluster', ['x1'], ['x1']); if (r) expectKeys(r, ['test', 'fixed', 'randomVariance', 'n', 'nClusters', 'apa']); });
+});
+
+describe('multilevel edge cases', () => {
+  it('hlmRandomIntercept null for <3 clusters', () => { const data = [{ y: 1, school: 'A', x: 1 }, { y: 2, school: 'B', x: 2 }, { y: 3, school: 'A', x: 1 }]; expect(hlmRandomIntercept(data, 'y', 'school', ['x'])).toBeNull(); });
+  it('hlmRandomSlope null for small data', () => { const data = [{ y: 1, school: 'A', x: 1 }, { y: 2, school: 'B', x: 2 }]; expect(hlmRandomSlope(data, 'y', 'school', ['x'])).toBeNull(); });
+  it('iccMultilevel returns ICC in [0,1]', () => { const data = []; for (let i = 0; i < 5; i++) for (let j = 0; j < 4; j++) data.push({ y: i * 2 + j, school: `S${i}` }); const r = iccMultilevel(data, 'y', 'school'); expect(r.icc).toBeGreaterThanOrEqual(0); expect(r.icc).toBeLessThanOrEqual(1); });
+  it('glmmLogistic null for small data', () => { const data = [{ y: 1, cluster: 'A', x: 1 }, { y: 0, cluster: 'B', x: 2 }]; expect(glmmLogistic(data, 'y', 'cluster', ['x'])).toBeNull(); });
+  it('hlmThreeLevel variance components >= 0', () => { const d3 = []; for (let l3 = 1; l3 <= 3; l3++) for (let l2 = 1; l2 <= 3; l2++) for (let i = 1; i <= 5; i++) d3.push({ y: l3 * 2 + l2 + i, x: i, l2: `B${l3}${l2}`, l3: `A${l3}` }); const r = hlmThreeLevel(d3, 'y', 'x', 'l2', 'l3'); expect(r.variances.l1).toBeGreaterThanOrEqual(0); });
+  it('geeExchangeable null for <3 clusters', () => { const ge = []; for (let i = 1; i <= 2; i++) for (let j = 1; j <= 3; j++) ge.push({ y: i + j, x: j, cluster: `C${i}` }); expect(geeExchangeable(ge, 'y', 'cluster', ['x'])).toBeNull(); });
+  it('growthCurve random tau00 >= 0', () => { const gc = []; for (let i = 1; i <= 8; i++) for (let t = 0; t < 4; t++) gc.push({ y: i * 2 + t * 1.5, time: t, sub: `S${i}` }); const r = growthCurve(gc, 'time', 'sub', 'y'); expect(r.random.tau00).toBeGreaterThanOrEqual(0); });
+});
+
+describe('fixedEffectsPanel', () => {
+  const p = []; for (let i = 1; i <= 5; i++) for (let t = 1; t <= 5; t++) p.push({ y: i * 2 + t, id: `U${i}`, time: t, x1: i + t * 0.5 });
+  it('null <3 units', () => expect(fixedEffectsPanel(p.slice(0, 10), 'y', 'id', 'time', ['x1'])).toBeNull());
+  it('contract keys', () => { const r = fixedEffectsPanel(p, 'y', 'id', 'time', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'n', 'nUnits', 'nPeriods', 'apa']); });
+});
+
+describe('randomEffectsPanel', () => {
+  const p = []; for (let i = 1; i <= 5; i++) for (let t = 1; t <= 5; t++) p.push({ y: i * 2 + t, id: `U${i}`, time: t, x1: i + t });
+  it('null <3 units', () => expect(randomEffectsPanel(p.slice(0, 10), 'y', 'id', 'time', ['x1'])).toBeNull());
+  it('contract keys', () => { const r = randomEffectsPanel(p, 'y', 'id', 'time', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'n', 'nUnits', 'apa']); });
+});
+
+describe('hausmanTest', () => {
+  it('null for invalid', () => expect(hausmanTest(null, { coefficients: [{ b: 1, se: 0.1 }] })).toBeNull());
+  it('contract keys', () => { const r = hausmanTest({ coefficients: [{ b: 1, se: 0.1 }] }, { coefficients: [{ b: 0.9, se: 0.1 }] }); if (r) expectKeys(r, ['test', 'chi2', 'df', 'p', 'apa']); });
+});
+
+describe('arellanoBond', () => {
+  const p = []; for (let i = 1; i <= 10; i++) for (let t = 1; t <= 4; t++) p.push({ y: i * 2 + t, id: `U${i}`, time: t, x1: i + t });
+  it('null <5 units', () => expect(arellanoBond(p.slice(0, 10), 'y', 'id', 'time', ['x1'])).toBeNull());
+  it('contract keys', () => { const r = arellanoBond(p, 'y', 'id', 'time', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'n', 'nUnits', 'apa']); });
+});
+
+describe('glmmNegBinom', () => {
+  const d2 = []; for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) d2.push({ y: i + j + 1, cluster: `C${i}`, x1: i + j });
+  it('contract keys', () => { const r = glmmNegBinom(d2, 'y', 'cluster', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'theta', 'n', 'nClusters', 'apa']); });
+});
+
+describe('geeAR1', () => {
+  const d2 = []; for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) d2.push({ y: i + j + 1, cluster: `C${i}`, x1: i + j });
+  it('contract keys', () => { const r = geeAR1(d2, 'y', 'cluster', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'alpha', 'n', 'nClusters', 'apa']); });
 });

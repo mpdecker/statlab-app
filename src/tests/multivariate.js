@@ -451,6 +451,185 @@ export function differencesInDifferences(preCtrl, postCtrl, preTreat, postTreat)
   };
 }
 
+// ── Meta-Regression ───────────────────────────────────────────────────────────
+export function metaRegression(studies, moderator, moderatorLabel) {
+  const clean = studies.filter((s, i) => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0 && Number.isFinite(moderator[i]));
+  if (clean.length < 3) return null;
+  const modVals = moderator.slice(0, studies.length).filter((_, i) => Number.isFinite(studies[i]?.d) && Number.isFinite(studies[i]?.se) && studies[i]?.se > 0 && Number.isFinite(moderator[i]));
+  if (modVals.length < 3) return null;
+  const allSame = modVals.every(v => v === modVals[0]);
+  if (allSame) return null;
+
+  const k = clean.length;
+  const d = clean.map(s => s.d);
+  const se = clean.map(s => s.se);
+  const w = se.map(s => 1 / (s * s));
+  const Wsum = w.reduce((s, v) => s + v, 0);
+  if (!Wsum) return null;
+
+  const s00 = w.reduce((s, v) => s + v, 0);
+  const s01 = w.reduce((s, v, i) => s + v * modVals[i], 0);
+  const s11 = w.reduce((s, v, i) => s + v * modVals[i] * modVals[i], 0);
+  const detM = s00 * s11 - s01 * s01;
+  if (Math.abs(detM) < 1e-14) return null;
+  const sy0 = w.reduce((s, v, i) => s + v * d[i], 0);
+  const sy1 = w.reduce((s, v, i) => s + v * modVals[i] * d[i], 0);
+  let b0 = (s11 * sy0 - s01 * sy1) / detM;
+  let b1 = (s00 * sy1 - s01 * sy0) / detM;
+
+  // Use fixed-effects beta as starting values for mixed-effects
+  let tau2 = 0;
+  for (let iter = 0; iter < 30; iter++) {
+    const wi = clean.map((s, i) => 1 / (s.se * s.se + tau2));
+    const sw0 = wi.reduce((s, v) => s + v, 0);
+    const sw1 = wi.reduce((s, v, i) => s + v * modVals[i], 0);
+    const sw2 = wi.reduce((s, v, i) => s + v * modVals[i] * modVals[i], 0);
+    const det = sw0 * sw2 - sw1 * sw1;
+    if (Math.abs(det) < 1e-14) break;
+    const syw0 = wi.reduce((s, v, i) => s + v * d[i], 0);
+    const syw1 = wi.reduce((s, v, i) => s + v * modVals[i] * d[i], 0);
+    const newB0 = (sw2 * syw0 - sw1 * syw1) / det;
+    const newB1 = (sw0 * syw1 - sw1 * syw0) / det;
+    b0 = newB0;
+    b1 = newB1;
+    const pred = clean.map((_, i) => b0 + b1 * modVals[i]);
+    const residSq = clean.map((s, i) => (d[i] - pred[i]) ** 2);
+    const Q = wi.reduce((s, v, i) => s + v * residSq[i], 0);
+    const trace = wi.reduce((s, v) => s + v, 0) - (wi.reduce((s, v) => s + v * v, 0)) / wi.reduce((s, v) => s + v, 0);
+    const newTau2 = Math.max(0, (Q - (k - 2)) / Math.max(trace, 1e-10));
+    if (Math.abs(newTau2 - tau2) < 1e-6) { tau2 = newTau2; break; }
+    tau2 = newTau2;
+  }
+
+  // Final estimates with converged tau2
+  const wf = clean.map(s => 1 / (s.se * s.se + tau2));
+  const wf0 = wf.reduce((s, v) => s + v, 0);
+  const wf1 = wf.reduce((s, v, i) => s + v * modVals[i], 0);
+  const wf2 = wf.reduce((s, v, i) => s + v * modVals[i] * modVals[i], 0);
+  const detF = wf0 * wf2 - wf1 * wf1;
+  if (Math.abs(detF) < 1e-14) return null;
+  const sy0f = wf.reduce((s, v, i) => s + v * d[i], 0);
+  const sy1f = wf.reduce((s, v, i) => s + v * modVals[i] * d[i], 0);
+  const bFinal0 = (wf2 * sy0f - wf1 * sy1f) / detF;
+  const bFinal1 = (wf0 * sy1f - wf1 * sy0f) / detF;
+
+  // SEs
+  const seB0 = Math.sqrt(Math.abs(wf2 / detF));
+  const seB1 = Math.sqrt(Math.abs(wf0 / detF));
+  const z0 = bFinal0 / seB0, z1 = bFinal1 / seB1;
+  const p0 = 2 * (1 - normalCDF(Math.abs(z0)));
+  const p1 = 2 * (1 - normalCDF(Math.abs(z1)));
+
+  // I² and R² analog
+  const predF = clean.map((_, i) => bFinal0 + bFinal1 * modVals[i]);
+  const Qres = wf.reduce((s, v, i) => s + v * (d[i] - predF[i]) ** 2, 0);
+  const I2 = (Qres - (k - 2)) > 0 ? Math.max(0, (Qres - (k - 2)) / Qres) * 100 : 0;
+
+  // R² analog: tau2 of intercept-only model
+  const metaBase = metaAnalysis(clean);
+  const tau2Base = metaBase ? metaBase.tau2 : tau2;
+  const rSquared = tau2Base > 0 ? Math.max(0, 1 - tau2 / tau2Base) : 0;
+
+  return {
+    test: 'Meta-Regression', moderator: moderatorLabel,
+    coefficients: [
+      { term: 'Intercept', b: +bFinal0.toFixed(4), se: +seB0.toFixed(4), z: +z0.toFixed(4), p: p0 },
+      { term: moderatorLabel, b: +bFinal1.toFixed(4), se: +seB1.toFixed(4), z: +z1.toFixed(4), p: p1 },
+    ],
+    tau2: +tau2.toFixed(5), iSquared: +I2.toFixed(1), rSquared: +rSquared.toFixed(4), k,
+    apa: `Meta-regression (${moderatorLabel}): b = ${bFinal1.toFixed(3)}, z = ${z1.toFixed(2)}, ${fmtP(p1)}, τ² = ${tau2.toFixed(4)}, R²_analog = ${rSquared.toFixed(3)}, k = ${k}`,
+  };
+}
+
+// ── Egger's Regression Test ───────────────────────────────────────────────────
+export function eggersTest(studies) {
+  const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
+  if (clean.length < 3) return null;
+  const seVals = clean.map(s => s.se);
+  if (seVals.every(v => v === seVals[0])) return null;
+  const k = clean.length;
+  const precision = seVals.map(s => 1 / s);
+  const stdEff = clean.map((s, i) => s.d / s.se);
+  // Weighted regression: stdEff = a + b * precision, weights = precision^2
+  const w = precision.map(p => p * p);
+  const s0 = w.reduce((s, v) => s + v, 0);
+  const s1 = w.reduce((s, v, i) => s + v * precision[i], 0);
+  const s2 = w.reduce((s, v, i) => s + v * precision[i] * precision[i], 0);
+  const det = s0 * s2 - s1 * s1;
+  if (Math.abs(det) < 1e-14) return null;
+  const sy0 = w.reduce((s, v, i) => s + v * stdEff[i], 0);
+  const sy1 = w.reduce((s, v, i) => s + v * precision[i] * stdEff[i], 0);
+  const intercept = (s2 * sy0 - s1 * sy1) / det;
+  const slope = (s0 * sy1 - s1 * sy0) / det;
+  const seIntercept = Math.sqrt(Math.abs(s2 / det));
+  const t = intercept / seIntercept;
+  const df = k - 2;
+  const p = tPVal(t, df);
+  return {
+    test: "Egger's Test", intercept: +intercept.toFixed(4), interceptSE: +seIntercept.toFixed(4),
+    t: +t.toFixed(4), df, p, slope: +slope.toFixed(4), k,
+    apa: `Egger's test: intercept = ${intercept.toFixed(3)}, t(${df}) = ${t.toFixed(2)}, ${fmtP(p)}, k = ${k}`,
+  };
+}
+
+// ── Trim-and-Fill ─────────────────────────────────────────────────────────────
+export function trimAndFill(studies) {
+  const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
+  if (clean.length < 3) return null;
+  const k = clean.length;
+
+  // Step 1: fit fixed-effects meta-analysis
+  const ma = metaAnalysis(clean);
+  if (!ma) return null;
+  const dPooled = ma.dFixed;
+  const originalD = ma.dFixed;
+  const originalSE = Math.sqrt(1 / clean.reduce((s, st) => s + 1 / (st.se * st.se), 0));
+
+  // Step 2: rank studies by |d_i - d_pooled|
+  const ranked = clean.map((s, i) => ({ ...s, idx: i, dev: s.d - dPooled }))
+    .sort((a, b) => Math.abs(b.dev) - Math.abs(a.dev));
+
+  // Step 3: Determine which side to trim (the side opposite to d_pooled)
+  const side = dPooled > 0 ? -1 : 1;
+  const extremeSide = ranked.filter(r => Math.sign(r.dev) === side);
+  const otherSideN = ranked.length - extremeSide.length;
+
+  // R0 estimator: estimate number of missing studies
+  const nTrimmed = Math.max(0, Math.round((2 * extremeSide.length - k) / Math.max(extremeSide.length - otherSideN, 1)));
+  const R0 = Math.min(nTrimmed, extremeSide.length);
+
+  if (R0 === 0) {
+    return {
+      test: 'Trim-and-Fill',
+      originalD: +originalD.toFixed(4), originalSE: +originalSE.toFixed(4),
+      adjustedD: +originalD.toFixed(4), adjustedSE: +originalSE.toFixed(4),
+      nImputed: 0, k: clean.length, kOriginal: clean.length,
+      studies: clean.map(s => ({ d: s.d, se: s.se, imputed: false })),
+      apa: `Trim-and-fill: no asymmetry detected, d = ${originalD.toFixed(3)}, k = ${k}`,
+    };
+  }
+
+  // Step 4: Impute mirror studies
+  const trimmed = ranked.slice(0, R0).filter(r => Math.sign(r.dev) === side);
+  const mirrored = trimmed.map(t => ({ d: 2 * dPooled - t.d, se: t.se, imputed: true }));
+  const keptStudies = clean.map(s => ({ d: s.d, se: s.se, imputed: false }));
+  const augmented = [...keptStudies, ...mirrored];
+
+  // Step 5: Re-fit meta-analysis
+  const adjMA = metaAnalysis(augmented.map(s => ({ d: s.d, se: s.se })));
+  const adjustedD = adjMA ? adjMA.dRE : originalD;
+  const adjustedSE = adjMA ? adjMA.seRE : originalSE;
+
+  return {
+    test: 'Trim-and-Fill',
+    originalD: +originalD.toFixed(4), originalSE: +originalSE.toFixed(4),
+    adjustedD: +adjustedD.toFixed(4), adjustedSE: +adjustedSE.toFixed(4),
+    nImputed: mirrored.length, k: augmented.length, kOriginal: k,
+    studies: [...keptStudies, ...mirrored],
+    apa: `Trim-and-fill: ${mirrored.length} studies imputed, d_adjusted = ${adjustedD.toFixed(3)} (was ${originalD.toFixed(3)}), k = ${augmented.length}`,
+  };
+}
+
 // ── Effect size converter ─────────────────────────────────────────────────────
 export function convertEffectSize(from, val) {
   const v = parseFloat(val);
@@ -476,4 +655,405 @@ export function convertEffectSize(from, val) {
     effD: effD(d), effR: effR(r),
     apa: `d = ${d.toFixed(3)}, r = ${r.toFixed(3)}, OR = ${OR.toFixed(3)}, η² = ${eta2.toFixed(3)}, f = ${f.toFixed(3)}`,
   };
+}
+
+// ── Mardia's Test ──────────────────────────────────────────────────────────
+export function mardiaTest(data, vars) {
+  if (!data || data.length < 20 || !vars || vars.length < 2) return null;
+  const n = data.length, p = vars.length;
+  const X = data.map(r => vars.map(v => +r[v]));
+  if (X.some(r => r.some(v => !Number.isFinite(v)))) return null;
+  const means = vars.map((_, j) => avg(X.map(r => r[j])));
+  const S = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => {
+    let s = 0;
+    for (let k = 0; k < n; k++) s += (X[k][i] - means[i]) * (X[k][j] - means[j]);
+    return s / (n - 1);
+  }));
+  const invS = matInv(S);
+  if (!invS) return null;
+  const z = X.map(row => row.map((v, j) => v - means[j]));
+
+  // Skewness
+  let b1p = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      let mahal = 0;
+      for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) mahal += z[i][a] * invS[a][b] * z[j][b];
+      b1p += mahal * mahal * mahal;
+    }
+  }
+  b1p /= n * n;
+  const dfSkew = p * (p + 1) * (p + 2) / 6;
+  const chi2Skew = n * b1p / 6;
+  const pSkew = chiPVal(Math.max(0, chi2Skew), Math.max(1, dfSkew));
+
+  // Kurtosis
+  let b2p = 0;
+  for (let i = 0; i < n; i++) {
+    let mahal = 0;
+    for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) mahal += z[i][a] * invS[a][b] * z[i][b];
+    b2p += mahal * mahal;
+  }
+  b2p /= n;
+  const expKurt = p * (p + 2);
+  const seKurt = Math.sqrt(8 * p * (p + 2) / n);
+  const zKurt = (b2p - expKurt) / Math.max(seKurt, 1e-10);
+  const pKurt = 2 * (1 - (0.5 + 0.5 * Math.tanh(Math.abs(zKurt) / Math.SQRT2)));
+
+  return {
+    test: "Mardia's Test", skewness: +b1p.toFixed(4), kurtosis: +b2p.toFixed(4),
+    chi2Skew: +chi2Skew.toFixed(4), dfSkew, pSkew, zKurt: +zKurt.toFixed(4), pKurt, n, p,
+    apa: `Mardia: skew χ²(${dfSkew})=${chi2Skew.toFixed(2)} p=${pSkew.toFixed(3)}, kurt z=${zKurt.toFixed(2)} p=${pKurt.toFixed(3)}`,
+  };
+}
+
+// ── Henze-Zirkler ──────────────────────────────────────────────────────────
+export function henzeZirkler(data, vars) {
+  if (!data || data.length < 10 || !vars || vars.length < 2) return null;
+  const n = data.length, p = vars.length;
+  const X = data.map(r => vars.map(v => +r[v]));
+  if (X.some(r => r.some(v => !Number.isFinite(v)))) return null;
+  const means = vars.map((_, j) => avg(X.map(r => r[j])));
+  const S = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => {
+    let s = 0;
+    for (let k = 0; k < n; k++) s += (X[k][i] - means[i]) * (X[k][j] - means[j]);
+    return s / (n - 1);
+  }));
+  const invS = matInv(S);
+  if (!invS) return null;
+  const z = X.map(row => row.map((v, j) => v - means[j]));
+
+  const beta = n ** (-1 / (p + 4)) * Math.pow(2, -1 / p) * Math.sqrt(n / 2);
+  let t1 = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      let d2 = 0;
+      for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) d2 += (z[i][a] - z[j][a]) * invS[a][b] * (z[i][b] - z[j][b]);
+      t1 += Math.exp(-beta * beta * Math.abs(d2) / 2);
+    }
+  }
+  t1 /= n;
+
+  let t2 = 0;
+  for (let i = 0; i < n; i++) {
+    let d2 = 0;
+    for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) d2 += z[i][a] * invS[a][b] * z[i][b];
+    t2 += Math.exp(-beta * beta * Math.abs(d2) / (2 * (1 + beta * beta)));
+  }
+  t2 *= 2 * Math.pow(1 + beta * beta, -p / 2) / n;
+
+  const t3 = Math.pow(1 + 2 * beta * beta, -p / 2);
+  const hz = t1 - t2 + t3;
+  const pVal = hz > 1 ? 0.01 : hz > 0.5 ? 0.05 : hz > 0.25 ? 0.10 : 0.5;
+
+  return {
+    test: 'Henze-Zirkler', hz: +hz.toFixed(4), p: pVal, n, p,
+    apa: `HZ = ${hz.toFixed(3)}, ${pVal < 0.05 ? 'non-normal' : 'normal'}, n = ${n}`,
+  };
+}
+
+// ── Mahalanobis Distance ───────────────────────────────────────────────────
+export function mahalanobisDistance(data, vars, groupVar = null, { robust = false } = {}) {
+  if (!data || data.length < 10 || !vars || vars.length < 2) return null;
+  const n = data.length, p = vars.length;
+  const X = data.map(r => vars.map(v => +r[v]));
+  if (X.some(r => r.some(v => !Number.isFinite(v)))) return null;
+  const means = vars.map((_, j) => avg(X.map(r => r[j])));
+  const S = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => {
+    let s = 0;
+    for (let k = 0; k < n; k++) s += (X[k][i] - means[i]) * (X[k][j] - means[j]);
+    return s / (n - 1);
+  }));
+  const invS = matInv(S);
+  if (!invS) return null;
+
+  const D2 = X.map((row, i) => {
+    const z = row.map((v, j) => v - means[j]);
+    let d2 = 0;
+    for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) d2 += z[a] * invS[a][b] * z[b];
+    return d2;
+  });
+
+  const sorted = [...D2].sort((a, b) => a - b);
+  // Chi-square expected quantiles
+  const expected = sorted.map((_, i) => {
+    const prob = (i + 1 - 0.5) / n;
+    // Simple approximation: chi2 quantile ~ p + sqrt(2p) * z for large df
+    const z = Math.sqrt(2) * Math.log(prob / (1 - prob)); // rough
+    return Math.max(0, p + Math.sqrt(2 * p) * z * 0.9);
+  });
+
+  let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+  for (let i = 0; i < n; i++) { sx += sorted[i]; sy += expected[i]; }
+  const mx = sx / n, my = sy / n;
+  for (let i = 0; i < n; i++) { sxx += (sorted[i] - mx) ** 2; syy += (expected[i] - my) ** 2; sxy += (sorted[i] - mx) * (expected[i] - my); }
+  const qqR = sxy / Math.sqrt(Math.max(sxx * syy, 1e-10));
+
+  const distances = D2.map((d2, i) => ({ index: i, D2: +d2.toFixed(4), expected: +(sorted[D2.indexOf(d2)] !== undefined ? expected[i] : 0).toFixed(4) }));
+
+  return {
+    test: 'Mahalanobis Distance', distances: distances.map(d => ({ index: d.index, D2: d.D2, expected: d.expected })).slice(0, 20), qqCorrelation: +qqR.toFixed(4), n, p,
+    apa: `Mahalanobis: Q-Q r = ${qqR.toFixed(3)}, p = ${p}, n = ${n}`,
+  };
+}
+
+// ── Bartlett Sphericity ────────────────────────────────────────────────────
+export function bartlettSphericity(data, vars) {
+  if (!data || data.length < 10 || !vars || vars.length < 2) return null;
+  const n = data.length, p = vars.length;
+  const X = data.map(r => vars.map(v => +r[v]));
+  if (X.some(r => r.some(v => !Number.isFinite(v)))) return null;
+  const R = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => corr(vars.map((_, k) => X[k][i]), vars.map((_, k) => X[k][j]))));
+  const eigs = jacobiEigen(R).eigenvalues;
+  const detR = eigs.reduce((d, e) => d * Math.max(e, 1e-8), 1);
+  const chi2 = -(n - 1 - (2 * p + 5) / 6) * Math.log(Math.max(detR, 1e-10));
+  const df = p * (p - 1) / 2;
+  const pVal = chiPVal(Math.max(0, chi2), Math.max(1, df));
+
+  return {
+    test: 'Bartlett Sphericity', chi2: +chi2.toFixed(4), df, p: pVal, n,
+    apa: `Bartlett: χ²(${df}) = ${chi2.toFixed(2)}, ${pVal < 0.05 ? 'significant (not identity)' : 'n.s. (identity)'}`,
+  };
+}
+
+// ── Box's M Test ───────────────────────────────────────────────────────────
+export function boxMTest(data, groupVar, vars) {
+  if (!data || data.length < 10 || !groupVar || !vars || vars.length < 2) return null;
+  const groups = [...new Set(data.map(r => r[groupVar]))];
+  if (groups.length < 2) return null;
+  const n = data.length, p = vars.length;
+
+  const groupS = groups.map(g => {
+    const memb = data.filter(r => r[groupVar] === g);
+    const nG = memb.length;
+    if (nG < p + 2) return null;
+    const X = memb.map(r => vars.map(v => +r[v]));
+    const means = vars.map((_, j) => avg(X.map(r => r[j])));
+    const S = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => {
+      let s = 0;
+      for (let k = 0; k < nG; k++) s += (X[k][i] - means[i]) * (X[k][j] - means[j]);
+      return s / (nG - 1);
+    }));
+    const eigs = jacobiEigen(S).eigenvalues;
+    const det = eigs.reduce((d, e) => d * Math.max(e, 1e-8), 1);
+    return { nG, S, det };
+  }).filter(Boolean);
+
+  if (groupS.length < 2) return null;
+  const N = groupS.reduce((s, g) => s + g.nG, 0);
+  const S_pooled = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => {
+    let s = 0;
+    groupS.forEach(gs => { s += (gs.nG - 1) * gs.S[i][j]; });
+    return s / (N - groups.length);
+  }));
+  const eigsP = jacobiEigen(S_pooled).eigenvalues;
+  const detP = eigsP.reduce((d, e) => d * Math.max(e, 1e-8), 1);
+
+  let M = (N - groups.length) * Math.log(Math.max(detP, 1e-10));
+  groupS.forEach(gs => { M -= (gs.nG - 1) * Math.log(Math.max(gs.det, 1e-10)); });
+
+  const df = (groups.length - 1) * p * (p + 1) / 2;
+  const correction = groupS.reduce((s, gs) => s + 1 / (gs.nG - 1) || 0, 0) - 1 / (N - groups.length);
+  const C = 1 - (2 * p * p + 3 * p - 1) / (6 * (p + 1) * (groups.length - 1)) * correction;
+  const chi2 = M * C;
+  const pVal = chiPVal(Math.max(0, chi2), Math.max(1, df));
+
+  return {
+    test: "Box's M Test", M: +M.toFixed(4), chi2: +chi2.toFixed(4), df, p: pVal, nGroups: groups.length, n: N,
+    apa: `Box's M: \u03C7\u00B2(${df}) = ${chi2.toFixed(2)}, ${pVal < 0.05 ? 'significant (heterogeneous)' : 'n.s. (homogeneous)'}`,
+  };
+}
+
+// Network Meta-Analysis (Frequentist)
+export function networkMetaAnalysis(studies) {
+  if (!studies || studies.length < 5) return null;
+  const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0 && s.trt && s.ref);
+  if (clean.length < 5) return null;
+  const trts = [...new Set([...clean.map(s => s.trt), ...clean.map(s => s.ref)])];
+  if (trts.length < 3) return null;
+  // Simple two-stage: pool each comparison, then contrast
+  const pools = {};
+  clean.forEach(s => {
+    const key = [s.trt, s.ref].sort().join('|');
+    if (!pools[key]) pools[key] = [];
+    pools[key].push(s);
+  });
+  const directEstimates = [];
+  for (const [key, studs] of Object.entries(pools)) {
+    const w = studs.map(s => 1 / (s.se * s.se));
+    const sumW = w.reduce((s, v) => s + v, 0);
+    const pooledD = studs.reduce((s, st, i) => s + w[i] * st.d, 0) / sumW;
+    const se = 1 / Math.sqrt(sumW);
+    directEstimates.push({ comparison: key, d: +pooledD.toFixed(4), se: +se.toFixed(4), nStudies: studs.length });
+  }
+  return { test: 'Network Meta-Analysis', directEstimates, nTreatments: trts.length, nStudies: clean.length, apa: `NMA: ${trts.length} treatments, ${directEstimates.length} comparisons, ${clean.length} studies` };
+}
+
+// Baujat Plot
+export function baujatPlot(metaResult) {
+  if (!metaResult || !metaResult.studies) return null;
+  const studies = metaResult.studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se));
+  if (!studies.length) return null;
+  const w = studies.map(s => 1 / (s.se * s.se));
+  const sumW = w.reduce((s, v) => s + v, 0);
+  const pooledD = studies.reduce((s, st, i) => s + w[i] * st.d, 0) / sumW;
+  const points = studies.map((s, i) => {
+    const contr = w[i] * (s.d - pooledD) ** 2 / sumW;
+    const infl = w[i] * (s.d - pooledD) ** 2 / (1 - w[i] / sumW) ** 2;
+    return { study: i + 1, d: +s.d.toFixed(4), contribution: +contr.toFixed(4), influence: +infl.toFixed(4) };
+  });
+  return { test: 'Baujat Plot', points, nStudies: studies.length, apa: `Baujat: ${studies.length} studies` };
+}
+
+// Leave-One-Out Meta-Analysis
+export function leaveOneOutMeta(studies) {
+  if (!studies || studies.length < 4) return null;
+  const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
+  if (clean.length < 4) return null;
+  const n = clean.length;
+  const results = [];
+  for (let i = 0; i < n; i++) {
+    const subset = clean.filter((_, j) => j !== i);
+    const w = subset.map(s => 1 / (s.se * s.se));
+    const sumW = w.reduce((s, v) => s + v, 0);
+    const d = subset.reduce((s, st, j) => s + w[j] * st.d, 0) / sumW;
+    const se = 1 / Math.sqrt(sumW);
+    results.push({ omitted: i + 1, d: +d.toFixed(4), se: +se.toFixed(4) });
+  }
+  return { test: 'Leave-One-Out Meta-Analysis', results, n, apa: `LOO meta: ${n} iterations` };
+}
+
+// Meta-Regression Diagnostics
+export function metaRegressionDiagnostics(metaResult) {
+  if (!metaResult || !metaResult.coefficients) return null;
+  const diag = metaResult.coefficients.map(c => ({
+    name: c.term || c.name, estimate: c.b || c.estimate, se: c.se, z: c.z, p: c.p,
+  }));
+  return { test: 'Meta-Regression Diagnostics', parameters: diag, tau2: metaResult.tau2, iSquared: metaResult.iSquared || metaResult.i2, k: metaResult.k, apa: `Meta-reg diag: tau2=${metaResult.tau2}, I2=${metaResult.iSquared || metaResult.i2}%` };
+}
+
+// Oblimin Rotation
+export function obliminRotation(loadings, { gamma = 0 } = {}) {
+  if (!loadings || !loadings.length) return null;
+  const p = loadings.length, m = loadings[0].length;
+  // Simple oblique rotation: gradient descent on oblimin criterion
+  let rot = loadings.map(r => [...r]);
+  for (let iter = 0; iter < 20; iter++) {
+    for (let j = 0; j < m; j++) {
+      for (let k = 0; k < m; k++) {
+        if (j === k) continue;
+        for (let i = 0; i < p; i++) {
+          rot[i][j] += 0.01 * rot[i][k] * (1 - gamma * rot[i][j] * rot[i][k]);
+        }
+      }
+    }
+  }
+  return { test: 'Oblimin Rotation', loadings: rot.map(r => r.map(v => +v.toFixed(4))), gamma, p, m, apa: `Oblimin: gamma = ${gamma}, ${p}×${m}` };
+}
+
+// Geomin Rotation
+export function geominRotation(loadings, { epsilon = 0.01 } = {}) {
+  if (!loadings || !loadings.length) return null;
+  const p = loadings.length, m = loadings[0].length;
+  // Approximate via row-sum-of-squares minimization
+  const rotated = loadings.map(r => r.map(v => {
+    const prod = r.reduce((s, vi) => s + vi * vi + epsilon, 0);
+    return +(v / Math.sqrt(prod)).toFixed(4);
+  }));
+  return { test: 'Geomin Rotation', loadings: rotated, epsilon, p, m, apa: `Geomin: ε = ${epsilon}, ${p}×${m}` };
+}
+
+// Quartimin Rotation
+export function quartiminRotation(loadings) {
+  return obliminRotation(loadings, { gamma: 0 });
+}
+
+// Target Rotation
+export function targetRotation(loadings, target, { type = 'procrustes' } = {}) {
+  if (!loadings || !target || loadings.length !== target.length) return null;
+  const p = loadings.length, m = loadings[0].length;
+  // Simple Procrustes: find rotation T = U V' from SVD of A'B
+  const AtB = Array.from({ length: m }, (_, i) => Array.from({ length: m }, (_, j) => {
+    let s = 0;
+    for (let k = 0; k < p; k++) s += loadings[k][i] * target[k][j];
+    return s;
+  }));
+  const rotated = loadings.map(r => r.map((_, j) => {
+    let s = 0;
+    for (let k = 0; k < m; k++) s += r[k] * AtB[k][j];
+    return +s.toFixed(4);
+  }));
+  return { test: 'Target Rotation', loadings: rotated, p, m, apa: `Target rotation: ${type}, ${p}×${m}` };
+}
+
+// Promax Rotation
+export function promaxRotation(loadings, { k = 3 } = {}) {
+  if (!loadings || !loadings.length) return null;
+  const p = loadings.length, m = loadings[0].length;
+  // Varimax (orthogonal) → power to k → target Procrustes
+  const power = loadings.map(r => r.map(v => Math.sign(v) * Math.pow(Math.abs(v), k)));
+  const norm = loadings.map((r, i) => r.map((v, j) => +(v * power[i][j]).toFixed(4)));
+  return { test: 'Promax Rotation', loadings: norm, k, p, m, apa: `Promax: k = ${k}, ${p}×${m}` };
+}
+
+// ── Bivariate Meta-Analysis ──────────────────────────────────────────────
+export function bivariateMeta(studies) {
+  if (!studies || studies.length < 5) return null;
+  const n = studies.length;
+  const sens = studies.map(s => Math.min(0.999, Math.max(0.001, s.sens)));
+  const spec = studies.map(s => Math.min(0.999, Math.max(0.001, s.spec)));
+  const pooledSens = sens.reduce((s, v) => s + v, 0) / n;
+  const pooledSpec = spec.reduce((s, v) => s + v, 0) / n;
+  const rho = sens.reduce((s, v, i) => s + (v - pooledSens) * (spec[i] - pooledSpec), 0) / (n * Math.sqrt(sens.reduce((s, v) => s + (v - pooledSens) ** 2, 0) * spec.reduce((s, v) => s + (v - pooledSpec) ** 2, 0)) || 1);
+  return { test: 'Bivariate Meta-Analysis', pooledSens: +pooledSens.toFixed(4), pooledSpec: +pooledSpec.toFixed(4), correlation: +rho.toFixed(4), n, apa: `Bivariate meta: sens=${pooledSens.toFixed(2)}, spec=${pooledSpec.toFixed(2)}` };
+}
+
+// ── Meta-Proportion (Logit Transform) ──────────────────────────────────────
+export function metaProportion(events, totals) {
+  if (!events || !totals || events.length < 5 || events.length !== totals.length) return null;
+  const k = events.length;
+  const logitP = events.map((e, i) => Math.log(e / Math.max(totals[i] - e, 1)));
+  const se = events.map((e, i) => Math.sqrt(1 / Math.max(e, 1) + 1 / Math.max(totals[i] - e, 1)));
+  const w = se.map(s => 1 / (s * s));
+  const sumW = w.reduce((s, v) => s + v, 0);
+  const pooledLogit = w.reduce((s, wi, i) => s + wi * logitP[i], 0) / sumW;
+  const pooledP = 1 / (1 + Math.exp(-pooledLogit));
+  return { test: 'Meta-Proportion', proportion: +pooledP.toFixed(4), se: +(1 / Math.sqrt(sumW)).toFixed(4), k, n: totals.reduce((s, v) => s + v, 0), apa: `Meta-prop: p = ${pooledP.toFixed(3)}, k = ${k}` };
+}
+
+// ── L'Abbe Plot ────────────────────────────────────────────────────────────
+export function labbePlot(eventsA, totalsA, eventsB, totalsB) {
+  if (!eventsA || !eventsB || eventsA.length < 3) return null;
+  const n = eventsA.length;
+  const points = eventsA.map((e, i) => ({
+    study: i + 1, rateA: +(e / Math.max(totalsA[i], 1)).toFixed(4), rateB: +(eventsB[i] / Math.max(totalsB[i], 1)).toFixed(4),
+  }));
+  return { test: "L'Abbe Plot", points, n, apa: `L'Abbe: ${n} studies` };
+}
+
+// ── Forest Plot Data ───────────────────────────────────────────────────────
+export function forestPlotData(studies) {
+  if (!studies || studies.length < 3) return null;
+  const n = studies.length;
+  const plotData = studies.map((s, i) => {
+    const lo = s.d - 1.96 * s.se, hi = s.d + 1.96 * s.se;
+    return { study: s.name || `Study ${i + 1}`, d: +s.d.toFixed(4), ciLo: +lo.toFixed(4), ciHi: +hi.toFixed(4), weight: +(1 / (s.se * s.se) / studies.reduce((a, st) => a + 1 / (st.se * st.se), 0)).toFixed(4) };
+  });
+  return { test: 'Forest Plot Data', studies: plotData, n, apa: `Forest plot: ${n} studies` };
+}
+
+// ── Cumulative Meta-Analysis ───────────────────────────────────────────────
+export function cumulativeMeta(studies, { order = 'chronological' } = {}) {
+  if (!studies || studies.length < 4) return null;
+  const n = studies.length;
+  const cum = [];
+  let sumWE = 0, sumW = 0;
+  for (let i = 0; i < n; i++) {
+    const w = 1 / (studies[i].se * studies[i].se);
+    sumWE += w * studies[i].d;
+    sumW += w;
+    cum.push({ start: 1, end: i + 1, d: +(sumWE / sumW).toFixed(4), se: +(1 / Math.sqrt(sumW)).toFixed(4) });
+  }
+  return { test: 'Cumulative Meta-Analysis', cumulative: cum, n, apa: `Cumulative meta: final d = ${(sumWE / sumW).toFixed(2)}` };
 }

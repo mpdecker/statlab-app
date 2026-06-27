@@ -1,0 +1,87 @@
+import { avg } from '../math/core.js';
+
+// Gini Coefficient
+export function giniCoefficient(data) {
+  if (!data || data.length < 5) return null;
+  const n = data.length;
+  const sorted = [...data].sort((a, b) => a - b);
+  let sumDif = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) sumDif += Math.abs(sorted[i] - sorted[j]);
+  }
+  const mean = avg(sorted);
+  const gini = mean > 0 ? sumDif / (2 * n * n * mean) : 0;
+  return { test: 'Gini Coefficient', gini: +gini.toFixed(4), n, apa: `Gini = ${gini.toFixed(3)}, n = ${n}` };
+}
+
+// Lorenz Curve
+export function lorenzCurve(data) {
+  if (!data || data.length < 5) return null;
+  const n = data.length;
+  const sorted = [...data].sort((a, b) => a - b);
+  const total = sorted.reduce((s, v) => s + v, 0);
+  if (!total) return null;
+  const points = [];
+  let cum = 0;
+  for (let i = 0; i < n; i++) {
+    cum += sorted[i];
+    points.push({ pct: +((i + 1) / n).toFixed(4), cumPct: +(cum / total).toFixed(4) });
+  }
+  return { test: 'Lorenz Curve', points, n, apa: `Lorenz: ${n} points, total = ${total.toFixed(2)}` };
+}
+
+// Theil Index (GE(1))
+export function theilIndex(data, { groupVals = null, groupSizes = null } = {}) {
+  if (!data || data.length < 5) return null;
+  const n = data.length;
+  const mean = avg(data);
+  if (!mean) return null;
+  let theil = 0;
+  for (const v of data) theil += v * Math.log(v / mean);
+  theil /= n;
+  if (groupVals && groupSizes) {
+    // Between-group component
+    let between = 0;
+    const totalSize = groupSizes.reduce((s, v) => s + v, 0);
+    for (let g = 0; g < groupVals.length; g++) {
+      if (groupVals[g] > 0) {
+        between += groupSizes[g] * (groupVals[g] / mean) * Math.log(groupVals[g] / mean);
+      }
+    }
+    between /= totalSize;
+    return { test: 'Theil Index', theil: +theil.toFixed(4), between, within: theil - between, n, apa: `Theil = ${theil.toFixed(3)}` };
+  }
+  return { test: 'Theil Index', theil: +theil.toFixed(4), n, apa: `Theil = ${theil.toFixed(3)}` };
+}
+
+// Atkinson Index
+export function atkinsonIndex(data, { epsilon = 1 } = {}) {
+  if (!data || data.length < 5) return null;
+  const n = data.length;
+  const mean = avg(data);
+  if (!mean) return null;
+  if (Math.abs(epsilon - 1) < 0.001) {
+    const prod = data.reduce((p, v) => p * Math.pow(v / mean, 1 / n), 1);
+    return { test: 'Atkinson Index', atkinson: +(1 - prod).toFixed(4), epsilon, n, apa: `Atkinson(1) = ${(1 - prod).toFixed(3)}` };
+  }
+  let sum = 0;
+  for (const v of data) sum += Math.pow(v / mean, 1 - epsilon);
+  const atk = 1 - Math.pow(sum / n, 1 / (1 - epsilon));
+  return { test: 'Atkinson Index', atkinson: +atk.toFixed(4), epsilon, n, apa: `Atkinson(${epsilon}) = ${atk.toFixed(3)}` };
+}
+
+// Concentration Index (health)
+export function concentrationIndex(health, rank) {
+  if (!health || !rank || health.length < 5 || health.length !== rank.length) return null;
+  const n = health.length;
+  const mu = avg(health);
+  if (!mu) return null;
+  const sorted = rank.map((r, i) => ({ r, h: health[i] })).sort((a, b) => a.r - b.r);
+  let num = 0;
+  for (let i = 0; i < n; i++) {
+    const ri = (i + 1) / n;
+    num += 2 * (sorted[i].h - mu) * (ri - 0.5);
+  }
+  const ci = num / (n * mu);
+  return { test: 'Concentration Index', ci: +ci.toFixed(4), n, apa: `CI = ${ci.toFixed(3)}, n = ${n}` };
+}

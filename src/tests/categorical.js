@@ -133,41 +133,7 @@ export function twoPropZ(x1, n1, x2, n2) {
   };
 }
 
-// ── Mann-Whitney U ────────────────────────────────────────────────────────────
-export function mannWhitney(a, b) {
-  if (a.length < 2 || b.length < 2) return null;
-  const na = a.length, nb = b.length;
-  let u1 = 0;
-  a.forEach(x => b.forEach(y => { if (x > y) u1++; else if (x === y) u1 += .5; }));
-  const u2 = na * nb - u1, u = Math.min(u1, u2);
-  const z = (u - na * nb / 2) / Math.sqrt(na * nb * (na + nb + 1) / 12);
-  const p = 2 * (1 - normalCDF(Math.abs(z)));
-  const rb = u1 / (na * nb), cd = 2 * rb - 1;
-  return {
-    test: "Mann-Whitney U", u: +u.toFixed(1), u1: +u1.toFixed(1), u2: +u2.toFixed(1),
-    z: +z.toFixed(4), p, rb: +rb.toFixed(4), cliffsDelta: +cd.toFixed(4), effR: effR(rb), na, nb,
-    apa: `U = ${u.toFixed(0)}, z = ${z.toFixed(2)}, ${fmtP(p)}, r = ${rb.toFixed(3)} [${effR(rb)}]`,
-  };
-}
-
-// ── Wilcoxon signed-rank ──────────────────────────────────────────────────────
-export function wilcoxonSR(a, b = null) {
-  const diffs = b ? a.map((v, i) => v - (b[i] ?? 0)) : a;
-  const nonzero = diffs.filter(d => d !== 0), n = nonzero.length;
-  if (n < 5) return null;
-  const absD = nonzero.map(Math.abs), r = rank(absD);
-  let wPlus = 0, wMinus = 0;
-  nonzero.forEach((d, i) => { if (d > 0) wPlus += r[i]; else wMinus += r[i]; });
-  const W = Math.min(wPlus, wMinus);
-  const muW = n * (n + 1) / 4, sigW = Math.sqrt(n * (n + 1) * (2 * n + 1) / 24);
-  const z = (W - muW) / sigW, p = 2 * (1 - normalCDF(Math.abs(z)));
-  const rEff = Math.abs(z) / Math.sqrt(n);
-  return {
-    test: "Wilcoxon Signed-Rank", W: +W.toFixed(1), wPlus: +wPlus.toFixed(1), wMinus: +wMinus.toFixed(1),
-    z: +z.toFixed(4), p, r: +rEff.toFixed(4), effR: effR(rEff), n,
-    apa: `W = ${W.toFixed(0)}, z = ${z.toFixed(2)}, ${fmtP(p)}, r = ${rEff.toFixed(3)} [${effR(rEff)}]`,
-  };
-}
+// ── Mann-Whitney U and Wilcoxon signed-rank moved to nonparametric.js ──────
 
 // ── TOST equivalence ──────────────────────────────────────────────────────────
 export function tost(a, b, dL, dU, alpha = .05) {
@@ -290,4 +256,221 @@ export function sensitivityLOO(vals, testFn) {
   const mp = avg(ps), sdp = Math.sqrt(ps.reduce((s, p) => s + (p - mp) ** 2, 0) / ps.length);
   const nSig = ps.filter(p => p < .05).length;
   return { n, nSig, propSig: +(nSig / n).toFixed(3), mean_p: +mp.toFixed(4), sd_p: +sdp.toFixed(4), stable: sdp < .1, ps };
+}
+
+// Cochran-Mantel-Haenszel
+export function cmhTest(tables) {
+  if (!tables || tables.length < 2) return null;
+  const formatted = tables.map(t => {
+    if (Array.isArray(t) && t.length === 4) return { a: +t[0], b: +t[1], c: +t[2], d: +t[3] };
+    if (Array.isArray(t) && t.length === 2 && Array.isArray(t[0])) return { a: +t[0][0], b: +t[0][1], c: +t[1][0], d: +t[1][1] };
+    if (typeof t === 'object' && 'a' in t) return { a: +t.a, b: +t.b, c: +t.c, d: +t.d };
+    return null;
+  });
+  if (formatted.some(t => !t || t.a < 0 || t.b < 0 || t.c < 0 || t.d < 0)) return null;
+  const k = formatted.length;
+  let num = 0, den = 0;
+  let sumA = 0, sumEA = 0, sumVA = 0;
+  const orContrib = [];
+  for (const t of formatted) {
+    const n = t.a + t.b + t.c + t.d;
+    if (n === 0) return null;
+    num += t.a * t.d / n;
+    den += t.b * t.c / n;
+    const EA = (t.a + t.b) * (t.a + t.c) / n;
+    const VA = (t.a + t.b) * (t.c + t.d) * (t.a + t.c) * (t.b + t.d) / (n * n * (n - 1));
+    sumA += t.a;
+    sumEA += EA;
+    sumVA += VA;
+    orContrib.push(+((t.a * t.d) / (t.b * t.c || 1)).toFixed(4));
+  }
+  if (!den) return null;
+  const or = num / den;
+  const orSE = Math.sqrt(or * or * (formatted.reduce((s, t) => {
+    const n = t.a + t.b + t.c + t.d;
+    return s + (1 / t.a + 1 / t.b + 1 / t.c + 1 / t.d) / n;
+  }, 0)));
+  const orCI = [or * Math.exp(-1.96 * orSE / or), or * Math.exp(1.96 * orSE / or)];
+  const chi2 = sumVA > 0 ? (Math.abs(sumA - sumEA) - 0.5) ** 2 / sumVA : 0;
+  const p = chiPVal(chi2, 1);
+  // Breslow-Day homogeneity
+  let chi2H = 0;
+  for (const t of formatted) {
+    const n = t.a + t.b + t.c + t.d;
+    let aHat = 0;
+    const f = (n - t.a - t.d) * or - t.a - t.d;
+    const disc = Math.sqrt(f * f + 4 * or * t.a * t.d);
+    aHat = (-f + disc) / (2 * or);
+    const vHat = 1 / (1 / Math.max(aHat, 0.1) + 1 / Math.max(t.a + t.b - aHat, 0.1) + 1 / Math.max(t.a + t.c - aHat, 0.1) + 1 / Math.max(n - t.a - t.b - t.c + aHat, 0.1));
+    chi2H += (t.a - aHat) ** 2 / Math.max(vHat, 0.1);
+  }
+  const dfH = k - 1;
+  const pHomog = chiPVal(chi2H, Math.max(1, dfH));
+  return {
+    test: "Cochran-Mantel-Haenszel",
+    or: +or.toFixed(4),
+    orCI: [+orCI[0].toFixed(4), +orCI[1].toFixed(4)],
+    chi2: +chi2.toFixed(4),
+    df: 1,
+    p,
+    chi2Homog: +chi2H.toFixed(4),
+    dfHomog: dfH,
+    pHomog,
+    k,
+    apa: `CMH OR = ${or.toFixed(2)}, 95% CI [${orCI[0].toFixed(2)}, ${orCI[1].toFixed(2)}], chi2(1) = ${chi2.toFixed(2)}, ${fmtP(p)}, k = ${k}`,
+  };
+}
+
+// Relative Risk
+export function relativeRisk(a, b, c, d) {
+  if (![a, b, c, d].every(v => Number.isFinite(v) && v >= 0)) return null;
+  if (a + b === 0 || c + d === 0) return null;
+  if (a === 0 || c === 0) return null;
+  const pExp = a / (a + b);
+  const pUnexp = c / (c + d);
+  const rr = pExp / pUnexp;
+  const seLog = Math.sqrt(1 / a - 1 / (a + b) + 1 / c - 1 / (c + d));
+  const rrCI = [Math.exp(Math.log(rr) - 1.96 * seLog), Math.exp(Math.log(rr) + 1.96 * seLog)];
+  const arr = pExp - pUnexp;
+  const nnt = arr !== 0 ? 1 / Math.abs(arr) : null;
+  const nntCI = nnt ? [1 / Math.abs(Math.max(arr - 1.96 * Math.sqrt(pExp * (1 - pExp) / (a + b) + pUnexp * (1 - pUnexp) / (c + d)), 1e-10)), 1 / Math.abs(Math.max(arr + 1.96 * Math.sqrt(pExp * (1 - pExp) / (a + b) + pUnexp * (1 - pUnexp) / (c + d)), 1e-10))] : null;
+  return {
+    test: 'Relative Risk',
+    rr: +rr.toFixed(4),
+    rrCI: [+rrCI[0].toFixed(4), +rrCI[1].toFixed(4)],
+    arr: +arr.toFixed(4),
+    nnt: nnt != null ? +nnt.toFixed(1) : null,
+    pExposed: +pExp.toFixed(4),
+    pUnexposed: +pUnexp.toFixed(4),
+    nTotal: a + b + c + d,
+    apa: `RR = ${rr.toFixed(2)}, 95% CI [${rrCI[0].toFixed(2)}, ${rrCI[1].toFixed(2)}], ARR = ${arr.toFixed(3)}${nnt ? `, NNT = ${nnt.toFixed(0)}` : ''}`,
+  };
+}
+
+// Cramer's V
+export function cramersV(chiSquared, n, k) {
+  if (!(chiSquared >= 0) || n <= 0) return null;
+  let df;
+  if (Array.isArray(k)) df = Math.min(k[0] - 1, k[1] - 1);
+  else df = +k;
+  if (!(df > 0)) return null;
+  const v = Math.sqrt(chiSquared / (n * df));
+  const label = v >= 0.5 ? 'large' : v >= 0.3 ? 'medium' : v >= 0.1 ? 'small' : 'negligible';
+  return {
+    test: "Cramer's V",
+    v: +v.toFixed(4),
+    df,
+    label,
+    n,
+    apa: `V = ${v.toFixed(3)} [${label}], df = ${df}, n = ${n}`,
+  };
+}
+
+// Kendall's W
+export function kendallW(data, vars) {
+  if (!data || data.length < 8 || !vars || vars.length < 2) return null;
+  const n = data.length, k = vars.length;
+  const ranks = vars.map(v => {
+    const col = data.map(r => +r[v]);
+    const sorted = [...col].sort((a, b) => a - b);
+    return col.map(val => sorted.indexOf(val) + 1);
+  });
+  const Rj = ranks.map(r => r.reduce((s, v) => s + v, 0));
+  const Rbar = Rj.reduce((s, v) => s + v, 0) / k;
+  let S = 0;
+  for (const rj of Rj) S += (rj - Rbar) ** 2;
+  const W = S / (k * k * (n * n * n - n) / 12);
+  const chi2 = k * (n - 1) * W;
+  const df = n - 1;
+  const p = chiPVal(Math.max(0, chi2), Math.max(1, df));
+  return {
+    test: "Kendall's W", W: +W.toFixed(4), chi2: +chi2.toFixed(4), df, p, n, k,
+    apa: `Kendall W = ${W.toFixed(3)}, χ²(${df}) = ${chi2.toFixed(2)}, ${p < 0.05 ? 'significant' : 'n.s.'}`,
+  };
+}
+
+// Dunn's Test
+export function dunnTest(groups, { alpha = 0.05 } = {}) {
+  if (!groups || groups.length < 2) return null;
+  const valid = groups.filter(g => g.vals && g.vals.length >= 3);
+  if (valid.length < 2) return null;
+  const allVals = valid.flatMap(g => g.vals);
+  const N = allVals.length;
+  const ranks = {};
+  [...allVals].sort((a, b) => a - b).forEach((v, i) => { ranks[v] = i + 1; });
+  const Rbar = valid.map(g => avg(g.vals.map(v => ranks[v])));
+  const k = valid.length;
+  const pairs = [];
+  for (let i = 0; i < k; i++) {
+    for (let j = i + 1; j < k; j++) {
+      const se = Math.sqrt(N * (N + 1) / 12 * (1 / valid[i].vals.length + 1 / valid[j].vals.length));
+      const z = Math.abs(Rbar[i] - Rbar[j]) / se;
+      const pRaw = 2 * (1 - normalCDF(z));
+      const p = Math.min(1, pRaw * k * (k - 1) / 2);
+      pairs.push({ g1: valid[i].name, g2: valid[j].name, z: +z.toFixed(4), p, sig: p < alpha });
+    }
+  }
+  return {
+    test: "Dunn's Test", pairs, alpha, k,
+    apa: `Dunn: ${pairs.filter(p => p.sig).length} of ${pairs.length} pairs significant at alpha = ${alpha}`,
+  };
+}
+
+// Nemenyi Test
+export function nemenyiTest(groups, { alpha = 0.05 } = {}) {
+  if (!groups || groups.length < 2) return null;
+  const valid = groups.filter(g => g.vals && g.vals.length >= 3);
+  if (valid.length < 2) return null;
+  const k = valid.length, n = valid[0].vals.length;
+  const Rbar = valid.map(g => avg(g.vals.map((v, j) => {
+    const ranks = valid.map(gg => gg.vals[j]);
+    const sorted = [...ranks].sort((a, b) => a - b);
+    return sorted.indexOf(v) + 1;
+  })));
+  const se = Math.sqrt(k * (k + 1) / (6 * n));
+  const qCrit = k <= 10 ? [0, 0, 2.772, 3.314, 3.633, 3.858, 4.030, 4.170, 4.286, 4.387, 4.474][k] || 4.5 : 4.5;
+  const pairs = [];
+  for (let i = 0; i < k; i++) {
+    for (let j = i + 1; j < k; j++) {
+      const q = Math.abs(Rbar[i] - Rbar[j]) / se;
+      pairs.push({ g1: valid[i].name, g2: valid[j].name, q: +q.toFixed(4), criticalQ: qCrit, sig: q > qCrit });
+    }
+  }
+  return {
+    test: 'Nemenyi Test', pairs, k, n, alpha,
+    apa: `Nemenyi: ${pairs.filter(p => p.sig).length} of ${pairs.length} pairs significant`,
+  };
+}
+
+// Cochran's Q Post-Hoc
+export function cochranQPost(data, vars, { alpha = 0.05 } = {}) {
+  if (!data || data.length < 3 || !vars || vars.length < 3) return null;
+  const k = vars.length, nSubjects = data.length;
+  const colSums = vars.map(v => data.reduce((s, r) => s + (+r[v] || 0), 0));
+  const pairs = [];
+  for (let i = 0; i < k; i++) {
+    for (let j = i + 1; j < k; j++) {
+      const diff = colSums[i] - colSums[j];
+      const b = vars.map((_, ri) => {
+        const xi = +data[ri]?.[vars[i]] || 0, xj = +data[ri]?.[vars[j]] || 0;
+        return xi - xj;
+      });
+      const se = sampleSDp(b) / Math.sqrt(nSubjects);
+      const q = Math.abs(diff / nSubjects) / Math.max(se, 1e-10);
+      const pRaw = 2 * (1 - normalCDF(q));
+      const nComp = k * (k - 1) / 2;
+      const p = Math.min(1, pRaw * nComp);
+      pairs.push({ g1: vars[i], g2: vars[j], q: +q.toFixed(4), p, sig: p < alpha });
+    }
+  }
+  return {
+    test: "Cochran's Q Post-Hoc", pairs, k, nSubjects, alpha,
+    apa: `CQ post-hoc: ${pairs.filter(p => p.sig).length} of ${pairs.length} pairs significant`,
+  };
+}
+
+function sampleSDp(arr) {
+  const n = arr.length;
+  const m = avg(arr);
+  return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (n - 1));
 }

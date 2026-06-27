@@ -1,4 +1,5 @@
 import { avg, sampleVar, corr, fmtP } from '../math/core.js';
+import { matInv, jacobiEigen } from '../math/matrix.js';
 
 function lcg(seed) {
   let s = seed >>> 0;
@@ -9,7 +10,7 @@ function dist2(a, b) {
   return a.reduce((s, v, i) => s + (v - b[i]) ** 2, 0);
 }
 
-function silhouetteScore(X, labels, k) {
+function _silhouette(X, labels, k) {
   const n = X.length;
   if (n < 3 || k < 2) return null;
   let total = 0;
@@ -80,7 +81,7 @@ export function kmeans(data, vars, k = 3, maxIter = 100, seed = 42) {
   }
 
   const wcss = X.reduce((s, x, i) => s + dist2(x, centroids[labels[i]]), 0);
-  const sil = silhouetteScore(X, labels, k);
+  const sil = _silhouette(X, labels, k);
 
   return {
     test: 'k-Means',
@@ -219,4 +220,385 @@ export function latentClassAnalysis(data, catVars, nClasses = 2) {
     n, catVars,
     apa: `LCA (${nClasses} classes): BIC = ${bic.toFixed(1)}, class sizes ${pi.map(p => (100 * p).toFixed(0) + '%').join(', ')}, N = ${n}`,
   };
+}
+
+// ── Silhouette Score (public export) ──────────────────────────────────────────
+export function silhouetteScore(data, vars, labels, k) {
+  const X = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
+  const sil = _silhouette(X, labels, k);
+  if (sil == null) return null;
+  return {
+    test: 'Silhouette Score',
+    silhouette: +sil.toFixed(4),
+    n: X.length, k,
+    apa: `Silhouette = ${sil.toFixed(3)}, k = ${k}, N = ${X.length}`,
+  };
+}
+
+// ── DBSCAN ────────────────────────────────────────────────────────────────────
+export function dbscan(data, vars, eps = 0.5, minPts = 5) {
+  const X = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
+  const n = X.length;
+  if (n < 3) return null;
+  const labels = Array(n).fill(-1);
+  const visited = Array(n).fill(false);
+  const corePoints = Array(n).fill(false);
+
+  // Find neighbors
+  const neighbors = Array.from({ length: n }, (_, i) => {
+    const nb = [];
+    for (let j = 0; j < n; j++) {
+      if (i !== j && Math.sqrt(dist2(X[i], X[j])) <= eps) nb.push(j);
+    }
+    return nb;
+  });
+
+  // Mark core points
+  for (let i = 0; i < n; i++) {
+    if (neighbors[i].length + 1 >= minPts) corePoints[i] = true;
+  }
+
+  let clusterId = 0;
+  for (let i = 0; i < n; i++) {
+    if (visited[i]) continue;
+    visited[i] = true;
+    if (!corePoints[i]) continue;
+    const seeds = [...neighbors[i]];
+    labels[i] = clusterId;
+    while (seeds.length) {
+      const q = seeds.shift();
+      if (visited[q]) continue;
+      visited[q] = true;
+      if (corePoints[q] && neighbors[q].length + 1 >= minPts) {
+        for (const nb of neighbors[q]) {
+          if (!visited[nb]) seeds.push(nb);
+        }
+      }
+      if (labels[q] === -1) labels[q] = clusterId;
+    }
+    clusterId++;
+  }
+
+  const noise = labels.filter(l => l === -1).length;
+  return {
+    test: 'DBSCAN',
+    labels,
+    corePoints,
+    nClusters: clusterId,
+    noise,
+    eps,
+    minPts,
+    n,
+    apa: `DBSCAN: ${clusterId} cluster(s), ${noise} noise, ε = ${eps}, minPts = ${minPts}, N = ${n}`,
+  };
+}
+
+// ── Gaussian Mixture Model ────────────────────────────────────────────────────
+export function gaussianMixture(data, vars, nComponents = 2, { maxIter = 100, tolerance = 1e-5, seed = 42 } = {}) {
+  const X = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
+  const n = X.length;
+  const p = vars.length;
+  if (n < nComponents * 3 || p < 1) return null;
+  const K = nComponents;
+
+  // Initialize with k-means-like seeding
+  const rng = lcg(seed);
+  const means = Array.from({ length: K }, () => {
+    const idx = Math.floor(rng() * n);
+    return X[idx].slice();
+  });
+  const covariances = Array.from({ length: K }, () =>
+    Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => i === j ? 1 : 0))
+  );
+  let weights = Array(K).fill(1 / K);
+
+  let respons = Array.from({ length: n }, () => Array(K).fill(0));
+  let logLik = -Infinity;
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    // E-step
+    let newLL = 0;
+    for (let i = 0; i < n; i++) {
+      for (let c = 0; c < K; c++) {
+        const eigs = jacobiEigen(covariances[c]).eigenvalues;
+        const detEst = Math.max(eigs.reduce((d, e) => d * Math.max(e, 1e-8), 1), 1e-10);
+        const invCov = matInv(covariances[c].map(r => [...r])) || covariances[c].map(r => r.map(v => v > 0 ? 1 / v : 1));
+        const diff = X[i].map((v, j) => v - means[c][j]);
+        let mahal = 0;
+        for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) mahal += diff[a] * invCov[a][b] * diff[b];
+        const logDensity = -0.5 * (p * Math.log(2 * Math.PI) + Math.log(detEst) + mahal);
+        respons[i][c] = Math.log(weights[c] + 1e-12) + logDensity;
+      }
+      const maxL = Math.max(...respons[i]);
+      let sum = 0;
+      for (let c = 0; c < K; c++) { respons[i][c] = Math.exp(respons[i][c] - maxL); sum += respons[i][c]; }
+      for (let c = 0; c < K; c++) respons[i][c] /= sum || 1;
+      newLL += Math.log(sum) + maxL;
+    }
+
+    // M-step
+    const nk = Array(K).fill(0);
+    for (let i = 0; i < n; i++) for (let c = 0; c < K; c++) nk[c] += respons[i][c];
+
+    const newMeans = Array.from({ length: K }, () => Array(p).fill(0));
+    for (let i = 0; i < n; i++) for (let c = 0; c < K; c++) for (let j = 0; j < p; j++) newMeans[c][j] += respons[i][c] * X[i][j];
+    for (let c = 0; c < K; c++) if (nk[c] > 1e-10) newMeans[c] = newMeans[c].map(v => v / nk[c]); else newMeans[c] = means[c].slice();
+
+    const newCovs = Array.from({ length: K }, () => Array.from({ length: p }, () => Array(p).fill(0)));
+    for (let i = 0; i < n; i++) {
+      for (let c = 0; c < K; c++) {
+        const diff = X[i].map((v, j) => v - newMeans[c][j]);
+        for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) newCovs[c][a][b] += respons[i][c] * diff[a] * diff[b];
+      }
+    }
+    for (let c = 0; c < K; c++) {
+      if (nk[c] > 1e-10) {
+        for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) newCovs[c][a][b] /= nk[c];
+        const tr = newCovs[c].reduce((s, r, kk) => s + r[kk], 0);
+        const reg = 1e-6 * Math.max(tr / p, 1e-6);
+        for (let d = 0; d < p; d++) newCovs[c][d][d] += reg;
+      } else {
+        newCovs[c] = covariances[c].map(r => [...r]);
+      }
+    }
+
+    const newWeights = nk.map(v => v / n);
+    const delta = means.reduce((s, m, c) => s + m.reduce((a, v, j) => a + (v - newMeans[c][j]) ** 2, 0), 0);
+    means.forEach((m, c) => { means[c] = newMeans[c].slice(); });
+    covariances.forEach((_, c) => { covariances[c] = newCovs[c].map(r => [...r]); });
+    weights = newWeights;
+
+    if (delta < tolerance && iter > 3) { logLik = newLL; break; }
+    logLik = newLL;
+  }
+
+  const nParams = K * p * (p + 1) / 2 + K * p + K - 1;
+  const bic = -2 * logLik + nParams * Math.log(n);
+  const aic = -2 * logLik + 2 * nParams;
+
+  const labels = respons.map(r => r.indexOf(Math.max(...r)));
+
+  return {
+    test: 'Gaussian Mixture Model',
+    nComponents: K,
+    weights: weights.map(w => +w.toFixed(4)),
+    means,
+    covariances: covariances.map(cov => cov.map(r => r.map(v => +v.toFixed(6)))),
+    labels,
+    logLikelihood: +logLik.toFixed(4),
+    bic: +bic.toFixed(2),
+    aic: +aic.toFixed(2),
+    n,
+    apa: `GMM (${K} components): BIC = ${bic.toFixed(1)}, weights: ${weights.map(w => (100 * w).toFixed(0) + '%').join(', ')}, N = ${n}`,
+  };
+}
+
+// ── Calinski-Harabasz Index ───────────────────────────────────────────────────
+export function calinskiHarabasz(data, vars, labels, k) {
+  const Xraw = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
+  const n = Xraw.length;
+  if (n < k + 2 || k < 2) return null;
+  const gm = Xraw[0].map((_, j) => avg(Xraw.map(r => r[j])));
+  let ssB = 0;
+  const clusterSizes = Array(k).fill(0);
+  for (const l of labels) clusterSizes[l]++;
+  for (let c = 0; c < k; c++) {
+    if (!clusterSizes[c]) continue;
+    const memb = Xraw.filter((_, i) => labels[i] === c);
+    const cm = memb[0].map((_, j) => avg(memb.map(r => r[j])));
+    const diff = cm.map((v, j) => v - gm[j]);
+    ssB += clusterSizes[c] * diff.reduce((s, v) => s + v * v, 0);
+  }
+  let ssW = 0;
+  for (let c = 0; c < k; c++) {
+    const memb = Xraw.filter((_, i) => labels[i] === c);
+    if (!memb.length) continue;
+    const cm = memb[0].map((_, j) => avg(memb.map(r => r[j])));
+    for (const x of memb) {
+      for (let j = 0; j < x.length; j++) ssW += (x[j] - cm[j]) ** 2;
+    }
+  }
+  if (ssW <= 0) return null;
+  const ch = (ssB / (k - 1)) / (ssW / (n - k));
+  return {
+    test: 'Calinski-Harabasz Index',
+    chIndex: +ch.toFixed(4),
+    ssBetween: +ssB.toFixed(4),
+    ssWithin: +ssW.toFixed(4),
+    k, n,
+    apa: `CH = ${ch.toFixed(2)}, k = ${k}, N = ${n}`,
+  };
+}
+
+// ── Davies-Bouldin Index ──────────────────────────────────────────────────────
+export function daviesBouldin(data, vars, labels, k) {
+  const Xraw = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
+  const n = Xraw.length;
+  if (n < k + 2 || k < 2) return null;
+  const centroids = Array.from({ length: k }, (_, c) => {
+    const memb = Xraw.filter((_, i) => labels[i] === c);
+    if (!memb.length) return null;
+    return memb[0].map((_, j) => avg(memb.map(r => r[j])));
+  });
+  if (centroids.some(c => !c)) return null;
+  const S = Array.from({ length: k }, (_, c) => {
+    const memb = Xraw.filter((_, i) => labels[i] === c);
+    if (!memb.length) return 0;
+    const cm = centroids[c];
+    let sum = 0;
+    for (const x of memb) {
+      let d = 0;
+      for (let j = 0; j < x.length; j++) d += (x[j] - cm[j]) ** 2;
+      sum += Math.sqrt(d);
+    }
+    return sum / memb.length;
+  });
+  let db = 0;
+  for (let i = 0; i < k; i++) {
+    let maxR = 0;
+    for (let j = 0; j < k; j++) {
+      if (i === j) continue;
+      const distij = Math.sqrt(centroids[i].reduce((s, v, q) => s + (v - centroids[j][q]) ** 2, 0));
+      if (distij <= 0) continue;
+      const R = (S[i] + S[j]) / distij;
+      if (R > maxR) maxR = R;
+    }
+    db += maxR;
+  }
+  db /= k;
+  return {
+    test: 'Davies-Bouldin Index',
+    dbIndex: +db.toFixed(4),
+    k, n,
+    apa: `DB = ${db.toFixed(3)}, k = ${k}, N = ${n}`,
+  };
+}
+
+// ── Optimal k ─────────────────────────────────────────────────────────────────
+export function optimalK(data, vars, maxK = 8, { method = 'silhouette', seed = 42 } = {}) {
+  const Xraw = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
+  const n = Xraw.length;
+  if (n < 5 || maxK < 2) return null;
+  const limit = Math.min(maxK, n - 1);
+  if (limit < 2) return null;
+  const curve = [];
+  for (let k = 2; k <= limit; k++) {
+    const km = kmeans(data, vars, k, 50, seed + k);
+    if (!km) continue;
+    let value;
+    if (method === 'silhouette') {
+      const sil = _silhouette(Xraw, km.labels, k);
+      value = sil != null ? sil : 0;
+    } else if (method === 'ch') {
+      const ch = calinskiHarabasz(data, vars, km.labels, k);
+      value = ch ? ch.chIndex : 0;
+    } else if (method === 'db') {
+      const db = daviesBouldin(data, vars, km.labels, k);
+      value = db ? db.dbIndex : Infinity;
+    } else {
+      return null;
+    }
+    curve.push({ k, value: +value.toFixed(4) });
+  }
+  if (!curve.length) return null;
+  const optimal = method === 'db'
+    ? curve.reduce((best, c) => c.value < best.value ? c : best, curve[0])
+    : curve.reduce((best, c) => c.value > best.value ? c : best, curve[0]);
+  return {
+    test: 'Optimal k',
+    optimalK: optimal.k,
+    curve,
+    method,
+    maxK: limit,
+    apa: `Optimal k = ${optimal.k} via ${method} (k=2..${limit}, N=${n})`,
+  };
+}
+
+// Affinity Matrix
+export function affinityMatrix(data, vars, { sigma = null } = {}) {
+  if (!data || data.length < 5 || !vars || vars.length < 2) return null;
+  const n = data.length;
+  const X = data.map(r => vars.map(v => +r[v]));
+  const dists = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => {
+    if (i === j) return 0;
+    let s = 0;
+    for (let k = 0; k < X[i].length; k++) s += (X[i][k] - X[j][k]) ** 2;
+    return Math.sqrt(s);
+  }));
+  const sig = sigma || avg(dists.flat().filter(v => v > 0)) || 1;
+  const A = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) =>
+    i === j ? 0 : +Math.exp(-dists[i][j] * dists[i][j] / (2 * sig * sig)).toFixed(4)
+  ));
+  return { test: 'Affinity Matrix', A: A.slice(0, 5).map(r => r.slice(0, 5)), sigma: +sig.toFixed(4), n, apa: `Affinity: n = ${n}, σ = ${sig.toFixed(2)}` };
+}
+
+// Normalized Laplacian
+export function normalizedLaplacian(A, { type = 'symmetric' } = {}) {
+  if (!A || !A.length || A.length < 2) return null;
+  const n = A.length;
+  const D = A.map(row => row.reduce((s, v) => s + v, 0));
+  const L = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => {
+    if (i === j) return D[i] || 1;
+    const denom = type === 'symmetric' ? Math.sqrt(Math.max(D[i] * D[j], 1)) : Math.max(D[i], 1);
+    return +(-A[i][j] / denom).toFixed(4);
+  }));
+  if (type === 'symmetric') for (let i = 0; i < n; i++) L[i][i] = 1;
+  else for (let i = 0; i < n; i++) L[i][i] = D[i] > 0 ? 1 : 1;
+  return { test: 'Normalized Laplacian', L: L.slice(0, 5).map(r => r.slice(0, 5)), type, n, apa: `Laplacian: ${type}, n = ${n}` };
+}
+
+// Spectral Embedding
+export function spectralEmbedding(A, nClusters = 2, { type = 'symmetric' } = {}) {
+  if (!A || !A.length || nClusters < 2 || nClusters >= A.length) return null;
+  const L = normalizedLaplacian(A, { type });
+  if (!L) return null;
+  const eigs = jacobiEigen(L.L);
+  const vals = eigs.eigenvalues.sort((a, b) => a - b);
+  const vecs = vals.slice(0, nClusters).map(v => {
+    const idx = eigs.eigenvalues.indexOf(v);
+    return eigs.eigenvectors[idx];
+  });
+  const embedding = A.map((_, i) => vecs.map(vec => +(vec[i] || 0).toFixed(4)));
+  return { test: 'Spectral Embedding', embedding: embedding.slice(0, 10), nClusters, n, apa: `Spectral embedding: ${nClusters} clusters` };
+}
+
+// Eigengap
+export function eigengap(values) {
+  if (!values || values.length < 2) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  let maxGap = 0, bestK = 2;
+  for (let i = 0; i < Math.min(sorted.length - 1, 9); i++) {
+    const gap = sorted[i + 1] - sorted[i];
+    if (gap > maxGap) { maxGap = gap; bestK = i + 2; }
+  }
+  return { test: 'Eigengap', bestK, maxGap: +maxGap.toFixed(4), nValues: sorted.length, apa: `Eigengap: best k = ${bestK}` };
+}
+
+// Spectral Clustering
+export function spectralClustering(data, vars, nClusters = 2, { type = 'symmetric', sigma = null } = {}) {
+  if (!data || !vars || data.length < 5) return null;
+  const A = affinityMatrix(data, vars, { sigma });
+  if (!A) return null;
+  const emb = spectralEmbedding(A.A || A, nClusters, { type });
+  if (!emb) return null;
+  const embed = emb.embedding;
+  // k-means on embedding
+  const k = nClusters, d = embed[0]?.length || 0;
+  const centroids = Array.from({ length: k }, (_, ki) => embed[Math.floor(Math.random() * embed.length)]);
+  let labels = Array(embed.length).fill(0);
+  for (let iter = 0; iter < 20; iter++) {
+    labels = embed.map(p => {
+      let best = 0, bestD = Infinity;
+      centroids.forEach((c, ci) => {
+        const dist = c.reduce((s, v, j) => s + (p[j] - v) ** 2, 0);
+        if (dist < bestD) { bestD = dist; best = ci; }
+      });
+      return best;
+    });
+    centroids.forEach((c, ci) => {
+      const memb = embed.filter((_, i) => labels[i] === ci);
+      if (memb.length) memb[0].forEach((_, j) => { c[j] = avg(memb.map(m => m[j])); });
+    });
+  }
+  return { test: 'Spectral Clustering', labels, nClusters: k, n, apa: `Spectral clustering: ${k} clusters, n = ${n}` };
 }

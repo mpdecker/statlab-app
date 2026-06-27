@@ -194,3 +194,141 @@ export function cochranQ(matrix) {
     apa: `Q(${k - 1}) = ${Q.toFixed(2)}, ${fmtP(p)}`,
   };
 }
+
+// ── Hedges' g ─────────────────────────────────────────────────────────────────
+export function hedgesG(a, b) {
+  if (!a || !b || a.length < 2 || b.length < 2) return null;
+  const na = a.length, nb = b.length;
+  if (na + nb < 5) return null;
+  const ma = avg(a), mb = avg(b);
+  const sa = sampleVar(a), sb = sampleVar(b);
+  const pool = Math.sqrt(((na - 1) * sa + (nb - 1) * sb) / (na + nb - 2));
+  if (!pool) return null;
+  const d = (ma - mb) / pool;
+  const g = d * (1 - 3 / (4 * (na + nb - 2) - 1));
+  const se = Math.sqrt((na + nb) / (na * nb) + g * g / (2 * (na + nb)));
+  const label = Math.abs(g) >= 0.8 ? 'large' : Math.abs(g) >= 0.5 ? 'medium' : Math.abs(g) >= 0.2 ? 'small' : 'negligible';
+  return {
+    test: "Hedges' g", g: +g.toFixed(4), d: +d.toFixed(4), se: +se.toFixed(4), label, n1: na, n2: nb,
+    apa: `g = ${g.toFixed(3)}, 95% CI [${(g - 1.96 * se).toFixed(3)}, ${(g + 1.96 * se).toFixed(3)}], n₁ = ${na}, n₂ = ${nb}`,
+  };
+}
+
+// ── Cohen's d ─────────────────────────────────────────────────────────────────
+export function cohensD(a, b) {
+  if (!a || !b || a.length < 2 || b.length < 2) return null;
+  const na = a.length, nb = b.length;
+  const ma = avg(a), mb = avg(b);
+  const sa = sampleVar(a), sb = sampleVar(b);
+  const pool = Math.sqrt(((na - 1) * sa + (nb - 1) * sb) / (na + nb - 2));
+  if (!pool) return null;
+  const d = (ma - mb) / pool;
+  const se = Math.sqrt((na + nb) / (na * nb) + d * d / (2 * (na + nb)));
+  const ciLo = d - 1.96 * se, ciHi = d + 1.96 * se;
+  const label = Math.abs(d) >= 0.8 ? 'large' : Math.abs(d) >= 0.5 ? 'medium' : Math.abs(d) >= 0.2 ? 'small' : 'negligible';
+  return {
+    test: "Cohen's d", d: +d.toFixed(4), se: +se.toFixed(4), ciLo: +ciLo.toFixed(4), ciHi: +ciHi.toFixed(4), label, n1: na, n2: nb,
+    apa: `d = ${d.toFixed(3)}, 95% CI [${ciLo.toFixed(3)}, ${ciHi.toFixed(3)}], n₁ = ${na}, n₂ = ${nb}`,
+  };
+}
+
+// ── Games-Howell post-hoc ─────────────────────────────────────────────────────
+export function gamesHowell(groups, alpha = 0.05) {
+  if (!groups || groups.length < 2) return null;
+  const valid = groups.filter(g => g.vals && g.vals.length >= 2);
+  if (valid.length < 2) return null;
+  const k = valid.length;
+  const means = valid.map(g => avg(g.vals));
+  const vars = valid.map(g => sampleVar(g.vals));
+  const ns = valid.map(g => g.vals.length);
+  const pairs = [];
+  for (let i = 0; i < k; i++) {
+    for (let j = i + 1; j < k; j++) {
+      const diff = means[i] - means[j];
+      const se = Math.sqrt(0.5 * (vars[i] / ns[i] + vars[j] / ns[j]));
+      if (!se) continue;
+      const q = Math.abs(diff) / se;
+      const num = (vars[i] / ns[i] + vars[j] / ns[j]) ** 2;
+      const den = (vars[i] / ns[i]) ** 2 / (ns[i] - 1) + (vars[j] / ns[j]) ** 2 / (ns[j] - 1);
+      const df = den > 0 ? num / den : ns[i] + ns[j] - 2;
+      const nComp = k * (k - 1) / 2;
+      const tVal = q / Math.SQRT2;
+      const pRaw = tPVal(tVal, df);
+      const p = Math.min(1, pRaw * nComp);
+      pairs.push({
+        g1: valid[i].name, g2: valid[j].name,
+        diff: +diff.toFixed(4), se: +se.toFixed(4), df: +df.toFixed(1), q: +q.toFixed(3),
+        p, sig: p < alpha,
+      });
+    }
+  }
+  return {
+    test: 'Games-Howell Post-Hoc',
+    pairs, alpha, k,
+    apa: `Games-Howell: ${pairs.filter(p => p.sig).length} of ${pairs.length} pairs significant at α = ${alpha}`,
+  };
+}
+
+// ── Dunnett's Test ────────────────────────────────────────────────────────────
+export function dunnettTest(groups, controlIndex = 0, alpha = 0.05) {
+  if (!groups || groups.length < 2) return null;
+  const valid = groups.filter(g => g.vals && g.vals.length >= 2);
+  if (valid.length < 2) return null;
+  if (controlIndex < 0 || controlIndex >= valid.length) return null;
+  const k = valid.length;
+  const allVals = valid.flatMap(g => g.vals);
+  const N = allVals.length;
+  const gMeans = valid.map(g => avg(g.vals));
+  const gNs = valid.map(g => g.vals.length);
+  const gm = avg(allVals);
+  const ssW = valid.reduce((s, g, i) => s + g.vals.reduce((a, v) => a + (v - gMeans[i]) ** 2, 0), 0);
+  const dfE = N - k;
+  if (dfE < 1) return null;
+  const mse = ssW / dfE;
+  const comparisons = [];
+  const ctrlMean = gMeans[controlIndex];
+  const ctrlN = gNs[controlIndex];
+  for (let i = 0; i < k; i++) {
+    if (i === controlIndex) continue;
+    const diff = gMeans[i] - ctrlMean;
+    const se = Math.sqrt(mse * (1 / gNs[i] + 1 / ctrlN));
+    if (!se) continue;
+    const t = diff / se;
+    const pRaw = tPVal(t, dfE);
+    const p = Math.min(1, pRaw * (k - 1));
+    comparisons.push({ name: valid[i].name, diff: +diff.toFixed(4), se: +se.toFixed(4), t: +t.toFixed(4), df: dfE, p, sig: p < alpha });
+  }
+  return {
+    test: "Dunnett's Test",
+    control: valid[controlIndex].name, comparisons, mse: +mse.toFixed(4), dfError: dfE, alpha,
+    apa: `Dunnett vs ${valid[controlIndex].name}: ${comparisons.filter(c => c.sig).length} of ${comparisons.length} significant, MSE = ${mse.toFixed(3)}, df = ${dfE}`,
+  };
+}
+
+// ── Partial Eta-Squared ───────────────────────────────────────────────────────
+export function eta2Partial(ssEffect, ssError) {
+  if (!(ssEffect >= 0) || !(ssError > 0)) return null;
+  const total = ssEffect + ssError;
+  if (!total) return null;
+  const eta2p = ssEffect / total;
+  const label = eta2p >= 0.14 ? 'large' : eta2p >= 0.06 ? 'medium' : eta2p >= 0.01 ? 'small' : 'negligible';
+  return {
+    test: 'Partial Eta-Squared',
+    eta2p: +eta2p.toFixed(4), label,
+    apa: `η²p = ${eta2p.toFixed(3)} [${label}]`,
+  };
+}
+
+// ── Partial Omega-Squared ─────────────────────────────────────────────────────
+export function omega2Partial(msEffect, msError, dfEffect, dfError, N) {
+  if (!(msEffect >= 0) || !(msError >= 0) || !(dfEffect > 0) || !(dfError > 0) || !(N > dfEffect)) return null;
+  const num = dfEffect * (msEffect - msError);
+  const den = dfEffect * msEffect + (N - dfEffect) * msError + msError;
+  if (den <= 0) return null;
+  const omega2p = num / den;
+  return {
+    test: 'Partial Omega-Squared',
+    omega2p: +omega2p.toFixed(4),
+    apa: `ω²p = ${omega2p.toFixed(3)}`,
+  };
+}

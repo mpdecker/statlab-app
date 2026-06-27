@@ -56,6 +56,108 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
   const [showPow, setShowPow] = useState(false);
   const [showResid, setShowResid] = useState(false);
   const [copyMsg, setCopyMsg] = useState('');
+  const [copyAllMsg, setCopyAllMsg] = useState('');
+  const [exportMsg, setExportMsg] = useState('');
+
+  function buildMarkdown(r, active) {
+    if (!r) return '';
+    const lines = [];
+    lines.push(`# StatLab — ${r.test || active}`);
+    lines.push(`_Generated ${new Date().toLocaleString()}_`);
+    lines.push('');
+    if (r.apa) {
+      lines.push('## APA 7 Citation');
+      lines.push('```');
+      lines.push(r.apa);
+      lines.push('```');
+      lines.push('');
+    }
+    const stats = [];
+    if (r.p   != null) stats.push(`p = ${r.p.toFixed(4)}`);
+    if (r.t   != null) stats.push(`t = ${r.t.toFixed(3)}`);
+    if (r.F   != null) stats.push(`F = ${r.F.toFixed(3)}`);
+    if (r.r   != null) stats.push(`r = ${r.r.toFixed(3)}`);
+    if (r.d   != null) stats.push(`d = ${r.d.toFixed(3)}`);
+    if (r.eta2 != null) stats.push(`η² = ${r.eta2.toFixed(3)}`);
+    if (r.R2  != null) stats.push(`R² = ${r.R2.toFixed(3)}`);
+    if (r.bf  != null) stats.push(`BF₁₀ = ${r.bf.toFixed(2)}`);
+    if (stats.length) {
+      lines.push('## Key Statistics');
+      lines.push(stats.join('  |  '));
+      lines.push('');
+    }
+    if (r.coeffs?.length) {
+      lines.push('## Coefficients');
+      lines.push('| Predictor | b | SE | t | p |');
+      lines.push('|---|---|---|---|---|');
+      r.coeffs.forEach(c => lines.push(`| ${c.name} | ${c.b ?? '—'} | ${c.se ?? '—'} | ${c.t ?? '—'} | ${c.p != null ? c.p.toFixed(4) : '—'} |`));
+      lines.push('');
+    }
+    const note = methodNoteForTest(active, r);
+    if (note) {
+      lines.push('## Method Note');
+      if (typeof note === 'string') {
+        lines.push(`> ${note}`);
+      } else {
+        lines.push(`> ${note.description}`);
+        if (note.assumptions) {
+          lines.push('> ');
+          lines.push('> **Assumptions:**');
+          note.assumptions.forEach(a => lines.push(`> - ${a}`));
+        }
+        if (note.cite) {
+          lines.push('> ');
+          lines.push(`> *${note.cite}*`);
+        }
+      }
+      lines.push('');
+    }
+    lines.push('---');
+    lines.push('_Results produced by [StatLab](https://statlab.vercel.app). Confirm with reference software before publication._');
+    return lines.join('\n');
+  }
+
+  function buildAPAAll(r) {
+    const lines = [];
+    lines.push(`StatLab — ${r.test || active}`);
+    lines.push(`Generated ${new Date().toLocaleString()}`);
+    lines.push('');
+    if (r.apa) {
+      lines.push(r.apa);
+      lines.push('');
+    }
+    if (r.note) {
+      lines.push(`Note: ${r.note}`);
+      lines.push('');
+    }
+    lines.push(`Results produced by StatLab (https://statlab.vercel.app). Confirm with reference software before publication.`);
+    return lines.join('\n');
+  }
+
+  function handleCopyAll() {
+    const text = buildAPAAll(r);
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopyAllMsg('copied!');
+      setTimeout(() => setCopyAllMsg(''), 1500);
+    }).catch(() => {});
+  }
+
+  function handleExportMd() {
+    const md = buildMarkdown(r, active);
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `statlab-${active}-${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setExportMsg('exported!');
+    setTimeout(() => setExportMsg(''), 1500);
+  }
+
+  function handlePrint() {
+    window.print();
+  }
 
   if (!r) {
     if (['bootstrap', 'med_bootstrap'].includes(active)) return null;
@@ -82,7 +184,7 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
   })();
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div id="statlab-results" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
 
       {/* APA */}
       <APABlock
@@ -100,7 +202,12 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
       {(r.approximate || r.sw?.approximate || methodNoteForTest(active, r)) && (
         <div style={{ fontSize: 9, color: C.accent, ...mono, padding: '4px 8px', background: 'rgba(96,165,250,.06)', borderRadius: 3, border: `1px solid ${C.border}` }}>
           {r.approximate || r.sw?.approximate ? 'Approximate method. ' : ''}
-          {methodNoteForTest(active, r) || (r.sw?.approximate ? 'Shapiro–Wilk p-value is approximate for small n.' : '')}
+          {(() => {
+            const note = methodNoteForTest(active, r);
+            if (!note) return r.sw?.approximate ? 'Shapiro–Wilk p-value is approximate for small n.' : '';
+            if (typeof note === 'string') return note;
+            return note.description;
+          })()}
         </div>
       )}
 
@@ -756,6 +863,49 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         <SectionHead label="Forest plot (95% CI)" />
         <ForestPlot items={forestItems} />
       </>}
+
+      {/* ── Export bar ── */}
+      <div
+        id="statlab-export-bar"
+        style={{
+          display: 'flex', gap: 6, alignItems: 'center', paddingTop: 8,
+          borderTop: `1px solid ${C.border}`, marginTop: 4, flexWrap: 'wrap',
+        }}
+      >
+        <span style={{ fontSize: 8, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.08em', flex: 1 }}>export</span>
+        <button
+          onClick={handleCopyAll}
+          title="Copy all results as APA 7 formatted text"
+          style={{
+            background: 'transparent', border: `1px solid ${C.border}`, color: copyAllMsg ? C.ok : C.warn,
+            borderRadius: 3, cursor: 'pointer', fontSize: 9, padding: '3px 10px', ...mono,
+            transition: 'color .15s',
+          }}
+        >
+          {copyAllMsg || '≡ copy all'}
+        </button>
+        <button
+          onClick={handleExportMd}
+          title="Download results as a Markdown file"
+          style={{
+            background: 'transparent', border: `1px solid ${C.border}`, color: exportMsg ? C.ok : C.accent,
+            borderRadius: 3, cursor: 'pointer', fontSize: 9, padding: '3px 10px', ...mono,
+            transition: 'color .15s',
+          }}
+        >
+          {exportMsg || '↓ markdown'}
+        </button>
+        <button
+          onClick={handlePrint}
+          title="Print or save as PDF via browser print dialog"
+          style={{
+            background: 'transparent', border: `1px solid ${C.border}`, color: C.dim,
+            borderRadius: 3, cursor: 'pointer', fontSize: 9, padding: '3px 10px', ...mono,
+          }}
+        >
+          ⎙ print / pdf
+        </button>
+      </div>
     </div>
   );
 }

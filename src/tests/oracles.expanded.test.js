@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { oneWayANOVA, welchANOVA } from './anova.js';
-import { mannWhitney, binomialTest, twoPropZ } from './categorical.js';
+import { mannWhitney } from './nonparametric.js';
+import { binomialTest, twoPropZ } from './categorical.js';
 import { mediation } from './regression.js';
 import { metaAnalysis } from './multivariate.js';
 import { mkGroups, GROUP_A, GROUP_B, mkTabular } from './fixtures/core.js';

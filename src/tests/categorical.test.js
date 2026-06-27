@@ -2,10 +2,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   chiSquare, chiGoF, fisherExact, mcnemar, binomialTest, onePropZ, twoPropZ,
-  mannWhitney, wilcoxonSR, tost, bayesFactorT, bayesFactorCorr,
+  tost, bayesFactorT, bayesFactorCorr,
   grubbsTest, leveneTest, bartlettTest, bonferroni, holm, bh, sensitivityLOO,
+  cmhTest, relativeRisk, cramersV,
+  kendallW, dunnTest, nemenyiTest, cochranQPost,
 } from './categorical.js';
+import { mannWhitney, wilcoxonSR } from './nonparametric.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
+import { expectKeys } from './__fixtures__/helpers.js';
 
 const cat = ref.categorical;
 
@@ -377,5 +381,129 @@ describe('sensitivityLOO', () => {
     expect(res).toHaveProperty('nSig');
     expect(res).toHaveProperty('propSig');
     expect(res).toHaveProperty('stable');
+  });
+});
+
+// CMH Test
+describe('cmhTest', () => {
+  const tables = [
+    [10, 20, 5, 30],
+    [15, 18, 8, 25],
+    [12, 22, 6, 28],
+  ];
+
+  it('returns null for <2 tables', () => {
+    expect(cmhTest(null)).toBeNull();
+    expect(cmhTest([tables[0]])).toBeNull();
+  });
+
+  it('returns OR and chi2', () => {
+    const r = cmhTest(tables);
+    expect(r.or).toBeGreaterThan(0);
+    expect(r.chi2).toBeGreaterThanOrEqual(0);
+    expect(r.p).toBeGreaterThanOrEqual(0);
+    expect(r.k).toBe(3);
+  });
+
+  it('contract keys', () => {
+    expectKeys(cmhTest(tables), ['test', 'or', 'orCI', 'chi2', 'df', 'p', 'chi2Homog', 'dfHomog', 'pHomog', 'k', 'apa']);
+  });
+
+  it('homogeneity p in [0,1]', () => {
+    const r = cmhTest(tables);
+    expect(r.pHomog).toBeGreaterThanOrEqual(0);
+    expect(r.pHomog).toBeLessThanOrEqual(1);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = cmhTest(tables);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// Relative Risk
+describe('relativeRisk', () => {
+  it('returns null for zero cells', () => {
+    expect(relativeRisk(0, 10, 20, 30)).toBeNull();
+    expect(relativeRisk(10, 20, 0, 30)).toBeNull();
+  });
+
+  it('returns RR > 1 for increased risk', () => {
+    const r = relativeRisk(40, 60, 20, 80);
+    expect(r.rr).toBeGreaterThan(1);
+  });
+
+  it('RR CI encloses RR', () => {
+    const r = relativeRisk(30, 70, 20, 80);
+    expect(r.rrCI[0]).toBeLessThanOrEqual(r.rr);
+    expect(r.rrCI[1]).toBeGreaterThanOrEqual(r.rr);
+  });
+
+  it('contract keys', () => {
+    expectKeys(relativeRisk(30, 70, 20, 80), ['test', 'rr', 'rrCI', 'arr', 'nnt', 'pExposed', 'pUnexposed', 'nTotal', 'apa']);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = relativeRisk(30, 70, 20, 80);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// Cramer's V
+describe('cramersV', () => {
+  it('returns null for invalid', () => expect(cramersV(-1, 10, 2)).toBeNull());
+  it('V in [0,1]', () => { const r = cramersV(12.5, 50, 3); expect(r.v).toBeGreaterThanOrEqual(0); expect(r.v).toBeLessThanOrEqual(1); });
+  it('label matches thresholds', () => { expect(cramersV(0.5, 100, 3).label).toBe('negligible'); expect(cramersV(5, 100, 3).label).toBe('small'); expect(cramersV(30, 100, 3).label).toBe('medium'); expect(cramersV(80, 100, 3).label).toBe('large'); });
+  it('contract keys', () => expectKeys(cramersV(12.5, 50, 3), ['test', 'v', 'df', 'label', 'n', 'apa']));
+  it('apa non-empty', () => { const r = cramersV(12.5, 50, 3); expect(typeof r.apa).toBe('string'); expect(r.apa.length).toBeGreaterThan(0); });
+});
+
+describe('kendallW', () => {
+  const d = []; for (let i = 0; i < 10; i++) d.push({ v1: i % 4, v2: (i + 1) % 4, v3: (i + 2) % 4 });
+  it('null <8', () => expect(kendallW(d.slice(0, 4), ['v1', 'v2'])).toBeNull());
+  it('contract keys', () => expectKeys(kendallW(d, ['v1', 'v2', 'v3']), ['test', 'W', 'chi2', 'df', 'p', 'n', 'k', 'apa']));
+  it('W in [0,1]', () => { const r = kendallW(d, ['v1', 'v2', 'v3']); expect(r.W).toBeGreaterThanOrEqual(0); expect(r.W).toBeLessThanOrEqual(1); });
+});
+
+describe('dunnTest', () => {
+  const g = [{ name: 'A', vals: [1, 2, 3, 4] }, { name: 'B', vals: [5, 6, 7, 8] }, { name: 'C', vals: [9, 10, 11, 12] }];
+  it('null <2', () => expect(dunnTest([g[0]])).toBeNull());
+  it('contract keys', () => expectKeys(dunnTest(g), ['test', 'pairs', 'alpha', 'k', 'apa']));
+});
+
+describe('nemenyiTest', () => {
+  const g = [{ name: 'A', vals: [1, 2, 3] }, { name: 'B', vals: [2, 3, 4] }, { name: 'C', vals: [3, 4, 5] }];
+  it('null <2', () => expect(nemenyiTest([g[0]])).toBeNull());
+  it('contract keys', () => expectKeys(nemenyiTest(g), ['test', 'pairs', 'k', 'n', 'alpha', 'apa']));
+});
+
+describe('cochranQPost', () => {
+  const d = []; for (let i = 0; i < 10; i++) d.push({ v1: i % 2, v2: (i + 1) % 2, v3: i % 2 });
+  it('contract keys', () => expectKeys(cochranQPost(d, ['v1', 'v2', 'v3']), ['test', 'pairs', 'k', 'nSubjects', 'alpha', 'apa']));
+});
+
+  it('V in [0,1]', () => {
+    const r = cramersV(12.5, 50, 3);
+    expect(r.v).toBeGreaterThanOrEqual(0);
+    expect(r.v).toBeLessThanOrEqual(1);
+  });
+
+  it('label matches thresholds', () => {
+    expect(cramersV(0.5, 100, 3).label).toBe('negligible');
+    expect(cramersV(5, 100, 3).label).toBe('small');
+    expect(cramersV(30, 100, 3).label).toBe('medium');
+    expect(cramersV(80, 100, 3).label).toBe('large');
+  });
+
+  it('contract keys', () => {
+    expectKeys(cramersV(12.5, 50, 3), ['test', 'v', 'df', 'label', 'n', 'apa']);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = cramersV(12.5, 50, 3);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
   });
 });

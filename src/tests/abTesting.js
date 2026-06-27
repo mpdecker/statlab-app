@@ -1,0 +1,64 @@
+import { avg, sampleVar } from '../math/core.js';
+import { normalCDF, normalINV, chiPVal } from '../math/distributions.js';
+
+// Sample Ratio Mismatch
+export function sampleRatioMismatch(control, treatment, expectedRatio) {
+  if (!control || !treatment || !control.length || !treatment.length) return null;
+  const nC = control.length, nT = treatment.length;
+  const nTotal = nC + nT;
+  const expC = nTotal * expectedRatio, expT = nTotal * (1 - expectedRatio);
+  const chi2 = (nC - expC) ** 2 / expC + (nT - expT) ** 2 / expT;
+  const p = chiPVal(Math.max(0, chi2), 1);
+  return { test: 'Sample Ratio Mismatch', chi2: +chi2.toFixed(4), p, observed: { control: nC, treatment: nT }, expected: { control: +expC.toFixed(1), treatment: +expT.toFixed(1) }, nTotal, apa: `SRM: χ² = ${chi2.toFixed(2)}, ${p < 0.01 ? 'significant mismatch' : 'no mismatch'}` };
+}
+
+// Sequential Testing
+export function sequentialTest(control, treatment, { alpha = 0.05, spending = 'obrienFleming' } = {}) {
+  if (!control || !treatment || control.length < 5 || treatment.length < 5) return null;
+  const n = Math.min(control.length, treatment.length);
+  const zScores = [];
+  let cumDiff = 0;
+  const pooled = sampleVar([...control, ...treatment]) || 1;
+  for (let i = 0; i < n; i++) {
+    cumDiff += treatment[i] - control[i];
+    const se = Math.sqrt(2 * pooled / (i + 1));
+    const z = se > 0 ? cumDiff / (n * se) : 0;
+    zScores.push(+z.toFixed(4));
+  }
+  return { test: 'Sequential Test', zScores, n, alpha, apa: `Sequential: max z = ${Math.max(...zScores.map(Math.abs)).toFixed(2)}` };
+}
+
+// Unequal Allocation T-test
+export function unequalAllocationT(control, treatment, ratio) {
+  if (!control || !treatment || control.length < 5 || treatment.length < 5) return null;
+  const nC = control.length, nT = treatment.length;
+  const mC = avg(control), mT = avg(treatment);
+  const vC = sampleVar(control), vT = sampleVar(treatment);
+  const se = Math.sqrt(vC / nC + vT / nT);
+  if (!se) return null;
+  const t = (mT - mC) / se;
+  const dfNum = (vC / nC + vT / nT) ** 2;
+  const dfDen = (vC / nC) ** 2 / (nC - 1) + (vT / nT) ** 2 / (nT - 1);
+  const df = dfDen > 0 ? dfNum / dfDen : nC + nT - 2;
+  const p = 2 * (1 - normalCDF(Math.abs(t)));
+  return { test: 'Unequal Allocation T', t: +t.toFixed(4), df: +df.toFixed(1), p, ratio, nControl: nC, nTreatment: nT, apa: `Unequal t = ${t.toFixed(2)}, p = ${p.toFixed(4)}` };
+}
+
+// Minimum Detectable Effect
+export function minimumDetectableEffect(n, alpha = 0.05, beta = 0.2, baseline = 0.5) {
+  if (!n || n < 2 || baseline <= 0 || baseline >= 1) return null;
+  const za = normalINV(1 - alpha / 2);
+  const zb = normalINV(1 - beta);
+  const se = Math.sqrt(2 * baseline * (1 - baseline) / n);
+  const mde = se * (za + zb);
+  return { test: 'Minimum Detectable Effect', mde: +mde.toFixed(4), n, alpha: +alpha.toFixed(2), beta: +beta.toFixed(2), baseline: +baseline.toFixed(4), apa: `MDE = ${mde.toFixed(3)} at n = ${n}` };
+}
+
+// Required Sample Size
+export function requiredSampleSize(baseline, mde, alpha = 0.05, beta = 0.2) {
+  if (!baseline || baseline <= 0 || baseline >= 1 || !mde || mde <= 0) return null;
+  const za = normalINV(1 - alpha / 2);
+  const zb = normalINV(1 - beta);
+  const n = 2 * (za + zb) ** 2 * baseline * (1 - baseline) / (mde * mde);
+  return { test: 'Required Sample Size', n: Math.ceil(n), baseline: +baseline.toFixed(4), mde: +mde.toFixed(4), alpha: +alpha.toFixed(2), beta: +beta.toFixed(2), apa: `n = ${Math.ceil(n)} per group (MDE = ${mde}, baseline = ${baseline})` };
+}

@@ -1,9 +1,11 @@
+// @vitest-environment happy-dom
 import { describe, test, expect } from 'vitest';
 import {
   fitOLS, getChartInsight, resolveQuickViewVars, barGroupsFromResult,
   loadingFromResult, formatInferenceSummary, exploreChartLabel, CHART_MODE_LABELS,
   explorePanelChartFromMode, normalizeExplorePanelChart, resolveExplorePanelChart,
   EXPLORE_PANEL_DEFAULT_CHART, EXPLORE_PANEL_CHART_FOR_MODE,
+  exportSvgFromCanvas, exportCanvasAsPng,
 } from './vizHelpers.js';
 
 describe('vizHelpers', () => {
@@ -147,5 +149,117 @@ describe('vizHelpers', () => {
 
   test('formatInferenceSummary LDA', () => {
     expect(formatInferenceSummary({ test: 'LDA', accuracyTrain: 88 }, 'lda')).toContain('88');
+  });
+
+  test('resolveQuickViewVars uses inference XY for pearson', () => {
+    const r = resolveQuickViewVars('pearson', { xVar: 'a', yVar: 'b' }, {
+      xVar: 'weight', yVar: 'height', grpVar: '',
+    });
+    expect(r.usingInference).toBe(true);
+    expect(r.xVar).toBe('weight');
+    expect(r.yVar).toBe('height');
+  });
+
+  test('resolveQuickViewVars handles XY with empty groupVar fallback', () => {
+    const r = resolveQuickViewVars('ols_simple', { xVar: 'a', yVar: 'b' }, {
+      xVar: 'x1', yVar: 'x2',
+    });
+    expect(r.xVar).toBe('x1');
+  });
+
+  test('resolveQuickViewVars uses CATS for chisq', () => {
+    const r = resolveQuickViewVars('chisq', {}, { cat1: 'gender', cat2: 'outcome' });
+    expect(r.usingInference).toBe(true);
+    expect(r.xVar).toBe('gender');
+    expect(r.yVar).toBe('outcome');
+  });
+
+  test('resolveQuickViewVars CATS with missing cat2 falls back to cat1', () => {
+    const r = resolveQuickViewVars('fisher', {}, { cat1: 'group' });
+    expect(r.yVar).toBe('group');
+  });
+
+  test('barGroupsFromResult returns empty for missing groupVar', () => {
+    const groups = barGroupsFromResult(null, 'anova', [], null, 'y');
+    expect(groups).toEqual([]);
+  });
+
+  test('loadingFromResult returns null for unrelated test', () => {
+    expect(loadingFromResult({ someOther: true }, 't_welch')).toBeNull();
+  });
+
+  test('formatInferenceSummary canonical correlation', () => {
+    const s = formatInferenceSummary({ test: 'Canonical Correlation', correlations: [0.8], pCanon: 0.01 }, 'cancorr');
+    expect(s).toContain('\u03c1c');
+  });
+
+  test('formatInferenceSummary returns null for unrecognized', () => {
+    expect(formatInferenceSummary({ test: 'Unknown' }, 'unknown')).toBeNull();
+  });
+
+  test('formatInferenceSummary returns null for null result', () => {
+    expect(formatInferenceSummary(null, 't_welch')).toBeNull();
+  });
+
+  test('getChartInsight Bar+CI with groupVar', () => {
+    const data = Array.from({ length: 12 }, (_, i) => ({ g: i % 3 === 0 ? 'A' : 'B', val: i }));
+    const msg = getChartInsight('Bar+CI', { data, groupVar: 'g', yVar: 'val' });
+    expect(msg).toContain('groups');
+  });
+
+  test('getChartInsight PCA biplot with numVars', () => {
+    const data = Array.from({ length: 10 }, (_, i) => ({ v1: i, v2: i * 2, v3: i * 3 }));
+    const msg = getChartInsight('PCA biplot', { data, numVars: ['v1', 'v2', 'v3'] });
+    expect(msg).toContain('PC1');
+  });
+
+  test('getChartInsight Mosaic with x/y vars', () => {
+    const data = Array.from({ length: 5 }, (_, i) => ({ a: 'X', b: 'Y' }));
+    const msg = getChartInsight('Mosaic', { data, xVar: 'a', yVar: 'b' });
+    expect(msg).toContain('proportional');
+  });
+
+  test('getChartInsight fallback for unknown chart', () => {
+    const data = Array.from({ length: 7 }, (_, i) => ({ x: i }));
+    const msg = getChartInsight('UnknownChart', { data });
+    expect(msg).toContain('n = 7');
+  });
+
+  test('getChartInsight returns null for empty data', () => {
+    expect(getChartInsight('Scatter+fit', { data: [] })).toBeNull();
+  });
+
+  test('exportSvgFromCanvas returns false for empty container', () => {
+    const div = document.createElement('div');
+    expect(exportSvgFromCanvas(div, 'test.svg')).toBe(false);
+  });
+
+  test('exportSvgFromCanvas returns false for null container', () => {
+    expect(exportSvgFromCanvas(null, 'test.svg')).toBe(false);
+  });
+
+  test('exportSvgFromCanvas triggers download for valid SVG', () => {
+    const div = document.createElement('div');
+    div.innerHTML = '<svg width="100" height="100"><rect/></svg>';
+    const result = exportSvgFromCanvas(div, 'test.svg');
+    expect(result).toBe(true);
+  });
+
+  test('exportSvgFromCanvas merges multiple SVGs', () => {
+    const div = document.createElement('div');
+    div.innerHTML = '<svg width="100" height="50"><circle/></svg><svg width="100" height="50"><rect/></svg>';
+    const result = exportSvgFromCanvas(div, 'merged.svg');
+    expect(result).toBe(true);
+  });
+
+  test('exportCanvasAsPng returns false for null container', async () => {
+    const result = await exportCanvasAsPng(null, 'test.png');
+    expect(result).toBe(false);
+  });
+
+  test('exportCanvasAsPng returns false for container without SVG', async () => {
+    const div = document.createElement('div');
+    const result = await exportCanvasAsPng(div, 'test.png');
+    expect(result).toBe(false);
   });
 });

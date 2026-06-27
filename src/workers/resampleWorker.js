@@ -8,6 +8,7 @@ import { powerANOVA, powerChi, powerLogistic, powerMixed, powerMediation } from 
 
 const STAT_FN = { mean: avg, median, sd: sampleSD };
 
+/* v8 ignore start */
 self.onmessage = ({ data }) => {
   const { jobId, type, payload } = data;
   try {
@@ -52,3 +53,4 @@ self.onmessage = ({ data }) => {
     self.postMessage({ jobId, ok: false, error: String(e) });
   }
 };
+/* v8 ignore stop */

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   adjacencyFromEdges, centralityMeasures, communityDetection,
   sociogramLayout, networkFromEdgeList,
+  pageRank, closenessCentrality, graphMetrics, louvainCommunities, fitPowerLaw,
+  networkDiffusion, SIRModel,
 } from './network.js';
 import { starEdgeList, ringEdgeList } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
@@ -156,4 +158,145 @@ describe('sociogramLayout', () => {
     const same = a.nodes.every((n, i) => n.x === b.nodes[i].x && n.y === b.nodes[i].y);
     expect(same).toBe(false);
   });
+});
+
+// ── PageRank ───────────────────────────────────────────────────────────────
+describe('pageRank', () => {
+  const A = [[0, 1, 1], [1, 0, 1], [1, 1, 0]];
+
+  it('returns null for empty', () => {
+    expect(pageRank(null)).toBeNull();
+    expect(pageRank([[0]])).toBeNull();
+  });
+
+  it('scores sum to ~1', () => {
+    const r = pageRank(A);
+    const sum = r.scores.reduce((s, sc) => s + sc.pagerank, 0);
+    expect(sum).toBeCloseTo(1, 3);
+  });
+
+  it('contract keys', () => {
+    expectKeys(pageRank(A), ['test', 'scores', 'damping', 'nIter', 'n', 'apa']);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = pageRank(A);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Closeness Centrality ───────────────────────────────────────────────────
+describe('closenessCentrality', () => {
+  const A = [[0, 1, 0], [1, 0, 1], [0, 1, 0]];
+
+  it('returns null for empty', () => {
+    expect(closenessCentrality(null)).toBeNull();
+  });
+
+  it('center node has highest closeness', () => {
+    const r = closenessCentrality(A);
+    const sorted = [...r.scores].sort((a, b) => b.closeness - a.closeness);
+    expect(sorted[0].node).toBe(1); // center node in the path
+  });
+
+  it('scores in [0, 1]', () => {
+    const r = closenessCentrality(A);
+    r.scores.forEach(s => {
+      expect(s.closeness).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  it('contract keys', () => {
+    expectKeys(closenessCentrality(A), ['test', 'scores', 'n', 'apa']);
+  });
+});
+
+// ── Graph Metrics ──────────────────────────────────────────────────────────
+describe('graphMetrics', () => {
+  const A = [[0, 1, 0], [1, 0, 1], [0, 1, 0]];
+
+  it('returns null for small matrix', () => {
+    expect(graphMetrics(null)).toBeNull();
+  });
+
+  it('diameter and density', () => {
+    const r = graphMetrics(A);
+    expect(r.diameter).toBe(2);
+    expect(r.edgeDensity).toBeGreaterThan(0);
+    expect(r.edgeDensity).toBeLessThan(1);
+  });
+
+  it('nComponents for connected graph', () => {
+    const r = graphMetrics(A);
+    expect(r.nComponents).toBe(1);
+  });
+
+  it('contract keys', () => {
+    expectKeys(graphMetrics(A), ['test', 'diameter', 'avgPathLength', 'clusteringCoeff', 'edgeDensity', 'nComponents', 'n', 'nEdges', 'apa']);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = graphMetrics(A);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Louvain Communities ────────────────────────────────────────────────────
+describe('louvainCommunities', () => {
+  const A = [
+    [0, 1, 1, 0, 0],
+    [1, 0, 1, 0, 0],
+    [1, 1, 0, 0, 0],
+    [0, 0, 0, 0, 1],
+    [0, 0, 0, 1, 0],
+  ];
+
+  it('returns null for small', () => {
+    expect(louvainCommunities(null)).toBeNull();
+  });
+
+  it('modularity > 0', () => {
+    const r = louvainCommunities(A);
+    expect(r.modularity).toBeGreaterThan(0);
+  });
+
+  it('nCommunities within valid range', () => {
+    const r = louvainCommunities(A);
+    expect(r.nCommunities).toBeGreaterThanOrEqual(1);
+    expect(r.nCommunities).toBeLessThanOrEqual(A.length);
+  });
+
+  it('contract keys', () => {
+    expectKeys(louvainCommunities(A), ['test', 'communities', 'nCommunities', 'modularity', 'n', 'apa']);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = louvainCommunities(A);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Power-Law Fit ──────────────────────────────────────────────────────────
+describe('fitPowerLaw', () => {
+  const degrees = [2, 2, 3, 3, 4, 5, 6, 7, 8, 2, 3, 4, 2, 3, 2, 5, 6, 10, 12, 15];
+  it('returns null for empty', () => { expect(fitPowerLaw(null)).toBeNull(); expect(fitPowerLaw([])).toBeNull(); });
+  it('alpha > 1', () => { const r = fitPowerLaw(degrees); expect(r.alpha).toBeGreaterThan(1); });
+  it('se is finite', () => { const r = fitPowerLaw(degrees); expect(Number.isFinite(r.se)).toBe(true); });
+  it('contract keys', () => { expectKeys(fitPowerLaw(degrees), ['test', 'alpha', 'se', 'xmin', 'ksStat', 'n', 'nTail', 'apa']); });
+  it('apa is a non-empty string', () => { const r = fitPowerLaw(degrees); expect(typeof r.apa).toBe('string'); expect(r.apa.length).toBeGreaterThan(0); });
+});
+
+describe('networkDiffusion', () => {
+  const A = [[0, 1, 1], [1, 0, 0], [1, 0, 0]];
+  it('contract keys', () => expectKeys(networkDiffusion(A, [0]), ['test', 'diffusion', 'seeds', 'steps', 'alpha', 'n', 'apa']));
+  it('diffusion length = steps+1', () => { const r = networkDiffusion(A, [0], { steps: 5 }); expect(r.diffusion).toHaveLength(6); });
+});
+
+describe('SIRModel', () => {
+  const A = [[0, 1, 1], [1, 0, 0], [1, 0, 0]];
+  it('contract keys', () => expectKeys(SIRModel(A, { steps: 5 }), ['test', 'curve', 'params', 'n', 'apa']));
+  it('curve has entries', () => { const r = SIRModel(A, { steps: 5 }); expect(r.curve.length).toBeGreaterThan(0); });
 });

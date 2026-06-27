@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from './psychometrics.js';
+import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore, irt3PL, gradedResponseModel, partialCreditModel, testInformation, difMH, eapScoring, multidimensional2PL, itemFit, nominalResponseModel, generalizedPartialCredit, testEquating, mixedFormatIRT, difLogistic } from './psychometrics.js';
 import { itemMatrix, itemRows, binaryMatrix } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
@@ -199,3 +199,249 @@ describe('scaleScore', () => {
     expectKeys(r, ['test', 'method', 'nReversed', 'scores', 'mean', 'sd', 'n', 'k', 'apa']);
   });
 });
+
+describe('irt3PL', () => {
+  it('returns null for non-binary data', () => {
+    const bad = [[1, 2], [0, 1]];
+    expect(irt3PL(bad)).toBeNull();
+  });
+
+  it('estimates item parameters for binary data', () => {
+    const n = 40, k = 5;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.random() < 0.5 ? 1 : 0));
+    const r = irt3PL(matrix);
+    expect(r).not.toBeNull();
+    expect(r.test).toBe('IRT 3PL');
+    expect(r.items.length).toBe(k);
+    r.items.forEach(item => {
+      expect(item.a).toBeGreaterThan(0.2);
+      expect(item.c).toBeGreaterThanOrEqual(0);
+      expect(item.c).toBeLessThanOrEqual(0.4);
+    });
+  });
+
+  it('returns null for small n', () => {
+    const small = Array.from({ length: 5 }, () => [0, 1, 0, 1]);
+    expect(irt3PL(small)).toBeNull();
+  });
+
+  it('returns null for non-array input', () => {
+    expect(irt3PL(null)).toBeNull();
+  });
+
+  it('returns null for single item', () => {
+    const single = Array.from({ length: 20 }, () => [Math.random() < 0.5 ? 1 : 0]);
+    expect(irt3PL(single)).toBeNull();
+  });
+
+  it('abilities array has correct length', () => {
+    const n = 30, k = 4;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.random() < 0.5 ? 1 : 0));
+    const r = irt3PL(matrix);
+    expect(r.abilities.length).toBe(n);
+  });
+
+  it('contract fields present', () => {
+    const n = 30, k = 4;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.random() < 0.5 ? 1 : 0));
+    const r = irt3PL(matrix);
+    expectKeys(r, ['test', 'items', 'abilities', 'n', 'k', 'apa']);
+  });
+
+  it('discrimination bounded in [0.3, 4]', () => {
+    const n = 30, k = 4;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.random() < 0.5 ? 1 : 0));
+    const r = irt3PL(matrix);
+    r.items.forEach(item => {
+      expect(item.a).toBeGreaterThanOrEqual(0.3);
+      expect(item.a).toBeLessThanOrEqual(4);
+    });
+  });
+});
+
+describe('gradedResponseModel', () => {
+  it('returns null for too few items', () => {
+    expect(gradedResponseModel([[0, 1]])).toBeNull();
+  });
+
+  it('estimates GRM parameters', () => {
+    const n = 40, k = 4;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.floor(Math.random() * 3)));
+    const r = gradedResponseModel(matrix);
+    expect(r).not.toBeNull();
+    expect(r.test).toBe('Graded Response Model');
+    expect(r.items.length).toBe(k);
+  });
+
+  it('returns null for n < 10', () => {
+    const small = Array.from({ length: 5 }, () => [0, 1, 0, 1]);
+    expect(gradedResponseModel(small)).toBeNull();
+  });
+
+  it('returns null for non-array input', () => {
+    expect(gradedResponseModel(null)).toBeNull();
+  });
+
+  it('contract fields present', () => {
+    const n = 30, k = 3;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.floor(Math.random() * 3)));
+    const r = gradedResponseModel(matrix);
+    expectKeys(r, ['test', 'items', 'abilities', 'n', 'k', 'maxScore', 'apa']);
+  });
+
+  it('each item has thresholds and a parameter', () => {
+    const n = 30, k = 3;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.floor(Math.random() * 3)));
+    const r = gradedResponseModel(matrix);
+    r.items.forEach(item => {
+      expect(item.a).toBeGreaterThan(0);
+      expect(item.thresholds.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('abilities array has correct length', () => {
+    const n = 30, k = 3;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.floor(Math.random() * 3)));
+    const r = gradedResponseModel(matrix);
+    expect(r.abilities.length).toBe(n);
+  });
+});
+
+describe('partialCreditModel', () => {
+  it('returns null for invalid input', () => {
+    expect(partialCreditModel(null)).toBeNull();
+  });
+
+  it('estimates PCM parameters', () => {
+    const n = 40, k = 4;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.floor(Math.random() * 3)));
+    const r = partialCreditModel(matrix);
+    expect(r).not.toBeNull();
+    expect(r.test).toBe('Partial Credit Model');
+    expect(r.items.length).toBe(k);
+  });
+
+  it('returns null for n < 10', () => {
+    const small = Array.from({ length: 5 }, () => [0, 1, 2]);
+    expect(partialCreditModel(small)).toBeNull();
+  });
+
+  it('returns null for empty matrix', () => {
+    expect(partialCreditModel([])).toBeNull();
+  });
+
+  it('contract fields present', () => {
+    const n = 30, k = 3;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.floor(Math.random() * 3)));
+    const r = partialCreditModel(matrix);
+    expectKeys(r, ['test', 'items', 'abilities', 'n', 'k', 'maxScore', 'apa']);
+  });
+
+  it('each item has steps array with difficulties', () => {
+    const n = 30, k = 3;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.floor(Math.random() * 3)));
+    const r = partialCreditModel(matrix);
+    r.items.forEach(item => {
+      expect(item.steps.length).toBeGreaterThanOrEqual(0);
+      item.steps.forEach(step => {
+        expect(step.step).toBeGreaterThanOrEqual(1);
+        expect(step.difficulty).toBeDefined();
+      });
+    });
+  });
+
+  it('abilities array has correct length', () => {
+    const n = 30, k = 3;
+    const matrix = Array.from({ length: n }, () => Array.from({ length: k }, () => Math.floor(Math.random() * 3)));
+    const r = partialCreditModel(matrix);
+    expect(r.abilities.length).toBe(n);
+  });
+});
+
+describe('testInformation', () => {
+  it('returns null for empty items', () => {
+    expect(testInformation([])).toBeNull();
+  });
+
+  it('computes info curve from 3PL items', () => {
+    const items = Array.from({ length: 4 }, () => ({ a: 1.5, b: 0, c: 0.2 }));
+    const r = testInformation(items, -3, 3, 31);
+    expect(r).not.toBeNull();
+    expect(r.curve.length).toBe(31);
+    expect(r.maxInfo).toBeGreaterThan(0);
+  });
+
+  it('info curve is highest near average difficulty', () => {
+    const items = Array.from({ length: 4 }, () => ({ a: 1.5, b: 0, c: 0.2 }));
+    const r = testInformation(items, -3, 3, 61);
+    const midPoint = r.curve[30];
+    const edgePoint = r.curve[0];
+    expect(midPoint.info).toBeGreaterThan(edgePoint.info);
+  });
+
+  it('computes info from PCM items', () => {
+    const items = Array.from({ length: 4 }, () => ({ steps: [{ difficulty: -1 }, { difficulty: 0 }, { difficulty: 1 }] }));
+    const r = testInformation(items, -3, 3, 21);
+    expect(r).not.toBeNull();
+    expect(r.curve.length).toBe(21);
+  });
+
+  it('more items give higher max info', () => {
+    const few = Array.from({ length: 2 }, () => ({ a: 1.5, b: 0, c: 0.2 }));
+    const many = Array.from({ length: 6 }, () => ({ a: 1.5, b: 0, c: 0.2 }));
+    const rFew = testInformation(few, -3, 3, 31);
+    const rMany = testInformation(many, -3, 3, 31);
+    expect(rMany.maxInfo).toBeGreaterThan(rFew.maxInfo);
+  });
+
+  it('contract fields present', () => {
+    const items = [{ a: 1.5, b: 0, c: 0.2 }];
+    const r = testInformation(items, -3, 3, 11);
+    expectKeys(r, ['test', 'curve', 'maxInfo', 'thetaAtMaxInfo', 'nItems', 'apa']);
+  });
+
+  it('returns null for empty items', () => {
+    expect(testInformation([])).toBeNull();
+  });
+
+  it('handles items with thresholds (GRM-style)', () => {
+    const items = [{ a: 1.2, thresholds: [-1, 0, 1] }];
+    const r = testInformation(items, -3, 3, 21);
+    expect(r).not.toBeNull();
+    expect(r.maxInfo).toBeGreaterThan(0);
+  });
+});
+
+describe('difMH', () => {
+  const d = []; for (let i = 0; i < 40; i++) { const row = { grp: i < 20 ? 'A' : 'B' }; for (let j = 1; j <= 5; j++) row[`i${j}`] = (i + j) % 3 > 0 ? 1 : 0; d.push(row); }
+  it('null small', () => expect(difMH(d.slice(0, 10), 'grp', ['i1', 'i2', 'i3'])).toBeNull());
+  it('contract keys', () => expectKeys(difMH(d, 'grp', ['i1', 'i2', 'i3', 'i4', 'i5']), ['test', 'items', 'n', 'nGroups', 'apa']));
+  it('classification valid', () => { const r = difMH(d, 'grp', ['i1', 'i2', 'i3', 'i4', 'i5']); r.items.forEach(i => expect(['A', 'B', 'C']).toContain(i.classification)); });
+});
+
+describe('eapScoring', () => {
+  const params = [{ a: 1.5, b: 0.5 }, { a: 1.2, b: -0.2 }, { a: 0.8, b: 1.0 }];
+  it('null mismatch', () => expect(eapScoring(params, [1, 0])).toBeNull());
+  it('contract keys', () => expectKeys(eapScoring(params, [1, 0, 1]), ['test', 'theta', 'se', 'n', 'nQPoints', 'apa']));
+  it('se positive', () => { const r = eapScoring(params, [1, 0, 1]); expect(r.se).toBeGreaterThan(0); });
+});
+
+describe('multidimensional2PL', () => {
+  const d = []; for (let i = 0; i < 20; i++) { const row = {}; for (let j = 0; j < 6; j++) row[`v${j}`] = (i + j) % 3 > 0 ? 1 : 0; d.push(row); }
+  it('null small', () => expect(multidimensional2PL(d.slice(0, 5), ['v0', 'v1', 'v2', 'v3', 'v4', 'v5'], [{ name: 'D1', items: ['v0', 'v1', 'v2'] }, { name: 'D2', items: ['v3', 'v4', 'v5'] }])).toBeNull());
+  it('contract keys', () => { const r = multidimensional2PL(d, ['v0', 'v1', 'v2', 'v3', 'v4', 'v5'], [{ name: 'D1', items: ['v0', 'v1', 'v2'] }, { name: 'D2', items: ['v3', 'v4', 'v5'] }]); if (r) expectKeys(r, ['test', 'parameters', 'traitCorrelation', 'n', 'apa']); });
+});
+
+describe('itemFit', () => {
+  const params = [{ a: 1.5, b: 0.5 }, { a: 1.2, b: -0.2 }];
+  const resp = [[1, 0], [1, 1], [0, 0], [1, 1], [0, 1]];
+  it('null small', () => expect(itemFit(params, [[1], [0]])).toBeNull());
+  it('contract keys', () => expectKeys(itemFit(params, resp), ['test', 'items', 'n', 'apa']));
+  it('MNSQ > 0', () => { const r = itemFit(params, resp); expect(r.items[0].infitMnsq).toBeGreaterThan(0); });
+});
+
+describe('nominalResponseModel', () => { it('contract keys', () => expectKeys(nominalResponseModel([1, 2, 0, 1, 2, 1, 0, 2, 1, 0]), ['test', 'probabilities', 'n', 'nCategories', 'apa'])); });
+describe('generalizedPartialCredit', () => { it('contract keys', () => expectKeys(generalizedPartialCredit([0, 1, 2, 0, 1, 2, 1, 2, 1, 0], 3), ['test', 'thresholds', 'n', 'nCategories', 'apa'])); });
+describe('testEquating', () => { it('contract keys', () => expectKeys(testEquating([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]), ['test', 'equated', 'slope', 'intercept', 'nA', 'nB', 'apa'])); });
+describe('mixedFormatIRT', () => { it('is defined', () => expect(typeof mixedFormatIRT).toBe('function')); });
+describe('difLogistic', () => { it('is defined', () => expect(typeof difLogistic).toBe('function')); });

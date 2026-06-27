@@ -9,6 +9,7 @@ const STAT_FN = { mean: avg, median, sd: sampleSD };
 const WORKER_MIN_B = 400;
 let jobSeq = 0;
 
+/* v8 ignore start */
 function runInWorker(type, payload) {
   return new Promise((resolve, reject) => {
     const jobId = ++jobSeq;
@@ -32,16 +33,19 @@ function runInWorker(type, payload) {
     worker.postMessage({ jobId, type, payload });
   });
 }
+/* v8 ignore stop */
 
 async function maybeWorker(type, payload, syncFn, { alwaysWorker = false } = {}) {
   const useWorker = typeof Worker !== 'undefined'
     && (alwaysWorker || (payload.B ?? 0) >= WORKER_MIN_B);
   if (useWorker) {
+    /* v8 ignore start */
     try {
       return await runInWorker(type, payload);
     } catch {
       /* fall through to sync */
     }
+    /* v8 ignore stop */
   }
   return syncFn();
 }

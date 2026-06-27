@@ -4,8 +4,14 @@ import {
   pca, efa, cronbachAlpha, icc, cohensKappa,
   splitHalf, metaAnalysis, differencesInDifferences, convertEffectSize,
   manova, canonicalCorr, linearDiscriminant,
+  metaRegression, eggersTest, trimAndFill,
+  mardiaTest, henzeZirkler, mahalanobisDistance, bartlettSphericity, boxMTest,
+  networkMetaAnalysis, baujatPlot, leaveOneOutMeta, metaRegressionDiagnostics,
+  obliminRotation, geominRotation, quartiminRotation, targetRotation, promaxRotation,
+  bivariateMeta, metaProportion, labbePlot, forestPlotData, cumulativeMeta,
 } from './multivariate.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
+import { expectKeys } from './__fixtures__/helpers.js';
 
 const mkData = () => Array.from({ length: 20 }, (_, i) => ({
   x1: i + 1,
@@ -318,4 +324,252 @@ describe('convertEffectSize', () => {
     expect(res.r).toBeCloseTo(0.3, 2);
     expect(res.d).toBeCloseTo(0.6, 1);
   });
+});
+
+// ── Meta-Regression ───────────────────────────────────────────────────────────
+describe('metaRegression', () => {
+  const studies = [
+    { d: 0.2, se: 0.1, n: 50 },
+    { d: 0.4, se: 0.12, n: 45 },
+    { d: 0.3, se: 0.11, n: 55 },
+    { d: 0.55, se: 0.09, n: 60 },
+    { d: 0.6, se: 0.13, n: 40 },
+    { d: 0.7, se: 0.1, n: 48 },
+  ];
+  const moderator = [1, 2, 1.5, 3, 3.5, 4];
+
+  it('returns null for <3 studies', () => {
+    expect(metaRegression(studies.slice(0, 2), [1, 2], 'X')).toBeNull();
+  });
+
+  it('returns null for constant moderator', () => {
+    expect(metaRegression(studies.slice(0, 4), [2, 2, 2, 2], 'X')).toBeNull();
+  });
+
+  it('returns correct keys', () => {
+    const r = metaRegression(studies, moderator, 'dose');
+    expectKeys(r, ['test', 'moderator', 'coefficients', 'tau2', 'iSquared', 'rSquared', 'k', 'apa']);
+  });
+
+  it('coefficients have two terms (intercept + moderator)', () => {
+    const r = metaRegression(studies, moderator, 'dose');
+    expect(r.coefficients).toHaveLength(2);
+    expect(r.coefficients[0].term).toBe('Intercept');
+    expect(r.coefficients[1].term).toBe('dose');
+  });
+
+  it('tau2 >= 0', () => {
+    const r = metaRegression(studies, moderator, 'dose');
+    expect(r.tau2).toBeGreaterThanOrEqual(0);
+  });
+
+  it('rSquared between 0 and 1', () => {
+    const r = metaRegression(studies, moderator, 'dose');
+    expect(r.rSquared).toBeGreaterThanOrEqual(0);
+    expect(r.rSquared).toBeLessThanOrEqual(1);
+  });
+
+  it('coefficient b is finite', () => {
+    const r = metaRegression(studies, moderator, 'dose');
+    r.coefficients.forEach(c => {
+      expect(Number.isFinite(c.b)).toBe(true);
+      expect(Number.isFinite(c.se)).toBe(true);
+      expect(Number.isFinite(c.z)).toBe(true);
+      expect(typeof c.p).toBe('number');
+    });
+  });
+
+  it('k matches study count', () => {
+    const r = metaRegression(studies, moderator, 'dose');
+    expect(r.k).toBe(6);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = metaRegression(studies, moderator, 'dose');
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Egger's Test ──────────────────────────────────────────────────────────────
+describe('eggersTest', () => {
+  const symStudies = [
+    { d: 0.3, se: 0.1, n: 100 },
+    { d: 0.25, se: 0.15, n: 50 },
+    { d: 0.35, se: 0.12, n: 80 },
+    { d: 0.28, se: 0.08, n: 120 },
+    { d: 0.32, se: 0.2, n: 30 },
+    { d: 0.27, se: 0.11, n: 70 },
+  ];
+
+  const asymStudies = [
+    { d: 0.8, se: 0.4, n: 20 },
+    { d: 0.7, se: 0.35, n: 25 },
+    { d: 0.5, se: 0.15, n: 100 },
+    { d: 0.4, se: 0.1, n: 150 },
+    { d: 0.3, se: 0.08, n: 200 },
+    { d: 0.2, se: 0.05, n: 400 },
+  ];
+
+  it('returns null for <3 studies', () => {
+    expect(eggersTest(symStudies.slice(0, 2))).toBeNull();
+  });
+
+  it('returns correct keys', () => {
+    const r = eggersTest(symStudies);
+    expectKeys(r, ['test', 'intercept', 'interceptSE', 't', 'df', 'p', 'slope', 'k', 'apa']);
+  });
+
+  it('p in [0,1]', () => {
+    const r = eggersTest(symStudies);
+    expect(r.p).toBeGreaterThanOrEqual(0);
+    expect(r.p).toBeLessThanOrEqual(1);
+  });
+
+  it('asymmetric data can be detected', () => {
+    const r = eggersTest(asymStudies);
+    expect(r).not.toBeNull();
+    expect(typeof r.intercept).toBe('number');
+  });
+
+  it('k matches study count', () => {
+    const r = eggersTest(symStudies);
+    expect(r.k).toBe(6);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = eggersTest(symStudies);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Trim-and-Fill ─────────────────────────────────────────────────────────────
+describe('trimAndFill', () => {
+  const studies = [
+    { d: 0.3, se: 0.1, n: 100 },
+    { d: 0.35, se: 0.12, n: 80 },
+    { d: 0.28, se: 0.08, n: 120 },
+    { d: 0.32, se: 0.15, n: 50 },
+    { d: 0.27, se: 0.11, n: 70 },
+    { d: 0.9, se: 0.4, n: 20 },
+  ];
+
+  it('returns null for <3 studies', () => {
+    expect(trimAndFill(studies.slice(0, 2))).toBeNull();
+  });
+
+  it('returns correct keys', () => {
+    const r = trimAndFill(studies);
+    expectKeys(r, ['test', 'originalD', 'originalSE', 'adjustedD', 'adjustedSE', 'nImputed', 'k', 'kOriginal', 'studies', 'apa']);
+  });
+
+  it('nImputed >= 0', () => {
+    const r = trimAndFill(studies);
+    expect(r.nImputed).toBeGreaterThanOrEqual(0);
+  });
+
+  it('originalD and adjustedD are finite', () => {
+    const r = trimAndFill(studies);
+    expect(Number.isFinite(r.originalD)).toBe(true);
+    expect(Number.isFinite(r.adjustedD)).toBe(true);
+  });
+
+  it('studies array includes imputed flag', () => {
+    const r = trimAndFill(studies);
+    expect(r.studies.length).toBeGreaterThanOrEqual(studies.length);
+    r.studies.forEach(s => expect(typeof s.imputed).toBe('boolean'));
+  });
+
+  it('k = kOriginal + nImputed', () => {
+    const r = trimAndFill(studies);
+    expect(r.k).toBe(r.kOriginal + r.nImputed);
+  });
+
+  it('apa non-empty', () => {
+    const r = trimAndFill(studies);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+describe('mardiaTest', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ x1: i, x2: i * 0.5, x3: Math.sin(i) });
+  it('null <20', () => expect(mardiaTest(d.slice(0, 10), ['x1', 'x2'])).toBeNull());
+  it('contract keys if valid', () => { const r = mardiaTest(d, ['x1', 'x2', 'x3']); if (r) expectKeys(r, ['test', 'skewness', 'kurtosis', 'chi2Skew', 'dfSkew', 'pSkew', 'zKurt', 'pKurt', 'n', 'p', 'apa']); });
+  it('skewness >= 0 if valid', () => { const r = mardiaTest(d, ['x1', 'x2', 'x3']); if (r) expect(r.skewness).toBeGreaterThanOrEqual(0); });
+});
+
+describe('henzeZirkler', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ x1: i, x2: i * 0.5 });
+  it('null <10', () => expect(henzeZirkler(d.slice(0, 5), ['x1'])).toBeNull());
+  it('HZ >= 0 if valid', () => { const r = henzeZirkler(d, ['x1', 'x2']); if (r) expect(r.hz).toBeGreaterThanOrEqual(0); });
+  it('contract keys if valid', () => { const r = henzeZirkler(d, ['x1', 'x2']); if (r) expectKeys(r, ['test', 'hz', 'p', 'n', 'p', 'apa']); });
+});
+
+describe('mahalanobisDistance', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ x1: i, x2: i * 0.5 });
+  it('null <10', () => expect(mahalanobisDistance(d.slice(0, 5), ['x1'])).toBeNull());
+  it('qqCorrelation in [-1,1] if valid', () => { const r = mahalanobisDistance(d, ['x1', 'x2']); if (r) { expect(r.qqCorrelation).toBeGreaterThanOrEqual(-1); expect(r.qqCorrelation).toBeLessThanOrEqual(1); } });
+  it('contract keys if valid', () => { const r = mahalanobisDistance(d, ['x1', 'x2']); if (r) expectKeys(r, ['test', 'distances', 'qqCorrelation', 'n', 'p', 'apa']); });
+});
+
+describe('bartlettSphericity', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ x1: i, x2: i * 0.5 });
+  it('null <10', () => expect(bartlettSphericity(d.slice(0, 5), ['x1'])).toBeNull());
+  it('chi2 >= 0', () => { const r = bartlettSphericity(d, ['x1', 'x2']); expect(r.chi2).toBeGreaterThanOrEqual(0); });
+  it('contract keys', () => expectKeys(bartlettSphericity(d, ['x1', 'x2']), ['test', 'chi2', 'df', 'p', 'n', 'apa']));
+});
+
+describe('boxMTest', () => {
+  const d = []; for (let i = 0; i < 40; i++) d.push({ grp: i < 20 ? 'A' : 'B', x1: i + (i < 20 ? 0 : 5), x2: Math.sin(i) });
+  it('null <10', () => expect(boxMTest(d.slice(0, 5), 'grp', ['x1'])).toBeNull());
+  it('contract keys', () => { const r = boxMTest(d, 'grp', ['x1', 'x2']); if (r) expectKeys(r, ['test', 'M', 'chi2', 'df', 'p', 'nGroups', 'n', 'apa']); });
+  it('M >= 0', () => { const r = boxMTest(d, 'grp', ['x1', 'x2']); if (r) expect(r.M).toBeGreaterThanOrEqual(0); });
+});
+
+describe('networkMetaAnalysis', () => {
+  const s = []; for (let i = 0; i < 8; i++) s.push({ d: 0.2 + i * 0.05, se: 0.1, trt: i % 2 ? 'B' : 'A', ref: 'C' });
+  it('contract keys', () => expectKeys(networkMetaAnalysis(s), ['test', 'directEstimates', 'nTreatments', 'nStudies', 'apa']));
+});
+
+describe('baujatPlot', () => {
+  const meta = { studies: [{ d: 0.2, se: 0.1 }, { d: 0.3, se: 0.12 }, { d: 0.25, se: 0.11 }] };
+  it('contract keys', () => expectKeys(baujatPlot(meta), ['test', 'points', 'nStudies', 'apa']));
+});
+
+describe('leaveOneOutMeta', () => {
+  const s = [{ d: 0.2, se: 0.1 }, { d: 0.3, se: 0.12 }, { d: 0.25, se: 0.11 }, { d: 0.15, se: 0.09 }];
+  it('contract keys', () => expectKeys(leaveOneOutMeta(s), ['test', 'results', 'n', 'apa']));
+  it('results = n', () => { const r = leaveOneOutMeta(s); expect(r.results).toHaveLength(4); });
+});
+
+describe('metaRegressionDiagnostics', () => {
+  const meta = { coefficients: [{ term: 'x', b: 0.1, se: 0.05, z: 2, p: 0.04 }], tau2: 0.01, iSquared: 30, k: 8 };
+  it('contract keys', () => expectKeys(metaRegressionDiagnostics(meta), ['test', 'parameters', 'tau2', 'iSquared', 'k', 'apa']));
+});
+
+describe('obliminRotation', () => { it('contract keys', () => expectKeys(obliminRotation([[0.5, 0.1], [0.6, 0.2], [0.3, 0.7]]), ['test', 'loadings', 'gamma', 'p', 'm', 'apa'])); });
+describe('geominRotation', () => { it('contract keys', () => expectKeys(geominRotation([[0.5, 0.1], [0.6, 0.2]]), ['test', 'loadings', 'epsilon', 'p', 'm', 'apa'])); });
+describe('quartiminRotation', () => { it('contract keys', () => expectKeys(quartiminRotation([[0.5, 0.1], [0.6, 0.2]]), ['test', 'loadings', 'gamma', 'p', 'm', 'apa'])); });
+describe('targetRotation', () => { it('contract keys', () => expectKeys(targetRotation([[0.5, 0.1], [0.6, 0.2]], [[1, 0], [1, 0]]), ['test', 'loadings', 'p', 'm', 'apa'])); });
+describe('promaxRotation', () => { it('contract keys', () => expectKeys(promaxRotation([[0.5, 0.1], [0.6, 0.2]]), ['test', 'loadings', 'k', 'p', 'm', 'apa'])); });
+
+describe('bivariateMeta', () => {
+  const s = []; for (let i = 0; i < 8; i++) s.push({ sens: 0.7 + i * 0.02, spec: 0.8 + i * 0.01 });
+  it('contract keys', () => expectKeys(bivariateMeta(s), ['test', 'pooledSens', 'pooledSpec', 'correlation', 'n', 'apa']));
+});
+describe('metaProportion', () => {
+  it('contract keys', () => expectKeys(metaProportion([5, 8, 12, 15, 20], [20, 30, 25, 35, 40]), ['test', 'proportion', 'se', 'k', 'n', 'apa']));
+});
+describe('labbePlot', () => {
+  it('contract keys', () => expectKeys(labbePlot([5, 8, 12], [20, 30, 25], [3, 6, 10], [20, 30, 25]), ['test', 'points', 'n', 'apa']));
+});
+describe('forestPlotData', () => {
+  const s = [{ d: 0.2, se: 0.1 }, { d: 0.3, se: 0.12 }, { d: 0.25, se: 0.11 }];
+  it('contract keys', () => expectKeys(forestPlotData(s), ['test', 'studies', 'n', 'apa']));
+});
+describe('cumulativeMeta', () => {
+  const s = []; for (let i = 0; i < 6; i++) s.push({ d: 0.2 + i * 0.03, se: 0.1 });
+  it('contract keys', () => expectKeys(cumulativeMeta(s), ['test', 'cumulative', 'n', 'apa']));
 });

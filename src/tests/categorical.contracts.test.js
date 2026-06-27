@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   chiSquare, chiGoF, fisherExact, mcnemar, binomialTest, onePropZ, twoPropZ,
-  mannWhitney, wilcoxonSR, tost, bayesFactorT, bayesFactorCorr,
+} from './categorical.js';
+import { mannWhitney, wilcoxonSR } from './nonparametric.js';
+import {
+  tost, bayesFactorT, bayesFactorCorr,
   grubbsTest, leveneTest, bartlettTest, bonferroni, holm, bh, sensitivityLOO,
 } from './categorical.js';
 import { expectKeys, expectPInRange } from './__fixtures__/helpers.js';

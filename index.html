@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StatLab — Browser Statistical Workbench</title>
+    <meta name="description" content="84 statistical tests in your browser. No install, no account, no data leaves your machine. APA 7 output, PCA/EFA, causal inference, IRT, LCA, meta-analysis, network analysis." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body, #root { height: 100%; width: 100%; }
+      body { background: #0D1117; color: #e6edf3; font-family: 'Inter', sans-serif; }
+
+      @media print {
+        #statlab-sidebar,
+        #statlab-toolbar,
+        #statlab-tab-bar,
+        #statlab-dataset-bar,
+        #statlab-test-panel,
+        #statlab-export-bar,
+        .no-print { display: none !important; }
+        #statlab-results {
+          width: 100% !important;
+          max-width: 800px !important;
+          margin: 0 auto !important;
+          padding: 24px !important;
+          color: #000 !important;
+          background: #fff !important;
+          font-size: 12px !important;
+        }
+        body { background: #fff !important; color: #000 !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,80 @@
+import { avg } from '../math/core.js';
+import { normalCDF } from '../math/distributions.js';
+
+// RA-CUSUM
+export function raCusum(binary, predicted, { k = 0.5, h = 5 } = {}) {
+  if (!binary || !predicted || binary.length < 10 || binary.length !== predicted.length) return null;
+  const n = binary.length;
+  const cusum = [0];
+  const signals = [];
+  for (let i = 0; i < n; i++) {
+    const score = binary[i] === 1 ? Math.log(1 / Math.max(predicted[i], 0.001)) : Math.log(1 / Math.max(1 - predicted[i], 0.001));
+    cusum.push(Math.max(0, cusum[i] + score - k));
+    if (cusum[cusum.length - 1] > h) signals.push({ index: i, value: +cusum[cusum.length - 1].toFixed(4) });
+  }
+  return { test: 'RA-CUSUM', cusum: cusum.slice(1).map(v => +v.toFixed(4)), signals, k, h, n, apa: `RA-CUSUM: ${signals.length} signal(s), n = ${n}` };
+}
+
+// VLAD
+export function vlad(expected, observed, { smoothing = 5 } = {}) {
+  if (!expected || !observed || expected.length !== observed.length || expected.length < 5) return null;
+  const n = expected.length;
+  const resid = expected.map((e, i) => observed[i] - e);
+  const cumResid = [resid[0]];
+  for (let i = 1; i < n; i++) cumResid.push(cumResid[i - 1] + resid[i]);
+  const smoothed = [];
+  for (let i = 0; i < n; i++) {
+    const start = Math.max(0, i - smoothing);
+    const end = Math.min(n - 1, i + smoothing);
+    smoothed.push(avg(cumResid.slice(start, end + 1)));
+  }
+  return { test: 'VLAD', vlad: smoothed.map(v => +v.toFixed(4)).slice(0, 20), n, apa: `VLAD: range [${Math.min(...smoothed).toFixed(0)}, ${Math.max(...smoothed).toFixed(0)}]` };
+}
+
+// RA-SPRT
+export function raSprt(binary, predicted, { h0 = 0, h1 = 0.5 } = {}) {
+  if (!binary || !predicted || binary.length < 10 || binary.length !== predicted.length) return null;
+  const n = binary.length;
+  const llr = [0];
+  for (let i = 0; i < n; i++) {
+    const p = predicted[i];
+    const lrH1 = binary[i] ? p + h1 : 1 - p - h1;
+    const lrH0 = binary[i] ? p : 1 - p;
+    llr.push(llr[i] + Math.log(Math.max(Math.abs(lrH1) / Math.max(Math.abs(lrH0), 0.001), 0.001)));
+  }
+  return { test: 'RA-SPRT', llr: llr.slice(1).map(v => +v.toFixed(4)), n, apa: `RA-SPRT: final LLR = ${llr[n].toFixed(2)}` };
+}
+
+// Funnel Plot
+export function funnelPlot(data, yVar, nVar, { controlLimits = 3 } = {}) {
+  if (!data || data.length < 5 || !yVar || !nVar) return null;
+  const n = data.length;
+  const rates = data.map(r => +r[yVar] / Math.max(+r[nVar], 1));
+  const ns = data.map(r => +r[nVar]);
+  const meanRate = rates.reduce((s, v) => s + v, 0) / n;
+  const points = data.map((_, i) => {
+    const se = Math.sqrt(meanRate * (1 - meanRate) / Math.max(ns[i], 1));
+    const ucl = meanRate + controlLimits * se;
+    const lcl = Math.max(0, meanRate - controlLimits * se);
+    return { i: i + 1, n: ns[i], rate: +rates[i].toFixed(4), ucl: +ucl.toFixed(4), lcl: +lcl.toFixed(4), signal: rates[i] > ucl || rates[i] < lcl };
+  });
+  return { test: 'Funnel Plot', points, meanRate: +meanRate.toFixed(4), controlLimits, n, apa: `Funnel: ${points.filter(p => p.signal).length} signals` };
+}
+
+// C-Chart Risk-Adjusted
+export function cChartRiskAdjusted(data, yVar, riskVar, { controlLimits = 3 } = {}) {
+  if (!data || data.length < 12 || !yVar || !riskVar) return null;
+  const n = data.length;
+  const y = data.map(r => +r[yVar]);
+  const risk = data.map(r => +r[riskVar]);
+  const totalY = y.reduce((s, v) => s + v, 0);
+  const totalRisk = risk.reduce((s, v) => s + v, 0);
+  const expectedRate = totalRisk > 0 ? totalY / totalRisk : 0;
+  const points = y.map((yi, i) => {
+    const exp = expectedRate * risk[i];
+    const ucl = exp + controlLimits * Math.sqrt(exp);
+    const lcl = Math.max(0, exp - controlLimits * Math.sqrt(exp));
+    return { i: i + 1, observed: yi, expected: +exp.toFixed(4), ucl: +ucl.toFixed(4), lcl: +lcl.toFixed(4), signal: yi > ucl || yi < lcl };
+  });
+  return { test: 'C-Chart Risk-Adjusted', points, expectedRate: +expectedRate.toFixed(4), controlLimits, n, apa: `RA C-chart: ${points.filter(p => p.signal).length} signals` };
+}

@@ -375,7 +375,24 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
       {methodNoteForTest(active, null) && (
         <div style={{ marginTop: 8, padding: '6px 8px', background: 'rgba(96,165,250,.08)', border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 8, color: C.dim, ...mono, lineHeight: 1.4 }}>
           <div style={{ color: C.accent, fontWeight: 600, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '.08em' }}>Methods</div>
-          {methodNoteForTest(active, null)}
+          {(() => {
+            const note = methodNoteForTest(active, null);
+            if (typeof note === 'string') return note;
+            return (
+              <>
+                <div style={{ color: C.text, marginBottom: 3 }}>{note.description}</div>
+                {note.usage && <div style={{ marginBottom: 3 }}><b style={{ color: C.text }}>Use:</b> {note.usage}</div>}
+                {note.assumptions && (
+                  <div>
+                    <b style={{ color: C.text }}>Assumptions:</b>
+                    <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
+                      {note.assumptions.map((a, i) => <li key={i} style={{ marginBottom: 1 }}>{a}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
     </div>

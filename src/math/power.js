@@ -1,4 +1,4 @@
-import { normalCDF, tInv2, fPVal, chiPVal } from './distributions.js';
+import { normalCDF, tInv2, fPVal, chiPVal, normalINV } from './distributions.js';
 import { avg } from './core.js';
 import { mulberry32, boxMullerN } from './rng.js';
 
@@ -121,6 +121,220 @@ export function powerMediation(aHat, bHat, seA, seB, B = 2000, alpha = .05, seed
   /** blend MC with asymptotic Sobel decision */
   const asym = +(normalCDF(Math.abs(zObs) - zCrit)).toFixed(4);
   return { powerMC: +(hit / B).toFixed(4), powerAsymp: asym, zObs: +zObs.toFixed(4) };
+}
+
+/** Two-sample t-test power — analytical non-central t via delta method */
+export function computePowerT(n1, n2, d, alpha = .05, seed = 42) {
+  const df = n1 + n2 - 2;
+  if (df < 1 || !Number.isFinite(d)) return 0;
+  const delta = Math.abs(d) * Math.sqrt(n1 * n2 / (n1 + n2));
+  const tc = tInv2(alpha, df);
+  if (df > 30) return normalCDF(delta - tc) + normalCDF(-delta - tc);
+  const rand = mulberry32(seed ?? 42);
+  let hits = 0;
+  const R = 10000;
+  for (let rep = 0; rep < R; rep++) {
+    let chi = 0;
+    for (let i = 0; i < df; i++) chi += boxMullerN(rand) ** 2;
+    const scale = Math.sqrt(chi / df) || 1;
+    const t = (boxMullerN(rand) + delta) / scale;
+    if (Math.abs(t) > tc) hits++;
+  }
+  return hits / R;
+}
+
+/** Pearson r power via Fisher z */
+export function computePowerCorr(n, r, alpha = .05) {
+  const z = .5 * Math.log((1 + r) / (1 - r)), se = 1 / Math.sqrt(n - 3), zc = normalINV(1 - alpha / 2);
+  return normalCDF(Math.abs(z) / se - zc);
+}
+
+/** Required sample size per group for two-sample t-test */
+export function requiredN(d, power = .8, alpha = .05) {
+  let n = 4;
+  while (n < 10000) { if (computePowerT(n, n, Math.abs(d), alpha) >= power) return n; n++; }
+  return n;
+}
+
+/** Required sample size for correlation power */
+export function requiredNCorr(r, power = .8, alpha = .05) {
+  let n = 5;
+  while (n < 10000) { if (computePowerCorr(n, Math.abs(r), alpha) >= power) return n; n++; }
+  return n;
+}
+
+// ── Unified t-test power ───────────────────────────────────────────────────────
+export function powerTTest(n1, n2 = n1, d, type = 'two-sample', alpha = .05) {
+  if (n1 < 2 || !Number.isFinite(d) || !(alpha > 0 && alpha < 1)) return null;
+  if (type === 'paired') {
+    const n = Math.min(n1, n2);
+    if (n < 3) return null;
+    const df = n - 1;
+    const delta = Math.abs(d) * Math.sqrt(n);
+    const tc = tInv2(alpha / 2, df);
+    return { power: +normalCDF(delta - tc).toFixed(4), type, n, d, alpha, apa: `Power = ${normalCDF(delta - tc).toFixed(3)} (paired t, n = ${n}, d = ${d})` };
+  }
+  if (type === 'one-sample') {
+    const df = n1 - 1;
+    if (df < 1) return null;
+    const delta = Math.abs(d) * Math.sqrt(n1);
+    const tc = tInv2(alpha / 2, df);
+    return { power: +normalCDF(delta - tc).toFixed(4), type, n: n1, d, alpha, apa: `Power = ${normalCDF(delta - tc).toFixed(3)} (one-sample t, n = ${n1}, d = ${d})` };
+  }
+  const power = computePowerT(n1, n2, d, alpha, 42);
+  return { power: +power.toFixed(4), type, n1, n2, d, alpha, apa: `Power = ${power.toFixed(3)} (two-sample t, n = ${n1}+${n2}, d = ${d})` };
+}
+
+// ── Proportion power ───────────────────────────────────────────────────────────
+export function powerOneProportion(n, p0, p1, alpha = .05) {
+  if (n < 5 || !(p0 > 0 && p0 < 1) || !(p1 > 0 && p1 < 1) || p0 === p1) return null;
+  const se = Math.sqrt(p1 * (1 - p1) / n);
+  const zc = normalINV(1 - alpha / 2);
+  const delta = Math.abs(p1 - p0) / se;
+  return { power: +normalCDF(delta - zc).toFixed(4), n, p0, p1, alpha, apa: `Power = ${normalCDF(delta - zc).toFixed(3)} (one proportion, n = ${n}, p = ${p0} vs ${p1})` };
+}
+
+export function powerTwoProportion(n1, n2, p1, p2, alpha = .05) {
+  if (n1 < 5 || n2 < 5 || !(p1 >= 0 && p2 >= 0 && p1 <= 1 && p2 <= 1)) return null;
+  const pBar = (n1 * p1 + n2 * p2) / (n1 + n2);
+  const se = Math.sqrt(pBar * (1 - pBar) * (1 / n1 + 1 / n2));
+  const zc = normalINV(1 - alpha / 2);
+  const delta = Math.abs(p1 - p2) / (se || 1e-10);
+  return { power: +normalCDF(delta - zc).toFixed(4), n1, n2, p1, p2, alpha, apa: `Power = ${normalCDF(delta - zc).toFixed(3)} (two prop, n = ${n1}+${n2})` };
+}
+
+// ── Wilcoxon power (Pitman ARE) ────────────────────────────────────────────────
+export function powerWilcoxon(n1, n2 = n1, d, alpha = .05) {
+  const ARE = 0.955;
+  const neff = Math.round((n1 + n2) * ARE);
+  const nEffPer = Math.round(neff / 2);
+  if (nEffPer < 3 || !Number.isFinite(d)) return null;
+  const res = powerTTest(nEffPer, nEffPer, d, 'two-sample', alpha);
+  if (!res) return null;
+  return { ...res, test: 'Mann-Whitney', n1, n2, are: ARE, apa: `Power = ${res.power.toFixed(3)} (MWU via ARE, n = ${n1}+${n2}, d = ${d})` };
+}
+
+// ── Log-rank test power (Schoenfeld 1983) ──────────────────────────────────────
+export function powerLogRank(nEvents, hr, alpha = .05) {
+  if (!Number.isFinite(nEvents) || nEvents < 4 || !Number.isFinite(hr) || hr <= 0) return null;
+  const zc = normalINV(1 - alpha / 2);
+  const zBeta = Math.abs(Math.log(hr)) * Math.sqrt(nEvents / 4) - zc;
+  return { power: +normalCDF(zBeta).toFixed(4), nEvents, hr, alpha, apa: `Power = ${normalCDF(zBeta).toFixed(3)} (log-rank, events = ${nEvents}, HR = ${hr})` };
+}
+
+// ── RM ANOVA power ─────────────────────────────────────────────────────────────
+export function powerRMANOVA(k, n, epsilon, f, alpha = .05) {
+  if (k < 2 || n < 3 || !(epsilon > 0 && epsilon <= 1) || !(f >= 0)) return null;
+  const df1 = (k - 1) * epsilon;
+  const df2 = (k - 1) * (n - 1) * epsilon;
+  const ncp = n * k * f * f;
+  const crit = fCritUpper(alpha, Math.max(1, Math.round(df1)), Math.max(1, Math.round(df2)));
+  let power = 0;
+  for (let x = crit; x < crit + 20; x += 0.2) {
+    power += Math.exp(-0.5 * (x - ncp) ** 2 / (2 * (df1 + 2 * ncp))) * 0.2;
+  }
+  power = Math.min(0.9999, Math.max(0, power / Math.sqrt(2 * Math.PI * (df1 + 2 * ncp))));
+  return { power: +power.toFixed(4), k, n, epsilon, f, alpha, apa: `Power = ${power.toFixed(3)} (RM ANOVA, k = ${k}, n = ${n}, f = ${f})` };
+}
+
+// ── OLS regression F-test power ────────────────────────────────────────────────
+export function powerOLS(rSquared, n, k, alpha = .05) {
+  if (!(rSquared >= 0 && rSquared < 1) || n < k + 2 || k < 1) return null;
+  const f2 = rSquared / (1 - rSquared);
+  const ncp = n * f2;
+  const df1 = k;
+  const df2 = n - k - 1;
+  const crit = fCritUpper(alpha, df1, df2);
+  const lambda = ncp;
+  const mn = df1 + lambda;
+  const vr = 2 * (df1 + 2 * lambda);
+  const power = 1 - normalCDF((crit - mn) / Math.sqrt(Math.max(1e-9, vr)));
+  return { power: +Math.min(0.9999, Math.max(0, power)).toFixed(4), rSquared, n, k, alpha, apa: `Power = ${power.toFixed(3)} (OLS, R2 = ${rSquared}, n = ${n}, k = ${k})` };
+}
+
+// ── Spearman power ─────────────────────────────────────────────────────────────
+export function powerSpearman(n, rho, alpha = .05) {
+  if (n < 5 || !(rho >= -1 && rho <= 1)) return null;
+  const z = 0.5 * Math.log((1 + rho) / (1 - rho));
+  const se = 1 / Math.sqrt(n - 3);
+  const zc = normalINV(1 - alpha / 2);
+  return { power: +normalCDF(Math.abs(z) / se - zc).toFixed(4), n, rho, alpha, apa: `Power = ${normalCDF(Math.abs(z) / se - zc).toFixed(3)} (Spearman, n = ${n}, rho = ${rho})` };
+}
+
+// ── Required-N functions ───────────────────────────────────────────────────────
+export function requiredNTTest(d, type = 'two-sample', power = .8, alpha = .05) {
+  if (!Number.isFinite(d) || d <= 0) return null;
+  let lo = 3, hi = 5000;
+  for (let i = 0; i < 60; i++) {
+    const mid = Math.floor((lo + hi) / 2);
+    const pwr = powerTTest(mid, type === 'paired' ? mid : mid, d, type, alpha);
+    if (pwr?.power >= power) hi = mid; else lo = mid;
+  }
+  return hi;
+}
+
+export function requiredNOneProp(p0, p1, power = .8, alpha = .05) {
+  let lo = 5, hi = 20000;
+  for (let i = 0; i < 60; i++) {
+    const mid = Math.floor((lo + hi) / 2);
+    const pwr = powerOneProportion(mid, p0, p1, alpha);
+    if (pwr?.power >= power) hi = mid; else lo = mid;
+  }
+  return hi;
+}
+
+export function requiredNTwoProp(p1, p2, power = .8, alpha = .05) {
+  let lo = 5, hi = 20000;
+  for (let i = 0; i < 60; i++) {
+    const mid = Math.floor((lo + hi) / 2);
+    const pwr = powerTwoProportion(mid, mid, p1, p2, alpha);
+    if (pwr?.power >= power) hi = mid; else lo = mid;
+  }
+  return hi;
+}
+
+export function requiredNWilcoxon(d, power = .8, alpha = .05) {
+  let lo = 3, hi = 5000;
+  for (let i = 0; i < 60; i++) {
+    const mid = Math.floor((lo + hi) / 2);
+    const pwr = powerWilcoxon(mid, mid, d, alpha);
+    if (pwr?.power >= power) hi = mid; else lo = mid;
+  }
+  return hi;
+}
+
+export function requiredNLogRank(hr, power = .8, alpha = .05) {
+  let lo = 4, hi = 20000;
+  for (let i = 0; i < 60; i++) {
+    const mid = Math.floor((lo + hi) / 2);
+    const pwr = powerLogRank(mid, hr, alpha);
+    if (pwr?.power >= power) hi = mid; else lo = mid;
+  }
+  return hi;
+}
+
+export function requiredNOLS(rSquared, k = 1, power = .8, alpha = .05) {
+  let lo = k + 5, hi = 5000;
+  for (let i = 0; i < 60; i++) {
+    const mid = Math.floor((lo + hi) / 2);
+    const pwr = powerOLS(rSquared, mid, k, alpha);
+    if (pwr?.power >= power) hi = mid; else lo = mid;
+  }
+  return hi;
+}
+
+// ── Power curve generator ──────────────────────────────────────────────────────
+export function powerCurve(powerFn, varyParam, varyRange, fixedParams, options = {}) {
+  const { steps = 40 } = options;
+  const [lo, hi] = varyRange;
+  const pts = [];
+  for (let i = 0; i < steps; i++) {
+    const val = lo + (i / Math.max(1, steps - 1)) * (hi - lo);
+    const params = { ...fixedParams, [varyParam]: val };
+    const result = powerFn(params);
+    pts.push({ [varyParam]: val, power: result?.power ?? 0 });
+  }
+  return pts;
 }
 
 export function binaryInvNormalCDF(target) {

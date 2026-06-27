@@ -3,8 +3,10 @@ import { describe, it, expect } from 'vitest';
 import {
   oneWayANOVA, welchANOVA, twoWayANOVA, ancova,
   rmANOVA, kruskalWallis, friedman, cochranQ,
+  hedgesG, cohensD, gamesHowell, dunnettTest, eta2Partial, omega2Partial,
 } from './anova.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
+import { expectKeys } from './__fixtures__/helpers.js';
 
 const mkGroup = (name, vals) => ({ name, vals });
 
@@ -207,5 +209,239 @@ describe('rmANOVA', () => {
     const res = rmANOVA(mkMatrix());
     expect(res.ggEps).toBeGreaterThanOrEqual(0);
     expect(res.ggEps).toBeLessThanOrEqual(1.001);
+  });
+});
+
+// ── Hedges' g ─────────────────────────────────────────────────────────────────
+describe('hedgesG', () => {
+  const a = [10, 11, 12, 10.5, 9.8];
+  const b = [8, 9, 8.5, 7.5, 9.2];
+
+  it('returns null for small/invalid arrays', () => {
+    expect(hedgesG(null, b)).toBeNull();
+    expect(hedgesG([1], b)).toBeNull();
+    expect(hedgesG([1], [2])).toBeNull();
+  });
+
+  it('g has expected sign on known difference', () => {
+    const r = hedgesG(a, b);
+    expect(r.g).toBeGreaterThan(0);
+    expect(r.d).toBeGreaterThan(0);
+    expect(r.n1).toBe(a.length);
+    expect(r.n2).toBe(b.length);
+  });
+
+  it('g ≈ 0 for identical arrays', () => {
+    const r = hedgesG(a, a);
+    expect(Math.abs(r.g)).toBeLessThan(0.01);
+  });
+
+  it('returns contract keys', () => {
+    const r = hedgesG(a, b);
+    expectKeys(r, ['test', 'g', 'd', 'se', 'label', 'n1', 'n2', 'apa']);
+  });
+
+  it('label is a valid string', () => {
+    const r = hedgesG(a, b);
+    expect(['large', 'medium', 'small', 'negligible']).toContain(r.label);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = hedgesG(a, b);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Cohen's d ─────────────────────────────────────────────────────────────────
+describe('cohensD', () => {
+  const a = [10, 11, 12, 10.5, 9.8];
+  const b = [8, 9, 8.5, 7.5, 9.2];
+
+  it('returns null for small arrays', () => {
+    expect(cohensD(null, b)).toBeNull();
+    expect(cohensD([1], [2])).toBeNull();
+  });
+
+  it('d and CI for known difference', () => {
+    const r = cohensD(a, b);
+    expect(r.d).toBeGreaterThan(0);
+    expect(r.ciLo).toBeLessThan(r.d);
+    expect(r.ciHi).toBeGreaterThan(r.d);
+  });
+
+  it('contract keys', () => {
+    expectKeys(cohensD(a, b), ['test', 'd', 'se', 'ciLo', 'ciHi', 'label', 'n1', 'n2', 'apa']);
+  });
+
+  it('d ≈ 0 for identical arrays', () => {
+    const r = cohensD(a, a);
+    expect(Math.abs(r.d)).toBeLessThan(0.01);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = cohensD(a, b);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Games-Howell ──────────────────────────────────────────────────────────────
+describe('gamesHowell', () => {
+  const groups = [
+    { name: 'A', vals: [10, 11, 12, 10.5, 9.8] },
+    { name: 'B', vals: [8, 9, 8.5, 7.5, 9.2] },
+    { name: 'C', vals: [7, 8, 7.5, 6.8, 6.2] },
+  ];
+
+  it('returns null for <2 groups', () => {
+    expect(gamesHowell(null)).toBeNull();
+    expect(gamesHowell([groups[0]])).toBeNull();
+  });
+
+  it('contract keys', () => {
+    expectKeys(gamesHowell(groups), ['test', 'pairs', 'alpha', 'k', 'apa']);
+  });
+
+  it('pairs count = k*(k-1)/2', () => {
+    const r = gamesHowell(groups);
+    expect(r.pairs).toHaveLength(3);
+  });
+
+  it('each pair has diff, se, df, q, p, sig', () => {
+    const r = gamesHowell(groups);
+    r.pairs.forEach(p => {
+      expect(Number.isFinite(p.diff)).toBe(true);
+      expect(Number.isFinite(p.se)).toBe(true);
+      expect(Number.isFinite(p.q)).toBe(true);
+      expect(p.p).toBeGreaterThanOrEqual(0);
+      expect(p.p).toBeLessThanOrEqual(1);
+      expect(typeof p.sig).toBe('boolean');
+    });
+  });
+
+  it('sig flags align with p < alpha', () => {
+    const r = gamesHowell(groups, 0.05);
+    r.pairs.forEach(p => {
+      expect(p.sig).toBe(p.p < 0.05);
+    });
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = gamesHowell(groups);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Dunnett's Test ────────────────────────────────────────────────────────────
+describe('dunnettTest', () => {
+  const groups = [
+    { name: 'Control', vals: [10, 11, 10.5, 9.8, 10.2] },
+    { name: 'Drug A', vals: [8, 7.5, 8.2, 7.8, 8.5] },
+    { name: 'Drug B', vals: [7, 6.5, 7.2, 6.8, 6.2] },
+  ];
+
+  it('returns null for <2 groups', () => {
+    expect(dunnettTest(null)).toBeNull();
+    expect(dunnettTest([groups[0]])).toBeNull();
+  });
+
+  it('returns null for invalid controlIndex', () => {
+    expect(dunnettTest(groups, 10)).toBeNull();
+  });
+
+  it('contract keys', () => {
+    expectKeys(dunnettTest(groups), ['test', 'control', 'comparisons', 'mse', 'dfError', 'alpha', 'apa']);
+  });
+
+  it('comparisons count = k - 1', () => {
+    const r = dunnettTest(groups);
+    expect(r.comparisons).toHaveLength(2);
+  });
+
+  it('control name matches controlIndex', () => {
+    const r = dunnettTest(groups, 1);
+    expect(r.control).toBe('Drug A');
+  });
+
+  it('comparisons have t, df, p, sig', () => {
+    const r = dunnettTest(groups);
+    r.comparisons.forEach(c => {
+      expect(Number.isFinite(c.t)).toBe(true);
+      expect(c.df).toBeGreaterThan(0);
+      expect(c.p).toBeGreaterThanOrEqual(0);
+      expect(c.p).toBeLessThanOrEqual(1);
+      expect(typeof c.sig).toBe('boolean');
+    });
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = dunnettTest(groups);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Partial Eta-Squared ───────────────────────────────────────────────────────
+describe('eta2Partial', () => {
+  it('returns null for invalid values', () => {
+    expect(eta2Partial(-1, 10)).toBeNull();
+    expect(eta2Partial(5, 0)).toBeNull();
+    expect(eta2Partial(5, -1)).toBeNull();
+  });
+
+  it('eta2p in [0, 1]', () => {
+    const r = eta2Partial(10, 40);
+    expect(r.eta2p).toBeGreaterThanOrEqual(0);
+    expect(r.eta2p).toBeLessThanOrEqual(1);
+  });
+
+  it('label matches thresholds', () => {
+    expect(eta2Partial(0.5, 100).label).toBe('negligible');
+    expect(eta2Partial(5, 100).label).toBe('small');
+    expect(eta2Partial(15, 100).label).toBe('medium');
+    expect(eta2Partial(30, 100).label).toBe('large');
+  });
+
+  it('contract keys', () => {
+    expectKeys(eta2Partial(10, 40), ['test', 'eta2p', 'label', 'apa']);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = eta2Partial(10, 40);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Partial Omega-Squared ─────────────────────────────────────────────────────
+describe('omega2Partial', () => {
+  it('returns null for invalid', () => {
+    expect(omega2Partial(-1, 2, 1, 10, 20)).toBeNull();
+    expect(omega2Partial(5, 2, 0, 10, 20)).toBeNull();
+    expect(omega2Partial(5, 2, 1, 0, 20)).toBeNull();
+  });
+
+  it('omega2p in [0, 1]', () => {
+    const r = omega2Partial(25, 4, 2, 47, 50);
+    expect(r.omega2p).toBeGreaterThanOrEqual(0);
+    expect(r.omega2p).toBeLessThanOrEqual(1);
+  });
+
+  it('omega2p ≤ eta2p typically', () => {
+    const r = omega2Partial(25, 4, 2, 47, 50);
+    expect(r.omega2p).toBeLessThanOrEqual(1);
+    expect(Number.isFinite(r.omega2p)).toBe(true);
+  });
+
+  it('contract keys', () => {
+    expectKeys(omega2Partial(25, 4, 2, 47, 50), ['test', 'omega2p', 'apa']);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = omega2Partial(25, 4, 2, 47, 50);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
   });
 });

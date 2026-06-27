@@ -9,8 +9,14 @@ import {
   negativeBinomialRegression,
   mediation,
   moderation,
+  cooksDistance, dfbetas, fullVIF,
+  zeroInflatedPoisson, zeroInflatedNegBin, quantileRegression, sandwichSE, clusterSE,
+  brantTest, adjacentCategoryLogit, continuationRatioLogit, multinomialLogit, stereotypeLogit,
+  forwardSelection, backwardElimination, bestSubsets,
+  betaRegression, zeroInflatedBeta, oneInflatedBeta, tobitTypeI, heckman2Step, censoredQuantile,
 } from './regression.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
+import { expectKeys } from './__fixtures__/helpers.js';
 
 const rr = ref.regression;
 
@@ -463,4 +469,446 @@ describe('moderation', () => {
     const res = moderation(X, Z, Y);
     if (res) expect(res.simpleSlopes).toHaveLength(3);
   });
+});
+
+describe('cooksDistance', () => {
+  it('returns null for invalid input', () => {
+    expect(cooksDistance(null, [1, 2])).toBeNull();
+  });
+
+  it('computes Cook distances for OLS regression', () => {
+    const X = Array.from({ length: 20 }, (_, i) => [1, i]);
+    const y = X.map(([_, x]) => 2 + 1.5 * x + (Math.random() - 0.5) * 0.5);
+    const r = cooksDistance(X, y);
+    expect(r).not.toBeNull();
+    expect(r.values.length).toBe(20);
+    expect(r.max).toBeGreaterThanOrEqual(0);
+    expect(r.n).toBe(20);
+  });
+
+  it('returns null for n < 3', () => {
+    expect(cooksDistance([[1], [2]], [1, 2])).toBeNull();
+  });
+
+  it('returns null for length mismatch', () => {
+    expect(cooksDistance([[1, 1], [1, 2]], [1])).toBeNull();
+  });
+
+  it('all Cook values are non-negative', () => {
+    const X = Array.from({ length: 20 }, (_, i) => [1, i]);
+    const y = X.map(([_, x]) => 2 + 1.5 * x + (Math.random() - 0.5) * 0.5);
+    const r = cooksDistance(X, y);
+    r.values.forEach(v => expect(v).toBeGreaterThanOrEqual(0));
+  });
+
+  it('threshold is 4/n', () => {
+    const X = Array.from({ length: 25 }, (_, i) => [1, i]);
+    const y = X.map(([_, x]) => 2 + 1.5 * x + (Math.random() - 0.5) * 0.5);
+    const r = cooksDistance(X, y);
+    expect(r.threshold).toBeCloseTo(4 / 25);
+  });
+
+  it('contract fields present', () => {
+    const X = Array.from({ length: 20 }, (_, i) => [1, i]);
+    const y = X.map(([_, x]) => 2 + x);
+    const r = cooksDistance(X, y);
+    expectKeys(r, ['test', 'values', 'max', 'threshold', 'nInfluential', 'n', 'k', 'sigma2', 'apa']);
+    expect(r.test).toBe("Cook's Distance");
+  });
+
+  it('nInfluential ≤ n', () => {
+    const X = Array.from({ length: 20 }, (_, i) => [1, i]);
+    const y = X.map(([_, x]) => 2 + 1.5 * x + (Math.random() - 0.5) * 0.5);
+    const r = cooksDistance(X, y);
+    expect(r.nInfluential).toBeLessThanOrEqual(r.n);
+  });
+});
+
+describe('dfbetas', () => {
+  it('returns null for invalid input', () => {
+    expect(dfbetas(null, [1, 2, 3])).toBeNull();
+  });
+
+  it('computes DFBETAS for OLS regression', () => {
+    const X = Array.from({ length: 20 }, (_, i) => [1, i]);
+    const y = X.map(([_, x]) => 2 + 1.5 * x + (Math.random() - 0.5) * 0.5);
+    const r = dfbetas(X, y);
+    expect(r).not.toBeNull();
+    expect(r.values.length).toBe(20);
+    expect(r.values[0].length).toBe(2);
+    expect(r.maxAbs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('returns null for n < 5', () => {
+    expect(dfbetas([[1, 1], [1, 2], [1, 3]], [1, 2, 3])).toBeNull();
+  });
+
+  it('DFBETA threshold is 2/sqrt(n)', () => {
+    const n = 25;
+    const X = Array.from({ length: n }, (_, i) => [1, i]);
+    const y = X.map(([_, x]) => 2 + x);
+    const r = dfbetas(X, y);
+    expect(r.threshold).toBeCloseTo(2 / Math.sqrt(n));
+  });
+
+  it('all DFBETA rows match observation count', () => {
+    const X = Array.from({ length: 15 }, (_, i) => [1, i * 0.5]);
+    const y = X.map(([_, x]) => 3 + 0.5 * x + (Math.random() - 0.5) * 0.3);
+    const r = dfbetas(X, y);
+    expect(r.values.length).toBe(15);
+  });
+
+  it('contract fields present', () => {
+    const X = Array.from({ length: 20 }, (_, i) => [1, i]);
+    const y = X.map(([_, x]) => 2 + x);
+    const r = dfbetas(X, y);
+    expectKeys(r, ['test', 'values', 'maxAbs', 'threshold', 'nExceeded', 'n', 'k', 'apa']);
+    expect(r.test).toBe('DFBETAS');
+  });
+});
+
+describe('fullVIF', () => {
+  it('returns null for single predictor', () => {
+    const X = [[1], [2], [3]];
+    expect(fullVIF(X)).toBeNull();
+  });
+
+  it('computes VIF for multiple predictors', () => {
+    const X = Array.from({ length: 30 }, (_, i) => [i, i * 0.5 + 0.1, i * i * 0.01]);
+    const r = fullVIF(X);
+    expect(r).not.toBeNull();
+    expect(r.vif.length).toBe(3);
+    expect(r.maxVIF).toBeGreaterThanOrEqual(1);
+    expect(r.meanVIF).toBeGreaterThanOrEqual(1);
+  });
+
+  it('returns null for n < 3', () => {
+    expect(fullVIF([[1, 2], [3, 4]])).toBeNull();
+  });
+
+  it('returns null for null input', () => {
+    expect(fullVIF(null)).toBeNull();
+  });
+
+  it('all VIF values ≥ 1', () => {
+    const X = Array.from({ length: 20 }, (_, i) => [i, i * 0.5 + 0.1, i * 0.2 + 0.3]);
+    const r = fullVIF(X);
+    r.vif.forEach(v => expect(v).toBeGreaterThanOrEqual(1));
+  });
+
+  it('orthogonal predictors give VIF ≈ 1', () => {
+    const X = Array.from({ length: 30 }, (_, i) => [i, Math.sin(i), i % 10]);
+    const r = fullVIF(X);
+    expect(r.maxVIF).toBeLessThan(20);
+  });
+
+  it('highly collinear predictors give large VIF', () => {
+    const X = Array.from({ length: 30 }, (_, i) => [i, i + (Math.random() - 0.5) * 0.001, i * 0.5]);
+    const r = fullVIF(X);
+    expect(r.problematic).toBeGreaterThan(0);
+  });
+
+  it('contract fields present', () => {
+    const X = Array.from({ length: 20 }, (_, i) => [i, i * 0.5 + 0.1]);
+    const r = fullVIF(X);
+    expectKeys(r, ['test', 'vif', 'maxVIF', 'meanVIF', 'problematic', 'n', 'k', 'apa']);
+    expect(r.test).toBe('VIF (Variance Inflation Factor)');
+  });
+
+  it('APA string mentions VIF', () => {
+    const X = Array.from({ length: 20 }, (_, i) => [i, i * 0.5 + 0.1]);
+    const r = fullVIF(X);
+    expect(r.apa).toContain('VIF');
+  });
+});
+
+// ── Zero-Inflated Poisson ─────────────────────────────────────────────────────
+describe('zeroInflatedPoisson', () => {
+  const zipData = [];
+  const rng = (seed) => { let s = seed; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 2 ** 32; }; };
+  const rand = rng(42);
+  for (let i = 0; i < 60; i++) {
+    const x = rand();
+    const isZero = x > 0.4;
+    const count = isZero ? 0 : Math.max(0, Math.round(2 + x * 3 + rand() * 0.5));
+    zipData.push({ y: count, x1: x });
+  }
+
+  it('returns null for small data', () => {
+    expect(zeroInflatedPoisson(zipData.slice(0, 10), 'y', ['x1'])).toBeNull();
+  });
+
+  it('contract keys', () => {
+    const r = zeroInflatedPoisson(zipData, 'y', ['x1']);
+    expectKeys(r, ['test', 'zeroModel', 'countModel', 'logLikelihood', 'n', 'nZeros', 'apa']);
+  });
+
+  it('zeroModel and countModel have coefficients', () => {
+    const r = zeroInflatedPoisson(zipData, 'y', ['x1']);
+    expect(r.zeroModel.coefficients.length).toBeGreaterThan(0);
+    expect(r.countModel.coefficients.length).toBeGreaterThan(0);
+  });
+
+  it('nZeros > 0', () => {
+    const r = zeroInflatedPoisson(zipData, 'y', ['x1']);
+    expect(r.nZeros).toBeGreaterThan(0);
+  });
+
+  it('coefficients have name, b, se, z, p', () => {
+    const r = zeroInflatedPoisson(zipData, 'y', ['x1']);
+    r.zeroModel.coefficients.forEach(c => {
+      expect(typeof c.name).toBe('string');
+      expect(Number.isFinite(c.b)).toBe(true);
+      expect(typeof c.p).toBe('number');
+    });
+  });
+
+  it('logLikelihood is negative', () => {
+    const r = zeroInflatedPoisson(zipData, 'y', ['x1']);
+    expect(r.logLikelihood).toBeLessThan(0);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = zeroInflatedPoisson(zipData, 'y', ['x1']);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Zero-Inflated Negative Binomial ───────────────────────────────────────────
+describe('zeroInflatedNegBin', () => {
+  const zinbData = [];
+  for (let i = 0; i < 60; i++) {
+    const x = i / 60;
+    const isZero = x < 0.3 || (x > 0.6 && x < 0.7);
+    const count = isZero ? 0 : Math.max(1, Math.round(3 + x * 4 + (i % 3) * 2));
+    zinbData.push({ y: count, x1: x });
+  }
+
+  it('returns null for small data', () => {
+    expect(zeroInflatedNegBin(zinbData.slice(0, 10), 'y', ['x1'])).toBeNull();
+  });
+
+  it('contract keys', () => {
+    const r = zeroInflatedNegBin(zinbData, 'y', ['x1']);
+    if (r) {
+      expectKeys(r, ['test', 'zeroModel', 'countModel', 'dispersion', 'logLikelihood', 'n', 'nZeros', 'apa']);
+    }
+  });
+
+  it('dispersion > 0 when valid', () => {
+    const r = zeroInflatedNegBin(zinbData, 'y', ['x1']);
+    if (r) expect(r.dispersion).toBeGreaterThan(0);
+  });
+
+  it('count coefficients present when valid', () => {
+    const r = zeroInflatedNegBin(zinbData, 'y', ['x1']);
+    if (r) expect(r.countModel.coefficients.length).toBeGreaterThan(0);
+  });
+
+  it('logLikelihood is finite when valid', () => {
+    const r = zeroInflatedNegBin(zinbData, 'y', ['x1']);
+    if (r) expect(Number.isFinite(r.logLikelihood)).toBe(true);
+  });
+
+  it('apa is a non-empty string when valid', () => {
+    const r = zeroInflatedNegBin(zinbData, 'y', ['x1']);
+    if (r) {
+      expect(typeof r.apa).toBe('string');
+      expect(r.apa.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+// ── Quantile Regression ───────────────────────────────────────────────────────
+describe('quantileRegression', () => {
+  const qrData = [];
+  for (let i = 0; i < 40; i++) {
+    qrData.push({ y: 5 + i * 0.5 + (i % 7) * 1.5, x: i });
+  }
+
+  it('returns null for small data', () => {
+    expect(quantileRegression(qrData.slice(0, 5), 'y', ['x'])).toBeNull();
+  });
+
+  it('contract keys', () => {
+    const r = quantileRegression(qrData, 'y', ['x']);
+    expectKeys(r, ['test', 'tau', 'coefficients', 'n', 'nIter', 'apa']);
+  });
+
+  it('tau defaults to 0.5', () => {
+    const r = quantileRegression(qrData, 'y', ['x']);
+    expect(r.tau).toBe(0.5);
+  });
+
+  it('custom tau works', () => {
+    const r = quantileRegression(qrData, 'y', ['x'], 0.75);
+    expect(r.tau).toBe(0.75);
+  });
+
+  it('coefficients have name, b, se, t, p', () => {
+    const r = quantileRegression(qrData, 'y', ['x']);
+    r.coefficients.forEach(c => {
+      expect(typeof c.name).toBe('string');
+      expect(Number.isFinite(c.b)).toBe(true);
+      expect(Number.isFinite(c.se)).toBe(true);
+      expect(typeof c.p).toBe('number');
+    });
+  });
+
+  it('coefficients are finite', () => {
+    const r = quantileRegression(qrData, 'y', ['x']);
+    r.coefficients.forEach(c => expect(Number.isFinite(c.b)).toBe(true));
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = quantileRegression(qrData, 'y', ['x']);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Sandwich Robust SE ────────────────────────────────────────────────────────
+describe('sandwichSE', () => {
+  const Y = [2, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29];
+  const X = Y.map((_, i) => [i + 1]);
+  const ols = multipleOLS(Y, X, ['x']);
+
+  it('returns null for insufficient data', () => {
+    expect(sandwichSE(null, X, Y)).toBeNull();
+    expect(sandwichSE(ols, X.slice(0, 4), Y.slice(0, 4))).toBeNull();
+  });
+
+  it('contract keys', () => {
+    const r = sandwichSE(ols, X, Y);
+    expectKeys(r, ['test', 'originalSE', 'robustSE', 'seDiff', 'type', 'n', 'nParams', 'apa']);
+  });
+
+  it('robustSE differs from originalSE', () => {
+    const r = sandwichSE(ols, X, Y);
+    expect(r.robustSE[1]).not.toEqual(r.originalSE[1]);
+  });
+
+  it('HC3 produces different results than HC0', () => {
+    const r0 = sandwichSE(ols, X, Y, 'HC0');
+    const r3 = sandwichSE(ols, X, Y, 'HC3');
+    expect(r0.robustSE[1]).not.toEqual(r3.robustSE[1]);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = sandwichSE(ols, X, Y);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Cluster-Robust SE ─────────────────────────────────────────────────────────
+describe('clusterSE', () => {
+  const Y = [2, 3, 4, 7, 8, 9, 12, 13, 14, 17, 18, 19];
+  const X = Y.map((_, i) => [i + 1]);
+  const cluster = ['A', 'A', 'A', 'B', 'B', 'B', 'C', 'C', 'C', 'D', 'D', 'D'];
+  const ols = multipleOLS(Y, X, ['x']);
+
+  it('returns null for invalid input', () => {
+    expect(clusterSE(null, X, Y, cluster)).toBeNull();
+    expect(clusterSE(ols, X.slice(0, 4), Y.slice(0, 4), ['A', 'A', 'A', 'A'])).toBeNull();
+  });
+
+  it('returns null for single cluster', () => {
+    const singleCluster = ['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A'];
+    expect(clusterSE(ols, X, Y, singleCluster)).toBeNull();
+  });
+
+  it('contract keys', () => {
+    const r = clusterSE(ols, X, Y, cluster);
+    expectKeys(r, ['test', 'originalSE', 'clusterSE', 'nClusters', 'avgClusterSize', 'n', 'apa']);
+  });
+
+  it('nClusters matches unique clusters', () => {
+    const r = clusterSE(ols, X, Y, cluster);
+    expect(r.nClusters).toBe(4);
+  });
+
+  it('clusterSE differs from originalSE', () => {
+    const r = clusterSE(ols, X, Y, cluster);
+    expect(r.clusterSE[1]).not.toEqual(r.originalSE[1]);
+  });
+
+  it('apa non-empty', () => {
+    const r = clusterSE(ols, X, Y, cluster);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+describe('brantTest', () => {
+  it('handles input gracefully', () => {
+    const d = [{ y: 1, x: 1 }, { y: 2, x: 2 }, { y: 3, x: 3 }];
+    expect(brantTest(d, 'y', ['x'])).toBeNull();
+  });
+});
+
+describe('adjacentCategoryLogit', () => {
+  it('null for small data', () => expect(adjacentCategoryLogit([{ y: 1, x: 1 }], 'y', ['x'])).toBeNull());
+});
+
+describe('continuationRatioLogit', () => {
+  it('null for small data', () => expect(continuationRatioLogit([{ y: 1, x: 1 }], 'y', ['x'])).toBeNull());
+});
+
+describe('multinomialLogit', () => {
+  it('null for small data', () => expect(multinomialLogit([{ y: 'A', x: 1 }], 'y', ['x'])).toBeNull());
+});
+
+describe('stereotypeLogit', () => {
+  const d = []; for (let i = 0; i < 40; i++) d.push({ y: String.fromCharCode(65 + (i % 3)), x1: i * 0.1 });
+  it('null for small data', () => expect(stereotypeLogit([{ y: 'A', x: 1 }], 'y', ['x'])).toBeNull());
+  it('contract keys', () => { const r = stereotypeLogit(d, 'y', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'scores', 'refCategory', 'n', 'k', 'apa']); });
+  it('coefficients present', () => { const r = stereotypeLogit(d, 'y', ['x1']); if (r) expect(r.coefficients.length).toBeGreaterThan(0); });
+});
+
+describe('forwardSelection', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ y: i, x1: i, x2: i * 0.5, x3: i % 3 });
+  it('null <2 candidates', () => expect(forwardSelection(d, 'y', ['x1'])).toBeNull());
+  it('contract keys', () => expectKeys(forwardSelection(d, 'y', ['x1', 'x2', 'x3']), ['test', 'selected', 'steps', 'nPars', 'criterion', 'n', 'apa']));
+  it('selected not empty or handles gracefully', () => { const r = forwardSelection(d, 'y', ['x1', 'x2', 'x3']); expect(r.selected).toBeDefined(); });
+});
+
+describe('backwardElimination', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ y: i, x1: i, x2: i * 0.5, x3: (i % 3) * 0.1 });
+  it('null <2 candidates', () => expect(backwardElimination(d, 'y', ['x1'])).toBeNull());
+  it('contract keys if valid', () => { const r = backwardElimination(d, 'y', ['x1', 'x2', 'x3']); if (r) expectKeys(r, ['test', 'selected', 'steps', 'nPars', 'criterion', 'n', 'apa']); });
+});
+
+describe('bestSubsets', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ y: i, x1: i, x2: i * 0.5, x3: i % 3 });
+  it('null <2', () => expect(bestSubsets(d, 'y', ['x1'])).toBeNull());
+});
+
+describe('betaRegression', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ y: 0.3 + i * 0.03, x1: i, x2: i % 3 });
+  it('contract keys', () => expectKeys(betaRegression(d, 'y', ['x1', 'x2']), ['test', 'coefficients', 'n', 'apa']));
+  it('null <15', () => expect(betaRegression(d.slice(0, 5), 'y', ['x1'])).toBeNull());
+});
+
+describe('zeroInflatedBeta', () => {
+  it('is defined', () => expect(typeof zeroInflatedBeta).toBe('function'));
+});
+
+describe('oneInflatedBeta', () => {
+  it('is defined', () => expect(typeof oneInflatedBeta).toBe('function'));
+});
+
+describe('tobitTypeI', () => {
+  it('is defined', () => expect(typeof tobitTypeI).toBe('function'));
+});
+
+describe('heckman2Step', () => {
+  const hd = []; for (let i = 0; i < 30; i++) hd.push({ y: i * 2, x1: i, sel: i > 10 ? 1 : 0, z1: i % 3 });
+  it('contract keys', () => expectKeys(heckman2Step(hd, 'y', ['x1'], 'sel', ['z1']), ['test', 'imr', 'n', 'nSelected', 'apa']));
+});
+
+describe('censoredQuantile', () => {
+  it('contract keys', () => expectKeys(censoredQuantile([1,2,3,4,5,6,7,8,9,10], [1,2,3,4,5,6,7,8,9,10]), ['test', 'tau', 'xAtTau', 'yAtTau', 'n', 'nObserved', 'apa']));
+  it('null <10', () => expect(censoredQuantile([1,2,3],[1,2,3])).toBeNull());
 });

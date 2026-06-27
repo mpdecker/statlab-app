@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { kmeans, hierarchicalCluster, latentClassAnalysis } from './clustering.js';
+import { kmeans, hierarchicalCluster, latentClassAnalysis, silhouetteScore, dbscan, gaussianMixture, calinskiHarabasz, daviesBouldin, optimalK, affinityMatrix, normalizedLaplacian, spectralEmbedding, eigengap, spectralClustering } from './clustering.js';
 import { clusterRows } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
@@ -154,5 +154,254 @@ describe('latentClassAnalysis', () => {
     const b2 = latentClassAnalysis(lcaRows, ['c1', 'c2'], 2).BIC;
     const b3 = latentClassAnalysis(lcaRows, ['c1', 'c2'], 3).BIC;
     expect(b2).not.toBe(b3);
+  });
+});
+
+// ── Silhouette Score ──────────────────────────────────────────────────────────
+describe('silhouetteScore', () => {
+  it('returns null for small data', () => {
+    const small = [{ x: 1, y: 2 }, { x: 3, y: 4 }];
+    expect(silhouetteScore(small, ['x', 'y'], [0, 1], 2)).toBeNull();
+  });
+
+  it('returns valid score for clustered data', () => {
+    const r = kmeans(rows, ['x', 'y'], 3);
+    const s = silhouetteScore(rows, ['x', 'y'], r.labels, 3);
+    expect(s).not.toBeNull();
+    expect(s.silhouette).toBeGreaterThanOrEqual(-1);
+    expect(s.silhouette).toBeLessThanOrEqual(1);
+    expect(s.k).toBe(3);
+  });
+
+  it('contract keys', () => {
+    const r = kmeans(rows, ['x', 'y'], 3);
+    const s = silhouetteScore(rows, ['x', 'y'], r.labels, 3);
+    expectKeys(s, ['test', 'silhouette', 'n', 'k', 'apa']);
+  });
+
+  it('silhouette > 0 for well-separated clusters', () => {
+    const wellData = [
+      { x: 0, y: 0 }, { x: 0.1, y: 0.1 }, { x: -0.1, y: 0 },
+      { x: 5, y: 5 }, { x: 5.1, y: 5.1 }, { x: 4.9, y: 5 },
+    ];
+    const r = kmeans(wellData, ['x', 'y'], 2);
+    const s = silhouetteScore(wellData, ['x', 'y'], r.labels, 2);
+    expect(s.silhouette).toBeGreaterThan(0.5);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = kmeans(rows, ['x', 'y'], 3);
+    const s = silhouetteScore(rows, ['x', 'y'], r.labels, 3);
+    expect(typeof s.apa).toBe('string');
+    expect(s.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── DBSCAN ────────────────────────────────────────────────────────────────────
+describe('dbscan', () => {
+  it('returns null for tiny data', () => {
+    const tiny = [{ x: 1, y: 2 }, { x: 3, y: 4 }];
+    expect(dbscan(tiny, ['x', 'y'], 0.5, 2)).toBeNull();
+  });
+
+  it('returns contract keys', () => {
+    const r = dbscan(rows, ['x', 'y'], 0.5, 3);
+    expectKeys(r, ['test', 'labels', 'corePoints', 'nClusters', 'noise', 'eps', 'minPts', 'n', 'apa']);
+  });
+
+  it('labels length matches n', () => {
+    const r = dbscan(rows, ['x', 'y'], 0.5, 3);
+    expect(r.labels).toHaveLength(r.n);
+  });
+
+  it('noise >= 0 and nClusters >= 0', () => {
+    const r = dbscan(rows, ['x', 'y'], 0.5, 3);
+    expect(r.noise).toBeGreaterThanOrEqual(0);
+    expect(r.nClusters).toBeGreaterThanOrEqual(0);
+  });
+
+  it('corePoints is boolean array', () => {
+    const r = dbscan(rows, ['x', 'y'], 0.5, 3);
+    expect(r.corePoints.length).toBe(r.n);
+    expect(typeof r.corePoints[0]).toBe('boolean');
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = dbscan(rows, ['x', 'y'], 0.5, 3);
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Gaussian Mixture Model ────────────────────────────────────────────────────
+describe('gaussianMixture', () => {
+  it('returns null for small data', () => {
+    const small = [{ x: 1, y: 2 }, { x: 3, y: 4 }, { x: 5, y: 6 }];
+    expect(gaussianMixture(small, ['x', 'y'], 2)).toBeNull();
+  });
+
+  it('contract keys', () => {
+    const r = gaussianMixture(rows, ['x', 'y'], 2, { maxIter: 20 });
+    expectKeys(r, ['test', 'nComponents', 'weights', 'means', 'covariances', 'labels', 'logLikelihood', 'bic', 'aic', 'n', 'apa']);
+  });
+
+  it('weights sum to 1', () => {
+    const r = gaussianMixture(rows, ['x', 'y'], 2, { maxIter: 20 });
+    const sum = r.weights.reduce((s, w) => s + w, 0);
+    expect(sum).toBeCloseTo(1, 2);
+  });
+
+  it('labels in [0, nComponents-1]', () => {
+    const r = gaussianMixture(rows, ['x', 'y'], 2, { maxIter: 20 });
+    r.labels.forEach(l => {
+      expect(l).toBeGreaterThanOrEqual(0);
+      expect(l).toBeLessThan(r.nComponents);
+    });
+  });
+
+  it('BIC is finite', () => {
+    const r = gaussianMixture(rows, ['x', 'y'], 2, { maxIter: 20 });
+    expect(Number.isFinite(r.bic)).toBe(true);
+  });
+
+  it('logLikelihood is finite', () => {
+    const r = gaussianMixture(rows, ['x', 'y'], 2, { maxIter: 20 });
+    expect(Number.isFinite(r.logLikelihood)).toBe(true);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = gaussianMixture(rows, ['x', 'y'], 2, { maxIter: 20 });
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Calinski-Harabasz ─────────────────────────────────────────────────────────
+describe('calinskiHarabasz', () => {
+  it('returns null for k < 2', () => {
+    const r = kmeans(rows, ['x', 'y'], 2);
+    expect(calinskiHarabasz(rows, ['x', 'y'], r.labels, 1)).toBeNull();
+  });
+
+  it('contract keys', () => {
+    const r = kmeans(rows, ['x', 'y'], 3);
+    const ch = calinskiHarabasz(rows, ['x', 'y'], r.labels, 3);
+    expectKeys(ch, ['test', 'chIndex', 'ssBetween', 'ssWithin', 'k', 'n', 'apa']);
+  });
+
+  it('CH > 0 for valid clusters', () => {
+    const r = kmeans(rows, ['x', 'y'], 3);
+    const ch = calinskiHarabasz(rows, ['x', 'y'], r.labels, 3);
+    expect(ch.chIndex).toBeGreaterThan(0);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = kmeans(rows, ['x', 'y'], 3);
+    const ch = calinskiHarabasz(rows, ['x', 'y'], r.labels, 3);
+    expect(typeof ch.apa).toBe('string');
+    expect(ch.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Davies-Bouldin ────────────────────────────────────────────────────────────
+describe('daviesBouldin', () => {
+  it('returns null for k < 2', () => {
+    const r = kmeans(rows, ['x', 'y'], 2);
+    expect(daviesBouldin(rows, ['x', 'y'], r.labels, 1)).toBeNull();
+  });
+
+  it('contract keys', () => {
+    const r = kmeans(rows, ['x', 'y'], 3);
+    const db = daviesBouldin(rows, ['x', 'y'], r.labels, 3);
+    expectKeys(db, ['test', 'dbIndex', 'k', 'n', 'apa']);
+  });
+
+  it('DB > 0 for valid clusters', () => {
+    const r = kmeans(rows, ['x', 'y'], 3);
+    const db = daviesBouldin(rows, ['x', 'y'], r.labels, 3);
+    expect(db.dbIndex).toBeGreaterThan(0);
+  });
+
+  it('lower DB for well-separated clusters', () => {
+    const wellData = Array.from({ length: 30 }, (_, i) => ({
+      x: i < 15 ? i * 0.1 : 10 + (i - 15) * 0.1,
+      y: i < 15 ? i * 0.1 : 10 + (i - 15) * 0.1,
+    }));
+    const r = kmeans(wellData, ['x', 'y'], 2);
+    const db = daviesBouldin(wellData, ['x', 'y'], r.labels, 2);
+    expect(db.dbIndex).toBeLessThan(3);
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = kmeans(rows, ['x', 'y'], 3);
+    const db = daviesBouldin(rows, ['x', 'y'], r.labels, 3);
+    expect(typeof db.apa).toBe('string');
+    expect(db.apa.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Optimal k ─────────────────────────────────────────────────────────────────
+describe('optimalK', () => {
+  it('returns null for tiny data', () => expect(optimalK([{ x: 1, y: 2 }, { x: 3, y: 4 }], ['x', 'y'], 3)).toBeNull());
+  it('contract keys with silhouette method', () => expectKeys(optimalK(rows, ['x', 'y'], 5, { method: 'silhouette' }), ['test', 'optimalK', 'curve', 'method', 'maxK', 'apa']));
+  it('contract keys with CH method', () => expectKeys(optimalK(rows, ['x', 'y'], 5, { method: 'ch' }), ['test', 'optimalK', 'curve', 'method', 'maxK', 'apa']));
+  it('optimalK is between 2 and maxK', () => { const r = optimalK(rows, ['x', 'y'], 5, { method: 'silhouette' }); expect(r.optimalK).toBeGreaterThanOrEqual(2); expect(r.optimalK).toBeLessThanOrEqual(5); });
+  it('curve has entries from k=2 to maxK', () => { const r = optimalK(rows, ['x', 'y'], 4, { method: 'silhouette' }); r.curve.forEach(c => { expect(c.k).toBeGreaterThanOrEqual(2); expect(c.k).toBeLessThanOrEqual(4); expect(Number.isFinite(c.value)).toBe(true); }); });
+  it('apa is a non-empty string', () => { const r = optimalK(rows, ['x', 'y'], 5, { method: 'silhouette' }); expect(typeof r.apa).toBe('string'); expect(r.apa.length).toBeGreaterThan(0); });
+});
+
+describe('affinityMatrix', () => {
+  it('contract keys', () => expectKeys(affinityMatrix(rows, ['x', 'y']), ['test', 'A', 'sigma', 'n', 'apa']));
+  it('null <5', () => expect(affinityMatrix(rows.slice(0, 3), ['x', 'y'])).toBeNull());
+});
+
+describe('normalizedLaplacian', () => {
+  it('contract keys', () => { const a = affinityMatrix(rows, ['x', 'y']); if (a) expectKeys(normalizedLaplacian(a.A), ['test', 'L', 'type', 'n', 'apa']); });
+  it('symmetric and rw types', () => { const a = affinityMatrix(rows, ['x', 'y']); if (a) { expect(normalizedLaplacian(a.A).type).toBe('symmetric'); } });
+});
+
+describe('spectralEmbedding', () => {
+  it('contract keys', () => { const a = affinityMatrix(rows, ['x', 'y']); if (a) expectKeys(spectralEmbedding(a.A), ['test', 'embedding', 'nClusters', 'n', 'apa']); });
+});
+
+describe('eigengap', () => {
+  it('contract keys', () => expectKeys(eigengap([0.1, 0.5, 1.2, 2.0, 3.5, 6.0, 7.0]), ['test', 'bestK', 'maxGap', 'nValues', 'apa']));
+  it('bestK >= 2', () => { const r = eigengap([0.1, 0.5, 1.2, 2.0]); expect(r.bestK).toBeGreaterThanOrEqual(2); });
+});
+
+describe('spectralClustering', () => {
+  it('contract keys', () => { const r = spectralClustering(rows, ['x', 'y'], 3); if (r) expectKeys(r, ['test', 'labels', 'nClusters', 'n', 'apa']); });
+  it('labels present', () => { const r = spectralClustering(rows, ['x', 'y'], 3); if (r) expect(r.labels).toHaveLength(rows.length); });
+});
+
+  it('contract keys with silhouette method', () => {
+    const r = optimalK(rows, ['x', 'y'], 5, { method: 'silhouette' });
+    expectKeys(r, ['test', 'optimalK', 'curve', 'method', 'maxK', 'apa']);
+  });
+
+  it('contract keys with CH method', () => {
+    const r = optimalK(rows, ['x', 'y'], 5, { method: 'ch' });
+    expectKeys(r, ['test', 'optimalK', 'curve', 'method', 'maxK', 'apa']);
+  });
+
+  it('optimalK is between 2 and maxK', () => {
+    const r = optimalK(rows, ['x', 'y'], 5, { method: 'silhouette' });
+    expect(r.optimalK).toBeGreaterThanOrEqual(2);
+    expect(r.optimalK).toBeLessThanOrEqual(5);
+  });
+
+  it('curve has entries from k=2 to maxK', () => {
+    const r = optimalK(rows, ['x', 'y'], 4, { method: 'silhouette' });
+    r.curve.forEach(c => {
+      expect(c.k).toBeGreaterThanOrEqual(2);
+      expect(c.k).toBeLessThanOrEqual(4);
+      expect(Number.isFinite(c.value)).toBe(true);
+    });
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = optimalK(rows, ['x', 'y'], 5, { method: 'silhouette' });
+    expect(typeof r.apa).toBe('string');
+    expect(r.apa.length).toBeGreaterThan(0);
   });
 });

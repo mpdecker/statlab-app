@@ -123,3 +123,14 @@ describe('signTest', () => {
     expect(res.pos + res.neg).toBe(res.total);
   });
 });
+
+describe('means edge cases', () => {
+  it('tWelch null for <2 items per group', () => expect(tWelch([1, 2], [3])).toBeNull());
+  it('tOne null for single value', () => expect(tOne([1])).toBeNull());
+  it('tPaired null for length mismatch', () => expect(tPaired([1, 2, 3], [4, 5])).toBeNull());
+  it('zTestKnownSD null for zero SD', () => expect(zTestKnownSD([5, 5, 5], 5, 0)).toBeNull());
+  it('yuentTest valid return for equal-size groups', () => { const r = yuentTest([1, 2, 3], [4, 5, 6]); expect(r).not.toBeNull(); });
+  it('signTest null for empty data', () => expect(signTest([], 0)).toBeNull());
+  it('tWelch d effect size present', () => { const r = tWelch([1, 2, 3, 4, 5], [6, 7, 8, 9, 10]); expect(r).toHaveProperty('d'); });
+  it('tOne t-value present', () => { const r = tOne([1, 2, 3, 4]); expect(r).toHaveProperty('t'); });
+});
