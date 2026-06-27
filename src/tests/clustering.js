@@ -1,5 +1,6 @@
 import { avg, sampleVar, corr, fmtP } from '../math/core.js';
 import { matInv, jacobiEigen } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
 
 function lcg(seed) {
   let s = seed >>> 0;
@@ -582,7 +583,7 @@ export function eigengap(values) {
 }
 
 // ── Spectral Clustering ───────────────────────────────────────────
-export function spectralClustering(data, vars, nClusters = 2, { type = 'symmetric', sigma = null } = {}) {
+export function spectralClustering(data, vars, nClusters = 2, { type = 'symmetric', sigma = null, seed = 42 } = {}) {
   if (!data || !vars || data.length < 5) return null;
   const A = affinityMatrix(data, vars, { sigma });
   if (!A) return null;
@@ -591,7 +592,8 @@ export function spectralClustering(data, vars, nClusters = 2, { type = 'symmetri
   const embed = emb.embedding;
   // k-means on embedding
   const k = nClusters, d = embed[0]?.length || 0;
-  const centroids = Array.from({ length: k }, (_, ki) => embed[Math.floor(Math.random() * embed.length)]);
+  const rand = mulberry32(seed);
+  const centroids = Array.from({ length: k }, () => embed[Math.floor(rand() * embed.length)]);
   let labels = Array(embed.length).fill(0);
   for (let iter = 0; iter < 20; iter++) {
     labels = embed.map(p => {

@@ -55,6 +55,7 @@ export function normalCDF(z) {
   } else {
     const z2 = abs * abs;
     upper = pdf / abs * (1 - 1/z2 + 3/(z2*z2) - 15/(z2*z2*z2) + 105/(z2*z2*z2*z2));
+    upper = clamp(upper, 0, 1);
   }
   const p = 1 - upper;
   return z >= 0 ? p : 1 - p;
@@ -153,7 +154,19 @@ export function shapiroWilk(x) {
   let W = 0;
   for (let i = 0; i < Math.floor(n / 2); i++) W += a[i] * (s[n - 1 - i] - s[i]);
   W = W * W / ss;
-  const z = (Math.log(-Math.log(1 - W)) - -.0006) / 0.8;
+  // AS R94 (Royston 1995) n-dependent log-log normalisation
+  const ln = Math.log(n);
+  let mu, sigma;
+  if (n <= 11) {
+    const gamma = [-2.273, 0.459];
+    mu = gamma[0] + gamma[1] * n;
+    sigma = Math.exp(1.0308 - 0.26763 * n + 0.024778 * n * n - 0.0011644 * n * n * n);
+  } else {
+    mu = -1.2725 + 1.0521 * ln;
+    sigma = 1.0308 - 0.26763 * ln;
+  }
+  const y = Math.log(1 - W);
+  const z = (y - mu) / Math.max(sigma, 1e-10);
   const p = clamp(1 - normalCDF(z), 0, 1);
   return { stat: +W.toFixed(5), p, normal: p > .05, approximate: n < 10 };
 }

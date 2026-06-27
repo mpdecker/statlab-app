@@ -100,6 +100,7 @@ export function waic(mcmcResult, logLikFn, nObservations) {
   const n = nObservations;
   const lppd = Array(n).fill(0);
   const pWAIC = Array(n).fill(0);
+  const sumLl = Array(n).fill(0);  // accumulate raw log-likelihoods for variance
   for (let s = 0; s < S; s++) {
     const params = chains.map(c => c[s]);
     for (let i = 0; i < n; i++) {
@@ -107,14 +108,15 @@ export function waic(mcmcResult, logLikFn, nObservations) {
       const expLl = Math.exp(Math.min(ll, 50));
       lppd[i] += expLl;
       pWAIC[i] += ll * ll;
+      sumLl[i] += ll;
     }
   }
   for (let i = 0; i < n; i++) {
     const avgExp = lppd[i] / S;
     lppd[i] = Math.log(Math.max(avgExp, 1e-15));
     const avgSq = pWAIC[i] / S;
-    const avgLl = lppd[i];
-    pWAIC[i] = avgSq - avgLl * avgLl;
+    const meanLl = sumLl[i] / S;  // mean of raw log-likelihoods (not log-mean-exp)
+    pWAIC[i] = avgSq - meanLl * meanLl;
   }
   const sumLppd = lppd.reduce((a, b) => a + b, 0);
   const sumPwaic = Math.max(0, pWAIC.reduce((a, b) => a + b, 0));
@@ -225,7 +227,7 @@ export function bayesianLinearRegression(y, X, { nIter = 0, nBurnin = 2000 } = {
     return {
       method: 'conjugate (Normal-Inverse-Gamma)',
       ...conjugate,
-      apa: `Bayesian OLS: ${conjugate.coefficients.map((c, i) => `Î²${i} = ${c.posteriorMean.toFixed(4)} (${c.posteriorSD.toFixed(4)})`).join(', ')}, ÏƒÂ² = ${conjugate.sigma2.toFixed(4)}`,
+      apa: `Bayesian OLS: ${conjugate.coefficients.map((c, i) => `β${i} = ${c.posteriorMean.toFixed(4)} (${c.posteriorSD.toFixed(4)})`).join(', ')}, σ² = ${conjugate.sigma2.toFixed(4)}`,
     };
   }
 
@@ -260,7 +262,7 @@ export function bayesianLinearRegression(y, X, { nIter = 0, nBurnin = 2000 } = {
     })),
     acceptRate: mcmcResult.acceptRate,
     nIter, nBurnin, n, k,
-    apa: `Bayesian OLS (MCMC): ${summaries.map((s, i) => `Î²${i} = ${s.mean.toFixed(4)} (${s.sd.toFixed(4)})`).join(', ')}, acc. = ${mcmcResult.acceptRate}`,
+    apa: `Bayesian OLS (MCMC): ${summaries.map((s, i) => `β${i} = ${s.mean.toFixed(4)} (${s.sd.toFixed(4)})`).join(', ')}, acc. = ${mcmcResult.acceptRate}`,
   };
 }
 
@@ -443,7 +445,7 @@ export function bayesianLogisticRegression(y, X, { nIter = 5000, nBurnin = 1000,
     })),
     acceptRate: mcmcResult.acceptRate,
     nIter, nBurnin, n, k: kFull,
-    apa: `Bayesian logistic regression: ${summaries.map((s, i) => `Î²${i} = ${s.mean.toFixed(4)} (${s.sd.toFixed(4)})`).join(', ')}, acc. = ${mcmcResult.acceptRate}`,
+    apa: `Bayesian logistic regression: ${summaries.map((s, i) => `β${i} = ${s.mean.toFixed(4)} (${s.sd.toFixed(4)})`).join(', ')}, acc. = ${mcmcResult.acceptRate}`,
   };
 }
 
