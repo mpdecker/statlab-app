@@ -92,7 +92,7 @@ export function gridSearch(fn, paramGrid) {
   if (!fn || !paramGrid || !paramGrid.length) return null;
   let bestVal = Infinity; let bestParams = null;
   function search(depth, params) {
-    if (depth === paramGrid.length) { const val = fn(params); if (val < bestVal) { bestVal = val; bestParams = [...params.map(p => p.val)]; } return; }
+    if (depth === paramGrid.length) { const val = fn(params.map(p => p.val)); if (val < bestVal) { bestVal = val; bestParams = [...params.map(p => p.val)]; } return; }
     paramGrid[depth].values.forEach(v => { search(depth + 1, [...params, { name: paramGrid[depth].name, val: v }]); });
   }
   search(0, []);

@@ -19,7 +19,7 @@ export function tsne(X, { perplexity = 30, nComponents = 2, maxIter = 300, lr = 
     const sum = di.reduce((s, v) => s + v, 0);
     return di.map(v => sum > 0 ? v / sum : 0);
   });
-  const Pjoint = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => +(P[i][j] + P[j][i]) / (2 * n)).toFixed(6)));
+  const Pjoint = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => +((P[i][j] + P[j][i]) / (2 * n)).toFixed(6)));
   // Initialize embedding randomly
   let Y = Array.from({length: n}, () => Array.from({length: d}, () => (Math.random() - 0.5) * 0.01));
   for (let iter = 0; iter < maxIter; iter++) {
@@ -108,7 +108,7 @@ export function lle(X, { nNeighbors = 5, nComponents = 2 } = {}) {
   // Eigenvalue problem on (I-W)'(I-W)
   const M = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => {
     let s = 0;
-    for (let t = 0; t < n; t++) s += (i === t ? 1 : 0) - W[i][t]) * ((j === t ? 1 : 0) - W[j][t]) || 0;
+    for (let t = 0; t < n; t++) s += ((i === t ? 1 : 0) - W[i][t]) * ((j === t ? 1 : 0) - W[j][t]) || 0;
     return s;
   }));
   const eig = jacobiEigen(M);

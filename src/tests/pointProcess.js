@@ -140,7 +140,9 @@ export function lFunction(points, { nRadii = 15, maxRadius = null } = {}) {
   const lambda = n / area;
   const maxR = maxRadius || Math.min(areaW, areaH) / 4;
   const radii = Array.from({length: nRadii}, (_, i) => maxR * (i + 1) / nRadii);
-  const L = radii.map(r => {
+  const L = [];
+  const radiiOut = [];
+  radii.forEach(r => {
     let count = 0;
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
       if (i === j) continue;
@@ -148,7 +150,8 @@ export function lFunction(points, { nRadii = 15, maxRadius = null } = {}) {
       if (d <= r) count++;
     }
     const K = count / (n * lambda);
-    return { radius: +r.toFixed(4), L: +((Math.sqrt(K / Math.PI) - r).toFixed(4)) };
+    L.push(+((Math.sqrt(K / Math.PI) - r).toFixed(4)));
+    radiiOut.push(+r.toFixed(4));
   });
-  return { test: 'L-Function', L, lambda: +lambda.toFixed(4), n, apa: `L(r): lambda=${lambda.toFixed(3)}, n=${n}` };
+  return { test: 'L-Function', L, radii: radiiOut, lambda: +lambda.toFixed(4), n, apa: `L(r): lambda=${lambda.toFixed(3)}, n=${n}` };
 }
