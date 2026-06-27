@@ -1,7 +1,7 @@
-import { avg } from '../math/core.js';
+import { avg, sampleVar } from '../math/core.js';
 import { jacobiEigen } from '../math/matrix.js';
 
-// PLS1
+// ── PLS1 ──────────────────────────────────────────────────────────
 export function pls1(X, y, nComponents = 2) {
   if (!X || !y || X.length < 10 || X.length !== y.length || !X[0]) return null;
   const n = X.length, p = X[0].length;
@@ -26,7 +26,7 @@ export function pls1(X, y, nComponents = 2) {
   return { test: 'PLS1', nComponents: comps, rSquared: +r2y.toFixed(4), n, p, apa: `PLS1: ${comps} comps, R² = ${r2y.toFixed(3)}` };
 }
 
-// PLS2
+// ── PLS2 ──────────────────────────────────────────────────────────
 export function pls2(X, Y, nComponents = 2) {
   if (!X || !Y || X.length < 10 || X.length !== Y.length) return null;
   const n = X.length;
@@ -43,7 +43,7 @@ export function pls2(X, Y, nComponents = 2) {
   return { test: 'PLS2', nComponents: comps, n, apa: `PLS2: ${comps} comps, n = ${n}` };
 }
 
-// VIP Scores
+// ── VIP Scores ────────────────────────────────────────────────────
 export function vipScores(plsModel) {
   if (!plsModel || !plsModel.nComponents) return null;
   const nc = plsModel.nComponents;
@@ -53,7 +53,7 @@ export function vipScores(plsModel) {
   return { test: 'VIP Scores', scores, nComponents: nc, apa: `VIP: ${scores.length} variables` };
 }
 
-// RDA
+// ── RDA ───────────────────────────────────────────────────────────
 export function rda(Y, X, { permutations = 199 } = {}) {
   if (!Y || !X || Y.length < 10 || X.length < 10) return null;
   const n = Math.min(Y.length, X.length);
@@ -78,7 +78,7 @@ export function rda(Y, X, { permutations = 199 } = {}) {
   return { test: 'RDA', rSquared: +rsq.toFixed(4), p, n, apa: `RDA: R² = ${rsq.toFixed(3)}, p ≈ ${p.toFixed(3)}` };
 }
 
-// db-RDA
+// ── db-RDA ────────────────────────────────────────────────────────
 export function dbRDA(D, X, { permutations = 199 } = {}) {
   if (!D || !X || D.length < 10 || X.length < 10) return null;
   const n = Math.min(D.length, X.length);
@@ -90,3 +90,43 @@ export function dbRDA(D, X, { permutations = 199 } = {}) {
   const eigs = jacobiEigen(G).eigenvalues.filter(e => e > 1e-8);
   return { test: 'db-RDA', eigenvalues: eigs.slice(0, 3).map(v => +v.toFixed(4)), n, apa: `db-RDA: ${eigs.length} axes` };
 }
+
+// ── Sparse PLS Regression ─────────────────────────────────────────
+export function sPLSRegression(X, y, { nComp = 2, lambda = 0.5, maxIter = 20 } = {}) {
+  if (!X || !y || X.length < 5 || y.length < 5 || nComp < 1) return null;
+  const n = X.length, p = X[0].length;
+  const weights = Array.from({length: nComp}, () => Array(p).fill(0));
+  const scores = Array.from({length: nComp}, () => Array(n).fill(0));
+  let Xres = X.map(r => [...r]);
+  let yres = [...y];
+  for (let c = 0; c < nComp; c++) {
+    const w = Xres[0].map((_, j) => {
+      let s = 0; for (let i = 0; i < n; i++) s += Xres[i][j] * yres[i]; return s;
+    });
+    const wNorm = Math.sqrt(w.reduce((s, v) => s + v * v, 0));
+    const wSoft = w.map(v => {
+      const val = Math.abs(v) - lambda;
+      return val > 0 ? (v > 0 ? val : -val) / Math.max(wNorm, 1) : 0;
+    });
+    const t = Xres.map(row => wSoft.reduce((s, wj, j) => s + wj * row[j], 0));
+    const q = t.reduce((s, ti, i) => s + ti * yres[i], 0) / Math.max(t.reduce((s, ti) => s + ti * ti, 0), 1);
+    weights[c] = wSoft.map(v => +v.toFixed(4));
+    for (let i = 0; i < n; i++) { const pt = t[i]; for (let j = 0; j < p; j++) Xres[i][j] -= pt * (Xres[i][j] / Math.max(pt, 1e-10)); yres[i] -= q * pt; }
+  }
+  return { test: 'Sparse PLS', weights: weights.slice(0, 2), nComp, lambda, n, p, apa: `sPLS: ${nComp} comps, lambda=${lambda}` };
+}
+
+// ── Sparse PLS (simpler variant) ──────────────────────────────────
+export function sparsePLS(X, y, { nComp = 2, keepX = null } = {}) {
+  if (!X || !y || X.length < 5 || nComp < 1) return null;
+  const p = X[0].length;
+  const keep = keepX || Math.ceil(p / 2);
+  const corrs = X[0].map((_, j) => {
+    const xj = X.map(r => r[j]);
+    return { idx: j, corr: Math.abs(corr(xj, y)) };
+  }).sort((a, b) => b.corr - a.corr);
+  const selected = new Set(corrs.slice(0, keep).map(c => c.idx));
+  const loadings = X[0].map((_, j) => +(selected.has(j) ? 0.5 : 0).toFixed(4));
+  return { test: 'Sparse PLS', loadings, keepX: keep, nComp, n: X.length, p, apa: `Sparse PLS: ${keep}/${p} vars selected` };
+}
+function corr(a, b) { const n = a.length; return n > 0 ? (a.reduce((s, v, i) => s + (v - avg(a)) * (b[i] - avg(b)), 0) / n) / Math.sqrt(sampleVar(a) * sampleVar(b) + 1e-10) : 0; }

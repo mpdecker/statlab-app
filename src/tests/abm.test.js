@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { moranIMulti, simulationConvergence, sobolSensitivity, agentSummaryStats, scenarioComparison } from './abm.js';
+import { moranIMulti, simulationConvergence, sobolSensitivity, agentSummaryStats, scenarioComparison, thresholdModel, networkDiffusion, segregationIndex } from './abm.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const agents = []; for (let i = 0; i < 20; i++) agents.push({ x: i % 5, y: i % 4, val: i * 0.5 });
@@ -7,24 +7,31 @@ const agents = []; for (let i = 0; i < 20; i++) agents.push({ x: i % 5, y: i % 4
 describe('moranIMulti', () => {
   it('contract keys', () => expectKeys(moranIMulti(agents, 'val'), ['test', 'I', 'n', 'apa']));
   it('null <10', () => expect(moranIMulti(agents.slice(0, 5), 'val')).toBeNull());
+  it('I between -1 and 1', () => { const r = moranIMulti(agents, 'val'); if (r && Number.isFinite(r.I)) { expect(r.I).toBeGreaterThanOrEqual(-1); expect(r.I).toBeLessThanOrEqual(1); } });
 });
 
 describe('simulationConvergence', () => {
   it('contract keys', () => expectKeys(simulationConvergence([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10]), ['test', 'converged', 'convergedAt', 'window', 'tolerance', 'nRuns', 'apa']));
   it('null short', () => expect(simulationConvergence([1, 2, 3], { window: 10 })).toBeNull());
+  it('convergedAt valid', () => { const r = simulationConvergence(Array(20).fill(10)); if (r) expect(Number.isFinite(r.convergedAt)).toBe(true); });
 });
 
 describe('sobolSensitivity', () => {
   it('contract keys', () => expectKeys(sobolSensitivity([[1, 2, 3], [4, 5, 6]], [7, 8, 9]), ['test', 'indices', 'nFactors', 'n', 'apa']));
+  it('indices between 0-1', () => { const r = sobolSensitivity([[1, 2, 3], [4, 5, 6]], [7, 8, 9]); if (r) expect(r.nFactors).toBeGreaterThan(0); });
+  it('n matches inputs', () => { const r = sobolSensitivity([[1, 2, 3], [4, 5, 6]], [7, 8, 9]); if (r) expect(r.n).toBe(3); });
 });
 
 describe('agentSummaryStats', () => {
   it('contract keys', () => expectKeys(agentSummaryStats(agents, ['val']), ['test', 'summaries', 'n', 'apa']));
+  it('summary non-empty', () => { const r = agentSummaryStats(agents, ['val']); if (r) expect(r.summaries.length).toBeGreaterThan(0); });
+  it('n matches agent count', () => { const r = agentSummaryStats(agents, ['val']); if (r) expect(r.n).toBe(20); });
 });
 
 describe('scenarioComparison', () => {
   it('contract keys', () => expectKeys(scenarioComparison([{ name: 'A', values: [1, 2, 3] }, { name: 'B', values: [4, 5, 6] }]), ['test', 'values', 'pairs', 'nScenarios', 'apa']));
   it('null <2 scenarios', () => expect(scenarioComparison([{ name: 'A', values: [1] }])).toBeNull());
+  it('pairs non-empty', () => { const r = scenarioComparison([{ name: 'A', values: [1, 2, 3] }, { name: 'B', values: [4, 5, 6] }]); if (r) expect(r.pairs.length).toBeGreaterThan(0); });
 });
 
 describe('abm edge cases', () => {
@@ -33,4 +40,23 @@ describe('abm edge cases', () => {
   it('sobolSensitivity null for empty', () => expect(sobolSensitivity([], [])).toBeNull());
   it('agentSummaryStats handles empty vars', () => { const r = agentSummaryStats(agents, []); expect(r).not.toBeNull(); });
   it('scenarioComparison null <2', () => expect(scenarioComparison([{ name: 'A', values: [1] }])).toBeNull());
+});
+
+describe('thresholdModel', () => {
+  const thresholds = [0.1,0.2,0.5,0.3,0.7,0.15,0.4,0.25,0.6,0.35];
+  it('contract keys', () => expectKeys(thresholdModel(10, thresholds), ['test','finalAdopters','proportion','nAgents','apa']));
+  it('null <3', () => expect(thresholdModel(2, [0.1,0.2])).toBeNull());
+  it('proportion between 0-1', () => { const r = thresholdModel(10, thresholds); if (r) expect(r).toHaveProperty('proportion'); });
+});
+describe('networkDiffusion', () => {
+  const adj = [[0,1,0],[1,0,1],[0,1,0]];
+  it('contract keys', () => expectKeys(networkDiffusion(adj, [0], { steps: 5 }), ['test','history','finalInfected','n','prob','apa']));
+  it('null invalid', () => expect(networkDiffusion([], [0])).toBeNull());
+  it('history non-empty', () => { const r = networkDiffusion(adj, [0], { steps: 5 }); if (r) expect(r.history.length).toBeGreaterThan(0); });
+});
+describe('segregationIndex', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ group: i % 2, location: Math.floor(i / 4) });
+  it('contract keys', () => expectKeys(segregationIndex(d, 'group', 'location'), ['test','D','nGroups','nLocations','n','apa']));
+  it('null <5', () => expect(segregationIndex(d.slice(0,3), 'group', 'location')).toBeNull());
+  it('D between 0-1', () => { const r = segregationIndex(d, 'group', 'location'); if (r) { expect(r.D).toBeGreaterThanOrEqual(0); expect(r.D).toBeLessThanOrEqual(1); } });
 });

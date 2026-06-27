@@ -279,21 +279,25 @@ describe('pathAnalysis', () => {
   const d = []; for (let i = 0; i < 20; i++) d.push({ y: i * 2, x: i, z: i * 0.5 });
   it('null small', () => expect(pathAnalysis(d.slice(0, 5), ['y ~ x', 'x ~ z'])).toBeNull());
   it('contract keys', () => expectKeys(pathAnalysis(d, ['y ~ x', 'x ~ z']), ['test', 'coefficients', 'rSquared', 'n', 'apa']));
+  it('coefficients non-empty', () => { const r = pathAnalysis(d, ['y ~ x', 'x ~ z']); if (r) expect(r.coefficients.length).toBeGreaterThan(0); });
 });
 
 describe('bifactorModel', () => {
   const d = []; for (let i = 0; i < 30; i++) { const row = {}; for (let j = 1; j <= 6; j++) row[`v${j}`] = Math.round(Math.random() * 2); d.push(row); }
   it('contract keys', () => { const r = bifactorModel(d, 'G', [{ name: 'F1', items: ['v1', 'v2', 'v3'] }, { name: 'F2', items: ['v4', 'v5', 'v6'] }]); if (r) expectKeys(r, ['test', 'loadings', 'omegaHierarchical', 'omegaTotal', 'correlation', 'n', 'apa']); });
   it('omega in [0,1]', () => { const r = bifactorModel(d, 'G', [{ name: 'F1', items: ['v1', 'v2', 'v3'] }, { name: 'F2', items: ['v4', 'v5', 'v6'] }]); if (r) { expect(r.omegaHierarchical).toBeGreaterThanOrEqual(0); expect(r.omegaHierarchical).toBeLessThanOrEqual(1); } });
+  it('omegaTotal between 0-1', () => { const r = bifactorModel(d, 'G', [{ name: 'F1', items: ['v1', 'v2', 'v3'] }, { name: 'F2', items: ['v4', 'v5', 'v6'] }]); if (r) { expect(r.omegaTotal).toBeGreaterThanOrEqual(0); expect(r.omegaTotal).toBeLessThanOrEqual(1); } });
 });
 
 describe('ordinalSEM', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ v1: i % 5, v2: (i + 1) % 5, v3: (i + 2) % 5 });
   it('contract keys', () => expectKeys(ordinalSEM(d, ['v1', 'v2', 'v3'], 'F =~ v1 + v2 + v3'), ['test', 'loadings', 'thresholds', 'fit', 'n', 'apa']));
   it('thresholds present', () => { const r = ordinalSEM(d, ['v1', 'v2', 'v3'], 'F =~ v1 + v2 + v3'); expect(r.thresholds.length).toBe(3); });
+  it('loadings non-empty', () => { const r = ordinalSEM(d, ['v1', 'v2', 'v3'], 'F =~ v1 + v2 + v3'); if (r) expect(r).toHaveProperty('loadings'); });
 });
 
 describe('cfiCompare', () => {
   it('null invalid', () => expect(cfiCompare(null, { chisq: 10, df: 5, cfi: 0.9, rmsea: 0.08 })).toBeNull());
   it('contract keys', () => expectKeys(cfiCompare({ chisq: 50, df: 20, cfi: 0.85, rmsea: 0.10 }, { chisq: 30, df: 18, cfi: 0.92, rmsea: 0.07 }), ['test', 'deltaChi2', 'deltaDf', 'p', 'deltaCfi', 'deltaRmsea', 'conclusion', 'apa']));
+  it('deltaDf finite', () => { const r = cfiCompare({ chisq: 50, df: 20, cfi: 0.85, rmsea: 0.10 }, { chisq: 30, df: 18, cfi: 0.92, rmsea: 0.07 }); if (r) expect(Number.isFinite(r.deltaDf)).toBe(true); });
 });

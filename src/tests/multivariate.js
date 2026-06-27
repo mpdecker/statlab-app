@@ -173,6 +173,8 @@ function symProd(A) {
 }
 
 /** One-way MANOVA — Wilks' Λ · Bartlett χ² · Pillai trace */
+
+// ── MANOVA ────────────────────────────────────────────────────────
 export function manova(data, yVars, groupVar) {
   const rows = data.filter(r => groupVar != null && yVars.every(col => Number.isFinite(+r[col])));
   const uniq = [...new Set(rows.map(r => String(r[groupVar])))];
@@ -246,6 +248,8 @@ export function manova(data, yVars, groupVar) {
 }
 
 /** Canonical correlations (correlation-matrix formulation). */
+
+// ── Canonical Correlation ─────────────────────────────────────────
 export function canonicalCorr(data, xVars, yVars) {
   const allVars = [...xVars, ...yVars];
   const rows = data.filter(r => allVars.every(col => Number.isFinite(+r[col])));
@@ -281,6 +285,8 @@ export function canonicalCorr(data, xVars, yVars) {
 }
 
 /** Fisher LDA: first discriminants + projected centroids + training accuracy (1D rule). */
+
+// ── LDA ───────────────────────────────────────────────────────────
 export function linearDiscriminant(data, groupVar, xVars) {
   const rows = data.filter(r => groupVar != null && xVars.every(v => Number.isFinite(+r[v])));
   const labels = [...new Set(rows.map(r => String(r[groupVar])))];
@@ -865,7 +871,7 @@ export function boxMTest(data, groupVar, vars) {
   };
 }
 
-// Network Meta-Analysis (Frequentist)
+// ── Network Meta-Analysis (Frequentist) ───────────────────────────
 export function networkMetaAnalysis(studies) {
   if (!studies || studies.length < 5) return null;
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0 && s.trt && s.ref);
@@ -890,7 +896,7 @@ export function networkMetaAnalysis(studies) {
   return { test: 'Network Meta-Analysis', directEstimates, nTreatments: trts.length, nStudies: clean.length, apa: `NMA: ${trts.length} treatments, ${directEstimates.length} comparisons, ${clean.length} studies` };
 }
 
-// Baujat Plot
+// ── Baujat Plot ───────────────────────────────────────────────────
 export function baujatPlot(metaResult) {
   if (!metaResult || !metaResult.studies) return null;
   const studies = metaResult.studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se));
@@ -906,7 +912,7 @@ export function baujatPlot(metaResult) {
   return { test: 'Baujat Plot', points, nStudies: studies.length, apa: `Baujat: ${studies.length} studies` };
 }
 
-// Leave-One-Out Meta-Analysis
+// ── Leave-One-Out Meta-Analysis ───────────────────────────────────
 export function leaveOneOutMeta(studies) {
   if (!studies || studies.length < 4) return null;
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
@@ -924,7 +930,7 @@ export function leaveOneOutMeta(studies) {
   return { test: 'Leave-One-Out Meta-Analysis', results, n, apa: `LOO meta: ${n} iterations` };
 }
 
-// Meta-Regression Diagnostics
+// ── Meta-Regression Diagnostics ───────────────────────────────────
 export function metaRegressionDiagnostics(metaResult) {
   if (!metaResult || !metaResult.coefficients) return null;
   const diag = metaResult.coefficients.map(c => ({
@@ -933,7 +939,7 @@ export function metaRegressionDiagnostics(metaResult) {
   return { test: 'Meta-Regression Diagnostics', parameters: diag, tau2: metaResult.tau2, iSquared: metaResult.iSquared || metaResult.i2, k: metaResult.k, apa: `Meta-reg diag: tau2=${metaResult.tau2}, I2=${metaResult.iSquared || metaResult.i2}%` };
 }
 
-// Oblimin Rotation
+// ── Oblimin Rotation ──────────────────────────────────────────────
 export function obliminRotation(loadings, { gamma = 0 } = {}) {
   if (!loadings || !loadings.length) return null;
   const p = loadings.length, m = loadings[0].length;
@@ -952,7 +958,7 @@ export function obliminRotation(loadings, { gamma = 0 } = {}) {
   return { test: 'Oblimin Rotation', loadings: rot.map(r => r.map(v => +v.toFixed(4))), gamma, p, m, apa: `Oblimin: gamma = ${gamma}, ${p}×${m}` };
 }
 
-// Geomin Rotation
+// ── Geomin Rotation ───────────────────────────────────────────────
 export function geominRotation(loadings, { epsilon = 0.01 } = {}) {
   if (!loadings || !loadings.length) return null;
   const p = loadings.length, m = loadings[0].length;
@@ -969,7 +975,7 @@ export function quartiminRotation(loadings) {
   return obliminRotation(loadings, { gamma: 0 });
 }
 
-// Target Rotation
+// ── Target Rotation ───────────────────────────────────────────────
 export function targetRotation(loadings, target, { type = 'procrustes' } = {}) {
   if (!loadings || !target || loadings.length !== target.length) return null;
   const p = loadings.length, m = loadings[0].length;
@@ -987,7 +993,7 @@ export function targetRotation(loadings, target, { type = 'procrustes' } = {}) {
   return { test: 'Target Rotation', loadings: rotated, p, m, apa: `Target rotation: ${type}, ${p}×${m}` };
 }
 
-// Promax Rotation
+// ── Promax Rotation ───────────────────────────────────────────────
 export function promaxRotation(loadings, { k = 3 } = {}) {
   if (!loadings || !loadings.length) return null;
   const p = loadings.length, m = loadings[0].length;
@@ -1058,7 +1064,7 @@ export function cumulativeMeta(studies, { order = 'chronological' } = {}) {
   return { test: 'Cumulative Meta-Analysis', cumulative: cum, n, apa: `Cumulative meta: final d = ${(sumWE / sumW).toFixed(2)}` };
 }
 
-// Simple Correspondence Analysis
+// ── Simple Correspondence Analysis ────────────────────────────────
 export function simpleCA(data, vars) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const rows = [...new Set(data.map(r => r[vars[0]]))];
@@ -1079,7 +1085,7 @@ export function simpleCA(data, vars) {
   return { test: 'Simple CA', inertia: +inertia.toFixed(6), rows: rows.length, cols: cols.length, n: N, apa: `CA: inertia = ${inertia.toFixed(5)}, ${rows.length}×${cols.length}` };
 }
 
-// Multiple CA
+// ── Multiple CA ───────────────────────────────────────────────────
 export function multipleCA(data, vars) {
   if (!data || data.length < 5 || !vars || vars.length < 3) return null;
   const n = data.length; const p = vars.length;
@@ -1090,21 +1096,96 @@ export function multipleCA(data, vars) {
   return { test: 'Multiple CA', nVars: p, nCategories: totalCat, n, apa: `MCA: ${p} vars, ${totalCat} categories` };
 }
 
-// Correspondence Biplot
+// ── Correspondence Biplot ─────────────────────────────────────────
 export function correspBiplot(caResult) {
   if (!caResult || !caResult.rows) return null;
   return { test: 'Correspondence Biplot', rows: caResult.rows, cols: caResult.cols, apa: `Biplot: ${caResult.rows} rows, ${caResult.cols} cols` };
 }
 
-// Total Inertia
+// ── Total Inertia ─────────────────────────────────────────────────
 export function totalInertia(caResult) {
   if (!caResult || !Number.isFinite(caResult.inertia)) return null;
   const chi2 = caResult.n ? caResult.inertia * caResult.n : caResult.inertia;
   return { test: 'Total Inertia', inertia: +caResult.inertia.toFixed(6), chisq: +chi2.toFixed(4), n: caResult.n, apa: `Inertia = ${caResult.inertia.toFixed(5)}, χ² ≈ ${chi2.toFixed(2)}` };
 }
 
-// Correspondence Contributions
+// ── Correspondence Contributions ──────────────────────────────────
 export function correspContributions(caResult) {
   if (!caResult) return null;
   return { test: 'Correspondence Contributions', inertia: caResult.inertia, apa: `Contributions: inertia = ${caResult.inertia}` };
+}
+
+// ── Procrustes Rotation ───────────────────────────────────────────
+export function procrustesRotation(X, target) {
+  if (!X || !target || !X.length || !X[0] || !target[0] || X.length !== target.length || X[0].length !== target[0].length) return null;
+  const n = X.length, p = X[0].length;
+  const M = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => {
+    let s = 0; for (let k = 0; k < n; k++) s += target[k][i] * X[k][j]; return s;
+  }));
+  const MtM = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => 
+    M.reduce((s, _, k) => s + M[k][i] * M[k][j], 0)
+  ));
+  const ev = jacobiEigen(MtM);
+  const evalsSqrt = ev.eigenvalues.map(e => Math.sqrt(Math.max(e, 0)));
+  const U = ev.eigenvectors;
+  const V = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => {
+    let s = 0; for (let k = 0; k < p; k++) s += M[i][k] * U[k][j]; return s;
+  }));
+  for (let i = 0; i < p; i++) for (let j = 0; j < p; j++) V[i][j] /= Math.max(evalsSqrt[j], 1e-10);
+  const R = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => {
+    let s = 0; for (let k = 0; k < p; k++) s += V[i][k] * U[j][k]; return +s.toFixed(4);
+  }));
+  const rotated = X.map(row => Array.from({ length: p }, (_, j) => {
+    let s = 0; for (let k = 0; k < p; k++) s += row[k] * R[k][j]; return +s.toFixed(4);
+  }));
+  return { test: 'Procrustes Rotation', R, rotated: rotated.slice(0, 10), n, p, apa: `Procrustes: ${p} variables rotated` };
+}
+
+// ── RV Coefficient ────────────────────────────────────────────────
+export function rvCoefficient(X, Y) {
+  if (!X || !Y || !X.length || !Y.length || X.length !== Y.length) return null;
+  const n = X.length;
+  const XtX = Array.from({ length: X[0].length }, (_, i) => Array.from({ length: X[0].length }, (_, j) => {
+    let s = 0; for (let k = 0; k < n; k++) s += X[k][i] * X[k][j]; return s;
+  }));
+  const YtY = Array.from({ length: Y[0].length }, (_, i) => Array.from({ length: Y[0].length }, (_, j) => {
+    let s = 0; for (let k = 0; k < n; k++) s += Y[k][i] * Y[k][j]; return s;
+  }));
+  const XtY2 = Array.from({ length: X[0].length }, (_, i) => Array.from({ length: Y[0].length }, (_, j) => {
+    let s = 0; for (let k = 0; k < n; k++) s += X[k][i] * Y[k][j]; return s;
+  }));
+  let traceNum = 0;
+  for (let i = 0; i < Math.min(X[0].length, Y[0].length); i++) {
+    for (let j = 0; j < Math.max(X[0].length, Y[0].length); j++) {
+      traceNum += (XtY2[i]?.[j] || 0) * (XtY2[j]?.[i] || 0);
+    }
+  }
+  const traceX = XtX.reduce((s, r, i) => s + r[i] * r[i], 0);
+  const traceY = YtY.reduce((s, r, i) => s + r[i] * r[i], 0);
+  const rv = traceX > 0 && traceY > 0 ? Math.min(1, Math.max(0, traceNum / Math.sqrt(traceX * traceY))) : 0;
+  return { test: 'RV Coefficient', rv: +rv.toFixed(4), n, pX: X[0].length, pY: Y[0].length, apa: `RV = ${rv.toFixed(3)}` };
+}
+
+// ── Generalized Procrustes ────────────────────────────────────────
+export function generalizedProcrustes(matrices, { maxIter = 20 } = {}) {
+  if (!matrices || matrices.length < 2 || matrices.some(m => !m || !m.length)) return null;
+  const n = matrices[0].length, p = matrices[0][0].length;
+  let consensus = matrices.reduce((sum, M) => {
+    const s = Array.from({ length: n }, (_, i) => Array.from({ length: p }, (_, j) => 0));
+    for (let i = 0; i < n; i++) for (let j = 0; j < p; j++) s[i][j] = sum[i]?.[j] + M[i]?.[j] || 0;
+    return s;
+  }, Array.from({ length: n }, () => Array(p).fill(0)));
+  for (let i = 0; i < n; i++) for (let j = 0; j < p; j++) consensus[i][j] /= matrices.length;
+  
+  for (let iter = 0; iter < maxIter; iter++) {
+    const newConsensus = Array.from({ length: n }, () => Array(p).fill(0));
+    for (const M of matrices) {
+      const rotRes = procrustesRotation(M, consensus);
+      if (rotRes) {
+        for (let i = 0; i < n; i++) for (let j = 0; j < p; j++) newConsensus[i][j] += rotRes.rotated[i]?.[j] || 0;
+      }
+    }
+    for (let i = 0; i < n; i++) for (let j = 0; j < p; j++) consensus[i][j] = newConsensus[i][j] / matrices.length;
+  }
+  return { test: 'Generalized Procrustes', consensus: consensus.slice(0, 10).map(r => r.map(v => +v.toFixed(4))), nMatrices: matrices.length, n, p, apa: `GPA: ${matrices.length} matrices, ${n}x${p}` };
 }

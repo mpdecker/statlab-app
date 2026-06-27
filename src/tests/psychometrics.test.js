@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore, irt3PL, gradedResponseModel, partialCreditModel, testInformation, difMH, eapScoring, multidimensional2PL, itemFit, nominalResponseModel, generalizedPartialCredit, testEquating, mixedFormatIRT, difLogistic } from './psychometrics.js';
+import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore, irt3PL, gradedResponseModel, partialCreditModel, testInformation, difMH, eapScoring, multidimensional2PL, itemFit, nominalResponseModel, generalizedPartialCredit, testEquating, mixedFormatIRT, difLogistic, testRetestReliability, interRaterReliability, parallelFormsReliability, itemDifficultyIndex, itemDiscriminationIndex } from './psychometrics.js';
 import { itemMatrix, itemRows, binaryMatrix } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
@@ -430,6 +430,7 @@ describe('multidimensional2PL', () => {
   const d = []; for (let i = 0; i < 20; i++) { const row = {}; for (let j = 0; j < 6; j++) row[`v${j}`] = (i + j) % 3 > 0 ? 1 : 0; d.push(row); }
   it('null small', () => expect(multidimensional2PL(d.slice(0, 5), ['v0', 'v1', 'v2', 'v3', 'v4', 'v5'], [{ name: 'D1', items: ['v0', 'v1', 'v2'] }, { name: 'D2', items: ['v3', 'v4', 'v5'] }])).toBeNull());
   it('contract keys', () => { const r = multidimensional2PL(d, ['v0', 'v1', 'v2', 'v3', 'v4', 'v5'], [{ name: 'D1', items: ['v0', 'v1', 'v2'] }, { name: 'D2', items: ['v3', 'v4', 'v5'] }]); if (r) expectKeys(r, ['test', 'parameters', 'traitCorrelation', 'n', 'apa']); });
+  it('traitCorrelation finite', () => { const r = multidimensional2PL(d, ['v0', 'v1', 'v2', 'v3', 'v4', 'v5'], [{ name: 'D1', items: ['v0', 'v1', 'v2'] }, { name: 'D2', items: ['v3', 'v4', 'v5'] }]); if (r) expect(r).toHaveProperty('traitCorrelation'); });
 });
 
 describe('itemFit', () => {
@@ -440,8 +441,41 @@ describe('itemFit', () => {
   it('MNSQ > 0', () => { const r = itemFit(params, resp); expect(r.items[0].infitMnsq).toBeGreaterThan(0); });
 });
 
-describe('nominalResponseModel', () => { it('contract keys', () => expectKeys(nominalResponseModel([1, 2, 0, 1, 2, 1, 0, 2, 1, 0]), ['test', 'probabilities', 'n', 'nCategories', 'apa'])); });
-describe('generalizedPartialCredit', () => { it('contract keys', () => expectKeys(generalizedPartialCredit([0, 1, 2, 0, 1, 2, 1, 2, 1, 0], 3), ['test', 'thresholds', 'n', 'nCategories', 'apa'])); });
-describe('testEquating', () => { it('contract keys', () => expectKeys(testEquating([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]), ['test', 'equated', 'slope', 'intercept', 'nA', 'nB', 'apa'])); });
-describe('mixedFormatIRT', () => { it('is defined', () => expect(typeof mixedFormatIRT).toBe('function')); });
-describe('difLogistic', () => { it('is defined', () => expect(typeof difLogistic).toBe('function')); });
+describe('nominalResponseModel', () => { it('contract keys', () => expectKeys(nominalResponseModel([1, 2, 0, 1, 2, 1, 0, 2, 1, 0]), ['test', 'probabilities', 'n', 'nCategories', 'apa'])); it('probabilities non-empty', () => { const r = nominalResponseModel([1, 2, 0, 1, 2, 1, 0, 2, 1, 0]); expect(r.probabilities.length).toBeGreaterThan(0); }); it('nCategories integer', () => { const r = nominalResponseModel([1, 2, 0, 1, 2, 1, 0, 2, 1, 0]); expect(Number.isInteger(r.nCategories)).toBe(true); }); });
+describe('generalizedPartialCredit', () => { it('contract keys', () => expectKeys(generalizedPartialCredit([0, 1, 2, 0, 1, 2, 1, 2, 1, 0], 3), ['test', 'thresholds', 'n', 'nCategories', 'apa'])); it('thresholds non-empty', () => { const r = generalizedPartialCredit([0, 1, 2, 0, 1, 2, 1, 2, 1, 0], 3); expect(r.thresholds.length).toBeGreaterThan(0); }); it('nCategories matches', () => { const r = generalizedPartialCredit([0, 1, 2, 0, 1, 2, 1, 2, 1, 0], 3); expect(r.nCategories).toBe(3); }); });
+describe('testEquating', () => { it('contract keys', () => expectKeys(testEquating([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]), ['test', 'equated', 'slope', 'intercept', 'nA', 'nB', 'apa'])); it('coefficients non-empty', () => { const r = testEquating([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]); expect(Number.isFinite(r.slope)).toBe(true); }); it('equated non-empty', () => { const r = testEquating([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]); expect(r.equated.length).toBeGreaterThan(0); }); });
+describe('mixedFormatIRT', () => { it('is defined', () => expect(typeof mixedFormatIRT).toBe('function')); it('params non-empty', () => { const d = []; for (let i = 0; i < 20; i++) { const row = {}; for (let j = 1; j <= 6; j++) row[`i${j}`] = (i + j) % 3 > 0 ? 1 : 0; d.push(row); } const r = mixedFormatIRT(d, ['i1', 'i2', 'i3', 'i4', 'i5', 'i6']); if (r) expect(r.items.length).toBeGreaterThan(0); }); it('items match vars', () => { const d = []; for (let i = 0; i < 20; i++) { const row = {}; for (let j = 1; j <= 6; j++) row[`i${j}`] = (i + j) % 3 > 0 ? 1 : 0; d.push(row); } const r = mixedFormatIRT(d, ['i1', 'i2', 'i3', 'i4', 'i5', 'i6']); if (r) expect(r.items.length).toBe(6); }); });
+describe('difLogistic', () => { it('is defined', () => expect(typeof difLogistic).toBe('function')); it('dif non-empty', () => { const d = []; for (let i = 0; i < 30; i++) d.push({ grp: i < 15 ? 1 : 0, resp: i % 2, score: i }); const r = difLogistic(d, 'grp', 'resp', 'score'); if (r) expect(Number.isFinite(r.uniform)).toBe(true); }); it('nonuniform finite', () => { const d = []; for (let i = 0; i < 30; i++) d.push({ grp: i < 15 ? 1 : 0, resp: i % 2, score: i }); const r = difLogistic(d, 'grp', 'resp', 'score'); if (r && r.nonuniform !== undefined) expect(Number.isFinite(r.nonuniform)).toBe(true); }); });
+
+describe('testRetestReliability', () => {
+  const t1 = [10,12,14,16,18,20,22,24,26,28];
+  const t2 = t1.map(v => v + Math.random() * 2 - 1);
+  it('contract keys', () => expectKeys(testRetestReliability(t1, t2), ['test','r','meanDiff','loa','n','apa']));
+  it('null <5', () => expect(testRetestReliability([1,2], [1,2])).toBeNull());
+  it('r between -1 and 1', () => { const r = testRetestReliability(t1, t2); if (r) { expect(r.r).toBeGreaterThanOrEqual(-1); expect(r.r).toBeLessThanOrEqual(1); } });
+});
+describe('interRaterReliability', () => {
+  const ratings = [[1,1,2,2,2],[1,2,2,2,2],[2,1,2,2,1]];
+  it('contract keys', () => expectKeys(interRaterReliability(ratings), ['test','kappa','nSubjects','nRaters','apa']));
+  it('null <3 raters', () => expect(interRaterReliability([[1,2]])).toBeNull());
+  it('kappa between -1 and 1', () => { const r = interRaterReliability(ratings); if (r) { expect(r.kappa).toBeGreaterThanOrEqual(-1); expect(r.kappa).toBeLessThanOrEqual(1); } });
+});
+describe('parallelFormsReliability', () => {
+  const a = [10,12,14,16,18,20,22,24,26,28];
+  const b = a.map(v => v + Math.random());
+  it('contract keys', () => expectKeys(parallelFormsReliability(a, b), ['test','r','corrected','n','apa']));
+  it('r between -1 and 1', () => { const r = parallelFormsReliability(a, b); if (r) { expect(r.r).toBeGreaterThanOrEqual(-1); expect(r.r).toBeLessThanOrEqual(1); } });
+  it('corrected finite', () => { const r = parallelFormsReliability(a, b); if (r) expect(Number.isFinite(r.corrected)).toBe(true); });
+});
+describe('itemDifficultyIndex', () => {
+  const resp = [[1,0,1],[1,1,0],[0,1,1],[1,1,1],[0,0,1],[1,0,0],[1,1,0],[1,0,1]];
+  it('contract keys', () => expectKeys(itemDifficultyIndex(resp), ['test','difficulties','nItems','nExaminees','apa']));
+  it('difficulties non-empty', () => { const r = itemDifficultyIndex(resp); if (r) expect(r.difficulties.length).toBeGreaterThan(0); });
+  it('difficulties between 0-1', () => { const r = itemDifficultyIndex(resp); if (r) r.difficulties.forEach(d => { expect(d).toBeGreaterThanOrEqual(0); expect(d).toBeLessThanOrEqual(1); }); });
+});
+describe('itemDiscriminationIndex', () => {
+  const resp = [[1,0,1],[1,1,0],[0,1,1],[1,1,1],[0,0,1],[1,0,0],[1,1,0],[1,0,1],[0,1,0],[1,1,1]];
+  it('contract keys', () => expectKeys(itemDiscriminationIndex(resp), ['test','discriminations','nItems','nExaminees','apa']));
+  it('null <10', () => expect(itemDiscriminationIndex([[1,0]])).toBeNull());
+  it('discriminations between -1 and 1', () => { const r = itemDiscriminationIndex(resp); if (r) r.discriminations.forEach(d => { expect(d).toBeGreaterThanOrEqual(-1); expect(d).toBeLessThanOrEqual(1); }); });
+});

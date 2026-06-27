@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { partialCorrTest, skeletonPhase, colliderDetection, dagAdjacency, pcAlgorithm } from './causalDiscovery.js';
+import { partialCorrTest, skeletonPhase, colliderDetection, dagAdjacency, pcAlgorithm, lingam, fciAlgorithm } from './causalDiscovery.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const d = []; for (let i = 0; i < 30; i++) d.push({ x1: i, x2: i * 0.5, x3: Math.sin(i) });
@@ -7,25 +7,45 @@ const d = []; for (let i = 0; i < 30; i++) d.push({ x1: i, x2: i * 0.5, x3: Math
 describe('partialCorrTest', () => {
   it('contract keys', () => expectKeys(partialCorrTest(d, ['x1', 'x2', 'x3'], 'x1', 'x2', ['x3']), ['test', 'r', 't', 'p', 'df', 'n', 'apa']));
   it('handles no vars', () => { const r = partialCorrTest(d, [], 'x1', 'x2', []); expect(r !== undefined).toBe(true); });
+  it('r between -1 and 1', () => { const r = partialCorrTest(d, ['x1', 'x2', 'x3'], 'x1', 'x2', ['x3']); if (r && Number.isFinite(r.r)) { expect(r.r).toBeGreaterThanOrEqual(-1); expect(r.r).toBeLessThanOrEqual(1); } });
 });
 
 describe('skeletonPhase', () => {
   it('contract keys', () => expectKeys(skeletonPhase(d, ['x1', 'x2', 'x3']), ['test', 'edges', 'n', 'k', 'alpha', 'apa']));
   it('null <3 vars', () => expect(skeletonPhase(d, ['x1', 'x2'])).toBeNull());
+  it('edges non-empty', () => { const r = skeletonPhase(d, ['x1', 'x2', 'x3']); if (r) expect(r.edges.length).toBeGreaterThan(0); });
 });
 
 describe('colliderDetection', () => {
   it('contract keys', () => { const r = colliderDetection([{ i: 0, j: 1, removed: false }, { i: 1, j: 2, removed: false }, { i: 0, j: 2, removed: true }], 3); if (r) expectKeys(r, ['test', 'colliders', 'nVars', 'apa']); });
+  it('colliders array', () => { const r = colliderDetection([{ i: 0, j: 1, removed: false }, { i: 1, j: 2, removed: false }, { i: 0, j: 2, removed: true }], 3); if (r) expect(Array.isArray(r.colliders)).toBe(true); });
+  it('nVars matches input', () => { const r = colliderDetection([{ i: 0, j: 1, removed: false }, { i: 1, j: 2, removed: false }, { i: 0, j: 2, removed: true }], 3); if (r) expect(r.nVars).toBe(3); });
 });
 
 describe('dagAdjacency', () => {
   it('contract keys', () => { const r = dagAdjacency([{ i: 0, j: 1 }], [{ collider: 1, parents: [0, 2] }]); expectKeys(r, ['test', 'edges', 'nEdges', 'apa']); });
+  it('adjacency non-empty', () => { const r = dagAdjacency([{ i: 0, j: 1 }], [{ collider: 1, parents: [0, 2] }]); if (r) expect(r.edges.length).toBeGreaterThan(0); });
+  it('nEdges matches input', () => { const r = dagAdjacency([{ i: 0, j: 1 }], [{ collider: 1, parents: [0, 2] }]); if (r) expect(r.nEdges).toBeGreaterThan(0); });
 });
 
 describe('pcAlgorithm', () => {
   it('is defined', () => expect(typeof pcAlgorithm).toBe('function'));
+  it('edges non-empty', () => { const r = pcAlgorithm(d, ['x1', 'x2', 'x3']); if (r && r.edges) expect(r.edges.length).toBeGreaterThan(0); });
+  it('nEdges exists', () => { const r = pcAlgorithm(d, ['x1', 'x2', 'x3']); if (r && r.nEdges !== undefined) expect(Number.isFinite(r.nEdges)).toBe(true); });
 });
 
+describe('lingam', () => {
+  const d2 = []; for (let i = 0; i < 20; i++) d2.push({ x1: i, x2: i * 0.5 + Math.random(), x3: i * 0.3, x4: Math.random() });
+  it('contract keys', () => expectKeys(lingam(d2, ['x1','x2','x3','x4']), ['test','edges','nEdges','nVars','n','apa']));
+  it('null <3 vars', () => expect(lingam(d2, ['x1','x2'])).toBeNull());
+  it('nVars matches input', () => { const r = lingam(d2, ['x1','x2','x3','x4']); if (r) expect(r.nVars).toBe(4); });
+});
+describe('fciAlgorithm', () => {
+  const d3 = []; for (let i = 0; i < 20; i++) d3.push({ x1: i, x2: i * 0.5, x3: Math.sin(i), x4: Math.random() });
+  it('contract keys', () => expectKeys(fciAlgorithm(d3, ['x1','x2','x3','x4']), ['test','edges','nEdges','nVars','n','apa']));
+  it('null <10', () => expect(fciAlgorithm(d3.slice(0,5), ['x1','x2','x3'])).toBeNull());
+  it('edges non-empty', () => { const r = fciAlgorithm(d3, ['x1','x2','x3','x4']); if (r) expect(r.edges.length).toBeGreaterThan(0); });
+});
 describe('causalDiscovery edge cases', () => {
   it('partialCorrTest null for no vars', () => expect(partialCorrTest(d, [], 'x1', 'x2', []) === null).toBe(true));
   it('skeletonPhase null <3 vars', () => expect(skeletonPhase(d, ['x1', 'x2'])).toBeNull());

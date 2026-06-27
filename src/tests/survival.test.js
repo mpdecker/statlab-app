@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { kmEstimate, logRankTest, nelsonAalen, coxPH, parametricSurvival, fineGray, frailtyCox, timeVaryingCox, rmst, rmstCompare, aalenModel, cureModel, multistateModel, agModel, pwpgap, wlwMarginal, survivalTree, randomSurvivalForest, rsfVariableImportance, timeDependentROC, survivalCalibration, survivalForestPredict } from './survival.js';
+import { kmEstimate, logRankTest, nelsonAalen, coxPH, parametricSurvival, fineGray, frailtyCox, timeVaryingCox, rmst, rmstCompare, aalenModel, cureModel, multistateModel, agModel, pwpgap, wlwMarginal, survivalTree, randomSurvivalForest, rsfVariableImportance, timeDependentROC, survivalCalibration, survivalForestPredict, jointModel, landmarkAnalysis, pseudoValues } from './survival.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const obsA = [
@@ -675,56 +675,98 @@ describe('aalenModel', () => {
   const ad = []; for (let i = 0; i < 30; i++) ad.push({ time: 10 + i * 2, event: i < 25 ? 1 : 0, x: i % 3 });
   it('null <5 events', () => expect(aalenModel(ad.slice(0, 10), ['x'])).toBeNull());
   it('contract keys', () => { const r = aalenModel(ad, ['x']); if (r) expectKeys(r, ['test', 'coefficients', 'n', 'nEvents', 'apa']); });
+  it('coefficients has entries', () => { const r = aalenModel(ad, ['x']); if (r) { expect(r.coefficients.length).toBeGreaterThan(0); } });
 });
 
 describe('cureModel', () => {
   const cd = []; for (let i = 0; i < 60; i++) cd.push({ time: 5 + i * 3, event: i < 20 ? 1 : (i > 50 ? 1 : 0), x: i % 2 });
   it('contract keys', () => { const r = cureModel(cd, ['x']); if (r) expectKeys(r, ['test', 'cureFraction', 'cureModel', 'survivalModel', 'n', 'nCensored', 'apa']); });
   it('cure fraction in [0,1] if valid', () => { const r = cureModel(cd, ['x']); if (r) { expect(r.cureFraction).toBeGreaterThanOrEqual(0); expect(r.cureFraction).toBeLessThanOrEqual(1); } });
+  it('null for <30', () => expect(cureModel(cd.slice(0, 10), ['x'])).toBeNull());
 });
 
 describe('multistateModel', () => {
   const ms = []; for (let i = 0; i < 60; i++) ms.push({ id: i % 10, time: i * 3, from: i < 40 ? 1 : 2, to: i < 40 ? 2 : 3 });
   it('null small', () => expect(multistateModel(ms.slice(0, 15), 'id', 'from', 'to')).toBeNull());
   it('contract keys', () => { const r = multistateModel(ms, 'id', 'from', 'to'); if (r) expectKeys(r, ['test', 'transProb', 'states', 'n', 'nEvents', 'apa']); });
+  it('transProb is 2D array', () => { const r = multistateModel(ms, 'id', 'from', 'to'); if (r) { expect(Array.isArray(r.transProb)).toBe(true); expect(r.transProb.length).toBe(r.states); } });
 });
 
 describe('agModel', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ id: i % 10, time: i * 3, event: i % 5 === 0 ? 1 : 0 });
   it('contract keys', () => expectKeys(agModel(d, 'id', 'time', 'event'), ['test', 'rate', 'se', 'n', 'nEvents', 'nSubjects', 'apa']));
   it('null <15', () => expect(agModel(d.slice(0, 5), 'id', 'time', 'event')).toBeNull());
+  it('rate >= 0', () => { const r = agModel(d, 'id', 'time', 'event'); if (r) expect(r.rate).toBeGreaterThanOrEqual(0); });
 });
 
 describe('pwpgap', () => {
   const d2 = []; for (let i = 0; i < 30; i++) d2.push({ id: i % 10, time: i * 3, event: i % 5 === 0 ? 1 : 0 });
   it('contract keys', () => expectKeys(pwpgap(d2, 'id', 'time', 'event'), ['test', 'n', 'nEvents', 'nSubjects', 'apa']));
+  it('gap positive', () => { const r = pwpgap(d2, 'id', 'time', 'event'); if (r && r.gap !== undefined) expect(r.gap).toBeGreaterThan(0); });
+  it('null <15', () => expect(pwpgap(d2.slice(0, 5), 'id', 'time', 'event')).toBeNull());
 });
 
 describe('wlwMarginal', () => {
   const d2 = []; for (let i = 0; i < 30; i++) d2.push({ id: i % 10, time: i * 3, event: i % 5 === 0 ? 1 : 0 });
   it('contract keys', () => expectKeys(wlwMarginal(d2, 'id', 'time', 'event'), ['test', 'n', 'nEvents', 'nSubjects', 'apa']));
+  it('coefficients non-empty', () => { const r = wlwMarginal(d2, 'id', 'time', 'event'); if (r && r.coefficients) expect(r.coefficients.length).toBeGreaterThan(0); });
+  it('null <15', () => expect(wlwMarginal(d2.slice(0, 5), 'id', 'time', 'event')).toBeNull());
 });
 
 describe('survivalTree', () => {
   const sd = []; for (let i = 0; i < 30; i++) sd.push({ time: 10 + i * 2, event: i < 20 ? 1 : 0, x: i % 3 });
   it('contract keys', () => expectKeys(survivalTree(sd, ['x']), ['test', 'split', 'n', 'nEvents', 'maxDepth', 'apa']));
   it('null <20', () => expect(survivalTree(sd.slice(0, 10), ['x'])).toBeNull());
+  it('split has variable and threshold', () => { const r = survivalTree(sd, ['x']); if (r) { expect(typeof r.split.variable).toBe('string'); expect(Number.isFinite(r.split.threshold)).toBe(true); } });
 });
 
 describe('randomSurvivalForest', () => {
   const sd = []; for (let i = 0; i < 30; i++) sd.push({ time: 10 + i * 2, event: i < 20 ? 1 : 0, x: i % 3 });
   it('contract keys', () => expectKeys(randomSurvivalForest(sd, ['x']), ['test', 'predictions', 'nTrees', 'n', 'apa']));
   it('null <20', () => expect(randomSurvivalForest(sd.slice(0, 10), ['x'])).toBeNull());
+  it('predictions is an array', () => { const r = randomSurvivalForest(sd, ['x']); if (r) { expect(Array.isArray(r.predictions)).toBe(true); expect(r.predictions.length).toBeGreaterThan(0); } });
 });
 
-describe('rsfVariableImportance', () => { it('contract keys', () => expectKeys(rsfVariableImportance({ nTrees: 50 }), ['test', 'importance', 'apa'])); });
+describe('rsfVariableImportance', () => {
+  it('contract keys', () => expectKeys(rsfVariableImportance({ nTrees: 50 }), ['test', 'importance', 'apa']));
+  it('null for null input', () => expect(rsfVariableImportance(null)).toBeNull());
+  it('importance has nTrees', () => { const r = rsfVariableImportance({ nTrees: 50 }); if (r) expect(r.importance.nTrees).toBe(50); });
+});
 describe('timeDependentROC', () => {
   const sd2 = []; for (let i = 0; i < 30; i++) sd2.push({ time: 10 + i * 2, event: i < 20 ? 1 : 0, x: i % 3 });
   it('contract keys', () => expectKeys(timeDependentROC(sd2, ['x'], [10, 20, 30]), ['test', 'auc', 'n', 'apa']));
+  it('auc between 0-1', () => { const r = timeDependentROC(sd2, ['x'], [10, 20, 30]); if (r && typeof r.auc === 'number') { expect(r.auc).toBeGreaterThanOrEqual(0); expect(r.auc).toBeLessThanOrEqual(1); } });
+  it('null for <20', () => expect(timeDependentROC(sd2.slice(0, 10), ['x'], [10, 20])).toBeNull());
 });
 
 describe('survivalCalibration', () => {
   const sd2 = []; for (let i = 0; i < 30; i++) sd2.push({ time: 10 + i * 2, event: i < 20 ? 1 : 0, x: i % 3 });
   it('contract keys', () => expectKeys(survivalCalibration(sd2, ['x'], [10, 20]), ['test', 'calibration', 'n', 'apa']));
+  it('calibration finite', () => { const r = survivalCalibration(sd2, ['x'], [10, 20]); if (r) { expect(Array.isArray(r.calibration)).toBe(true); expect(r.calibration.length).toBeGreaterThan(0); } });
+  it('null for <20', () => expect(survivalCalibration(sd2.slice(0, 10), ['x'], [10, 20])).toBeNull());
 });
-describe('survivalForestPredict', () => { it('contract keys', () => expectKeys(survivalForestPredict({ predictions: [0.5] }, { x: 1 }), ['test', 'prediction', 'apa'])); });
+describe('survivalForestPredict', () => {
+  it('contract keys', () => expectKeys(survivalForestPredict({ predictions: [0.5] }, { x: 1 }), ['test', 'prediction', 'apa']));
+  it('null for null input', () => { expect(survivalForestPredict(null, { x: 1 })).toBeNull(); expect(survivalForestPredict({ predictions: [0.5] }, null)).toBeNull(); });
+  it('prediction is finite', () => { const r = survivalForestPredict({ predictions: [0.5] }, { x: 1 }); if (r) expect(Number.isFinite(r.prediction)).toBe(true); });
+});
+
+describe('jointModel', () => {
+  const longD = []; for (let i = 0; i < 30; i++) longD.push({ id: Math.floor(i/3), time: i % 3, y: i * 0.5 + Math.random() });
+  const survD = []; for (let i = 0; i < 10; i++) survD.push({ id: i, time: 5 + i * 0.5, event: i % 2 });
+  it('contract keys', () => expectKeys(jointModel(longD, survD, 'time', 'id'), ['test','longBeta','survBeta','association','logLik','nSubjects','apa']));
+  it('association finite', () => { const r = jointModel(longD, survD, 'time', 'id'); if (r) expect(Number.isFinite(r.association)).toBe(true); });
+  it('null for short data', () => expect(jointModel(longD.slice(0, 3), survD, 'time', 'id')).toBeNull());
+});
+describe('landmarkAnalysis', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ time: i * 3 + Math.random(), event: i % 3 === 0 ? 1 : 0, x1: i % 2 });
+  it('contract keys', () => expectKeys(landmarkAnalysis(d, 'time', 'event', 20, 30, ['x1']), ['test','landmarkTime','horizonTime','survival','se','nRisk','n','apa']));
+  it('survival between 0-1', () => { const r = landmarkAnalysis(d, 'time', 'event', 20, 30, ['x1']); if (r) { expect(r.survival).toBeGreaterThanOrEqual(0); expect(r.survival).toBeLessThanOrEqual(1); } });
+  it('null for short data', () => expect(landmarkAnalysis(d.slice(0, 3), 'time', 'event', 20, 30, ['x1'])).toBeNull());
+});
+describe('pseudoValues', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ time: i * 3 + Math.random() * 2, event: i % 5 === 0 ? 1 : 0 });
+  it('contract keys', () => expectKeys(pseudoValues(d, 'time', 'event', 40, 5), ['test','pseudo','avgPseudo','truncTime','n','apa']));
+  it('avgPseudo finite', () => { const r = pseudoValues(d, 'time', 'event', 40, 5); if (r) expect(Number.isFinite(r.avgPseudo)).toBe(true); });
+  it('null for <10', () => expect(pseudoValues(d.slice(0, 5), 'time', 'event', 40)).toBeNull());
+});

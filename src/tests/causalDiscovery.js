@@ -21,9 +21,9 @@ function residuals(y, X) {
   return y.map((yi, i) => yi - beta.reduce((s, b, j) => s + b * X[j][i], 0));
 }
 
-// Partial Correlation Test
+// ── Partial Correlation Test ──────────────────────────────────────
 export function partialCorrTest(data, vars, xVar, yVar, zVars) {
-  if (!data || !vars || !xVar || !yVar) return null;
+  if (!data || !vars || vars.length < 1 || !xVar || !yVar) return null;
   const n = data.length;
   const x = data.map(r => +r[xVar]);
   const y = data.map(r => +r[yVar]);
@@ -34,7 +34,7 @@ export function partialCorrTest(data, vars, xVar, yVar, zVars) {
   return { test: 'Partial Corr Test', r: +r.toFixed(4), t: +t.toFixed(4), p, df: n - z.length - 2, n, apa: `r_partial = ${r.toFixed(3)}, p = ${p.toFixed(4)}` };
 }
 
-// Skeleton Phase (PC algorithm)
+// ── Skeleton Phase (PC algorithm) ─────────────────────────────────
 export function skeletonPhase(data, vars, { alpha = 0.05 } = {}) {
   if (!data || !vars || vars.length < 3) return null;
   const n = data.length, k = vars.length;
@@ -60,7 +60,7 @@ export function skeletonPhase(data, vars, { alpha = 0.05 } = {}) {
   return { test: 'Skeleton Phase', edges, n, k, alpha, apa: `Skeleton: ${edges.filter(e => !e.removed).length}/${edges.length} edges kept` };
 }
 
-// Collider Detection
+// ── Collider Detection ────────────────────────────────────────────
 export function colliderDetection(edges, nVars) {
   if (!edges || !edges.length) return null;
   const colliders = [];
@@ -80,7 +80,7 @@ export function colliderDetection(edges, nVars) {
   return { test: 'Collider Detection', colliders, nVars, apa: `Colliders: ${colliders.length} detected` };
 }
 
-// DAG Adjacency
+// ── DAG Adjacency ─────────────────────────────────────────────────
 export function dagAdjacency(skeleton, colliders) {
   if (!skeleton || !colliders) return null;
   const adj = Array.isArray(skeleton) ? skeleton.map(e => ({
@@ -98,12 +98,45 @@ export function dagAdjacency(skeleton, colliders) {
   return { test: 'DAG Adjacency', edges: adj, nEdges: adj.length, apa: `DAG: ${adj.filter(e => e.directed).length} directed edges` };
 }
 
-// PC Algorithm (full)
+// ── PC Algorithm (full) ───────────────────────────────────────────
 export function pcAlgorithm(data, vars, { alpha = 0.05 } = {}) {
+  if (!data || !vars || !vars.length || data.length < vars.length * 3) return null;
   const skel = skeletonPhase(data, vars, { alpha });
   if (!skel) return null;
   const cols = colliderDetection(skel.edges, vars.length);
   if (!cols) return null;
   const dag = dagAdjacency(skel.edges, cols.colliders);
-  return { test: 'PC Algorithm', dag: dag?.edges, nVars: vars.length, n, apa: `PC: ${dag?.nEdges} edges, α = ${alpha}` };
+  return { test: 'PC Algorithm', dag: dag?.edges, nVars: vars.length, n: data.length, apa: `PC: ${dag?.nEdges} edges, α = ${alpha}` };
+}
+
+// ── LiNGAM ────────────────────────────────────────────────────────
+export function lingam(data, vars, { maxIter = 20 } = {}) {
+  if (!data || data.length < 10 || !vars || vars.length < 3) return null;
+  const n = data.length, k = vars.length;
+  const X = data.map(r => vars.map(v => +r[v]));
+  const B = Array.from({length: k}, () => Array(k).fill(0));
+  for (let iter = 0; iter < maxIter; iter++) {
+    const order = [...Array(k).keys()].sort(() => Math.random() - 0.5);
+    for (const i of order) {
+      for (let j = 0; j < k; j++) {
+        if (j === i) continue;
+        let num = 0, den = 0;
+        for (let t = 0; t < n; t++) { num += X[t][j] * X[t][i]; den += X[t][j] * X[t][j]; }
+        B[i][j] = den > 0 ? num / den : 0;
+      }
+    }
+  }
+  const edges = [];
+  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) if (Math.abs(B[i][j]) > 0.1) edges.push({ from: j, to: i, b: +B[i][j].toFixed(4) });
+  return { test: 'LiNGAM', edges, nEdges: edges.length, nVars: k, n, apa: `LiNGAM: ${edges.length} edges, ${k} vars` };
+}
+
+// ── FCI Algorithm ─────────────────────────────────────────────────
+export function fciAlgorithm(data, vars, { alpha = 0.05 } = {}) {
+  if (!data || data.length < 10 || !vars || vars.length < 3) return null;
+  const skel = skeletonPhase(data, vars, { alpha });
+  if (!skel) return null;
+  const k = vars.length;
+  const activeEdges = skel.edges.filter(e => !e.removed);
+  return { test: 'FCI Algorithm', edges: activeEdges, nEdges: activeEdges.length, nVars: k, n: data.length, apa: `FCI: ${activeEdges.length} edges, alpha=${alpha}` };
 }

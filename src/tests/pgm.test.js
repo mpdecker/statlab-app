@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { markovBlanket, beliefPropagation, factorGraph, bicScore, dseparation } from './pgm.js';
+import { markovBlanket, beliefPropagation, factorGraph, bicScore, dseparation, variableElimination, treeWidth, junctionTree, hillClimbing, scoringBDeu, cpdag, dSeparationQuery } from './pgm.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const edges = [{ from: 0, to: 1 }, { from: 0, to: 2 }, { from: 1, to: 3 }, { from: 2, to: 3 }];
@@ -7,23 +7,71 @@ const edges = [{ from: 0, to: 1 }, { from: 0, to: 2 }, { from: 1, to: 3 }, { fro
 describe('markovBlanket', () => {
   it('contract keys', () => expectKeys(markovBlanket(edges, 1), ['test', 'blanket', 'node', 'apa']));
   it('null for invalid', () => expect(markovBlanket(null, 1)).toBeNull());
+  it('blanket array non-empty', () => { const r = markovBlanket(edges, 1); if (r) expect(r.blanket.length).toBeGreaterThan(0); });
 });
 
 describe('beliefPropagation', () => {
   it('contract keys', () => { const r = beliefPropagation([[0, 1], [0, 2]], [0, 1, 2], {}); if (r) expectKeys(r, ['test', 'marginals', 'n', 'apa']); });
   it('null <2 vars', () => expect(beliefPropagation([], [0], {})).toBeNull());
+  it('marginals non-empty', () => { const r = beliefPropagation([[0, 1], [0, 2]], [0, 1, 2], {}); if (r) expect(r.marginals.length).toBeGreaterThan(0); });
 });
 
 describe('factorGraph', () => {
   it('contract keys', () => expectKeys(factorGraph([0, 1, 2], [[0, 1], [1, 2]]), ['test', 'variableNodes', 'factorNodes', 'nVars', 'nFactors', 'apa']));
+  it('factors non-empty', () => { const r = factorGraph([0, 1, 2], [[0, 1], [1, 2]]); if (r) expect(r.factorNodes.length).toBeGreaterThan(0); });
+  it('nVars matches input', () => { const r = factorGraph([0, 1, 2], [[0, 1], [1, 2]]); if (r) expect(r.nVars).toBe(3); });
 });
 
 describe('bicScore', () => {
   const d = []; for (let i = 0; i < 10; i++) d.push({ a: i, b: i * 0.5, c: i % 2 });
   it('contract keys', () => expectKeys(bicScore(d, ['a', 'b', 'c'], edges.slice(0, 2).map(e => ({ from: ['a', 'b', 'c'][e.from], to: ['a', 'b', 'c'][e.to] }))), ['test', 'bic', 'nEdges', 'n', 'apa']));
+  it('score finite', () => { const r = bicScore(d, ['a', 'b', 'c'], edges.slice(0, 2).map(e => ({ from: ['a', 'b', 'c'][e.from], to: ['a', 'b', 'c'][e.to] }))); if (r) expect(Number.isFinite(r.bic)).toBe(true); });
+  it('nEdges matches', () => { const r = bicScore(d, ['a', 'b', 'c'], edges.slice(0, 2).map(e => ({ from: ['a', 'b', 'c'][e.from], to: ['a', 'b', 'c'][e.to] }))); if (r) expect(r.nEdges).toBe(2); });
 });
 
 describe('dseparation', () => {
   it('contract keys', () => expectKeys(dseparation(edges, 0, 3, [1, 2]), ['test', 'dSeparated', 'x', 'y', 'z', 'apa']));
   it('null for invalid', () => expect(dseparation(null, 0, 1)).toBeNull());
+  it('dSeparated is boolean', () => { const r = dseparation(edges, 0, 3, [1, 2]); if (r) expect(typeof r.dSeparated).toBe('boolean'); });
+});
+describe('variableElimination', () => {
+  it('contract keys', () => expectKeys(variableElimination([{name:'f1', table:{'0':0.7,'1':0.3}}], ['X1']), ['test','query','nFactors','nEliminated','apa']));
+  it('null empty', () => expect(variableElimination([], ['X'])).toBeNull());
+  it('nFactors matches', () => { const r = variableElimination([{name:'f1', table:{'0':0.7,'1':0.3}}], ['X1']); if (r) expect(r.nFactors).toBe(1); });
+});
+describe('treeWidth', () => {
+  const edges = [[0,1],[1,2],[2,3]];
+  it('contract keys', () => expectKeys(treeWidth(edges, 4), ['test','treewidth','nVars','nEdges','apa']));
+  it('null nVars<2', () => expect(treeWidth([], 1)).toBeNull());
+  it('treewidth >= 0', () => { const r = treeWidth(edges, 4); if (r) expect(r.treewidth).toBeGreaterThanOrEqual(0); });
+});
+describe('junctionTree', () => {
+  const edges = [[0,1],[1,2],[0,2]];
+  it('contract keys', () => expectKeys(junctionTree(edges, 3), ['test','nClusters','nSepsets','nVars','apa']));
+  it('null nVars<2', () => expect(junctionTree([], 1)).toBeNull());
+  it('nClusters positive', () => { const r = junctionTree(edges, 3); if (r) expect(r.nClusters).toBeGreaterThan(0); });
+});
+describe('hillClimbing', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ x1: i, x2: i * 0.5, x3: i % 3 });
+  it('contract keys', () => expectKeys(hillClimbing(d, ['x1','x2','x3'], { maxIter: 10 }), ['test','edges','score','nEdges','nVars','apa']));
+  it('null <3 vars', () => expect(hillClimbing(d, ['x1','x2'])).toBeNull());
+  it('score finite', () => { const r = hillClimbing(d, ['x1','x2','x3'], { maxIter: 10 }); if (r) expect(Number.isFinite(r.score)).toBe(true); });
+});
+describe('scoringBDeu', () => {
+  const d = []; for (let i = 0; i < 15; i++) d.push({ x1: i, x2: i % 3 });
+  it('contract keys', () => expectKeys(scoringBDeu(d, ['x1','x2'], [{from:0,to:1}]), ['test','score','nEdges','nVars','n','apa']));
+  it('score finite', () => { const r = scoringBDeu(d, ['x1','x2'], [{from:0,to:1}]); if (r) expect(Number.isFinite(r.score)).toBe(true); });
+  it('nVars matches', () => { const r = scoringBDeu(d, ['x1','x2'], [{from:0,to:1}]); if (r) expect(r.nVars).toBe(2); });
+});
+describe('cpdag', () => {
+  const edges = [{from:0,to:2},{from:1,to:2}];
+  it('contract keys', () => expectKeys(cpdag(edges, 3), ['test','edges','nEdges','nVars','colliders','apa']));
+  it('null nVars<2', () => expect(cpdag([], 1)).toBeNull());
+  it('colliders is array', () => { const r = cpdag(edges, 3); if (r) expect(Array.isArray(r.colliders)).toBe(true); });
+});
+describe('dSeparationQuery', () => {
+  const edges = [{from:0,to:1},{from:1,to:2}];
+  it('contract keys', () => expectKeys(dSeparationQuery(edges, 3, 0, 2, [1]), ['test','separated','query','nVars','apa']));
+  it('null invalid', () => expect(dSeparationQuery([], 3, null, 2)).toBeNull());
+  it('separated is boolean', () => { const r = dSeparationQuery(edges, 3, 0, 2, [1]); if (r) expect(typeof r.separated).toBe('boolean'); });
 });

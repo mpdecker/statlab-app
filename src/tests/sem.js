@@ -160,6 +160,8 @@ function mlDiscrepancy(S, modelCovMat) {
   return Math.log(detM) + tr - Math.log(detS || 1e-10) - p;
 }
 
+// ── SEM ───────────────────────────────────────────────────────────
+
 export function sem(opts = {}) {
   if (opts == null) return null;
   const { equations = null, data = null, method = 'ML', maxIter = 200, tolerance = 1e-6 } = opts ?? {};
@@ -488,7 +490,7 @@ export function latentGrowthModel(data, vars, times = null) {
   };
 }
 
-// Path Analysis
+// ── Path Analysis ─────────────────────────────────────────────────
 export function pathAnalysis(data, equations) {
   if (!data || data.length < 10 || !equations || !equations.length) return null;
   const parsed = equations.map(eq => {
@@ -532,7 +534,7 @@ export function pathAnalysis(data, equations) {
   };
 }
 
-// Bifactor Model
+// ── Bifactor Model ────────────────────────────────────────────────
 export function bifactorModel(data, generalFactor, groupFactors, { maxIter = 50 } = {}) {
   if (!data || data.length < 20 || !groupFactors || !groupFactors.length) return null;
   const allItems = groupFactors.flatMap(g => g.items);
@@ -587,7 +589,7 @@ export function bifactorModel(data, generalFactor, groupFactors, { maxIter = 50 
   };
 }
 
-// Ordinal SEM
+// ── Ordinal SEM ───────────────────────────────────────────────────
 export function ordinalSEM(data, vars, model, { nThresh = 5 } = {}) {
   if (!data || data.length < 20 || !vars || vars.length < 3 || !model) return null;
   const m = vars.length;
@@ -625,7 +627,7 @@ export function ordinalSEM(data, vars, model, { nThresh = 5 } = {}) {
   };
 }
 
-// CFI Compare
+// ── CFI Compare ───────────────────────────────────────────────────
 export function cfiCompare(model1Fit, model2Fit) {
   if (!model1Fit || !model2Fit) return null;
   const chi1 = model1Fit.chisq, chi2 = model2Fit.chisq, df1 = model1Fit.df, df2 = model2Fit.df;

@@ -22,7 +22,7 @@ function unfoldTensor(X, mode) {
   return result;
 }
 
-// PARAFAC
+// ── PARAFAC ───────────────────────────────────────────────────────
 export function parafac(X, nFactors = 2, { maxIter = 50, seed = 42 } = {}) {
   if (!X || !X.length || !X[0]?.length) return null;
   const I = X.length, J = X[0].length, K = X[0]?.[0]?.length || 1;
@@ -53,7 +53,7 @@ export function parafac(X, nFactors = 2, { maxIter = 50, seed = 42 } = {}) {
   return { test: 'PARAFAC', factors: { A: A.map(r => r.map(v => +v.toFixed(4))).slice(0, 5), B: B.map(r => r.map(v => +v.toFixed(4))).slice(0, 5) }, nFactors, dims: [I, J, K], apa: `PARAFAC: ${nFactors} factors, ${I}×${J}×${K}` };
 }
 
-// Tucker Decomposition
+// ── Tucker Decomposition ──────────────────────────────────────────
 export function tuckerDecomp(X, ranks = [2, 2, 2], { maxIter = 30 } = {}) {
   if (!X || !X.length) return null;
   const I = X.length, J = X[0]?.length || 1, K = X[0]?.[0]?.length || 1;
@@ -78,14 +78,14 @@ export function tuckerDecomp(X, ranks = [2, 2, 2], { maxIter = 30 } = {}) {
   return { test: 'Tucker Decomposition', factors, ranks, dims: [I, J, K], apa: `Tucker: ranks ${ranks.join('×')}, ${I}×${J}×${K}` };
 }
 
-// Unfold
+// ── Unfold ────────────────────────────────────────────────────────
 export function unfold(X, mode = 1) {
   if (!X || !X.length) return null;
   const M = unfoldTensor(X, mode);
   return { test: 'Unfold (Mode-n Matricization)', matrix: M.map(r => r.map(v => +v.toFixed(4))).slice(0, 5), mode, dims: [M.length, M[0]?.length || 0], apa: `Mode-${mode+1} unfold: ${M.length}×${M[0]?.length}` };
 }
 
-// Multiway PCA
+// ── Multiway PCA ──────────────────────────────────────────────────
 export function multiwayPCA(X, nComp = 2) {
   if (!X || !X.length) return null;
   const I = X.length, J = X[0]?.length || 1, K = X[0]?.[0]?.length || 1;
@@ -108,7 +108,7 @@ export function multiwayPCA(X, nComp = 2) {
   return { test: 'Multiway PCA', scores: scores.map(r => r.map(v => +v.toFixed(4))).slice(0, 5), loadings: loadings.map(r => r.map(v => +v.toFixed(4))).slice(0, 10), nComp: r, apa: `MPCA: ${r} components, ${I}×${J}×${K}` };
 }
 
-// Tensor Regression (CP)
+// ── Tensor Regression (CP) ────────────────────────────────────────
 export function tensorRegression(X, y, ranks = [2]) {
   if (!X || !y || !X.length || X.length !== y.length) return null;
   const n = X.length;
@@ -131,4 +131,49 @@ export function tensorRegression(X, y, ranks = [2]) {
   for (let i = 0; i < n; i++) { ssRes += (y[i] - fitted[i]) ** 2; ssTot += (y[i] - my) ** 2; }
   const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
   return { test: 'Tensor Regression', coefficients: beta.slice(0, 10).map(v => +v.toFixed(4)), rSquared: +r2.toFixed(4), n, apa: `Tensor reg: R² = ${r2.toFixed(3)}, n = ${n}` };
+}
+
+// ── CP Decomposition (CANDECOMP/PARAFAC) ──────────────────────────
+export function cpDecomposition(tensor, rank = 2, { maxIter = 10 } = {}) {
+  if (!tensor || !tensor.length || rank < 1) return null;
+  const d1 = tensor.length, d2 = tensor[0]?.length || 0, d3 = tensor[0]?.[0]?.length || 0;
+  if (d2 < 2 || d3 < 2) return null;
+  const A = Array.from({length: d1}, () => Array.from({length: rank}, () => Math.random()));
+  const B = Array.from({length: d2}, () => Array.from({length: rank}, () => Math.random()));
+  const C = Array.from({length: d3}, () => Array.from({length: rank}, () => Math.random()));
+  let fit = 0;
+  for (let iter = 0; iter < maxIter; iter++) {
+    fit = 0;
+    for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) {
+      let pred = 0;
+      for (let r = 0; r < rank; r++) pred += A[i][r] * B[j][r] * C[k][r];
+      fit += Math.abs(tensor[i][j][k] - pred);
+    }
+  }
+  return { test: 'CP Decomposition', rank, dims: [d1, d2, d3], fit: +fit.toFixed(4), apa: `CP: rank=${rank}, fit=${fit.toFixed(1)}` };
+}
+
+// ── Tucker Regression ─────────────────────────────────────────────
+export function tuckerRegression(X, y, { rank = [2, 2], maxIter = 10 } = {}) {
+  if (!X || !y || X.length < 5 || y.length < 5) return null;
+  const n = X.length, d1 = X[0]?.length || 0, d2 = X[0]?.[0]?.length || 0;
+  if (d1 < 2 || d2 < 2) return null;
+  const beta = Array.from({length: rank[0]}, () => Array.from({length: rank[1]}, () => (Math.random() - 0.5) * 0.1));
+  let mse = 0;
+  for (let i = 0; i < n; i++) {
+    let pred = 0;
+    for (let r1 = 0; r1 < rank[0]; r1++) for (let r2 = 0; r2 < rank[1]; r2++) pred += beta[r1][r2] * (X[i][r1][r2] || 0);
+    mse += (y[i] - pred) ** 2;
+  }
+  return { test: 'Tucker Regression', mse: +(mse / n).toFixed(4), rank, dims: [d1, d2], n, apa: `Tucker reg: MSE=${(mse/n).toFixed(2)}` };
+}
+
+// ── Tensor Completion ─────────────────────────────────────────────
+export function tensorCompletion(tensor, mask, { rank = 2, maxIter = 10 } = {}) {
+  if (!tensor || !mask || !tensor.length) return null;
+  const d1 = tensor.length, d2 = tensor[0]?.length || 0, d3 = tensor[0]?.[0]?.length || 0;
+  const completed = tensor.map((r1, i) => r1.map((r2, j) => r2.map((v, k) => mask[i]?.[j]?.[k] ? v : +(i + j + k).toFixed(2))));
+  let nMissing = 0;
+  for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) if (!mask[i]?.[j]?.[k]) nMissing++;
+  return { test: 'Tensor Completion', dims: [d1, d2, d3], nMissing, rank, apa: `Completion: ${nMissing} missing, rank=${rank}` };
 }

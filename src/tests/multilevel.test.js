@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel, glmmLogistic, glmmPoisson, compareMixedModels, crossLevelInteraction, hlmThreeLevel, geeExchangeable, growthCurve, randomCoefficients, fixedEffectsPanel, randomEffectsPanel, hausmanTest, arellanoBond, glmmNegBinom, geeAR1 } from './multilevel.js';
+import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel, glmmLogistic, glmmPoisson, compareMixedModels, crossLevelInteraction, hlmThreeLevel, geeExchangeable, growthCurve, randomCoefficients, fixedEffectsPanel, randomEffectsPanel, hausmanTest, arellanoBond, glmmNegBinom, geeAR1, remlEstimate, repeatedMeasuresMANOVA, transitionModel } from './multilevel.js';
 import { nestedHLM } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
@@ -181,6 +181,11 @@ describe('glmmPoisson', () => {
     expect(r.tau2).toBeGreaterThanOrEqual(0);
     expect(r.phi).toBeGreaterThan(0);
   });
+
+  it('tau2 >= 0', () => {
+    const r = glmmPoisson(countData, 'y', 'school', ['x']);
+    expect(r.tau2).toBeGreaterThanOrEqual(0);
+  });
 });
 
 describe('compareMixedModels', () => {
@@ -195,6 +200,13 @@ describe('compareMixedModels', () => {
     expect(r).not.toBeNull();
     expect(r.lrtStat).toBeGreaterThan(0);
     expect(r.deltaAIC).toBeLessThan(0);
+  });
+
+  it('lrtStat positive', () => {
+    const m1 = { logLik: -300, n: 50, k: 2, sigma2: 4.0 };
+    const m2 = { logLik: -280, n: 50, k: 3, sigma2: 2.5 };
+    const r = compareMixedModels(m1, m2);
+    expect(r.lrtStat).toBeGreaterThan(0);
   });
 });
 
@@ -220,6 +232,19 @@ describe('crossLevelInteraction', () => {
     expect(r.interactionSE).toBeGreaterThan(0);
     expect(r.apa.length).toBeGreaterThan(0);
   });
+
+  it('interaction finite', () => {
+    const clData = [];
+    for (let j = 0; j < 5; j++) {
+      const l2 = j * 2;
+      for (let i = 0; i < 15; i++) {
+        const l1 = i * 0.5;
+        clData.push({ y: 5 + l1 * 0.3 + l2 * 0.8 + l1 * l2 * 0.1 + (Math.random() - 0.5) * 2, x_l1: l1, x_l2: l2, school: String(j) });
+      }
+    }
+    const r = crossLevelInteraction(clData, 'y', 'school', 'x_l1', 'x_l2');
+    if (r && r.interaction !== undefined) expect(Number.isFinite(r.interaction)).toBe(true);
+  });
 });
 
 describe('hlmThreeLevel', () => {
@@ -234,6 +259,7 @@ describe('geeExchangeable', () => {
   const ge = []; for (let i = 1; i <= 15; i++) for (let j = 1; j <= 3; j++) ge.push({ y: i + j * 2, x: j, cluster: `C${i}` });
   it('null small', () => expect(geeExchangeable(ge.slice(0, 5), 'y', 'cluster', ['x'])).toBeNull());
   it('contract keys', () => { const r = geeExchangeable(ge, 'y', 'cluster', ['x']); if (r) expectKeys(r, ['test', 'coefficients', 'alpha', 'n', 'nClusters', 'apa']); });
+  it('nClusters positive', () => { const r = geeExchangeable(ge, 'y', 'cluster', ['x']); if (r) expect(r.nClusters).toBeGreaterThan(0); });
 });
 
 describe('growthCurve', () => {
@@ -247,6 +273,7 @@ describe('randomCoefficients', () => {
   const rc = []; for (let i = 0; i < 5; i++) for (let j = 0; j < 6; j++) rc.push({ y: i * 3 + j * 2, x1: j, cluster: `G${i}` });
   it('null small', () => expect(randomCoefficients(rc.slice(0, 5), 'y', 'cluster', ['x1'], ['x1'])).toBeNull());
   it('contract keys', () => { const r = randomCoefficients(rc, 'y', 'cluster', ['x1'], ['x1']); if (r) expectKeys(r, ['test', 'fixed', 'randomVariance', 'n', 'nClusters', 'apa']); });
+  it('fixed non-empty', () => { const r = randomCoefficients(rc, 'y', 'cluster', ['x1'], ['x1']); if (r) expect(r.fixed.length).toBeGreaterThan(0); });
 });
 
 describe('multilevel edge cases', () => {
@@ -263,31 +290,60 @@ describe('fixedEffectsPanel', () => {
   const p = []; for (let i = 1; i <= 5; i++) for (let t = 1; t <= 5; t++) p.push({ y: i * 2 + t, id: `U${i}`, time: t, x1: i + t * 0.5 });
   it('null <3 units', () => expect(fixedEffectsPanel(p.slice(0, 10), 'y', 'id', 'time', ['x1'])).toBeNull());
   it('contract keys', () => { const r = fixedEffectsPanel(p, 'y', 'id', 'time', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'n', 'nUnits', 'nPeriods', 'apa']); });
+  it('coefficients non-empty', () => { const r = fixedEffectsPanel(p, 'y', 'id', 'time', ['x1']); if (r) expect(r.coefficients.length).toBeGreaterThan(0); });
 });
 
 describe('randomEffectsPanel', () => {
   const p = []; for (let i = 1; i <= 5; i++) for (let t = 1; t <= 5; t++) p.push({ y: i * 2 + t, id: `U${i}`, time: t, x1: i + t });
   it('null <3 units', () => expect(randomEffectsPanel(p.slice(0, 10), 'y', 'id', 'time', ['x1'])).toBeNull());
   it('contract keys', () => { const r = randomEffectsPanel(p, 'y', 'id', 'time', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'n', 'nUnits', 'apa']); });
+  it('nUnits positive', () => { const r = randomEffectsPanel(p, 'y', 'id', 'time', ['x1']); if (r) expect(r.nUnits).toBeGreaterThan(0); });
 });
 
 describe('hausmanTest', () => {
   it('null for invalid', () => expect(hausmanTest(null, { coefficients: [{ b: 1, se: 0.1 }] })).toBeNull());
   it('contract keys', () => { const r = hausmanTest({ coefficients: [{ b: 1, se: 0.1 }] }, { coefficients: [{ b: 0.9, se: 0.1 }] }); if (r) expectKeys(r, ['test', 'chi2', 'df', 'p', 'apa']); });
+  it('chi2 non-negative', () => { const r = hausmanTest({ coefficients: [{ b: 1, se: 0.1 }] }, { coefficients: [{ b: 0.9, se: 0.1 }] }); if (r) expect(r.chi2).toBeGreaterThanOrEqual(0); });
 });
 
 describe('arellanoBond', () => {
   const p = []; for (let i = 1; i <= 10; i++) for (let t = 1; t <= 4; t++) p.push({ y: i * 2 + t, id: `U${i}`, time: t, x1: i + t });
   it('null <5 units', () => expect(arellanoBond(p.slice(0, 10), 'y', 'id', 'time', ['x1'])).toBeNull());
   it('contract keys', () => { const r = arellanoBond(p, 'y', 'id', 'time', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'n', 'nUnits', 'apa']); });
+  it('nUnits positive', () => { const r = arellanoBond(p, 'y', 'id', 'time', ['x1']); if (r) expect(r.nUnits).toBeGreaterThan(0); });
 });
 
 describe('glmmNegBinom', () => {
   const d2 = []; for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) d2.push({ y: i + j + 1, cluster: `C${i}`, x1: i + j });
   it('contract keys', () => { const r = glmmNegBinom(d2, 'y', 'cluster', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'theta', 'n', 'nClusters', 'apa']); });
+  it('coefficients non-empty', () => { const r = glmmNegBinom(d2, 'y', 'cluster', ['x1']); if (r) expect(r.coefficients.length).toBeGreaterThan(0); });
+  it('theta positive', () => { const r = glmmNegBinom(d2, 'y', 'cluster', ['x1']); if (r) expect(r.theta).toBeGreaterThan(0); });
 });
 
 describe('geeAR1', () => {
   const d2 = []; for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) d2.push({ y: i + j + 1, cluster: `C${i}`, x1: i + j });
   it('contract keys', () => { const r = geeAR1(d2, 'y', 'cluster', ['x1']); if (r) expectKeys(r, ['test', 'coefficients', 'alpha', 'n', 'nClusters', 'apa']); });
+  it('coefficients non-empty', () => { const r = geeAR1(d2, 'y', 'cluster', ['x1']); if (r) expect(r.coefficients.length).toBeGreaterThan(0); });
+  it('alpha finite', () => { const r = geeAR1(d2, 'y', 'cluster', ['x1']); if (r) expect(Number.isFinite(r.alpha)).toBe(true); });
+});
+
+describe('remlEstimate', () => {
+  const X = [[1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9]];
+  const y = X.map(x => x[0] * 2 + x[1] * 1.5 + Math.random());
+  it('contract keys', () => expectKeys(remlEstimate(X, y), ['test','sigma2','logLik','aic','n','p','apa']));
+  it('null <5', () => expect(remlEstimate([[1]], [1])).toBeNull());
+  it('sigma2 positive', () => { const r = remlEstimate(X, y); if (r) expect(r.sigma2).toBeGreaterThan(0); });
+});
+
+describe('repeatedMeasuresMANOVA', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ y1: i + Math.random(), y2: i * 0.5 + Math.random(), y3: i * 0.3 + Math.random() });
+  it('contract keys', () => expectKeys(repeatedMeasuresMANOVA(d, ['y1','y2','y3']), ['test','totalSS','betweenSS','withinSS','k','n','apa']));
+  it('null <2 responses', () => expect(repeatedMeasuresMANOVA(d, ['y1'])).toBeNull());
+  it('k matches responses', () => { const r = repeatedMeasuresMANOVA(d, ['y1','y2','y3']); if (r) expect(r.k).toBe(3); });
+});
+describe('transitionModel', () => {
+  const d = []; for (let i = 0; i < 20; i++) d.push({ id: Math.floor(i/3), y: i * 2, x1: i % 3, x2: i % 2 });
+  it('contract keys', () => expectKeys(transitionModel(d, 'y', ['x1','x2'], { idVar: 'id' }), ['test','coefficients','nSubjects','n','apa']));
+  it('null <3 ids', () => expect(transitionModel(d.slice(0,5), 'y', ['x1'], { idVar: 'id' })).toBeNull());
+  it('nSubjects positive', () => { const r = transitionModel(d, 'y', ['x1','x2'], { idVar: 'id' }); if (r) expect(r.nSubjects).toBeGreaterThan(0); });
 });

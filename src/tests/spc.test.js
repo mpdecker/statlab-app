@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { xbarChart, rChart, sChart, pChart, cChart, cusumChart, ewmaChart, processCapability, hotellingT2Chart, mewmaChart, ocCurve, aoqCurve, rectifyingInspection, reliabilitySampling, asnCurve } from './spc.js';
+import { xbarChart, rChart, sChart, pChart, cChart, cusumChart, ewmaChart, processCapability, hotellingT2Chart, mewmaChart, ocCurve, aoqCurve, rectifyingInspection, reliabilitySampling, asnCurve, multivariateControl, cpkPpk } from './spc.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const data = [];
@@ -72,15 +72,32 @@ describe('spc edge cases', () => {
 describe('hotellingT2Chart', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ x1: i * 0.5, x2: Math.sin(i) });
   it('contract keys', () => { const r = hotellingT2Chart(d, ['x1', 'x2']); if (r) expectKeys(r, ['test', 'T2', 'ucl', 'nSubgroups', 'p', 'subgroups', 'apa']); });
+  it('UCL positive', () => { const r = hotellingT2Chart(d, ['x1', 'x2']); if (r) expect(r.ucl).toBeGreaterThan(0); });
+  it('T2 non-empty', () => { const r = hotellingT2Chart(d, ['x1', 'x2']); if (r) expect(r.T2.length).toBeGreaterThan(0); });
 });
 
 describe('mewmaChart', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ x1: i * 0.5, x2: Math.sin(i) });
   it('contract keys', () => { const r = mewmaChart(d, ['x1', 'x2']); if (r) expectKeys(r, ['test', 'T2', 'lambda', 'nSubgroups', 'p', 'apa']); });
+  it('UCL positive', () => { const r = mewmaChart(d, ['x1', 'x2']); if (r && r.ucl) expect(r.ucl).toBeGreaterThan(0); });
+  it('T2 non-empty', () => { const r = mewmaChart(d, ['x1', 'x2']); if (r) expect(r.T2.length).toBeGreaterThan(0); });
 });
 
-describe('ocCurve', () => { it('contract keys', () => expectKeys(ocCurve(50, 2, [0.01, 0.05, 0.1]), ['test', 'curve', 'n', 'c', 'apa'])); });
-describe('aoqCurve', () => { it('contract keys', () => expectKeys(aoqCurve(50, 2, [0.01, 0.05], 1000), ['test', 'aoq', 'n', 'c', 'N', 'apa'])); });
-describe('rectifyingInspection', () => { it('contract keys', () => expectKeys(rectifyingInspection(50, 2, 0.05, 1000), ['test', 'ati', 'aoql', 'pa', 'n', 'c', 'N', 'apa'])); });
-describe('reliabilitySampling', () => { it('contract keys', () => expectKeys(reliabilitySampling(100, 0.01), ['test', 'n', 't', 'r', 'alpha', 'beta', 'apa'])); });
-describe('asnCurve', () => { it('contract keys', () => expectKeys(asnCurve(50, 2, [0.01, 0.05]), ['test', 'asn', 'n', 'c', 'apa'])); });
+describe('ocCurve', () => { it('contract keys', () => expectKeys(ocCurve(50, 2, [0.01, 0.05, 0.1]), ['test', 'curve', 'n', 'c', 'apa'])); it('curve non-empty', () => { const r = ocCurve(50, 2, [0.01, 0.05, 0.1]); expect(r.curve.length).toBeGreaterThan(0); }); it('c matches', () => { const r = ocCurve(50, 2, [0.01, 0.05, 0.1]); expect(r.c).toBe(2); }); });
+describe('aoqCurve', () => { it('contract keys', () => expectKeys(aoqCurve(50, 2, [0.01, 0.05], 1000), ['test', 'aoq', 'n', 'c', 'N', 'apa'])); it('curve non-empty', () => { const r = aoqCurve(50, 2, [0.01, 0.05], 1000); expect(r.aoq.length).toBeGreaterThan(0); }); it('N matches', () => { const r = aoqCurve(50, 2, [0.01, 0.05], 1000); expect(r.N).toBe(1000); }); });
+describe('rectifyingInspection', () => { it('contract keys', () => expectKeys(rectifyingInspection(50, 2, 0.05, 1000), ['test', 'ati', 'aoql', 'pa', 'n', 'c', 'N', 'apa'])); it('aoql finite', () => { const r = rectifyingInspection(50, 2, 0.05, 1000); expect(Number.isFinite(r.aoql)).toBe(true); }); it('pa between 0-1', () => { const r = rectifyingInspection(50, 2, 0.05, 1000); expect(r.pa).toBeGreaterThanOrEqual(0); expect(r.pa).toBeLessThanOrEqual(1); }); });
+describe('reliabilitySampling', () => { it('contract keys', () => expectKeys(reliabilitySampling(100, 0.01), ['test', 'n', 't', 'r', 'alpha', 'beta', 'apa'])); it('n positive', () => { const r = reliabilitySampling(100, 0.01); expect(r.n).toBeGreaterThan(0); }); it('t positive', () => { const r = reliabilitySampling(100, 0.01); expect(r.t).toBeGreaterThan(0); }); });
+describe('asnCurve', () => { it('contract keys', () => expectKeys(asnCurve(50, 2, [0.01, 0.05]), ['test', 'asn', 'n', 'c', 'apa'])); it('curve non-empty', () => { const r = asnCurve(50, 2, [0.01, 0.05]); expect(r.asn.length).toBeGreaterThan(0); }); it('c matches', () => { const r = asnCurve(50, 2, [0.01, 0.05]); expect(r.c).toBe(2); }); });
+
+describe('multivariateControl', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ v1: i + Math.random(), v2: i * 0.5 + Math.random() });
+  it('contract keys', () => expectKeys(multivariateControl(d, ['v1', 'v2']), ['test','signals','UCL','nSubgroups','p','alpha','apa']));
+  it('UCL positive', () => { const r = multivariateControl(d, ['v1', 'v2']); if (r) expect(r.UCL).toBeGreaterThan(0); });
+  it('signals non-empty', () => { const r = multivariateControl(d, ['v1', 'v2']); if (r) expect(r.signals.length).toBeGreaterThan(0); });
+});
+describe('cpkPpk', () => {
+  const data = Array.from({length: 30}, () => 10 + Math.random() * 2);
+  it('contract keys', () => expectKeys(cpkPpk(data, 7, 13), ['test','cp','cpk','pp','ppk','mu','sigma','n','lsl','usl','apa']));
+  it('null lsl>=usl', () => expect(cpkPpk(data, 13, 7)).toBeNull());
+  it('cp >= 0', () => { const r = cpkPpk(data, 7, 13); if (r) expect(r.cp).toBeGreaterThanOrEqual(0); });
+});

@@ -1,5 +1,5 @@
 import { avg, sampleSD, sampleVar } from '../math/core.js';
-import { normalCDF } from '../math/distributions.js';
+import { normalCDF, ibeta } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
 
 // Control chart constants A2, D3, D4, B3, B4 for n=2..25
@@ -237,7 +237,7 @@ export function hotellingT2Chart(data, vars, { subgroupSize = 5 } = {}) {
   return { test: "Hotelling T2 Chart", T2, ucl: +ucl.toFixed(4), nSubgroups: nsg, p, subgroups: subs, apa: `Hotelling T2: ${nsg} subgroups, p=${p}` };
 }
 
-// MEWMA Chart
+// ── MEWMA Chart ───────────────────────────────────────────────────
 export function mewmaChart(data, vars, { lambda = 0.2, subgroupSize = 5 } = {}) {
   if (!data || data.length < 20 || !vars || vars.length < 2) return null;
   const n = data.length, p = vars.length;
@@ -266,7 +266,7 @@ export function mewmaChart(data, vars, { lambda = 0.2, subgroupSize = 5 } = {}) 
   return { test: 'MEWMA Chart', T2, lambda, nSubgroups: nsg, p, apa: `MEWMA: lambda=${lambda}, ${nsg} subgroups, p=${p}` };
 }
 
-// OC Curve
+// ── OC Curve ──────────────────────────────────────────────────────
 export function ocCurve(n, c, p) {
   if (!n || !Number.isFinite(c) || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
@@ -288,7 +288,7 @@ function binomialProb(n, k, p) {
   return Math.exp(logP);
 }
 
-// AOQ Curve
+// ── AOQ Curve ─────────────────────────────────────────────────────
 export function aoqCurve(n, c, p, N) {
   if (!n || !Number.isFinite(c) || !N || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
@@ -299,7 +299,7 @@ export function aoqCurve(n, c, p, N) {
   return { test: 'AOQ Curve', aoq, n, c, N, apa: `AOQ: n=${n}, c=${c}, N=${N}` };
 }
 
-// Rectifying Inspection
+// ── Rectifying Inspection ─────────────────────────────────────────
 export function rectifyingInspection(n, c, p, N) {
   if (!n || !Number.isFinite(c) || !N || !Number.isFinite(p)) return null;
   const pa = ocCurve(n, c, [p])?.curve?.[0]?.Pa || 0;
@@ -308,7 +308,7 @@ export function rectifyingInspection(n, c, p, N) {
   return { test: 'Rectifying Inspection', ati: +ati.toFixed(2), aoql: +aoq2.toFixed(6), pa: +pa.toFixed(4), n, c, N, apa: `ATI = ${ati.toFixed(0)}, AOQL = ${aoq2.toFixed(5)}` };
 }
 
-// Reliability Acceptance Sampling
+// ── Reliability Acceptance Sampling ───────────────────────────────
 export function reliabilitySampling(t, r, { alpha = 0.05, beta = 0.1 } = {}) {
   if (!t || !r || t < 1 || r < 0) return null;
   const n2 = Math.ceil(Math.log(beta) / Math.log(1 - r) / t);
@@ -316,10 +316,68 @@ export function reliabilitySampling(t, r, { alpha = 0.05, beta = 0.1 } = {}) {
   return { test: 'Reliability Sampling', n: Math.max(n, 5), t, r, alpha, beta, apa: `Reliability: test ${Math.max(n, 5)} units for ${t} hrs with r = ${r}` };
 }
 
-// ASN Curve
+// ── ASN Curve ─────────────────────────────────────────────────────
 export function asnCurve(n, c, p) {
   if (!n || !Number.isFinite(c) || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
   const asn = p.map(pi => ({ p: +pi.toFixed(4), asn: n }));
   return { test: 'ASN Curve', asn, n, c, apa: `ASN: n=${n}, c=${c}` };
+}
+
+// ── Multivariate Control Chart (Hotelling T2) ─────────────────────
+export function multivariateControl(data, vars, { subgroupSize = 5, alpha = 0.0027 } = {}) {
+  if (!data || data.length < 10 || !vars || vars.length < 2) return null;
+  const n = data.length, p = vars.length;
+  const subgroups = [];
+  for (let i = 0; i < n; i += subgroupSize) {
+    const sg = data.slice(i, Math.min(i + subgroupSize, n));
+    if (sg.length < 2) break;
+    subgroups.push(sg);
+  }
+  const grandMean = vars.map(v => avg(data.map(r => +r[v])));
+  const T2 = subgroups.map(sg => {
+    const sgMean = vars.map(v => avg(sg.map(r => +r[v])));
+    const diff = sgMean.map((m, j) => m - grandMean[j]);
+    let t2 = 0;
+    for (let j = 0; j < p; j++) {
+      const d = diff[j];
+      const v = sampleVar(data.map(r => +r[vars[j]])) || 1;
+      t2 += d * d / (v / sg.length);
+    }
+    return +t2.toFixed(4);
+  });
+  const m = subgroups.length;
+  const UCL = p * (m - 1) * fCritUpper(alpha, p, m - p) / (m - p);
+  const signals = T2.map((t, i) => ({ subgroup: i + 1, T2: t, signal: t > UCL }));
+  return { test: 'Multivariate Control (T2)', signals, UCL: +UCL.toFixed(4), nSubgroups: m, p, alpha, apa: `T2: UCL=${UCL.toFixed(2)}, ${signals.filter(s => s.signal).length} signals` };
+}
+
+// ── Cpk/Ppk ───────────────────────────────────────────────────────
+export function cpkPpk(data, lsl, usl) {
+  if (!data || data.length < 5 || lsl == null || usl == null || lsl >= usl) return null;
+  const n = data.length;
+  const mu = avg(data);
+  const sigma = Math.sqrt(sampleVar(data));
+  if (sigma < 1e-10) return null;
+  const cp = (usl - lsl) / (6 * sigma);
+  const cpk = Math.min((usl - mu) / (3 * sigma), (mu - lsl) / (3 * sigma));
+  const pp = cp;
+  const ppk = Math.min((usl - mu) / (3 * sigma), (mu - lsl) / (3 * sigma));
+  const ppm = sigma > 0 ? (usl - lsl) / (6 * Math.sqrt(sampleVar(data) + (mu - avg(data)) * (mu - avg(data)))) : 0;
+  return { test: 'Cpk/Ppk', cp: +cp.toFixed(4), cpk: +cpk.toFixed(4), pp: +pp.toFixed(4), ppk: +ppk.toFixed(4), mu: +mu.toFixed(4), sigma: +sigma.toFixed(4), n, lsl, usl, apa: `Cpk = ${cpk.toFixed(2)} (Cp = ${cp.toFixed(2)}, n=${n})` };
+}
+
+// Helper: F critical value approximation
+function fCritUpper(p, df1, df2) {
+  if (p <= 0 || p >= 1) return 2;
+  const pf = p; df1 = Math.max(1, df1); df2 = Math.max(1, df2);
+  let f = 2;
+  for (let iter = 0; iter < 20; iter++) {
+    const x = df1 * f / (df1 * f + df2);
+    const ib = 1 - ibeta(df1 / 2, df2 / 2, x);
+    if (Math.abs(ib - pf) < 0.001) break;
+    f += (pf - ib) * 0.5;
+    f = Math.max(0.1, f);
+  }
+  return f;
 }

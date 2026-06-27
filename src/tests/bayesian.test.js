@@ -454,24 +454,31 @@ describe('bmaRegression', () => {
   const d = []; for (let i = 0; i < 20; i++) d.push({ y: i * 2, x1: i, x2: i * 0.5, x3: i % 3 });
   it('contract keys', () => { const r = bmaRegression(d, 'y', ['x1', 'x2', 'x3'], { nModels: 4 }); if (r) expectKeys(r, ['test', 'models', 'nModels', 'n', 'apa']); });
   it('models > 0', () => { const r = bmaRegression(d, 'y', ['x1', 'x2', 'x3'], { nModels: 4 }); if (r) expect(r.models.length).toBeGreaterThan(0); });
+  it('n matches data length', () => { const r = bmaRegression(d, 'y', ['x1', 'x2', 'x3'], { nModels: 4 }); if (r) expect(r.n).toBe(20); });
 });
 
 describe('posteriorInclusionProbs', () => {
   const bma = { models: [{ vars: ['x1', 'x2'], weight: 0.7 }, { vars: ['x1'], weight: 0.3 }] };
   it('contract keys', () => expectKeys(posteriorInclusionProbs(bma), ['test', 'pips', 'apa']));
   it('PIP for x1 > PIP for x2', () => { const r = posteriorInclusionProbs(bma); const x1 = r.pips.find(p => p.variable === 'x1'); const x2 = r.pips.find(p => p.variable === 'x2'); expect(x1.pip).toBeGreaterThan(x2.pip); });
+  it('pip values are between 0 and 1', () => { const r = posteriorInclusionProbs(bma); r.pips.forEach(p => { expect(p.pip).toBeGreaterThanOrEqual(0); expect(p.pip).toBeLessThanOrEqual(1); }); });
 });
 
 describe('bmaPredict', () => {
   const bma = { models: [{ vars: ['x1'], beta: [2], weight: 0.8 }, { vars: ['x1', 'x2'], beta: [1.5, 0.5], weight: 0.2 }] };
   it('contract keys', () => expectKeys(bmaPredict(bma, { x1: 3, x2: 4 }), ['test', 'prediction', 'apa']));
+  it('predictions array', () => { const r = bmaPredict(bma, { x1: 3, x2: 4 }); if (r) expect(Number.isFinite(r.prediction)).toBe(true); });
+  it('returns null for null bma or missing models', () => { expect(bmaPredict(null, { x1: 3 })).toBeNull(); expect(bmaPredict({}, { x1: 3 })).toBeNull(); });
 });
 
 describe('bmaSummary', () => {
   const bma = { models: [{ vars: ['x1', 'x2'], weight: 0.7, beta: [1.5, 0.5] }, { vars: ['x1'], weight: 0.3, beta: [2] }] };
   it('contract keys', () => expectKeys(bmaSummary(bma), ['test', 'coefficients', 'apa']));
+  it('coefficients non-empty', () => { const r = bmaSummary(bma); if (r) expect(r.coefficients.length).toBeGreaterThan(0); });
+  it('coefficients have postMean and pip', () => { const r = bmaSummary(bma); if (r && r.coefficients) r.coefficients.forEach(c => { expect(Number.isFinite(c.postMean)).toBe(true); expect(c.pip).toBeGreaterThanOrEqual(0); expect(c.pip).toBeLessThanOrEqual(1); }); });
 });
 
+describe('bayesianLinearRegression MCMC', () => {
   it('MCMC coefficients have credible95', () => {
     const r = bayesianLinearRegression(yReg, XReg, { nIter: 200, nBurnin: 20 });
     expect(r.coefficients.length).toBe(1);
@@ -765,6 +772,14 @@ describe('waic', () => {
     expect(w.pWAIC).toBeGreaterThan(0);
     expect(w.s).toBeGreaterThan(0);
   });
+
+  it('waic is finite', () => {
+    const lp = (theta) => -0.5 * (theta[0] * theta[0] + theta[1] * theta[1]);
+    const r = mcmc(lp, [0, 0], { nIter: 300, nBurnin: 50 });
+    const logLikFn = (i, params) => -0.5 * (params[0] * params[0] + params[1] * params[1]);
+    const w = waic(r, logLikFn, 20);
+    if (w) expect(Number.isFinite(w.waic)).toBe(true);
+  });
 });
 
 describe('bayesianANOVA', () => {
@@ -825,6 +840,19 @@ describe('bayesianMixedModel', () => {
     expect(r.tau).toBeGreaterThan(0);
     expect(r.sigma).toBeGreaterThan(0);
     expect(r.acceptRate).toBeGreaterThan(0);
+  });
+
+  it('coefficients have posteriorMean and posteriorSD', () => {
+    const y = []; const X = [];
+    for (let j = 0; j < 3; j++) for (let i = 0; i < 15; i++) { y.push(2.0 + j * 1.5 + i * 0.1); X.push([i * 0.1]); }
+    const g = Array.from({ length: 45 }, (_, i) => Math.floor(i / 15));
+    const r = bayesianMixedModel(y, X, g, { nIter: 300, nBurnin: 50 });
+    if (r && r.coefficients) {
+      r.coefficients.forEach(c => {
+        expect(Number.isFinite(c.posteriorMean)).toBe(true);
+        expect(c.posteriorSD).toBeGreaterThan(0);
+      });
+    }
   });
 });
 

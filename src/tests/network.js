@@ -17,6 +17,8 @@ export function adjacencyFromEdges(nodes, edges, undirected = true) {
 }
 
 /** Centrality measures on adjacency matrix */
+
+// ── Centrality Measures ───────────────────────────────────────────
 export function centralityMeasures(A) {
   const n = A.length;
   if (!n) return null;
@@ -77,6 +79,8 @@ export function centralityMeasures(A) {
 }
 
 /** Greedy modularity community detection (Newman) */
+
+// ── Community Detection ───────────────────────────────────────────
 export function communityDetection(A) {
   const n = A.length;
   if (n < 2) return null;
@@ -135,6 +139,8 @@ export function communityDetection(A) {
 }
 
 /** Force-directed sociogram layout (Fruchterman-Reingold lite) */
+
+// ── Sociogram ─────────────────────────────────────────────────────
 export function sociogramLayout(A, iterations = 80) {
   const n = A.length;
   if (!n) return null;
@@ -518,7 +524,7 @@ export function fitPowerLaw(degrees, { xmin = null } = {}) {
   };
 }
 
-// Network Diffusion
+// ── Network Diffusion ─────────────────────────────────────────────
 export function networkDiffusion(A, seeds, { steps = 10, alpha = 0.85 } = {}) {
   if (!A || !A.length || !seeds || !seeds.length) return null;
   const n = A.length;
@@ -543,7 +549,7 @@ export function networkDiffusion(A, seeds, { steps = 10, alpha = 0.85 } = {}) {
   return { test: 'Network Diffusion', diffusion, seeds, steps, alpha, n, apa: `Diffusion: ${steps} steps, α = ${alpha}, n = ${n}` };
 }
 
-// SIR Model
+// ── SIR Model ─────────────────────────────────────────────────────
 export function SIRModel(A, { beta = 0.3, gamma = 0.1, steps = 20, initialInfected = null } = {}) {
   if (!A || !A.length) return null;
   const n = A.length;
@@ -571,4 +577,92 @@ export function SIRModel(A, { beta = 0.3, gamma = 0.1, steps = 20, initialInfect
     if (iCount === 0) break;
   }
   return { test: 'SIR Model', curve, params: { beta, gamma }, n, apa: `SIR: β=${beta}, γ=${gamma}, R₀=${(beta/gamma).toFixed(2)}, n=${n}` };
+}
+
+// ── QAP Test ──────────────────────────────────────────────────────
+export function qapTest(A, B, { permutations = 199 } = {}) {
+  if (!A || !B || A.length < 3 || A.length !== B.length) return null;
+  const n = A.length;
+  let obs = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) obs += A[i][j] * B[i][j];
+  let count = 0;
+  for (let p = 0; p < permutations; p++) {
+    const permB = [...B].sort(() => Math.random() - 0.5);
+    let permStat = 0;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) permStat += A[i][j] * permB[i][j];
+    if (permStat >= obs) count++;
+  }
+  return { test: 'QAP Test', obs: +obs.toFixed(4), p: count / permutations, permutations, n, apa: `QAP: obs = ${obs.toFixed(1)}, p = ${(count / permutations).toFixed(3)}` };
+}
+
+// ── CUG Test ──────────────────────────────────────────────────────
+export function cugTest(A, statFn, { permutations = 199 } = {}) {
+  if (!A || !A.length || !statFn) return null;
+  const n = A.length;
+  const obs = statFn(A);
+  let count = 0;
+  const edges = A.reduce((s, r) => s + r.reduce((a, v) => a + v, 0), 0) / 2;
+  for (let p = 0; p < permutations; p++) {
+    const randomA = Array.from({ length: n }, () => Array(n).fill(0));
+    for (let e = 0; e < edges; e++) {
+      const i = Math.floor(Math.random() * n);
+      const j = Math.floor(Math.random() * n);
+      if (i !== j) randomA[i][j] = randomA[j][i] = 1;
+    }
+    if (statFn(randomA) >= obs) count++;
+  }
+  return { test: 'CUG Test', obs: +obs.toFixed(4), p: count / permutations, n, apa: `CUG: obs = ${obs.toFixed(2)}, p = ${(count / permutations).toFixed(3)}` };
+}
+
+// ── Network Autocorrelation (Moran on network) ────────────────────
+export function networkAutocorrelation(A, x) {
+  if (!A || !x || A.length !== x.length || A.length < 3) return null;
+  const n = A.length;
+  const mu = x.reduce((s, v) => s + v, 0) / n;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) {
+    den += (x[i] - mu) ** 2;
+    for (let j = 0; j < n; j++) {
+      if (i !== j) num += A[i][j] * (x[i] - mu) * (x[j] - mu);
+    }
+  }
+  const I = den > 0 ? num / den : 0;
+  return { test: 'Network Autocorrelation', I: +I.toFixed(4), n, apa: `Network I = ${I.toFixed(3)}` };
+}
+
+// ── Degree Assortativity ──────────────────────────────────────────
+export function degreeAssortativity(A) {
+  if (!A || !A.length) return null;
+  const n = A.length;
+  const deg = A.map(row => row.reduce((s, v) => s + v, 0));
+  let sumDeg = deg.reduce((s, v) => s + v, 0);
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (A[i][j]) { num += deg[i] * deg[j]; den += (deg[i] * deg[i] + deg[j] * deg[j]) / 2; }
+    }
+  }
+  const assort = den > 0 ? num / den : 0;
+  return { test: 'Degree Assortativity', assortativity: +assort.toFixed(4), m: sumDeg / 2, n, apa: `Assortativity = ${assort.toFixed(3)}` };
+}
+
+// ── Clustering Profile ────────────────────────────────────────────
+export function clusteringProfile(A) {
+  if (!A || !A.length) return null;
+  const n = A.length;
+  const deg = A.map(row => row.reduce((s, v) => s + v, 0));
+  const profile = {};
+  for (let i = 0; i < n; i++) {
+    const d = deg[i];
+    if (!profile[d]) profile[d] = { n: 0, sumC: 0 };
+    profile[d].n++;
+    const neighbs = A[i].reduce((arr, v, j) => v ? [...arr, j] : arr, []);
+    let tri = 0;
+    for (let a = 0; a < neighbs.length; a++) for (let b = a + 1; b < neighbs.length; b++) if (A[neighbs[a]][neighbs[b]]) tri++;
+    const cc = neighbs.length > 1 ? 2 * tri / (neighbs.length * (neighbs.length - 1)) : 0;
+    profile[d].sumC += cc;
+  }
+  const degs = Object.keys(profile).map(Number).sort((a, b) => a - b);
+  const result = degs.map(d => ({ degree: d, n: profile[d].n, cc: +(profile[d].sumC / profile[d].n).toFixed(4) }));
+  return { test: 'Clustering Profile', profile: result, n, apa: `CC profile: ${result.length} degree bins` };
 }

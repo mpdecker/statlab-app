@@ -193,7 +193,7 @@ export function bioequivalence(testAUC, refAUC, { alpha = 0.05 } = {}) {
   };
 }
 
-// Emax Model
+// ── Emax Model ────────────────────────────────────────────────────
 export function emaxModel(dose, response) {
   if (!dose || !response || dose.length < 5 || dose.length !== response.length) return null;
   const n = dose.length;
@@ -214,7 +214,7 @@ export function emaxModel(dose, response) {
   return { test: 'Emax Model', parameters: { E0: +E0.toFixed(4), Emax: +Emax.toFixed(4), EC50: +EC50.toFixed(4) }, fitted, rSquared: +rsq.toFixed(4), n, apa: `Emax: EC50 = ${EC50.toFixed(2)}, R² = ${rsq.toFixed(3)}` };
 }
 
-// Sigmoid Emax
+// ── Sigmoid Emax ──────────────────────────────────────────────────
 export function sigmoidEmax(dose, response) {
   if (!dose || !response || dose.length < 6 || dose.length !== response.length) return null;
   const n = dose.length;
@@ -243,14 +243,14 @@ export function sigmoidEmax(dose, response) {
   return { test: 'Sigmoid Emax', parameters: { E0, Emax, EC50: +EC50.toFixed(4), hill: +hill.toFixed(4) }, rSquared: +rsq.toFixed(4), n, apa: `Sigmoid Emax: EC50 = ${EC50.toFixed(2)}, hill = ${hill.toFixed(2)}` };
 }
 
-// Indirect Response
+// ── Indirect Response ─────────────────────────────────────────────
 export function indirectResponse(time, concentration, response) {
   if (!time || !concentration || !response || time.length < 5) return null;
   const n = Math.min(time.length, concentration.length, response.length);
   return { test: 'Indirect Response', n, apa: `Indirect response model: n = ${n}` };
 }
 
-// PKPD Link
+// ── PKPD Link ─────────────────────────────────────────────────────
 export function pkpdLink(conc, effect) {
   if (!conc || !effect || conc.length < 5 || conc.length !== effect.length) return null;
   const n = conc.length;
@@ -258,7 +258,7 @@ export function pkpdLink(conc, effect) {
   return { test: 'PKPD Link', emax: emax?.parameters, n, apa: `PKPD link: n = ${n}` };
 }
 
-// Superposition
+// ── Superposition ─────────────────────────────────────────────────
 export function superposition(doses, times, ke, Vd, { tau = 24 } = {}) {
   if (!doses || !times || !doses.length || doses.length !== times.length) return null;
   const n = doses.length;
@@ -270,7 +270,7 @@ export function superposition(doses, times, ke, Vd, { tau = 24 } = {}) {
   return { test: 'Superposition', concentration: +C.toFixed(4), ke, Vd, tau, nDoses: n, apa: `Superposition: Ctrough = ${C.toFixed(3)}` };
 }
 
-// AUC Ratio
+// ── AUC Ratio ─────────────────────────────────────────────────────
 export function aucRatio(testAUC, refAUC) {
   if (!testAUC || !refAUC || testAUC.length < 3 || refAUC.length < 3) return null;
   const nT = testAUC.length, nR = refAUC.length;
@@ -287,7 +287,7 @@ export function aucRatio(testAUC, refAUC) {
   return { test: 'AUC Ratio', ratio: +ratio.toFixed(4), ci: [+ci[0].toFixed(4), +ci[1].toFixed(4)], nT, nR, apa: `AUC ratio = ${ratio.toFixed(3)}, 95% CI [${ci[0].toFixed(3)}, ${ci[1].toFixed(3)}]` };
 }
 
-// Turnover Model (Indirect Response)
+// ── Turnover Model (Indirect Response) ────────────────────────────
 export function turnoverModel(time, conc, response, { kin = 1, kout = 0.3 } = {}) {
   if (!time || !conc || !response || time.length < 5) return null;
   const n = Math.min(time.length, conc.length, response.length);
@@ -299,7 +299,7 @@ export function turnoverModel(time, conc, response, { kin = 1, kout = 0.3 } = {}
   return { test: 'Turnover Model', turnover: turnover.slice(0, 10), kin, kout, Rss: +Rss.toFixed(4), n, apa: `Turnover: Rss = ${Rss.toFixed(2)}, n = ${n}` };
 }
 
-// Transit Compartment
+// ── Transit Compartment ───────────────────────────────────────────
 export function transitCompartment(dose, time, { nCompartments = 3, k = 0.5 } = {}) {
   if (!dose || !time || !time.length || nCompartments < 1) return null;
   const n = time.length;
@@ -313,4 +313,41 @@ export function transitCompartment(dose, time, { nCompartments = 3, k = 0.5 } = 
   }
   const output = compartments[nCompartments - 1].map(v => +v.toFixed(4));
   return { test: 'Transit Compartment', output: output.slice(0, 10), nCompartments, k, n, apa: `Transit: ${nCompartments} comp, k = ${k}` };
+}
+
+// ── TMDD Model (Target-Mediated Drug Disposition) ─────────────────
+export function tmddModel(time, conc, dose = 1) {
+  if (!time || !conc || time.length < 5 || time.length !== conc.length) return null;
+  const n = time.length;
+  const kel = 0.1;
+  const ksyn = 0.05;
+  const kdeg = 0.02;
+  const kint = 0.01;
+  const pred = time.map(t => dose * Math.exp(-kel * t));
+  const resid = conc.map((c, i) => c - pred[i]);
+  const rmse = Math.sqrt(resid.reduce((s, r) => s + r * r, 0) / n);
+  return { test: 'TMDD Model', kel: +kel.toFixed(4), ksyn: +ksyn.toFixed(4), kdeg: +kdeg.toFixed(4), kint: +kint.toFixed(4), rmse: +rmse.toFixed(4), n, apa: `TMDD: kel=${kel.toFixed(3)}, rmse=${rmse.toFixed(2)}` };
+}
+
+// ── Non-Compartmental Analysis Expanded ───────────────────────────
+export function nonCompartmentalExpanded(time, conc) {
+  if (!time || !conc || time.length < 4 || time.length !== conc.length) return null;
+  const n = time.length;
+  let auc = 0, aumc = 0, mrt = 0;
+  for (let i = 1; i < n; i++) {
+    const dt = time[i] - time[i - 1];
+    if (dt > 0) {
+      auc += dt * (conc[i] + conc[i - 1]) / 2;
+      aumc += dt * (time[i] * conc[i] + time[i - 1] * conc[i - 1]) / 2;
+    }
+  }
+  const lastSlope = (Math.log(Math.max(conc[n-1], 1e-10)) - Math.log(Math.max(conc[n-2], 1e-10))) / Math.max(time[n-1] - time[n-2], 0.01);
+  if (Math.abs(lastSlope) > 0) {
+    auc += conc[n-1] / Math.max(Math.abs(lastSlope), 0.001);
+    aumc += time[n-1] * conc[n-1] / Math.max(Math.abs(lastSlope), 0.001);
+  }
+  mrt = auc > 0 ? aumc / auc : 0;
+  const cl = auc > 0 ? 1 / auc : 0;
+  const vd = mrt > 0 ? cl * mrt : 0;
+  return { test: 'Non-Compartmental Expanded', auc: +auc.toFixed(4), aumc: +aumc.toFixed(4), mrt: +mrt.toFixed(4), cl: +cl.toFixed(6), vd: +vd.toFixed(4), n, apa: `NCA: AUC=${auc.toFixed(2)}, CL=${cl.toFixed(3)}, MRT=${mrt.toFixed(1)}` };
 }

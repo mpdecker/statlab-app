@@ -65,3 +65,25 @@ export function standardizedResponseMean(baseline, followUp) {
   const srm = meanD / sdD;
   return { test: 'Standardized Response Mean', srm: +srm.toFixed(4), n, apa: `SRM = ${srm.toFixed(3)}, n = ${n}` };
 }
+
+// ── Clinical Trials Gov Summary ───────────────────────────────────
+export function clinicalTrialsGov(data, phaseVar, statusVar) {
+  if (!data || data.length < 5 || !phaseVar || !statusVar) return null;
+  const n = data.length;
+  const phases = [...new Set(data.map(r => r[phaseVar]))];
+  const counts = phases.map(phase => {
+    const subset = data.filter(r => r[phaseVar] === phase);
+    const completed = subset.filter(r => r[statusVar] === 'Completed').length;
+    return { phase, n: subset.length, completed, rate: +(completed / subset.length).toFixed(4) };
+  });
+  return { test: 'Clinical Trials Gov', counts, n, nPhases: phases.length, apa: `CT.gov: ${counts.map(c => `${c.phase}=${c.n}`).join(', ')}` };
+}
+
+// ── CONSORT Checklist ─────────────────────────────────────────────
+export function consortChecklist(items) {
+  if (!items || !items.length) return null;
+  const required = ['title','abstract','background','objectives','outcomes','sampleSize','randomization','blinding','statMethods','participantFlow','recruitment','baseline','outcomes','harms','limitations','interpretation','registration','protocol','funding'];
+  const completed = required.filter(r => items.some(i => i.toLowerCase().includes(r.toLowerCase())));
+  const score = required.length > 0 ? completed.length / required.length : 0;
+  return { test: 'CONSORT Checklist', completed, missing: required.filter(r => !completed.includes(r)), score: +score.toFixed(4), total: required.length, apa: `CONSORT: ${completed.length}/${required.length} (${(score*100).toFixed(0)}%)` };
+}

@@ -148,6 +148,8 @@ export function kFoldCV(X, y, trainFn, predictFn, { k = 5 } = {}) {
   };
 }
 
+// ── Huber Regression ──────────────────────────────────────────────
+
 export function huberRegression(y, X, { c = 1.345, maxIter = 50, tolerance = 1e-6 } = {}) {
   if (!y || !X || y.length < 3) return null;
   const n = y.length;
@@ -593,7 +595,7 @@ export function classificationReport(actual, predicted, labels = null) {
   };
 }
 
-// Label Propagation
+// ── Label Propagation ─────────────────────────────────────────────
 export function labelPropagation(X, y, { sigma = 1, maxIter = 20 } = {}) {
   if (!X || !y || X.length < 5 || X.length !== y.length) return null;
   const n = X.length;
@@ -615,7 +617,7 @@ export function labelPropagation(X, y, { sigma = 1, maxIter = 20 } = {}) {
   return { test: 'Label Propagation', labels: labels.map(v => +v.toFixed(4)).slice(0, 20), n, apa: `LP: ${n} nodes, ${y.filter(v => v >= 0).length} labeled` };
 }
 
-// Local Outlier Factor
+// ── Local Outlier Factor ──────────────────────────────────────────
 export function localOutlierFactor(data, vars, { k = 5 } = {}) {
   if (!data || data.length < k + 2 || !vars || !vars.length) return null;
   const n = data.length;
@@ -632,7 +634,7 @@ export function localOutlierFactor(data, vars, { k = 5 } = {}) {
   return { test: 'Local Outlier Factor', lof, k, n, apa: `LOF: k = ${k}, n = ${n}` };
 }
 
-// Isolation Score (simplified isolation forest)
+// ── Isolation Score (simplified isolation forest) ─────────────────
 export function isolationScore(data, vars, { nTrees = 100 } = {}) {
   if (!data || data.length < 5 || !vars || !vars.length) return null;
   const n = data.length;
@@ -653,7 +655,7 @@ export function isolationScore(data, vars, { nTrees = 100 } = {}) {
   return { test: 'Isolation Score', anomalyScores: anomaly.slice(0, 10), nTrees, n, apa: `Isolation: ${anomaly.filter(a => a.anomaly).length} anomalies` };
 }
 
-// Self-Training (SSL)
+// ── Self-Training (SSL) ───────────────────────────────────────────
 export function selfTraining(X, y, { nIterations = 5 } = {}) {
   if (!X || !y || X.length < 5 || X.length !== y.length) return null;
   const n = X.length;
@@ -675,7 +677,7 @@ export function selfTraining(X, y, { nIterations = 5 } = {}) {
   return { test: 'Self-Training', labels: labels.slice(0, 20), n, nIterations, apa: `Self-training: ${labels.filter(l => l >= 0).length} labeled after ${nIterations} iters` };
 }
 
-// Anomaly Threshold
+// ── Anomaly Threshold ─────────────────────────────────────────────
 export function anomalyThreshold(scores, { pct = 95 } = {}) {
   if (!scores || !scores.length) return null;
   const n = scores.length;
@@ -683,4 +685,104 @@ export function anomalyThreshold(scores, { pct = 95 } = {}) {
   const idx = Math.floor(pct / 100 * n);
   const threshold = sorted[Math.min(idx, n - 1)];
   return { test: 'Anomaly Threshold', threshold: +threshold.toFixed(4), pct, n, nAnomalies: scores.filter(s => s > threshold).length, apa: `${pct}th percentile threshold = ${threshold.toFixed(4)}` };
+}
+
+// ── Partial Dependence ────────────────────────────────────────────
+export function partialDependence(model, data, vars, var, { grid = 10 } = {}) {
+  if (!model || !data || !data.length || !vars || var == null) return null;
+  const n = data.length;
+  const xVals = data.map(r => +r[var]);
+  const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
+  const pd = [];
+  for (let g = 0; g < grid; g++) {
+    const xVal = xMin + g * (xMax - xMin) / (grid - 1);
+    let sum = 0;
+    for (const row of data) {
+      const rowCopy = { ...row, [var]: xVal };
+      const xVec = vars.map(v => +rowCopy[v]);
+      sum += model(xVec);
+    }
+    pd.push({ x: +xVal.toFixed(4), y: +(sum / n).toFixed(4) });
+  }
+  return { test: 'Partial Dependence', pd, grid, n, apa: `PDP: var=${var}, grid=${grid}` };
+}
+
+// ── Accumulated Local Effects ─────────────────────────────────────
+export function accumulatedLE(model, data, vars, var, { grid = 10 } = {}) {
+  if (!model || !data || !data.length || !vars || var == null) return null;
+  const n = data.length;
+  const xVals = data.map(r => +r[var]);
+  const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
+  const binWidth = (xMax - xMin) / grid;
+  const ale = [0];
+  let cum = 0;
+  for (let g = 1; g < grid; g++) {
+    const lo = xMin + g * binWidth;
+    const hi = xMin + (g + 1) * binWidth;
+    const inBin = data.filter(r => +r[var] >= lo && +r[var] < hi);
+    let dif = 0;
+    for (const row of inBin) {
+      const loRow = { ...row, [var]: lo };
+      const hiRow = { ...row, [var]: hi };
+      dif += model(vars.map(v => +hiRow[v])) - model(vars.map(v => +loRow[v]));
+    }
+    cum += inBin.length > 0 ? dif / inBin.length : 0;
+    ale.push(+cum.toFixed(4));
+  }
+  return { test: 'Accumulated Local Effects', ale, grid, var, n, apa: `ALE: var=${var}, grid=${grid}` };
+}
+
+// ── Permutation Importance ────────────────────────────────────────
+export function permutationImportance(model, X, y, { nPerm = 10 } = {}) {
+  if (!model || !X || !y || !X.length) return null;
+  const n = X.length; const p = X[0]?.length || 0;
+  const baseMSE = X.reduce((s, xi, i) => s + (model(xi) - y[i]) ** 2, 0) / n;
+  const importance = Array(p).fill(0);
+  for (let j = 0; j < p; j++) {
+    let sumMSE = 0;
+    for (let r = 0; r < nPerm; r++) {
+      const permX = X.map(xi => { const xp = [...xi]; xp[j] = X[Math.floor(Math.random() * n)][j]; return xp; });
+      sumMSE += permX.reduce((s, xi, i) => s + (model(xi) - y[i]) ** 2, 0) / n;
+    }
+    importance[j] = +(sumMSE / nPerm - baseMSE).toFixed(4);
+  }
+  return { test: 'Permutation Importance', importance, nPerm, n, p, apa: `Perm VI: ${p} features` };
+}
+
+// ── SHAP Approximation ────────────────────────────────────────────
+export function shapleyApprox(model, X, baseline, { nSamples = 50 } = {}) {
+  if (!model || !X || !baseline || !X.length) return null;
+  const n = X.length; const p = X[0]?.length || 0;
+  const shap = X.map((xi, i) => {
+    const values = Array(p).fill(0);
+    for (let j = 0; j < p; j++) {
+      let withJ = 0, withoutJ = 0;
+      for (let s = 0; s < nSamples; s++) {
+        const maskWith = Array(p).fill(0);
+        maskWith[j] = 1;
+        const xWith = xi.map((v, k) => maskWith[k] ? v : baseline[k]);
+        const xWithout = xi.map((v, k) => 0);
+        withJ += model(xWith); withoutJ += model(xWithout);
+      }
+      values[j] = +(withJ - withoutJ) / nSamples;
+    }
+    return values.map(v => +v.toFixed(4));
+  });
+  return { test: 'SHAP Approximation', shap: shap.slice(0, 5), nSamples, n, p, apa: `SHAP: ${nSamples} samples, ${p} features` };
+}
+
+// ── Feature Interaction ───────────────────────────────────────────
+export function featureInteraction(model, X, i, j) {
+  if (!model || !X || X.length < 5 || !X[0] || i == null || j == null) return null;
+  const n = X.length;
+  let h = 0;
+  for (let k = 0; k < n; k++) {
+    const xi = X[k];
+    const xSwap = [...xi]; xSwap[j] = X[(k + 1) % n][j];
+    const xOrig = xi;
+    const xMod = xi.map((v, idx) => idx === i ? xi[j] : v);
+    h += Math.abs(model(xSwap) - model(xOrig)) * Math.abs(model(xMod) - model(xOrig));
+  }
+  const interaction = +(h / n).toFixed(4);
+  return { test: 'Feature Interaction', interaction, i, j, n, apa: `F-interaction(${i},${j}) = ${interaction.toFixed(4)}` };
 }

@@ -24,7 +24,7 @@ function backfitOne(y, basis, beta, lambda = 0.1) {
   return XtY.map((v, i) => v / Math.max(XtX[i][i], 1e-8));
 }
 
-// GAM Backfitting
+// ── GAM Backfitting ───────────────────────────────────────────────
 export function gamBackfitting(y, X, smoothVars, { family = 'gaussian', maxIter = 20 } = {}) {
   if (!y || !X || !smoothVars || !y.length || !X.length) return null;
   const n = y.length;
@@ -55,7 +55,7 @@ export function gamBackfitting(y, X, smoothVars, { family = 'gaussian', maxIter 
   return { test: 'GAM Backfitting', alpha: +alpha.toFixed(4), betas: betas.map(v => +v.toFixed(4)), rSquared: +r2.toFixed(4), n, smoothVars, apa: `GAM: smooth = ${smoothVars.join(', ')}, R² = ${r2.toFixed(3)}` };
 }
 
-// GAM Spline
+// ── GAM Spline ────────────────────────────────────────────────────
 export function gamSpline(data, yVar, smoothVar, { df = 5 } = {}) {
   if (!data || data.length < 10 || !yVar || !smoothVar) return null;
   const y = data.map(r => +r[yVar]);
@@ -67,7 +67,7 @@ export function gamSpline(data, yVar, smoothVar, { df = 5 } = {}) {
   return { test: 'GAM Spline', fitted: fitted.map(v => +v.toFixed(4)).slice(0, 10), df, n, apa: `GAM spline: ${smoothVar}, df = ${df}` };
 }
 
-// GAM Local Scoring
+// ── GAM Local Scoring ─────────────────────────────────────────────
 export function gamLocalScoring(y, X, { family = 'binomial', maxIter = 10 } = {}) {
   if (!y || !X || !y.length) return null;
   const n = y.length;
@@ -95,21 +95,21 @@ export function gamLocalScoring(y, X, { family = 'binomial', maxIter = 10 } = {}
   return { test: 'GAM Local Scoring', logLik: +ll.toFixed(4), n, p, apa: `Local scoring (${family}): LL = ${ll.toFixed(2)}` };
 }
 
-// GAM Effective DF
+// ── GAM Effective DF ──────────────────────────────────────────────
 export function gamEffectiveDf(splineComponents) {
   if (!splineComponents || !splineComponents.length) return null;
   const totalDf = splineComponents.reduce((s, c) => s + (c.df || 1), 1);
   return { test: 'GAM Effective DF', edf: totalDf, nSmooths: splineComponents.length, apa: `GAM edf = ${totalDf.toFixed(1)}` };
 }
 
-// GAM Predict
+// ── GAM Predict ───────────────────────────────────────────────────
 export function gamPredict(gamFit, newData) {
   if (!gamFit || !newData) return null;
   const pred = gamFit.alpha || 0;
   return { test: 'GAM Predict', prediction: +pred.toFixed(4), apa: `GAM pred = ${pred.toFixed(3)}` };
 }
 
-// GAM Interaction
+// ── GAM Interaction ───────────────────────────────────────────────
 export function gamInteraction(data, yVar, var1, var2, { df = 5 } = {}) {
   if (!data || data.length < 10 || !yVar || !var1 || !var2) return null;
   const y = data.map(r => +r[yVar]);
@@ -120,4 +120,77 @@ export function gamInteraction(data, yVar, var1, var2, { df = 5 } = {}) {
   const n = y.length;
   const interaction = basis1.flatMap((b1, i) => basis2.map(b2 => b1.map((v, j) => v * b2[j])));
   return { test: 'GAM Interaction', n, apa: `GAM interaction: ${var1} × ${var2}, n = ${n}` };
+}
+
+// ── Thin Plate Spline ─────────────────────────────────────────────
+export function thinPlateSpline(x, y, { lambda = 0.1 } = {}) {
+  if (!x || !y || x.length < 5 || x.length !== y.length) return null;
+  const n = x.length;
+  const K = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => {
+    const r = Math.abs(x[i] - x[j]);
+    return r > 0 ? r * r * Math.log(r * r + 1e-10) : 0;
+  }));
+  const T = Array.from({length: n}, (_, i) => [1, x[i]]);
+  const alpha = solveSystem(K, T, y, lambda);
+  const fitted = x.map((xi, i) => {
+    let pred = alpha[0] + alpha[1] * xi;
+    for (let j = 0; j < n && j < alpha.length - 2; j++) {
+      const r = Math.abs(xi - x[j]);
+      pred += alpha[2 + j] * (r > 0 ? r * r * Math.log(r * r + 1e-10) : 0);
+    }
+    return +pred.toFixed(4);
+  });
+  const resid = y.map((yi, i) => yi - fitted[i]);
+  const gcv = resid.reduce((s, r) => s + r * r, 0) / n / Math.pow(1 - 2 / n, 2);
+  return { test: 'Thin Plate Spline', fitted: fitted.slice(0, 15), gcv: +gcv.toFixed(4), lambda, n, apa: `TPS: GCV=${gcv.toFixed(2)}, lambda=${lambda}` };
+}
+
+function solveSystem(K, T, y, lambda) {
+  const n = K.length;
+  const m = T[0].length;
+  const M = Array.from({length: n + m}, (_, i) => Array.from({length: n + m}, (_, j) => {
+    if (i < n && j < n) return K[i][j] + (i === j ? lambda : 0);
+    if (i < n) return T[i][j - n];
+    if (j < n) return T[j][i - n];
+    return 0;
+  }));
+  const rhs = [...y, ...Array(m).fill(0)];
+  return rhs.map((_, i) => rhs[i] / Math.max(M[i]?.reduce((s, v) => s + v, 0) || 1));
+}
+
+// ── P-Spline ──────────────────────────────────────────────────────
+export function pSpline(x, y, { nKnots = 10, lambda = 0.1 } = {}) {
+  if (!x || !y || x.length < 5 || x.length !== y.length) return null;
+  const n = x.length;
+  const xMin = Math.min(...x), xMax = Math.max(...x);
+  const knots = Array.from({length: nKnots}, (_, i) => xMin + (xMax - xMin) * (i + 1) / (nKnots + 1));
+  const B = Array.from({length: n}, (_, i) => {
+    const row = [1, x[i]];
+    for (const k of knots) {
+      const v = x[i] - k;
+      row.push(v > 0 ? v * v * v : 0);
+    }
+    return row;
+  });
+  const p = B[0].length;
+  const Bt = B[0].map((_, j) => B.map(r => r[j]));
+  const BtB = Bt.map(r1 => B[0].map((_, j) => r1.reduce((s, _, k) => s + B[k][j] * r1[k], 0)));
+  const BtY = Bt.map(r1 => r1.reduce((s, v, k) => s + v * y[k], 0));
+  const beta = BtY.map((v, i) => v / Math.max(BtB[i][i] || 1, 1));
+  const fitted = B.map(row => +row.reduce((s, v, j) => s + v * beta[j], 0).toFixed(4));
+  return { test: 'P-Spline', fitted: fitted.slice(0, 15), nKnots, lambda, n, apa: `P-spline: ${nKnots} knots, n=${n}` };
+}
+
+// ── GAM ANOVA (deviance comparison) ───────────────────────────────
+export function gamAnova(models) {
+  if (!models || models.length < 2) return null;
+  const anova = models.map((m, i) => {
+    if (i === 0) return { model: m.name || `Model ${i+1}`, deviance: m.deviance || 10, df: m.df || i + 1 };
+    const prev = models[i-1];
+    const deltaDev = (prev.deviance || 20) - (m.deviance || 10);
+    const deltaDf = (m.df || i + 1) - (prev.df || i);
+    const F = deltaDev / Math.max(deltaDf, 1) / Math.max(m.deviance / Math.max(m.df, 1), 0.01);
+    return { model: m.name || `Model ${i+1}`, deviance: m.deviance || 10, df: m.df || i + 1, deltaDev: +deltaDev.toFixed(4), deltaDf, F: +F.toFixed(4) };
+  });
+  return { test: 'GAM ANOVA', table: anova, nModels: models.length, apa: `GAM ANOVA: ${models.length} models` };
 }

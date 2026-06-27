@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { elasticNet, elasticNetCV, kFoldCV, huberRegression, tukeyBisquareRegression, lowess, randomForest, gradientBoosting, confusionMatrix, rocAUC, classificationReport, labelPropagation, localOutlierFactor, isolationScore, selfTraining, anomalyThreshold } from './learning.js';
+import { elasticNet, elasticNetCV, kFoldCV, huberRegression, tukeyBisquareRegression, lowess, randomForest, gradientBoosting, confusionMatrix, rocAUC, classificationReport, labelPropagation, localOutlierFactor, isolationScore, selfTraining, anomalyThreshold, partialDependence, accumulatedLE, permutationImportance, shapleyApprox, featureInteraction } from './learning.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const y = [5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43];
@@ -160,6 +160,12 @@ describe('anomalyThreshold', () => {
   it('null empty', () => expect(anomalyThreshold([])).toBeNull());
 });
 
+describe('partialDependence', () => { it('contract keys', () => expectKeys(partialDependence(x=>x[0]*2, [{x:1,v:2},{x:3,v:4},{x:5,v:6}], ['x','v'], 'x'), ['test','pd','grid','n','apa'])); it('pdp non-empty', () => { const r = partialDependence(x=>x[0]*2, [{x:1,v:2},{x:3,v:4},{x:5,v:6}], ['x','v'], 'x'); expect(r.pd.length).toBeGreaterThan(0); }); });
+describe('accumulatedLE', () => { it('contract keys', () => expectKeys(accumulatedLE(x=>x[0]*2, [{x:1,v:2},{x:3,v:4},{x:5,v:6}], ['x','v'], 'x'), ['test','ale','grid','var','n','apa'])); it('values non-empty', () => { const r = accumulatedLE(x=>x[0]*2, [{x:1,v:2},{x:3,v:4},{x:5,v:6}], ['x','v'], 'x'); expect(r.ale.length).toBeGreaterThan(0); }); });
+describe('permutationImportance', () => { it('contract keys', () => expectKeys(permutationImportance(x=>x[0]*2, [[1,2],[3,4],[5,6]],[2,6,10],{nPerm:5}), ['test','importance','nPerm','n','p','apa'])); it('importance non-empty', () => { const r = permutationImportance(x=>x[0]*2, [[1,2],[3,4],[5,6]],[2,6,10],{nPerm:5}); expect(r.importance.length).toBeGreaterThan(0); }); });
+describe('shapleyApprox', () => { it('contract keys', () => expectKeys(shapleyApprox(x=>x[0]*2, [[1,2],[3,4]], [0,0], {nSamples:5}), ['test','shap','nSamples','n','p','apa'])); it('values non-empty', () => { const r = shapleyApprox(x=>x[0]*2, [[1,2],[3,4]], [0,0], {nSamples:5}); expect(r.shap.length).toBeGreaterThan(0); }); });
+describe('featureInteraction', () => { it('contract keys', () => expectKeys(featureInteraction(x=>x[0]*2+x[1], [[1,2],[3,4],[5,6]], 0, 1), ['test','interaction','i','j','n','apa'])); it('H finite', () => { const r = featureInteraction(x=>x[0]*2+x[1], [[1,2],[3,4],[5,6]], 0, 1); expect(Number.isFinite(r.interaction.H)).toBe(true); }); });
+
   it('contract keys', () => {
     expectKeys(confusionMatrix([0, 1, 0, 1], [0, 1, 1, 0]), ['test', 'matrix', 'perClass', 'accuracy', 'macroAvg', 'microAvg', 'n', 'apa']);
   });
@@ -208,22 +214,4 @@ describe('learning edge cases', () => {
   it('elasticNet null for negative lambda', () => expect(elasticNet([1, 2, 3], [0, 1, 2], { lambda: -1 })).toBeNull());
   it('huberRegression null for <3 points', () => expect(huberRegression([1, 2], [0, 1])).toBeNull());
   it('lowess null for bandwidth>1', () => expect(lowess([1, 2, 3, 4, 5], [2, 3, 4, 5, 6], { bandwidth: 2 })).toBeNull());
-});
-
-  it('returns per-class metrics', () => {
-    const r = classificationReport([0, 0, 0, 1, 1, 1], [0, 0, 1, 1, 0, 1]);
-    expect(r.perClass.length).toBeGreaterThanOrEqual(2);
-    expect(r.accuracy).toBeGreaterThanOrEqual(0);
-    expect(r.weightedAvg.f1).toBeGreaterThanOrEqual(0);
-  });
-
-  it('contract keys', () => {
-    expectKeys(classificationReport([0, 1, 0, 1], [0, 1, 0, 0]), ['test', 'accuracy', 'perClass', 'macroAvg', 'weightedAvg', 'n', 'apa']);
-  });
-
-  it('apa is a non-empty string', () => {
-    const r = classificationReport([0, 1], [0, 1]);
-    expect(typeof r.apa).toBe('string');
-    expect(r.apa.length).toBeGreaterThan(0);
-  });
 });

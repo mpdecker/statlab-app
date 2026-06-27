@@ -264,6 +264,8 @@ export function bayesianLinearRegression(y, X, { nIter = 0, nBurnin = 2000 } = {
   };
 }
 
+// ── Bayes Factor (BIC approximation) ──────────────────────────────
+
 export function bicBayesFactor(logLik0, logLik1, n, k0, k1) {
   if (!Number.isFinite(logLik0) || !Number.isFinite(logLik1) || n < 2) return null;
   const BIC0 = -2 * logLik0 + k0 * Math.log(n);
@@ -279,6 +281,8 @@ export function bicBayesFactor(logLik0, logLik1, n, k0, k1) {
     apa: `BFâ‚â‚â‚€â‚Ž = ${BF10.toFixed(2)}${BF10 > 1 ? ' (H1 favored)' : ' (H0 favored)'}`,
   };
 }
+
+// ── Bayes Factor (Savage-Dickey) ──────────────────────────────────
 
 export function savageDickeyBF(mcmcChain, nullValue, priorDensityFn) {
   if (!mcmcChain || mcmcChain.length < 10 || !priorDensityFn) return null;
@@ -307,6 +311,8 @@ export function savageDickeyBF(mcmcChain, nullValue, priorDensityFn) {
     apa: `BFâ‚â‚â‚€â‚Ž = ${BF10.toFixed(2)} (Savage-Dickey)${BF10 > 1 ? ' (H1 favored)' : ' (H0 favored)'}`,
   };
 }
+
+// ── Bayesian One-Way ANOVA ────────────────────────────────────────
 
 export function bayesianANOVA(groups, { nIter = 2000, nBurnin = 500 } = {}) {
   if (!groups || groups.length < 2) return null;
@@ -351,6 +357,8 @@ export function bayesianANOVA(groups, { nIter = 2000, nBurnin = 500 } = {}) {
     apa: `Bayesian ANOVA: grandMu = ${summaries[0].mean.toFixed(2)}, tau = ${summaries[J + 1].mean.toFixed(2)} (J = ${J}, N = ${ys.length})`,
   };
 }
+
+// ── Bayesian Mixed Model (RI) ─────────────────────────────────────
 
 export function bayesianMixedModel(y, X, groupIdx, { nIter = 2000, nBurnin = 500 } = {}) {
   if (!y || !X || !groupIdx || y.length < 5 || X.length !== y.length || X[0].length < 1) return null;
@@ -474,7 +482,7 @@ export function bayesianPoissonRegression(y, X, { nIter = 5000, nBurnin = 1000, 
   };
 }
 
-// JZS Bayes Factor t-test
+// ── JZS Bayes Factor t-test ───────────────────────────────────────
 export function jszBayesFactorT(a, b, { r = Math.SQRT1_2 } = {}) {
   if (!a || !b || a.length < 2 || b.length < 2) return null;
   const n1 = a.length, n2 = b.length;
@@ -515,7 +523,7 @@ export function jszBayesFactorT(a, b, { r = Math.SQRT1_2 } = {}) {
   };
 }
 
-// Bayesian DIC
+// ── Bayesian DIC ──────────────────────────────────────────────────
 export function bayesianDIC(logLik, nParams, posteriorSamples = null) {
   if (!Number.isFinite(nParams) || nParams < 0) return null;
   if (!posteriorSamples) {
@@ -556,7 +564,7 @@ export function bayesianDIC(logLik, nParams, posteriorSamples = null) {
   };
 }
 
-// Posterior Predictive Check
+// ── Posterior Predictive Check ────────────────────────────────────
 export function posteriorPredictiveCheck(yObs, yRep, { stat = 'mean' } = {}) {
   if (!yObs || !yObs.length || !yRep || !yRep.length || yRep[0].length !== yObs.length) return null;
   if (yRep.length < 10) return null;
@@ -593,7 +601,7 @@ export function posteriorPredictiveCheck(yObs, yRep, { stat = 'mean' } = {}) {
   };
 }
 
-// BMA Regression
+// ── BMA Regression ────────────────────────────────────────────────
 export function bmaRegression(data, yVar, xCandidates, { nModels = null, seed = 42 } = {}) {
   if (!data || data.length < 15 || !yVar || !xCandidates || xCandidates.length < 2) return null;
   const n = data.length; const k = xCandidates.length;
@@ -626,7 +634,7 @@ export function bmaRegression(data, yVar, xCandidates, { nModels = null, seed = 
   return { test: 'BMA Regression', models, nModels: models.length, n, apa: `BMA: ${models.length} models, n = ${n}` };
 }
 
-// Posterior Inclusion Probabilities
+// ── Posterior Inclusion Probabilities ─────────────────────────────
 export function posteriorInclusionProbs(bmaResult) {
   if (!bmaResult || !bmaResult.models) return null;
   const allVars = new Set(bmaResult.models.flatMap(m => m.vars));
@@ -637,7 +645,7 @@ export function posteriorInclusionProbs(bmaResult) {
   return { test: 'Posterior Inclusion Probabilities', pips, apa: `PIP: ${pips.slice(0, 3).map(p => `${p.variable}=${p.pip.toFixed(2)}`).join(', ')}` };
 }
 
-// BMA Predict
+// ── BMA Predict ───────────────────────────────────────────────────
 export function bmaPredict(bmaResult, newData) {
   if (!bmaResult || !bmaResult.models || !newData) return null;
   const models = bmaResult.models;
@@ -650,7 +658,7 @@ export function bmaPredict(bmaResult, newData) {
   return { test: 'BMA Prediction', prediction: +pred.toFixed(4), apa: `BMA pred = ${pred.toFixed(3)}` };
 }
 
-// BMA Summary
+// ── BMA Summary ───────────────────────────────────────────────────
 export function bmaSummary(bmaResult) {
   if (!bmaResult || !bmaResult.models || !bmaResult.models.length) return null;
   const allVars = new Set(bmaResult.models.flatMap(m => m.vars));

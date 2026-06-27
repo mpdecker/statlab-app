@@ -353,7 +353,7 @@ export function youdenIndex(sens, spec) {
   };
 }
 
-// DeLong Test
+// ── DeLong Test ───────────────────────────────────────────────────
 export function deLongTest(roc1, roc2) {
   if (!roc1 || !roc2 || !roc1.scores || !roc2.scores) return null;
   const n1 = roc1.n, n2 = roc2.n;
@@ -366,7 +366,7 @@ export function deLongTest(roc1, roc2) {
   };
 }
 
-// Partial AUC
+// ── Partial AUC ───────────────────────────────────────────────────
 export function partialAUC(actual, scores, fprRange = [0, 1]) {
   if (!actual || !scores || actual.length < 5 || actual.length !== scores.length) return null;
   const labels = actual.map(v => +v);
@@ -395,7 +395,7 @@ export function partialAUC(actual, scores, fprRange = [0, 1]) {
   };
 }
 
-// Optimal Threshold via cost-ratio
+// ── Optimal Threshold via cost-ratio ──────────────────────────────
 export function optimalThreshold(actual, scores, { costRatio = 1 } = {}) {
   if (!actual || !scores || actual.length < 5 || actual.length !== scores.length) return null;
   const labels = actual.map(v => +v);
@@ -517,7 +517,7 @@ export function cliffsDelta(a, b) {
   };
 }
 
-// Rank-Biserial
+// ── Rank-Biserial ─────────────────────────────────────────────────
 export function rankBiserial(data, groupVar, scoreVar) {
   if (!data || data.length < 6 || !groupVar || !scoreVar) return null;
   const groups = [...new Set(data.map(r => r[groupVar]))];
@@ -540,7 +540,7 @@ export function rankBiserial(data, groupVar, scoreVar) {
   };
 }
 
-// Stochastic Ordering
+// ── Stochastic Ordering ───────────────────────────────────────────
 export function stochasticOrdering(groups) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 3);
@@ -565,7 +565,7 @@ export function stochasticOrdering(groups) {
   };
 }
 
-// Population Attributable Fraction
+// ── Population Attributable Fraction ──────────────────────────────
 export function populationAttributableFraction(prevalence, or) {
   if (!Number.isFinite(prevalence) || !Number.isFinite(or) || prevalence <= 0 || prevalence >= 1 || or <= 0) return null;
   const paf = prevalence * (or - 1) / (prevalence * (or - 1) + 1);
@@ -574,7 +574,7 @@ export function populationAttributableFraction(prevalence, or) {
   return { test: 'Population Attributable Fraction', paf: +paf.toFixed(4), se: +se.toFixed(4), ci: [+ci[0].toFixed(4), +ci[1].toFixed(4)], prevalence: +prevalence.toFixed(4), or: +or.toFixed(4), apa: `PAF = ${(paf * 100).toFixed(1)}%` };
 }
 
-// Cornfield Bounds
+// ── Cornfield Bounds ──────────────────────────────────────────────
 export function cornfieldBounds(a, b, c, d, confounderPrevalence) {
   if (![a, b, c, d].every(v => v > 0) || !Number.isFinite(confounderPrevalence) || confounderPrevalence <= 0 || confounderPrevalence >= 1) return null;
   const or = a * d / (b * c);
@@ -584,7 +584,7 @@ export function cornfieldBounds(a, b, c, d, confounderPrevalence) {
   return { test: 'Cornfield Bounds', observedOR: +or.toFixed(4), lowerBound: +minOr.toFixed(4), confounderPrevalence, n, apa: `Cornfield: OR=${or.toFixed(2)}, lower bound=${minOr.toFixed(2)}` };
 }
 
-// Hosmer-Lemeshow
+// ── Hosmer-Lemeshow ───────────────────────────────────────────────
 export function hosmerLemeshow(data, yVar, probVar, { nGroups = 10 } = {}) {
   if (!data || data.length < 20 || !yVar || !probVar) return null;
   const n = data.length;
@@ -601,7 +601,7 @@ export function hosmerLemeshow(data, yVar, probVar, { nGroups = 10 } = {}) {
   return { test: 'Hosmer-Lemeshow', chi2: +chi2.toFixed(4), df: nGroups - 2, p, nGroups, n, apa: `HL: χ²(${nGroups - 2}) = ${chi2.toFixed(2)}, ${p < 0.05 ? 'poor fit' : 'good fit'}` };
 }
 
-// Calibration Plot
+// ── Calibration Plot ──────────────────────────────────────────────
 export function calibrationPlot(data, yVar, probVar, { nBins = 10 } = {}) {
   if (!data || data.length < 20 || !yVar || !probVar) return null;
   const n = data.length;
@@ -617,7 +617,7 @@ export function calibrationPlot(data, yVar, probVar, { nBins = 10 } = {}) {
   return { test: 'Calibration Plot', bins, n, apa: `Calibration: ${nBins} bins, n = ${n}` };
 }
 
-// Net Benefit
+// ── Net Benefit ───────────────────────────────────────────────────
 export function netBenefit(probs, yTrue, thresholds) {
   if (!probs || !yTrue || probs.length < 5 || probs.length !== yTrue.length || !thresholds) return null;
   const n = probs.length;
@@ -630,7 +630,7 @@ export function netBenefit(probs, yTrue, thresholds) {
   return { test: 'Net Benefit', netBenefits: nb, n, apa: `NB: ${thresholds.length} thresholds` };
 }
 
-// Decision Curve
+// ── Decision Curve ────────────────────────────────────────────────
 export function decisionCurve(probs, yTrue, thresholds) {
   if (!probs || !yTrue || probs.length < 5 || !thresholds) return null;
   const n = probs.length;
@@ -645,7 +645,7 @@ export function decisionCurve(probs, yTrue, thresholds) {
   return { test: 'Decision Curve', coordinates, n, apa: `Decision curve: ${thresholds.length} thresholds` };
 }
 
-// Brier Score
+// ── Brier Score ───────────────────────────────────────────────────
 export function brierScore(probs, yTrue) {
   if (!probs || !yTrue || probs.length < 5 || probs.length !== yTrue.length) return null;
   const n = probs.length;
@@ -655,7 +655,7 @@ export function brierScore(probs, yTrue) {
   return { test: 'Brier Score', brier: +bs.toFixed(4), n, apa: `Brier = ${bs.toFixed(4)}` };
 }
 
-// Haybittle-Peto Boundaries
+// ── Haybittle-Peto Boundaries ─────────────────────────────────────
 export function haybittlePeto(stages, alpha = 0.05) {
   if (!stages || stages < 1) return null;
   const z = 3.0;
@@ -665,7 +665,7 @@ export function haybittlePeto(stages, alpha = 0.05) {
   return { test: 'Haybittle-Peto', boundaries, stages, alpha, apa: `HP: ${stages} looks, z = ${z} for interim` };
 }
 
-// Wang-Tsiatis Boundarie
+// ── Wang-Tsiatis Boundarie ────────────────────────────────────────
 export function wangTsiatis(stages, alpha = 0.05, delta = 0.5) {
   if (!stages || stages < 1) return null;
   const t = Array.from({ length: stages }, (_, i) => (i + 1) / stages);
@@ -675,7 +675,7 @@ export function wangTsiatis(stages, alpha = 0.05, delta = 0.5) {
   return { test: 'Wang-Tsiatis', boundaries, stages, alpha, delta, apa: `WT(δ=${delta}): ${stages} stages` };
 }
 
-// Inverse Normal Combination Test
+// ── Inverse Normal Combination Test ───────────────────────────────
 export function inverseNormal(t1, t2, z1, z2, info1, info2) {
   if (!Number.isFinite(z1) || !Number.isFinite(z2)) return null;
   const w1 = Math.sqrt(info1), w2 = Math.sqrt(info2);
@@ -684,7 +684,7 @@ export function inverseNormal(t1, t2, z1, z2, info1, info2) {
   return { test: 'Inverse Normal', z: +z.toFixed(4), p, t1, t2, apa: `IN-test: z = ${z.toFixed(2)}, ${p < 0.05 ? 'significant' : 'n.s.'}` };
 }
 
-// Fisher's Combination Test
+// ── Fisher's Combination Test ─────────────────────────────────────
 export function fisherCombination(pValues) {
   if (!pValues || !pValues.length || pValues.length < 2) return null;
   const chi2 = -2 * pValues.reduce((s, p) => s + Math.log(Math.max(p, 0.0001)), 0);
@@ -693,10 +693,20 @@ export function fisherCombination(pValues) {
   return { test: 'Fisher Combination', chi2: +chi2.toFixed(4), df, p, nStages: pValues.length, apa: `Fisher: χ²(${df}) = ${chi2.toFixed(2)}, p = ${p.toFixed(4)}` };
 }
 
-// Adaptive Design
+// ── Adaptive Design ───────────────────────────────────────────────
 export function adaptiveDesign(n1, n2, target, method = 'OCP') {
   if (!n1 || !n2 || !Number.isFinite(target)) return null;
   const total = n1 + n2;
   const power = Math.max(0, Math.min(1, 1 - Math.exp(-2 * target * target / (1 / n1 + 1 / n2))));
   return { test: 'Adaptive Design', n1, n2, total, power: +power.toFixed(4), method, apa: `Adaptive: n1=${n1}, n2=${n2}, power ≈ ${power.toFixed(2)}` };
+}
+
+// ── Clinical Utility Index ────────────────────────────────────────
+export function clinicalUtility(sens, spec, diseasePrevalence, benefitWeight = 1, harmWeight = 1) {
+  if (!Number.isFinite(sens) || !Number.isFinite(spec) || !Number.isFinite(diseasePrevalence)) return null;
+  const tpBenefit = sens * diseasePrevalence * benefitWeight;
+  const fpHarm = (1 - spec) * (1 - diseasePrevalence) * harmWeight;
+  const utility = tpBenefit - fpHarm;
+  const netBenefit = utility / Math.max(diseasePrevalence, 0.01);
+  return { test: 'Clinical Utility', sens: +sens.toFixed(4), spec: +spec.toFixed(4), prevalence: +diseasePrevalence.toFixed(4), utility: +utility.toFixed(4), netBenefit: +netBenefit.toFixed(4), apa: `Utility = ${utility.toFixed(3)}, net benefit = ${netBenefit.toFixed(2)}` };
 }

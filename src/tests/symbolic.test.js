@@ -1,0 +1,26 @@
+import { describe, it, expect } from 'vitest';
+import { intervalMean, intervalVariance, intervalCorrelation, intervalPCA, histogramDistance, histogramPCA, symbolicRegression } from './symbolic.js';
+import { expectKeys } from './__fixtures__/helpers.js';
+
+const d = []; for (let i = 0; i < 10; i++) d.push({ lo: i, hi: i + 2, lo2: i * 0.5, hi2: i * 0.5 + 1 });
+
+describe('intervalMean', () => { it('contract keys', () => expectKeys(intervalMean(d, 'lo', 'hi'), ['test','lo','hi','n','apa'])); it('null <3', () => expect(intervalMean([{lo:1,hi:2}],'lo','hi')).toBeNull()); it('mean between lo and hi bounds', () => { const r = intervalMean(d, 'lo', 'hi'); if (r) { expect(r.lo).toBeGreaterThan(0); expect(r.hi).toBeGreaterThan(0); expect(r.hi).toBeGreaterThanOrEqual(r.lo); } }); it('mean between bounds', () => { const r = intervalMean(d, 'lo', 'hi'); if (r) { expect(r.lo).toBeLessThanOrEqual(r.hi); } }) });
+describe('intervalVariance', () => { it('contract keys', () => expectKeys(intervalVariance(d, 'lo', 'hi'), ['test','lo','hi','n','apa'])); it('null <3', () => expect(intervalVariance([{lo:1,hi:2}],'lo','hi')).toBeNull()); it('variance non-negative', () => { const r = intervalVariance(d, 'lo', 'hi'); if (r) { expect(r.lo).toBeGreaterThanOrEqual(0); expect(r.hi).toBeGreaterThanOrEqual(0); } }) });
+describe('intervalCorrelation', () => { it('contract keys', () => expectKeys(intervalCorrelation(d, 'lo', 'hi', 'lo2', 'hi2'), ['test','r','n','apa'])); it('null <5', () => expect(intervalCorrelation(d.slice(0,3),'lo','hi','lo2','hi2')).toBeNull()); it('r between -1 and 1', () => { const r = intervalCorrelation(d, 'lo', 'hi', 'lo2', 'hi2'); if (r) { expect(r.r).toBeGreaterThanOrEqual(-1); expect(r.r).toBeLessThanOrEqual(1); } }); it('corr between -1-1', () => { const r = intervalCorrelation(d, 'lo', 'hi', 'lo2', 'hi2'); if (r) { expect(Math.abs(r.r)).toBeLessThanOrEqual(1); } }) });
+describe('intervalPCA', () => { it('contract keys', () => expectKeys(intervalPCA(d, ['lo','lo2'], ['hi','hi2']), ['test','covDim','n','apa'])); it('covDim positive', () => { const r = intervalPCA(d, ['lo','lo2'], ['hi','hi2']); if (r) expect(r.covDim).toBeDefined(); }); it('eigenvalues positive-ish', () => { const r = intervalPCA(d, ['lo','lo2'], ['hi','hi2']); if (r && r.eigenvalues) { r.eigenvalues.forEach(v => expect(v).toBeGreaterThan(-0.001)); } }) });
+describe('histogramDistance', () => { it('contract keys', () => expectKeys(histogramDistance([0.1,0.3,0.5,0.1],[0.2,0.2,0.4,0.2]), ['test','wasserstein','nBins','apa'])); it('null mismatch', () => expect(histogramDistance([1,2],[3])).toBeNull()); it('wasserstein non-negative', () => { const r = histogramDistance([0.1,0.3,0.5,0.1],[0.2,0.2,0.4,0.2]); if (r) expect(r.wasserstein).toBeGreaterThanOrEqual(0); }); it('distance between 0-1', () => { const r = histogramDistance([0.1,0.3,0.5,0.1],[0.2,0.2,0.4,0.2]); if (r) { expect(r.wasserstein).toBeGreaterThanOrEqual(0); expect(r.wasserstein).toBeLessThanOrEqual(1); } }) });
+
+describe('histogramPCA', () => {
+  const d = []; for (let i = 0; i < 10; i++) d.push({ v1: [i, i+1], v2: [i*0.5, i*0.5+0.5], v3: [i*0.3, i*0.3+0.3] });
+  it('contract keys', () => expectKeys(histogramPCA(d, ['v1','v2','v3']), ['test','eigenvalues','propVar','n','p','apa']));
+  it('null <2 cols', () => expect(histogramPCA(d, ['v1'])).toBeNull());
+  it('eigenvalues array non-empty', () => { const r = histogramPCA(d, ['v1','v2','v3']); if (r) { expect(Array.isArray(r.eigenvalues)).toBe(true); expect(r.eigenvalues.length).toBeGreaterThan(0); } });
+  it('propVar between 0 and 1', () => { const r = histogramPCA(d, ['v1','v2','v3']); if (r && r.propVar) { r.propVar.forEach(v => { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1); }); } }); it('eigenvalues positive-ish', () => { const r = histogramPCA(d, ['v1','v2','v3']); if (r && r.eigenvalues) { r.eigenvalues.forEach(v => expect(v).toBeGreaterThan(-0.001)); } });
+});
+describe('symbolicRegression', () => {
+  const d = []; for (let i = 0; i < 15; i++) d.push({ y: i * 3 + Math.random(), x1: i, x2: i * 0.5, x3: i % 3 });
+  it('contract keys', () => expectKeys(symbolicRegression(d, 'y', ['x1','x2','x3']), ['test','coefficients','interc','n','p','apa']));
+  it('null <5', () => expect(symbolicRegression(d.slice(0,3), 'y', ['x1'])).toBeNull());
+  it('coefficients array present', () => { const r = symbolicRegression(d, 'y', ['x1','x2','x3']); if (r) { expect(Array.isArray(r.coefficients)).toBe(true); expect(r.coefficients.length).toBeGreaterThan(0); } });
+  it('n matches rows', () => { const r = symbolicRegression(d, 'y', ['x1','x2','x3']); if (r) expect(r.n).toBe(d.length); }); it('coefficients non-empty', () => { const r = symbolicRegression(d, 'y', ['x1','x2','x3']); if (r) { expect(r.coefficients).toBeDefined(); } });
+});

@@ -2,7 +2,7 @@ import { avg, corr } from '../math/core.js';
 import { chiPVal } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
 
-// Polygenic Risk Score
+// ── Polygenic Risk Score ──────────────────────────────────────────
 export function prsScore(genotypes, weights) {
   if (!genotypes || !genotypes.length || !weights || weights.length !== genotypes[0]?.length) return null;
   const n = genotypes.length;
@@ -11,7 +11,7 @@ export function prsScore(genotypes, weights) {
   return { test: 'PRS Score', scores: totalScores, n, nMarkers: weights.length, apa: `PRS: ${n} individuals, ${weights.length} markers` };
 }
 
-// ACE Heritability
+// ── ACE Heritability ──────────────────────────────────────────────
 export function aceHeritability(mz, dz) {
   if (!mz || !dz || mz.length < 10 || dz.length < 10) return null;
   const n1 = mz.length, n2 = dz.length;
@@ -29,7 +29,7 @@ export function aceHeritability(mz, dz) {
   return { test: 'ACE Heritability', A: +Math.max(0, Math.min(1, A)).toFixed(4), C: +Math.max(0, Math.min(1, C)).toFixed(4), E: +Math.max(0, Math.min(1, E)).toFixed(4), rMZ: +rMZ.toFixed(4), rDZ: +rDZ.toFixed(4), nPairs: mzPairs.length, apa: `ACE: A = ${(A * 100).toFixed(1)}%, C = ${(C * 100).toFixed(1)}%, E = ${(E * 100).toFixed(1)}%` };
 }
 
-// LD Pruning
+// ── LD Pruning ────────────────────────────────────────────────────
 export function ldPruning(genotypes, { threshold = 0.8, window = 50 } = {}) {
   if (!genotypes || !genotypes.length) return null;
   const n = genotypes.length;
@@ -51,7 +51,7 @@ export function ldPruning(genotypes, { threshold = 0.8, window = 50 } = {}) {
   return { test: 'LD Pruning', kept, nRemoved: removed.length, threshold, window, nMarkers: markers, apa: `LD pruning: kept ${kept.length}/${markers} markers, threshold r² = ${threshold}` };
 }
 
-// Polygenic Prediction
+// ── Polygenic Prediction ──────────────────────────────────────────
 export function polygenicPrediction(phenotype, genotypes) {
   if (!phenotype || !genotypes || phenotype.length < 10 || phenotype.length !== genotypes.length) return null;
   const n = phenotype.length, m = genotypes[0]?.length || 0;
@@ -72,7 +72,7 @@ export function polygenicPrediction(phenotype, genotypes) {
   return { test: 'Polygenic Prediction', rSquared: +rsq.toFixed(4), nMarkers: m, n, apa: `Polygenic pred: R² = ${rsq.toFixed(3)}, ${m} markers` };
 }
 
-// Manhattan Plot Data
+// ── Manhattan Plot Data ───────────────────────────────────────────
 export function manhattanData(pValues, positions, chromosomes) {
   if (!pValues || !positions || !chromosomes || !pValues.length) return null;
   const n = pValues.length;
@@ -84,4 +84,36 @@ export function manhattanData(pValues, positions, chromosomes) {
   const bonferroni = 0.05 / n;
   const sigLine = -Math.log10(bonferroni);
   return { test: 'Manhattan Plot Data', points, bonferroni: +sigLine.toFixed(2), n, apa: `Manhattan: ${points.filter(p => p.negLog10P > sigLine).length} significant (Bonferroni)` };
+}
+
+// ── GCTA Heritability ─────────────────────────────────────────────
+export function heritabilityGCTA(GRM, phenotype) {
+  if (!GRM || !phenotype || GRM.length < 10 || GRM.length !== phenotype.length) return null;
+  const n = phenotype.length;
+  const y = phenotype;
+  const trGRM = GRM.reduce((s, r, i) => s + r[i], 0);
+  let sg = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) sg += y[i] * y[j] * GRM[i][j];
+  const sy = y.reduce((s, v) => s + v * v, 0);
+  const h2 = sy > 0 ? Math.max(0, Math.min(1, sg / sy / trGRM * n)) : 0;
+  return { test: 'GCTA Heritability', h2: +h2.toFixed(4), n, apa: `h2(GCTA) = ${h2.toFixed(3)}, n=${n}` };
+}
+
+// ── LD Score Regression ───────────────────────────────────────────
+export function ldScoreRegression(chi2, ldScores, n) {
+  if (!chi2 || !ldScores || chi2.length < 10 || chi2.length !== ldScores.length) return null;
+  const m = chi2.length;
+  let num = 0, den = 0;
+  for (let i = 0; i < m; i++) { num += ldScores[i] * (chi2[i] - 1); den += ldScores[i] * ldScores[i]; }
+  const h2 = den > 0 ? Math.max(0, num / den) : 0;
+  const intercept = 1 + h2 * 0.1;
+  return { test: 'LD Score Regression', h2: +h2.toFixed(4), intercept: +intercept.toFixed(4), m, n, apa: `LDSC: h2=${h2.toFixed(3)}, m=${m}` };
+}
+
+// ── Mendelian Randomization ───────────────────────────────────────
+export function mendelianRandomization(betaYX, seYX, betaZX, seZX) {
+  if (!Number.isFinite(betaYX) || !Number.isFinite(betaZX) || !betaZX) return null;
+  const mrEstimate = betaYX / betaZX;
+  const mrSE = Math.sqrt(seYX * seYX / (betaZX * betaZX) + betaYX * betaYX * seZX * seZX / (betaZX * betaZX * betaZX * betaZX));
+  return { test: 'Mendelian Randomization', estimate: +mrEstimate.toFixed(4), se: +mrSE.toFixed(4), apa: `MR: ${mrEstimate.toFixed(3)} (se=${mrSE.toFixed(3)})` };
 }

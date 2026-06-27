@@ -227,7 +227,7 @@ export function spectrogram(signal, { windowSize = 256, overlap = 128, samplingR
   };
 }
 
-// Welch PSD
+// ── Welch PSD ─────────────────────────────────────────────────────
 export function welchPSD(signal, { windowSize = 256, overlap = 128, samplingRate = 1 } = {}) {
   if (!signal || signal.length < windowSize) return null;
   const step = windowSize - overlap;
@@ -249,7 +249,7 @@ export function welchPSD(signal, { windowSize = 256, overlap = 128, samplingRate
   return { test: 'Welch PSD', psd, nWindows, samplingRate, n: signal.length, apa: `Welch PSD: ${nWindows} windows of ${windowSize}, fs=${samplingRate}` };
 }
 
-// Coherence
+// ── Coherence ─────────────────────────────────────────────────────
 export function coherence(x, y, { windowSize = 256, overlap = 128 } = {}) {
   if (!x || !y || x.length !== y.length || x.length < windowSize) return null;
   const step = windowSize - overlap;
@@ -279,7 +279,7 @@ export function coherence(x, y, { windowSize = 256, overlap = 128 } = {}) {
   return { test: 'Coherence', coherence: coh, n: x.length, apa: `Coherence: ${nWindows} windows, n=${x.length}` };
 }
 
-// Cross-Spectral Density
+// ── Cross-Spectral Density ────────────────────────────────────────
 export function crossSpectralDensity(x, y, { windowSize = 256 } = {}) {
   if (!x || !y || x.length !== y.length || x.length < windowSize) return null;
   const n = x.length;
@@ -300,7 +300,7 @@ export function crossSpectralDensity(x, y, { windowSize = 256 } = {}) {
   return { test: 'Cross-Spectral Density', csd, n, apa: `CSD: ${csd.length} freq bins, n=${n}` };
 }
 
-// Phase Spectrum
+// ── Phase Spectrum ────────────────────────────────────────────────
 export function phaseSpectrum(x, y) {
   if (!x || !y || x.length !== y.length || x.length < 10) return null;
   const csd = crossSpectralDensity(x, y);
@@ -309,7 +309,7 @@ export function phaseSpectrum(x, y) {
   return { test: 'Phase Spectrum', phase, n: x.length, apa: `Phase spectrum: ${phase.length} bins` };
 }
 
-// Transfer Function
+// ── Transfer Function ─────────────────────────────────────────────
 export function transferFunction(x, y) {
   if (!x || !y || x.length !== y.length || x.length < 10) return null;
   const csd = crossSpectralDensity(x, y);
@@ -321,7 +321,7 @@ export function transferFunction(x, y) {
   return { test: 'Transfer Function', tf, n: x.length, apa: `Transfer function: ${tf.length} bins` };
 }
 
-// Wavelet Transform (CWT via Morlet)
+// ── Wavelet Transform (CWT via Morlet) ────────────────────────────
 export function waveletTransform(signal, { nScales = 10 } = {}) {
   if (!signal || signal.length < 8) return null;
   const n = signal.length;
@@ -341,7 +341,7 @@ export function waveletTransform(signal, { nScales = 10 } = {}) {
   return { test: 'Wavelet Transform', cwt: cwt.slice(0, 3).map(r => r.slice(0, 5)), scales: scales.map(s => +s.toFixed(2)), n, apa: `CWT: ${nScales} scales, n = ${n}` };
 }
 
-// Wavelet Coherence
+// ── Wavelet Coherence ─────────────────────────────────────────────
 export function waveletCoherence(x, y, { nScales = 8 } = {}) {
   if (!x || !y || x.length !== y.length || x.length < 10) return null;
   const n = x.length;
@@ -360,7 +360,7 @@ export function waveletCoherence(x, y, { nScales = 8 } = {}) {
   return { test: 'Wavelet Coherence', coherence: coh.slice(0, 3).map(r => r.slice(0, 5)), scales: scales.map(s => +s.toFixed(2)), n, apa: `Wavelet coherence: ${nScales} scales` };
 }
 
-// Cross-Wavelet
+// ── Cross-Wavelet ─────────────────────────────────────────────────
 export function crossWavelet(x, y, { nScales = 8 } = {}) {
   if (!x || !y || x.length !== y.length || x.length < 10) return null;
   const n = x.length;
@@ -371,7 +371,7 @@ export function crossWavelet(x, y, { nScales = 8 } = {}) {
   return { test: 'Cross-Wavelet', xwt: xwt.slice(0, 3).map(r => r.slice(0, 5)), n, apa: `Cross-wavelet: n = ${n}` };
 }
 
-// Wavelet Significance
+// ── Wavelet Significance ──────────────────────────────────────────
 export function waveletSignificance(power, n, { alpha = 0.05 } = {}) {
   if (!power || !power.length) return null;
   const sigLevel = Math.log(1 / alpha);
@@ -379,7 +379,7 @@ export function waveletSignificance(power, n, { alpha = 0.05 } = {}) {
   return { test: 'Wavelet Significance', significant: mask.slice(0, 3).map(r => r.slice(0, 5)), alpha, apa: `Wavelet sig: α = ${alpha}` };
 }
 
-// Wavelet Ridge
+// ── Wavelet Ridge ─────────────────────────────────────────────────
 export function waveletRidge(cwt, scales) {
   if (!cwt || !cwt.length) return null;
   const ridge = cwt[0].map((_, t) => {
@@ -390,4 +390,70 @@ export function waveletRidge(cwt, scales) {
     return { time: t, scale: +maxScale.toFixed(2), power: +maxVal.toFixed(4) };
   });
   return { test: 'Wavelet Ridge', ridge: ridge.slice(0, 20), n: cwt[0]?.length, apa: `Ridge: ${ridge.length} points` };
+}
+
+// ── Short-Time Fourier Transform ──────────────────────────────────
+export function stft(signal, { windowSize = 64, hopSize = null, window = 'hann' } = {}) {
+  if (!signal || signal.length < windowSize) return null;
+  const hop = hopSize || Math.floor(windowSize / 2);
+  const win = Array.from({ length: windowSize }, (_, i) => {
+    if (window === 'hann') return 0.5 * (1 - Math.cos(2 * Math.PI * i / (windowSize - 1)));
+    return 1;
+  });
+  const nFrames = Math.floor((signal.length - windowSize) / hop) + 1;
+  const spectrogram = [];
+  for (let f = 0; f < nFrames; f++) {
+    const frame = signal.slice(f * hop, f * hop + windowSize).map((v, i) => v * win[i]);
+    const fftOut = fft(frame);
+    if (fftOut) spectrogram.push({ time: f * hop, magnitude: fftOut.magnitude.slice(0, windowSize / 2).map(v => +v.toFixed(4)) });
+  }
+  return { test: 'STFT', spectrogram: spectrogram.slice(0, 10), nFrames, windowSize, hopSize: hop, n: signal.length, apa: `STFT: ${nFrames} frames, window=${windowSize}` };
+}
+
+// ── Cepstrum ──────────────────────────────────────────────────────
+export function cepstrum(signal) {
+  if (!signal || signal.length < 10) return null;
+  const n = signal.length;
+  const spec = fft(signal);
+  if (!spec) return null;
+  const logMag = spec.magnitude.map(m => Math.log(Math.max(m, 1e-10)));
+  const logMagPadded = [...logMag, ...Array(n * 2 - logMag.length * 2).fill(0)];
+  const ceps = fft(logMagPadded.slice(0, n * 2));
+  const cepstral = ceps && ceps.spectrum ? ceps.spectrum.slice(0, Math.floor(n / 2)).map(v => +(v.re || 0).toFixed(4)) : [];
+  const peakIdx = cepstral.indexOf(Math.max(...cepstral));
+  const quefrency = peakIdx > 0 ? peakIdx : null;
+  return { test: 'Cepstrum', cepstral: cepstral.slice(0, 20), quefrency, n, apa: `Cepstrum: quefrency = ${quefrency || 'none'}` };
+}
+
+// ── Mel Spectrogram ───────────────────────────────────────────────
+export function melSpectrogram(signal, { nMels = 40, fftSize = 512, hopSize = 256, sampleRate = 16000 } = {}) {
+  if (!signal || signal.length < fftSize) return null;
+  const nFrames = Math.floor((signal.length - fftSize) / hopSize) + 1;
+  const melPoints = Array.from({ length: nMels + 2 }, (_, i) => {
+    const mel = i * (2595 * Math.log10(1 + sampleRate / 2 / 700)) / (nMels + 1);
+    return +((700 * (Math.pow(10, mel / 2595) - 1)) / (sampleRate / 2)).toFixed(4);
+  });
+  const melBands = Array.from({ length: nMels }, (_, m) => ({
+    start: melPoints[m], center: melPoints[m+1], end: melPoints[m+2]
+  }));
+  const frames = [];
+  for (let f = 0; f < nFrames; f++) {
+    const frame = signal.slice(f * hopSize, f * hopSize + fftSize);
+    const spec = fft(frame);
+    if (!spec) continue;
+    const mag = spec.magnitude.slice(0, fftSize / 2);
+    const melEnergies = melBands.map(band => {
+      let energy = 0;
+      for (let k = 0; k < mag.length; k++) {
+        const freq = k * sampleRate / fftSize / (sampleRate / 2);
+        if (freq >= band.start && freq <= band.end) {
+          const weight = freq <= band.center ? (freq - band.start) / (band.center - band.start + 1e-10) : (band.end - freq) / (band.end - band.center + 1e-10);
+          energy += mag[k] * weight;
+        }
+      }
+      return +energy.toFixed(4);
+    });
+    frames.push({ frame: f, energies: melEnergies });
+  }
+  return { test: 'Mel Spectrogram', frames: frames.slice(0, 10), nMels, nFrames, n: signal.length, apa: `Mel: ${nMels} bands, ${nFrames} frames` };
 }

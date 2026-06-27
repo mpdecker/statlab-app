@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tfIdf, cosineSimilarity, jaccardSimilarity, documentTermMatrix, termFrequency, ngramExtraction } from './text.js';
+import { tfIdf, cosineSimilarity, jaccardSimilarity, documentTermMatrix, termFrequency, ngramExtraction, ldaTopicModel, svdEmbeddings, bm25, sentimentVader, perplexityScore, textPreprocess, textRank, tfidfSimilaritySearch } from './text.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const docs = ['hello world text', 'hello world data', 'data science text mining'];
@@ -49,4 +49,53 @@ describe('edge cases', () => {
   it('documentTermMatrix with minDf filters rare terms', () => { const r = documentTermMatrix(docs, { minDf: 2 }); expect(r.vocab.length).toBeLessThan(10); });
   it('termFrequency normalize produces fractional counts', () => { const r = termFrequency(docs, { normalize: true }); expect(r.frequencies.every(f => f.count <= 1)).toBe(true); });
   it('ngramExtraction null for non-string', () => expect(ngramExtraction(123, 2)).toBeNull());
+});
+
+describe('ldaTopicModel', () => {
+  it('contract keys', () => { const r = ldaTopicModel(docs, 2, { iterations: 20 }); expectKeys(r, ['test','topics','nTopics','iterations','nDocs','nVocab','apa']); });
+  it('null <3 docs', () => expect(ldaTopicModel(['a'], 2)).toBeNull());
+  it('null nTopics<2', () => expect(ldaTopicModel(docs, 1)).toBeNull());
+});
+
+describe('svdEmbeddings', () => {
+  it('contract keys', () => expectKeys(svdEmbeddings(docs, { nDims: 5 }), ['test','embeddings','nDims','nVocab','nDocs','apa']));
+  it('embeddings non-empty', () => { const r = svdEmbeddings(docs, { nDims: 5 }); if (r) expect(r.embeddings.length).toBeGreaterThan(0); });
+  it('nDims matches', () => { const r = svdEmbeddings(docs, { nDims: 5 }); if (r) expect(r.nDims).toBe(5); });
+});
+
+describe('bm25', () => {
+  it('contract keys', () => expectKeys(bm25(docs, 'hello world'), ['test','scores','nDocs','queryLength','apa']));
+  it('null <2 docs', () => expect(bm25(['one'], 'query')).toBeNull());
+  it('scores non-empty', () => { const r = bm25(docs, 'hello world'); if (r) expect(r.scores.length).toBeGreaterThan(0); });
+});
+
+describe('sentimentVader', () => {
+  it('positive text', () => { const r = sentimentVader('this is great and wonderful good happy'); expect(r.sentiment).toBe('positive'); });
+  it('negative text', () => { const r = sentimentVader('terrible awful bad sad ugly horrible'); expect(r.sentiment).toBe('negative'); });
+  it('contract keys', () => expectKeys(sentimentVader('hello world'), ['test','compound','pos','neg','words','sentiment','apa']));
+});
+
+describe('perplexityScore', () => {
+  it('contract keys', () => expectKeys(perplexityScore([-1.2, -1.5, -0.8], 10), ['test','perplexity','avgLogLik','nWords','apa']));
+  it('null positive log probs', () => expect(perplexityScore([1, 2, 3], 10)).toBeNull());
+  it('perplexity positive', () => { const r = perplexityScore([-1.2, -1.5, -0.8], 10); if (r) expect(r.perplexity).toBeGreaterThan(0); });
+});
+
+describe('textPreprocess', () => {
+  it('contract keys', () => expectKeys(textPreprocess(docs), ['test','nDocs','nTokens','nVocab','processed','apa']));
+  it('null empty', () => expect(textPreprocess([])).toBeNull());
+  it('processed non-empty', () => { const r = textPreprocess(docs); if (r) expect(r.processed.length).toBeGreaterThan(0); });
+});
+
+describe('textRank', () => {
+  const docs = ['machine learning is great for data science', 'deep learning advances machine intelligence', 'data science and machine learning'];
+  it('contract keys', () => expectKeys(textRank(docs, { topN: 3 }), ['test','keywords','nDocs','nVocab','apa']));
+  it('null <2 docs', () => expect(textRank(['hello'])).toBeNull());
+  it('keywords non-empty', () => { const r = textRank(docs, { topN: 3 }); if (r) expect(r.keywords.length).toBeGreaterThan(0); });
+});
+describe('tfidfSimilaritySearch', () => {
+  const docs = ['hello world text mining', 'hello world data analysis', 'data science text analysis'];
+  it('contract keys', () => expectKeys(tfidfSimilaritySearch(docs, 'hello world', { topN: 2 }), ['test','results','nDocs','apa']));
+  it('null <2', () => expect(tfidfSimilaritySearch(['one'], 'query')).toBeNull());
+  it('results non-empty', () => { const r = tfidfSimilaritySearch(docs, 'hello world', { topN: 2 }); if (r) expect(r.results.length).toBeGreaterThan(0); });
 });

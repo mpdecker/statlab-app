@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { capmBeta, sharpeRatio, sortinoRatio, maxDrawdown, historicalVaR, parametricVaR, rollingWindow, famaFrench3F, carhart4F, egarch, tgarch, treynorRatio, blackScholes, impliedVolatility, optionGreeks, binomialTree, monteCarloPricing, varReduction } from './finance.js';
+import { capmBeta, sharpeRatio, sortinoRatio, maxDrawdown, historicalVaR, parametricVaR, rollingWindow, famaFrench3F, carhart4F, egarch, tgarch, treynorRatio, blackScholes, impliedVolatility, optionGreeks, binomialTree, monteCarloPricing, varReduction, monteCarloOption, greeks } from './finance.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const stock = [0.01, -0.02, 0.03, 0.015, -0.005, 0.02, 0.01, -0.01, 0.005, 0.025, -0.015, 0.03];
@@ -60,24 +60,68 @@ describe('edge cases', () => {
 
 describe('famaFrench3F', () => {
   it('defined', () => expect(typeof famaFrench3F).toBe('function'));
+  it('factors non-empty', () => { const r = famaFrench3F(stock, market); if (r && r.factors) expect(r.factors.length).toBeGreaterThan(0); });
+  it('null for missing smb parameter', () => { expect(famaFrench3F(stock, market, null, stock.map(v => v * 0.5))).toBeNull(); });
 });
 describe('carhart4F', () => {
   it('defined', () => expect(typeof carhart4F).toBe('function'));
+  it('factors non-empty', () => { const r = carhart4F(stock, market); if (r && r.factors) expect(r.factors.length).toBeGreaterThan(0); });
+  it('null for missing mom parameter', () => { expect(carhart4F(stock, market, stock.map(v => v * 0.5), market.map(v => -v), null)).toBeNull(); });
 });
 describe('egarch', () => {
   it('handles gracefully', () => { const r = egarch(stock); expect(r === null || r.test).toBeDefined(); });
+  it('params non-empty', () => { const r = egarch(stock); if (r && r.params) expect(r.params.length).toBeGreaterThan(0); });
+  it('conditionalVar non-empty with sufficient data', () => { const data = [...stock, ...stock.map(v => v * 0.5)]; const r = egarch(data); if (r) { expect(r.conditionalVar.length).toBeGreaterThan(0); expect(Number.isFinite(r.gamma)).toBe(true); } });
 });
 describe('tgarch', () => {
   it('handles gracefully', () => { const r = tgarch(stock); expect(r === null || r.test).toBeDefined(); });
+  it('params non-empty', () => { const r = tgarch(stock); if (r && r.params) expect(r.params.length).toBeGreaterThan(0); });
+  it('conditionalVar non-empty with sufficient data', () => { const data = [...stock, ...stock.map(v => v * 0.5)]; const r = tgarch(data); if (r) { expect(r.conditionalVar.length).toBeGreaterThan(0); expect(Number.isFinite(r.gamma)).toBe(true); } });
 });
 describe('treynorRatio', () => {
   it('contract keys', () => expectKeys(treynorRatio(stock, 1.2), ['test', 'treynor', 'beta', 'mean', 'riskFree', 'n', 'apa']));
   it('null for zero beta', () => expect(treynorRatio(stock, 0)).toBeNull());
+  it('treynor is finite', () => { const r = treynorRatio(stock, 1.2); if (r) expect(Number.isFinite(r.treynor)).toBe(true); });
 });
 
-describe('blackScholes', () => { it('contract keys', () => expectKeys(blackScholes(100, 100, 1, 0.05, 0.2), ['test', 'price', 'type', 'spot', 'strike', 'time', 'rate', 'sigma', 'apa'])); });
-describe('impliedVolatility', () => { it('contract keys', () => expectKeys(impliedVolatility(10, 100, 100, 1, 0.05), ['test', 'iv', 'marketPrice', 'spot', 'strike', 'time', 'rate', 'type', 'apa'])); });
-describe('optionGreeks', () => { it('contract keys', () => expectKeys(optionGreeks(100, 100, 1, 0.05, 0.2), ['test', 'delta', 'gamma', 'theta', 'vega', 'rho', 'apa'])); });
-describe('binomialTree', () => { it('contract keys', () => expectKeys(binomialTree(100, 100, 1, 0.05, 0.2, 50), ['test', 'price', 'steps', 'type', 'apa'])); });
-describe('monteCarloPricing', () => { it('contract keys', () => expectKeys(monteCarloPricing(100, 100, 1, 0.05, 0.2, 500), ['test', 'price', 'nPaths', 'type', 'apa'])); });
-describe('varReduction', () => { it('contract keys', () => expectKeys(varReduction([1.1,2.2,3.3,4.4,5.5], 3), ['test', 'rawVar', 'reducedVar', 'reduction', 'n', 'apa'])); });
+describe('blackScholes', () => {
+  it('contract keys', () => expectKeys(blackScholes(100, 100, 1, 0.05, 0.2), ['test', 'price', 'type', 'spot', 'strike', 'time', 'rate', 'sigma', 'apa']));
+  it('price positive', () => { const r = blackScholes(100, 100, 1, 0.05, 0.2); if (r) expect(r.price).toBeGreaterThan(0); });
+  it('price is finite', () => { const r = blackScholes(100, 100, 1, 0.05, 0.2); if (r) expect(Number.isFinite(r.price)).toBe(true); });
+});
+describe('impliedVolatility', () => {
+  it('contract keys', () => expectKeys(impliedVolatility(10, 100, 100, 1, 0.05), ['test', 'iv', 'marketPrice', 'spot', 'strike', 'time', 'rate', 'type', 'apa']));
+  it('iv positive', () => { const r = impliedVolatility(10, 100, 100, 1, 0.05); if (r) expect(r.iv).toBeGreaterThan(0); });
+  it('iv is finite', () => { const r = impliedVolatility(10, 100, 100, 1, 0.05); if (r) expect(Number.isFinite(r.iv)).toBe(true); });
+});
+describe('optionGreeks', () => {
+  it('contract keys', () => expectKeys(optionGreeks(100, 100, 1, 0.05, 0.2), ['test', 'delta', 'gamma', 'theta', 'vega', 'rho', 'apa']));
+  it('delta between 0-1', () => { const r = optionGreeks(100, 100, 1, 0.05, 0.2); if (r) { expect(r.delta).toBeGreaterThanOrEqual(0); expect(r.delta).toBeLessThanOrEqual(1); } });
+  it('gamma is finite', () => { const r = optionGreeks(100, 100, 1, 0.05, 0.2); if (r) expect(Number.isFinite(r.gamma)).toBe(true); });
+});
+describe('binomialTree', () => {
+  it('contract keys', () => expectKeys(binomialTree(100, 100, 1, 0.05, 0.2, 50), ['test', 'price', 'steps', 'type', 'apa']));
+  it('price positive', () => { const r = binomialTree(100, 100, 1, 0.05, 0.2, 50); if (r) expect(r.price).toBeGreaterThan(0); });
+  it('price is finite', () => { const r = binomialTree(100, 100, 1, 0.05, 0.2, 50); if (r) expect(Number.isFinite(r.price)).toBe(true); });
+});
+describe('monteCarloPricing', () => {
+  it('contract keys', () => expectKeys(monteCarloPricing(100, 100, 1, 0.05, 0.2, 500), ['test', 'price', 'nPaths', 'type', 'apa']));
+  it('price finite', () => { const r = monteCarloPricing(100, 100, 1, 0.05, 0.2, 500); if (r) expect(Number.isFinite(r.price)).toBe(true); });
+  it('nPaths matches input', () => { const r = monteCarloPricing(100, 100, 1, 0.05, 0.2, 500); if (r) expect(r.nPaths).toBe(500); });
+});
+describe('varReduction', () => {
+  it('contract keys', () => expectKeys(varReduction([1.1,2.2,3.3,4.4,5.5], 3), ['test', 'rawVar', 'reducedVar', 'reduction', 'n', 'apa']));
+  it('reduction between 0-100', () => { const r = varReduction([1.1,2.2,3.3,4.4,5.5], 3); expect(r.reduction).toBeGreaterThanOrEqual(0); expect(r.reduction).toBeLessThanOrEqual(100); });
+  it('rawVar is finite', () => { const r = varReduction([1.1,2.2,3.3,4.4,5.5], 3); if (r) expect(Number.isFinite(r.rawVar)).toBe(true); });
+});
+
+describe('monteCarloOption', () => {
+  it('contract keys', () => expectKeys(monteCarloOption(100, 105, 1, 0.05, 0.2, { nSim: 50 }), ['test','price','nSim','S','K','T','type','apa']));
+  it('null invalid', () => expect(monteCarloOption(-1, 100, 1, 0.05, 0.2)).toBeNull());
+  it('price is finite', () => { const r = monteCarloOption(100, 105, 1, 0.05, 0.2, { nSim: 50 }); if (r) expect(Number.isFinite(r.price)).toBe(true); });
+});
+describe('greeks', () => {
+  it('contract keys', () => expectKeys(greeks(100, 105, 1, 0.05, 0.2), ['test','delta','gamma','theta','vega','rho','apa']));
+  it('null invalid', () => expect(greeks(-1, 100, 1, 0.05, 0.2)).toBeNull());
+  it('delta is finite', () => { const r = greeks(100, 105, 1, 0.05, 0.2); if (r) expect(Number.isFinite(r.delta)).toBe(true); });
+});

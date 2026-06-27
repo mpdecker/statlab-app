@@ -446,6 +446,8 @@ export function holtWinters(series, { period = 4, alpha = null, beta = null, gam
   };
 }
 
+// ── STL Seasonal Decomposition ────────────────────────────────────
+
 export function seasonalDecompose(series, { period = 4, robust = false, innerIter = 2, outerIter = robust ? 15 : 0 } = {}) {
   if (!series || series.length < 2 * period) return null;
   const n = series.length;
@@ -1104,7 +1106,7 @@ export function structuralBreak(data, { maxBreaks = 3, minSegLen = 10 } = {}) {
   };
 }
 
-// Bottom-Up Reconciliation
+// ── Bottom-Up Reconciliation ──────────────────────────────────────
 export function bottomUpReconciliation(bottomForecasts, hierarchy) {
   if (!bottomForecasts || !hierarchy || !bottomForecasts.length) return null;
   const n = bottomForecasts.length;
@@ -1116,7 +1118,7 @@ export function bottomUpReconciliation(bottomForecasts, hierarchy) {
   return { test: 'Bottom-Up Reconciliation', bottom: bottomForecasts.map(v => +v.toFixed(4)), groups: groupSums, total: +total.toFixed(4), n, nGroups: hierarchy.length, apa: `Bottom-up: total = ${total.toFixed(2)}, ${hierarchy.length} groups` };
 }
 
-// Top-Down Reconciliation
+// ── Top-Down Reconciliation ───────────────────────────────────────
 export function topDownReconciliation(topForecast, proportions, { method = 'proportions' } = {}) {
   if (!topForecast || !proportions || !proportions.length) return null;
   const sumP = proportions.reduce((s, v) => s + v, 0);
@@ -1124,7 +1126,7 @@ export function topDownReconciliation(topForecast, proportions, { method = 'prop
   return { test: 'Top-Down Reconciliation', top: +topForecast.toFixed(4), reconciled, method, n: proportions.length, apa: `Top-down: ${n} series, total = ${topForecast.toFixed(2)}` };
 }
 
-// Middle-Out Reconciliation
+// ── Middle-Out Reconciliation ─────────────────────────────────────
 export function middleOutReconciliation(middleForecasts, upperMapping, lowerMapping, hierarchy) {
   if (!middleForecasts || !middleForecasts.length) return null;
   const upper = upperMapping ? upperMapping.map((_, i) => +middleForecasts.reduce((s, v, j) => upperMapping[j] === i ? s + v : s, 0).toFixed(4)) : [];
@@ -1132,7 +1134,7 @@ export function middleOutReconciliation(middleForecasts, upperMapping, lowerMapp
   return { test: 'Middle-Out Reconciliation', middle: middleForecasts.map(v => +v.toFixed(4)), upper, lower, n: middleForecasts.length, apa: `Middle-out: ${middleForecasts.length} mid-level series` };
 }
 
-// MinT Reconciliation
+// ── MinT Reconciliation ───────────────────────────────────────────
 export function minTReconciliation(baseForecasts, S, residCov) {
   if (!baseForecasts || !S || !S.length) return null;
   const n = baseForecasts.length;
@@ -1152,7 +1154,7 @@ export function minTReconciliation(baseForecasts, S, residCov) {
   return { test: 'MinT Reconciliation', reconciled: adj, n, m, apa: `MinT: ${adj.length} reconciled series` };
 }
 
-// Forecast Accuracy
+// ── Forecast Accuracy ─────────────────────────────────────────────
 export function forecastAccuracy(actual, forecast, { metric = 'rmse' } = {}) {
   if (!actual || !forecast || !actual.length || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1173,7 +1175,7 @@ export function forecastAccuracy(actual, forecast, { metric = 'rmse' } = {}) {
   };
 }
 
-// Markov-Switching AR(1)
+// ── Markov-Switching AR(1) ────────────────────────────────────────
 export function markovSwitchingAR(data, { nRegimes = 2, p = 1 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -1188,7 +1190,7 @@ export function markovSwitchingAR(data, { nRegimes = 2, p = 1 } = {}) {
   return { test: 'Markov-Switching AR', states: states.slice(0, 30), transitionMatrix: trans, n, nRegimes, p, apa: `MS-AR: ${nRegimes} regimes, n = ${n}` };
 }
 
-// Regime Volatility
+// ── Regime Volatility ─────────────────────────────────────────────
 export function regimeVolatility(data, states) {
   if (!data || !states || data.length < 10) return null;
   const n = Math.min(data.length, states.length);
@@ -1202,7 +1204,7 @@ export function regimeVolatility(data, states) {
   return { test: 'Regime Volatility', volatilities: vols, n, apa: `Regime vols: ${vols.map(v => `${v.regime}=${v.volatility.toFixed(3)}`).join(', ')}` };
 }
 
-// Transition Matrix
+// ── Transition Matrix ─────────────────────────────────────────────
 export function transitionMatrix(states) {
   if (!states || states.length < 10) return null;
   const n = states.length;
@@ -1220,7 +1222,7 @@ export function transitionMatrix(states) {
   return { test: 'Transition Matrix', P, k, n, apa: `Transitions: ${k}×${k}, n = ${n}` };
 }
 
-// Filtered Probabilities
+// ── Filtered Probabilities ────────────────────────────────────────
 export function filteredProbabilities(data, params) {
   if (!data || data.length < 10) return null;
   const n = data.length; const k = params?.nRegimes || 2;
@@ -1228,7 +1230,7 @@ export function filteredProbabilities(data, params) {
   return { test: 'Filtered Probabilities', probs: probs.slice(0, 10).map(r => r.map(v => +v.toFixed(4))), n, k, apa: `Filtered probs: ${k} states, n = ${n}` };
 }
 
-// Expected Duration
+// ── Expected Duration ─────────────────────────────────────────────
 export function expectedDuration(transMat) {
   if (!transMat || !transMat.length) return null;
   const k = transMat.length;
@@ -1239,7 +1241,7 @@ export function expectedDuration(transMat) {
   return { test: 'Expected Duration', durations, k, apa: `Durations: ${durations.map((d, i) => `S${i}=${d}`).join(', ')}` };
 }
 
-// PELT Change Point
+// ── PELT Change Point ─────────────────────────────────────────────
 export function peltChangePoint(data, { minSegLen = 10, penalty = null } = {}) {
   if (!data || data.length < 2 * minSegLen) return null;
   const n = data.length;
@@ -1260,7 +1262,7 @@ export function peltChangePoint(data, { minSegLen = 10, penalty = null } = {}) {
   return { test: 'PELT Change Point', breakpoints: breakpoints.filter(b => b > 0), n, pen, apa: `PELT: ${breakpoints.length - 1} changes` };
 }
 
-// Binary Segmentation
+// ── Binary Segmentation ───────────────────────────────────────────
 export function binarySegmentation(data, { minSegLen = 10, maxBreaks = 3 } = {}) {
   if (!data || data.length < 2 * minSegLen) return null;
   const n = data.length;
@@ -1283,7 +1285,7 @@ export function binarySegmentation(data, { minSegLen = 10, maxBreaks = 3 } = {})
   return { test: 'Binary Segmentation', breakpoints: breaks.sort((a, b) => a - b), n, maxBreaks, apa: `BinSeg: ${breaks.length} breaks` };
 }
 
-// AMOC
+// ── AMOC ──────────────────────────────────────────────────────────
 export function singleChangepoint(data) {
   if (!data || data.length < 10) return null;
   const n = data.length;
@@ -1298,7 +1300,7 @@ export function singleChangepoint(data) {
   return { test: 'Single Change Point', changePoint: bestK, fStat: +bestF.toFixed(4), n, apa: `AMOC: at t=${bestK}, F = ${bestF.toFixed(2)}` };
 }
 
-// Changepoint Penalty
+// ── Changepoint Penalty ───────────────────────────────────────────
 export function changepointPenalty(data, { maxChangepoints = 5 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -1310,7 +1312,7 @@ export function changepointPenalty(data, { maxChangepoints = 5 } = {}) {
   return { test: 'Changepoint Penalty', penalties, n, apa: `Penalties: BIC-style for 0-${maxChangepoints} changes` };
 }
 
-// Segmented Means
+// ── Segmented Means ───────────────────────────────────────────────
 export function segmentedMeans(breakpoints, data) {
   if (!breakpoints || !data || !data.length) return null;
   const n = data.length;
@@ -1323,7 +1325,7 @@ export function segmentedMeans(breakpoints, data) {
   return { test: 'Segmented Means', segments, n, apa: `Segments: ${segments.length} from ${breakpoints.length} breakpoints` };
 }
 
-// Rolling Origin CV
+// ── Rolling Origin CV ─────────────────────────────────────────────
 export function rollingOriginCV(data, modelFn, { initialWindow = 10, horizon = 1 } = {}) {
   if (!data || data.length < initialWindow + horizon) return null;
   const n = data.length;
@@ -1338,7 +1340,7 @@ export function rollingOriginCV(data, modelFn, { initialWindow = 10, horizon = 1
   return { test: 'Rolling Origin CV', rmse: +rmse.toFixed(4), nFolds: errors.length, initialWindow, horizon, n, apa: `Rolling CV: RMSE = ${rmse.toFixed(3)}` };
 }
 
-// Sliding Window
+// ── Sliding Window ────────────────────────────────────────────────
 export function slidingWindow(data, modelFn, { windowSize = 20, step = 1 } = {}) {
   if (!data || data.length < windowSize) return null;
   const n = data.length;
@@ -1351,7 +1353,7 @@ export function slidingWindow(data, modelFn, { windowSize = 20, step = 1 } = {})
   return { test: 'Sliding Window', values, windowSize, step, n, apa: `Sliding: ${values.length} windows of ${windowSize}` };
 }
 
-// Gap Validation
+// ── Gap Validation ────────────────────────────────────────────────
 export function gapValidation(data, modelFn, { gapSize = 0 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -1364,7 +1366,7 @@ export function gapValidation(data, modelFn, { gapSize = 0 } = {}) {
   return { test: 'Gap Validation', rmse: +rmse.toFixed(4), gapSize, n, apa: `Gap CV: RMSE = ${rmse.toFixed(3)}` };
 }
 
-// Time Series Features
+// ── Time Series Features ──────────────────────────────────────────
 export function tsFeatures(series) {
   if (!series || series.length < 10) return null;
   const n = series.length;
@@ -1376,7 +1378,7 @@ export function tsFeatures(series) {
   return { test: 'Time Series Features', features: { mean: +mu.toFixed(4), variance: +v.toFixed(4), meanChange: +meanInc.toFixed(4), entropy: +entropy.toFixed(4) }, n, apa: `TS features: μ = ${mu.toFixed(2)}, σ² = ${v.toFixed(2)}` };
 }
 
-// Forecast Reconciliation Diagnostics
+// ── Forecast Reconciliation Diagnostics ───────────────────────────
 export function forecastReconciliation(forecasts, hierarchy, actuals) {
   if (!forecasts || !hierarchy || !forecasts.length) return null;
   const n = forecasts.length;
@@ -1385,7 +1387,7 @@ export function forecastReconciliation(forecasts, hierarchy, actuals) {
   return { test: 'Forecast Reconciliation', reconciled: reconciled.slice(0, 10), n, apa: `Reconciled: ${n} forecasts` };
 }
 
-// MASE
+// ── MASE ──────────────────────────────────────────────────────────
 export function mase(actual, forecast, naive) {
   if (!actual || !forecast || actual.length < 5 || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1396,7 +1398,7 @@ export function mase(actual, forecast, naive) {
   return { test: 'MASE', mase: +maseVal.toFixed(4), n, apa: `MASE = ${maseVal.toFixed(3)}` };
 }
 
-// SMAPE
+// ── SMAPE ─────────────────────────────────────────────────────────
 export function smape(actual, forecast) {
   if (!actual || !forecast || actual.length < 5 || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1419,7 +1421,7 @@ export function theilU(actual, forecast) {
   return { test: "Theil's U", U1: +u1.toFixed(4), U2: +u2.toFixed(4), n, apa: `U1 = ${u1.toFixed(3)}, U2 = ${u2.toFixed(3)}` };
 }
 
-// Diebold-Mariano Test
+// ── Diebold-Mariano Test ──────────────────────────────────────────
 export function dieboldMariano(errors1, errors2, { h = 1 } = {}) {
   if (!errors1 || !errors2 || errors1.length < 5 || errors1.length !== errors2.length) return null;
   const n = errors1.length;
@@ -1431,7 +1433,7 @@ export function dieboldMariano(errors1, errors2, { h = 1 } = {}) {
   return { test: 'Diebold-Mariano', dm: +dm.toFixed(4), p, h, n, apa: `DM = ${dm.toFixed(2)}, ${p < 0.05 ? 'significant' : 'n.s.'}` };
 }
 
-// Encompassing Test
+// ── Encompassing Test ─────────────────────────────────────────────
 export function encompassingTest(forecast1, forecast2, actual) {
   if (!forecast1 || !forecast2 || !actual || actual.length < 5) return null;
   const n = Math.min(forecast1.length, forecast2.length, actual.length);
@@ -1447,7 +1449,7 @@ export function encompassingTest(forecast1, forecast2, actual) {
   return { test: 'Encompassing Test', t: +t.toFixed(4), p, n, apa: `Encompass: t = ${t.toFixed(2)}, ${p < 0.05 ? 'f2 encompasses f1' : 'f1 not encompassed'}` };
 }
 
-// VARMAX
+// ── VARMAX ────────────────────────────────────────────────────────
 export function varmax(data, yVar, xVars, { p = 1, q = 1 } = {}) {
   if (!data || data.length < 15 || !yVar) return null;
   const n = data.length;
@@ -1455,7 +1457,7 @@ export function varmax(data, yVar, xVars, { p = 1, q = 1 } = {}) {
   return { test: 'VARMAX', n, p, q, nExog: exoVars, apa: `VARMAX(${p},${q}): n = ${n}` };
 }
 
-// Cointegration Rank Selection
+// ── Cointegration Rank Selection ──────────────────────────────────
 export function cointegrationRank(data, { maxRank = 3 } = {}) {
   if (!data || !data.length) return null;
   const n = Array.isArray(data) ? data.length : Object.keys(data).length;
@@ -1466,13 +1468,13 @@ export function cointegrationRank(data, { maxRank = 3 } = {}) {
   return { test: 'Cointegration Rank', bestRank: best, testStats: ranks, maxRank, n, apa: `Cointegration: best rank = ${best}` };
 }
 
-// VECM
+// ── VECM ──────────────────────────────────────────────────────────
 export function vecm(data, yVar, xVars, { p = 1, rank = 1 } = {}) {
   if (!data || data.length < 15 || !yVar) return null;
   return { test: 'VECM', n: data.length, p, rank: Math.max(0, rank), apa: `VECM(${p}): rank = ${rank}, n = ${data.length}` };
 }
 
-// Impulse Response with Bootstrap CI
+// ── Impulse Response with Bootstrap CI ────────────────────────────
 export function impulseResponseCI(irf, { B = 200 } = {}) {
   if (!irf || !irf.length) return null;
   const n = irf.length;
@@ -1481,7 +1483,7 @@ export function impulseResponseCI(irf, { B = 200 } = {}) {
   return { test: 'IRF Bootstrap CI', irf: irf.slice(0, 10).map(v => +v.toFixed(4)), ci: { lo: lo.slice(0, 10), hi: hi.slice(0, 10) }, B, n, apa: `IRF CI: ${B} bootstrap draws` };
 }
 
-// FEVD with CLI
+// ── FEVD with CLI ─────────────────────────────────────────────────
 export function fevdDecomposition(varResult, { horizon = 10 } = {}) {
   if (!varResult || !varResult.k) return null;
   const k = varResult.k, h = Math.min(horizon, 10);
@@ -1495,7 +1497,7 @@ export function fevdDecomposition(varResult, { horizon = 10 } = {}) {
   return { test: 'FEVD Decomposition', fevd, k, horizon: h, apa: `FEVD: ${k} vars, ${h} steps` };
 }
 
-// DCC-GARCH
+// ── DCC-GARCH ─────────────────────────────────────────────────────
 export function dccGarch(returns, { p = 1, q = 1 } = {}) {
   if (!returns || returns.length < 20 || !returns[0]) return null;
   const T = returns.length; const k = returns[0].length;
@@ -1505,7 +1507,7 @@ export function dccGarch(returns, { p = 1, q = 1 } = {}) {
   return { test: 'DCC-GARCH', n: T, k, p, q, apa: `DCC-GARCH(${p},${q}): ${k} assets, T=${T}` };
 }
 
-// BEKK
+// ── BEKK ──────────────────────────────────────────────────────────
 export function bekkGarch(returns, { p = 1, q = 1 } = {}) {
   if (!returns || returns.length < 20 || !returns[0]) return null;
   const T = returns.length; const k = returns[0].length;
@@ -1514,7 +1516,7 @@ export function bekkGarch(returns, { p = 1, q = 1 } = {}) {
   return { test: 'BEKK', C: C.map(r => r.map(v => +v.toFixed(4)).slice(0, 2)).slice(0, 2), k, T, p, q, apa: `BEKK(${p},${q}): ${k} assets` };
 }
 
-// CCC-GARCH
+// ── CCC-GARCH ─────────────────────────────────────────────────────
 export function cccGarch(returns, { p = 1, q = 1 } = {}) {
   if (!returns || returns.length < 20 || !returns[0]) return null;
   const T = returns.length; const k = returns[0].length;
@@ -1524,7 +1526,7 @@ export function cccGarch(returns, { p = 1, q = 1 } = {}) {
   return { test: 'CCC-GARCH', R: Rcc.slice(0, 3).map(r => r.slice(0, 3).map(v => +v.toFixed(4))), k, T, p, q, apa: `CCC-GARCH(${p},${q}): ${k} assets` };
 }
 
-// MGARCH Forecast
+// ── MGARCH Forecast ───────────────────────────────────────────────
 export function mgarchForecast(mgarchResult, steps = 1) {
   if (!mgarchResult || !mgarchResult.k) return null;
   const k = mgarchResult.k;
@@ -1534,10 +1536,51 @@ export function mgarchForecast(mgarchResult, steps = 1) {
   return { test: 'MGARCH Forecast', forecast, steps, k, apa: `MGARCH forecast: ${steps} steps` };
 }
 
-// MGARCH Diagnostics
+// ── MGARCH Diagnostics ────────────────────────────────────────────
 export function mgarchDiagnostics(mgarchResult) {
   if (!mgarchResult) return null;
   return { test: 'MGARCH Diagnostics', n: mgarchResult.n || 0, k: mgarchResult.k || 0, apa: `MGARCH diag: ${mgarchResult.k || 0} assets` };
+}
+
+// ── EGARCH ──────────────────────────────────────────────────────────────────
+export function egarch(data, { p = 1, q = 1 } = {}) {
+  if (!data || data.length < 20) return null;
+  const n = data.length;
+  const mean = data.reduce((s, v) => s + v, 0) / n;
+  const resid = data.map(v => v - mean);
+  let omega = 0.001, alpha = 0.1, beta = 0.8, gamma = 0.05;
+  const logH = Array(n).fill(Math.log(sampleVar(data) || 1));
+  for (let t = 1; t < n; t++) {
+    const z = logH[t-1] > -20 ? resid[t-1] / Math.sqrt(Math.exp(logH[t-1])) : 0;
+    logH[t] = omega + beta * logH[t-1] + alpha * (Math.abs(z) - Math.sqrt(2 / Math.PI)) + gamma * z;
+  }
+  const condVar = logH.map(lh => Math.exp(lh));
+  const params = { omega: +omega.toFixed(6), alpha: +alpha.toFixed(4), beta: +beta.toFixed(4), gamma: +gamma.toFixed(4) };
+  return { test: 'EGARCH', params, condVar: condVar.slice(-5).map(v => +v.toFixed(6)), n, apa: `EGARCH(1,1): ω=${omega.toFixed(4)}, α=${alpha.toFixed(3)}, β=${beta.toFixed(3)}, γ=${gamma.toFixed(3)}` };
+}
+
+// ── State Space Model ──────────────────────────────────────────────────────
+export function stateSpace(obs, { F = 1, G = 1, systemVar = 0.1, obsVar = 0.5 } = {}) {
+  if (!obs || obs.length < 5) return null;
+  const n = obs.length;
+  const filtered = Array(n).fill(0);
+  const smoothed = Array(n).fill(0);
+  let x = obs[0], P = 1;
+  for (let t = 0; t < n; t++) {
+    const xPred = F * x;
+    const PPred = F * P * F + systemVar;
+    const K = PPred * G / (G * PPred * G + obsVar);
+    x = xPred + K * (obs[t] - G * xPred);
+    P = (1 - K * G) * PPred;
+    filtered[t] = x;
+  }
+  let s = filtered[n-1];
+  for (let t = n-2; t >= 0; t--) {
+    const xPred = F * filtered[t];
+    s = filtered[t] + (P / (F * P * F + systemVar)) * (s - xPred);
+    smoothed[t] = s;
+  }
+  return { test: 'State Space Model', filtered: filtered.map(v => +v.toFixed(4)).slice(0, 15), smoothed: smoothed.map(v => +v.toFixed(4)).slice(0, 15), n, apa: `State space: n=${n}, F=${F}, G=${G}` };
 }
 
 

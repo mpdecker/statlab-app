@@ -167,3 +167,46 @@ export function ccaPrep(data, envVars, speciesVars) {
   const c = speciesVars.length;
   return { test: 'CCA Preparation', n, nEnv: r, nSpecies: c, apa: `CCA prep: ${r} env vars × ${c} species, n = ${n}` };
 }
+
+// ── envfit (Environmental Vector Fitting) ─────────────────────────
+export function envfit(ordination, envData, envVar) {
+  if (!ordination || !ordination.points || !envData || !envVar || envData.length < ordination.points.length) return null;
+  const n = Math.min(ordination.points.length, envData.length);
+  const env = envData.slice(0, n).map(r => +r[envVar]);
+  const x = ordination.points.slice(0, n).map(p => p[0]);
+  const y = ordination.points.slice(0, n).map(p => p[1]);
+  const rX = corr(x, env), rY = corr(y, env);
+  const r = Math.sqrt(rX * rX + rY * rY);
+  const pVal = Math.exp(-r * r * n / 2);
+  return { test: 'envfit', r2: +Math.min(1, r * r).toFixed(4), r, p: +pVal.toFixed(4), var: envVar, n, apa: `envfit: ${envVar} r2=${(r*r).toFixed(3)}, p=${pVal.toFixed(3)}` };
+}
+function corr(a, b) { const m = avg(a); const m2 = avg(b); return a.reduce((s, v, i) => s + (v - m) * (b[i] - m2), 0) / Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) * b.reduce((s, v) => s + (v - m2) ** 2, 0) + 1e-10); }
+
+// ── Variation Partitioning ────────────────────────────────────────
+export function varpart(R2total, R2part) {
+  if (!R2part || R2part.length < 2) return null;
+  const ab = R2part[0], bc = R2part[1];
+  const abc = R2total;
+  const a = abc - bc;
+  const b = ab - a;
+  const c = abc - ab;
+  const residual = 1 - abc;
+  const fractions = { a: +a.toFixed(4), b: +b.toFixed(4), c: +c.toFixed(4), abc: +abc.toFixed(4), residual: +residual.toFixed(4) };
+  return { test: 'Variation Partitioning', fractions, apa: `Varpart: a=${a.toFixed(3)}, b=${b.toFixed(3)}, c=${c.toFixed(3)}` };
+}
+
+// ── MSO (Multivariate Seriation Ordering) ─────────────────────────
+export function mso(distanceMatrix) {
+  if (!distanceMatrix || distanceMatrix.length < 3) return null;
+  const n = distanceMatrix.length;
+  const scores = Array.from({length: n}, (_, i) => {
+    let totalClose = 0;
+    for (let j = 0; j < n; j++) {
+      if (j === i) continue;
+      totalClose += 1 / Math.max(distanceMatrix[i][j], 0.01) * Math.abs(i - j);
+    }
+    return +totalClose.toFixed(4);
+  });
+  const order = scores.map((s, i) => ({ i, s })).sort((a, b) => a.s - b.s).map(o => o.i);
+  return { test: 'MSO', order, n, apa: `MSO: ${n} objects ordered` };
+}

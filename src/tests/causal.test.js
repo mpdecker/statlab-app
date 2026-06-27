@@ -7,6 +7,7 @@ import {
   naturalIndirectEffect, controlledDirectEffect, evalue, mediationProportion, sensitivityBias, interactionMediation,
   msmWeights, gestimationSNM, rpsft, structuralNestedAFT, complianceAdjusted,
   weakIVTest, sarganHansenJ, durbinWuHausman, ivDiagnosticsSummary,
+  moderatedMediation, multiMediator, longitudinalMediation, sensitivityBounds,
 } from './causal.js';
 import { causalRows } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
@@ -392,6 +393,11 @@ describe('fuzzyRDD', () => {
   for (let i = 0; i < 60; i++) data.push({ running: i - 30, treat: i > 30 ? 1 : 0, y: 5 + (i > 30 ? 2 : 0) + i * 0.1 });
   it('null for small', () => expect(fuzzyRDD(data.slice(0, 20), 'running', 'treat', 'y', 0, 20)).toBeNull());
   it('contract keys', () => { const r = fuzzyRDD(data, 'running', 'treat', 'y', 0, 20); if (r) expectKeys(r, ['test', 'late', 'se', 't', 'p', 'fStat', 'bandwidth', 'n', 'nBand', 'apa']); });
+
+  it('late is finite when valid', () => {
+    const r = fuzzyRDD(data, 'running', 'treat', 'y', 0, 20);
+    if (r) expect(Number.isFinite(r.late)).toBe(true);
+  });
 });
 
 describe('gComputation', () => {
@@ -422,15 +428,42 @@ describe('smdTable', () => {
   const d = []; for (let i = 0; i < 20; i++) d.push({ treat: i < 10 ? 'A' : 'B', x1: i + (i < 10 ? 3 : 0), x2: i * 0.5 });
   it('null <10', () => expect(smdTable(d.slice(0, 5), 'treat', ['x1'])).toBeNull());
   it('contract keys', () => expectKeys(smdTable(d, 'treat', ['x1', 'x2']), ['test', 'results', 'nTreated', 'nControl', 'apa']));
+
+  it('results is an array when valid', () => {
+    const r = smdTable(d, 'treat', ['x1', 'x2']);
+    if (r) expect(Array.isArray(r.results)).toBe(true);
+  });
 });
 
 describe('propensityOverlap', () => {
   it('is defined', () => expect(propensityOverlap).not.toBeUndefined());
+  it('overlap bins non-empty for valid data', () => {
+    const d = [];
+    for (let i = 0; i < 40; i++) d.push({ treat: i < 20 ? 'A' : 'B', x1: i * 0.1, x2: i % 3 });
+    const r = propensityOverlap(d, 'treat', ['x1', 'x2']);
+    if (r) expect(r.bins.length).toBeGreaterThan(0);
+  });
+
+  it('contract keys when valid', () => {
+    const d = [];
+    for (let i = 0; i < 40; i++) d.push({ treat: i < 20 ? 'A' : 'B', x1: i * 0.1, x2: i % 3 });
+    const r = propensityOverlap(d, 'treat', ['x1', 'x2']);
+    if (r) expectKeys(r, ['test', 'bins', 'n', 'apa']);
+  });
 });
 
 describe('weightingDiagnostics', () => {
   const d = []; for (let i = 0; i < 20; i++) d.push({ treat: i < 10 ? 'A' : 'B', x1: i + (i < 10 ? 2 : 0), x2: i % 3 });
   it('contract keys', () => { const r = weightingDiagnostics(Array(20).fill(1), d, 'treat', ['x1', 'x2']); if (r) expectKeys(r, ['test', 'nEff', 'n', 'nTreated', 'nControl', 'balanceBefore', 'balanceAfter', 'apa']); });
+  it('diagnostics non-empty', () => {
+    const r = weightingDiagnostics(Array(20).fill(1), d, 'treat', ['x1', 'x2']);
+    if (r) { expect(r.nEff).toBeGreaterThan(0); expect(r.balanceBefore).toBeDefined(); }
+  });
+
+  it('nEff is less than or equal to n when valid', () => {
+    const r = weightingDiagnostics(Array(20).fill(1), d, 'treat', ['x1', 'x2']);
+    if (r) expect(r.nEff).toBeLessThanOrEqual(r.n);
+  });
 });
 
 describe('lovePlotData', () => {
@@ -438,16 +471,39 @@ describe('lovePlotData', () => {
   const after = [{ variable: 'x1', smd: 0.1 }, { variable: 'x2', smd: 0.05 }];
   it('contract keys', () => expectKeys(lovePlotData(before, after), ['test', 'points', 'nVars', 'apa']));
   it('nVars correct', () => { const r = lovePlotData(before, after); expect(r.nVars).toBe(2); });
+
+  it('points array has entries', () => {
+    const r = lovePlotData(before, after);
+    if (r) expect(Array.isArray(r.points)).toBe(true);
+  });
 });
 
 describe('naturalIndirectEffect', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', med: i * 0.5 + (i < 15 ? 0 : 2), y: i + (i < 15 ? 0 : 3), x1: i % 2 });
   it('contract keys', () => { const r = naturalIndirectEffect(d, 'treat', 'med', 'y', ['x1']); if (r) expectKeys(r, ['test', 'nie', 'a', 'b', 'se', 'z', 'p', 'n', 'apa']); });
+  it('effect is finite', () => {
+    const r = naturalIndirectEffect(d, 'treat', 'med', 'y', ['x1']);
+    if (r) expect(Number.isFinite(r.nie)).toBe(true);
+  });
+
+  it('se is positive when valid', () => {
+    const r = naturalIndirectEffect(d, 'treat', 'med', 'y', ['x1']);
+    if (r) expect(r.se).toBeGreaterThan(0);
+  });
 });
 
 describe('controlledDirectEffect', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', med: i * 0.5, y: i + (i < 15 ? 0 : 3), x1: i % 2 });
   it('contract keys', () => { const r = controlledDirectEffect(d, 'treat', 'med', 'y', ['x1'], 0); if (r) expectKeys(r, ['test', 'cde', 'se', 'z', 'p', 'mediatorValue', 'n', 'apa']); });
+  it('effect is finite', () => {
+    const r = controlledDirectEffect(d, 'treat', 'med', 'y', ['x1'], 0);
+    if (r) expect(Number.isFinite(r.cde)).toBe(true);
+  });
+
+  it('se is positive when valid', () => {
+    const r = controlledDirectEffect(d, 'treat', 'med', 'y', ['x1'], 0);
+    if (r) expect(r.se).toBeGreaterThan(0);
+  });
 });
 
 describe('evalue', () => {
@@ -459,57 +515,213 @@ describe('evalue', () => {
 describe('mediationProportion', () => {
   it('null for total=0', () => expect(mediationProportion(0.5, 0)).toBeNull());
   it('contract keys', () => expectKeys(mediationProportion(0.3, 0.8), ['test', 'proportion', 'indirect', 'total', 'apa']));
+
+  it('proportion is finite', () => {
+    const r = mediationProportion(0.3, 0.8);
+    if (r) expect(Number.isFinite(r.proportion)).toBe(true);
+  });
 });
 
 describe('sensitivityBias', () => {
   it('null for OR<=0', () => expect(sensitivityBias(-1)).toBeNull());
   it('contract keys', () => expectKeys(sensitivityBias(2.5), ['test', 'criticalRR', 'or', 'prevalence', 'apa']));
+
+  it('criticalRR is finite', () => {
+    const r = sensitivityBias(2.5);
+    if (r) expect(Number.isFinite(r.criticalRR)).toBe(true);
+  });
 });
 
 describe('interactionMediation', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', med: i * 0.5, y: i + (i < 15 ? 0 : 3), x1: i % 2 });
   it('contract keys', () => { const r = interactionMediation(d, 'treat', 'med', 'y', ['x1']); if (r) expectKeys(r, ['test', 'interaction', 'se', 'z', 'p', 'n', 'apa']); });
+  it('interaction is finite', () => {
+    const r = interactionMediation(d, 'treat', 'med', 'y', ['x1']);
+    if (r) expect(Number.isFinite(r.interaction)).toBe(true);
+  });
+
+  it('z is finite when valid', () => {
+    const r = interactionMediation(d, 'treat', 'med', 'y', ['x1']);
+    if (r) expect(Number.isFinite(r.z)).toBe(true);
+  });
 });
 
 describe('msmWeights', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', y: i + (i < 15 ? 0 : 3), x1: i % 2, time1: i, time2: i * 2 });
   it('contract keys', () => { const r = msmWeights(d, ['time1', 'time2'], 'treat', 'y', ['x1']); if (r) expectKeys(r, ['test', 'weightedMean', 'n', 'nTreated', 'apa']); });
+  it('weights are positive', () => {
+    const r = msmWeights(d, ['time1', 'time2'], 'treat', 'y', ['x1']);
+    if (r) expect(r.weightedMean).toBeGreaterThan(0);
+  });
+
+  it('n is positive when valid', () => {
+    const r = msmWeights(d, ['time1', 'time2'], 'treat', 'y', ['x1']);
+    if (r) expect(r.n).toBeGreaterThan(0);
+  });
 });
 
 describe('gestimationSNM', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', y: i + (i < 15 ? 0 : 3), x1: i % 2 });
   it('contract keys', () => { const r = gestimationSNM(d, 'treat', 'y', ['x1']); if (r) expectKeys(r, ['test', 'psi', 'n', 'apa']); });
+  it('estimates non-empty', () => {
+    const r = gestimationSNM(d, 'treat', 'y', ['x1']);
+    if (r) expect(r.psi).toBeDefined();
+  });
+
+  it('n is positive when valid', () => {
+    const r = gestimationSNM(d, 'treat', 'y', ['x1']);
+    if (r) expect(r.n).toBeGreaterThan(0);
+  });
 });
 
 describe('rpsft', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', y: i + (i < 15 ? 0 : 3), observed: i + (i < 15 ? 0 : 5) });
   it('contract keys', () => { const r = rpsft(d, 'treat', 'y', 'observed'); if (r) expectKeys(r, ['test', 'psi', 'n', 'apa']); });
+  it('estimate is finite', () => {
+    const r = rpsft(d, 'treat', 'y', 'observed');
+    if (r) expect(Number.isFinite(r.psi)).toBe(true);
+  });
+
+  it('n is positive when valid', () => {
+    const r = rpsft(d, 'treat', 'y', 'observed');
+    if (r) expect(r.n).toBeGreaterThan(0);
+  });
 });
 
 describe('structuralNestedAFT', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ treat: i < 15 ? 'A' : 'B', y: i + (i < 15 ? 0 : 5) });
   it('contract keys', () => { const r = structuralNestedAFT(d, 'treat', 'y', null); if (r) expectKeys(r, ['test', 'psi', 'n', 'apa']); });
+  it('psi is finite', () => {
+    const r = structuralNestedAFT(d, 'treat', 'y', null);
+    if (r) expect(Number.isFinite(r.psi)).toBe(true);
+  });
+
+  it('n is positive when valid', () => {
+    const r = structuralNestedAFT(d, 'treat', 'y', null);
+    if (r) expect(r.n).toBeGreaterThan(0);
+  });
 });
 
 describe('complianceAdjusted', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ rand: i < 15 ? 0 : 1, rec: i < 15 ? 0 : 1, y: i + (i < 15 ? 0 : 3) });
   it('contract keys', () => expectKeys(complianceAdjusted(d, 'rand', 'rec', 'y'), ['test', 'cace', 'n', 'complianceRate', 'apa']));
+  it('effect is finite', () => {
+    const r = complianceAdjusted(d, 'rand', 'rec', 'y');
+    if (r) expect(Number.isFinite(r.cace)).toBe(true);
+  });
+
+  it('n is positive when valid', () => {
+    const r = complianceAdjusted(d, 'rand', 'rec', 'y');
+    if (r) expect(r.n).toBeGreaterThan(0);
+  });
 });
 
 describe('weakIVTest', () => {
   const d2 = []; for (let i = 0; i < 30; i++) d2.push({ y: i, x: i * 0.5, iv: i % 3 });
   it('contract keys', () => expectKeys(weakIVTest(d2, 'y', 'x', 'iv', []), ['test', 'fStat', 'isWeak', 'n', 'apa']));
+  it('F positive', () => {
+    const r = weakIVTest(d2, 'y', 'x', 'iv', []);
+    if (r) expect(r.fStat).toBeGreaterThan(0);
+  });
+
+  it('n is positive when valid', () => {
+    const r = weakIVTest(d2, 'y', 'x', 'iv', []);
+    if (r) expect(r.n).toBeGreaterThan(0);
+  });
 });
 
 describe('sarganHansenJ', () => {
   const d2 = []; for (let i = 0; i < 30; i++) d2.push({ y: i, x: i * 0.5, z1: i % 3, z2: (i+1) % 3 });
   it('is defined', () => expect(typeof sarganHansenJ).toBe('function'));
+  it('j between 0 and 1 for valid IV data', () => {
+    const r = sarganHansenJ(d2, 'y', 'x', ['z1', 'z2'], []);
+    if (r) { expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); }
+  });
+
+  it('n is positive when valid', () => {
+    const r = sarganHansenJ(d2, 'y', 'x', ['z1', 'z2'], []);
+    if (r) expect(r.n).toBeGreaterThan(0);
+  });
 });
 
 describe('durbinWuHausman', () => {
   it('is defined', () => expect(typeof durbinWuHausman).toBe('function'));
+  it('chi2 positive for valid IV comparison', () => {
+    const d = [];
+    for (let i = 0; i < 30; i++) d.push({ y: i, x: i * 0.5, z1: i % 3, z2: (i + 1) % 3 });
+    const r = durbinWuHausman(d, 'y', 'x', ['z1', 'z2'], []);
+    if (r) expect(r.chi2).toBeGreaterThanOrEqual(0);
+  });
+
+  it('p between 0 and 1 when valid', () => {
+    const d = [];
+    for (let i = 0; i < 30; i++) d.push({ y: i, x: i * 0.5, z1: i % 3, z2: (i + 1) % 3 });
+    const r = durbinWuHausman(d, 'y', 'x', ['z1', 'z2'], []);
+    if (r) { expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); }
+  });
 });
 
 describe('ivDiagnosticsSummary', () => {
   it('contract keys', () => expectKeys(ivDiagnosticsSummary({isWeak:false},{p:0.5},{p:0.1}), ['test', 'weakInstruments', 'overidentified', 'endogenous', 'apa']));
+  it('diagnostics non-empty', () => {
+    const r = ivDiagnosticsSummary({ isWeak: false }, { p: 0.5 }, { p: 0.1 });
+    if (r) { expect(r.weakInstruments).toBeDefined(); expect(r.overidentified).toBeDefined(); expect(r.endogenous).toBeDefined(); }
+  });
+
+  it('apa is a non-empty string', () => {
+    const r = ivDiagnosticsSummary({ isWeak: false }, { p: 0.5 }, { p: 0.1 });
+    if (r) { expect(typeof r.apa).toBe('string'); expect(r.apa.length).toBeGreaterThan(0); }
+  });
+});
+
+describe('moderatedMediation', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ x: i, m: i * 0.5, y: i * 0.3, w: i % 3, time: Math.floor(i/5) });
+  it('contract keys', () => expectKeys(moderatedMediation(d, 'x', 'm', 'y', 'w'), ['test','ieHigh','ieLow','moderator','n','apa']));
+  it('ieHigh is finite', () => {
+    const r = moderatedMediation(d, 'x', 'm', 'y', 'w');
+    if (r) expect(Number.isFinite(r.ieHigh)).toBe(true);
+  });
+
+  it('ieLow is finite when valid', () => {
+    const r = moderatedMediation(d, 'x', 'm', 'y', 'w');
+    if (r) expect(Number.isFinite(r.ieLow)).toBe(true);
+  });
+});
+describe('multiMediator', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ x: i, y: i * 0.5, m1: i * 0.3, m2: i * 0.2 });
+  it('contract keys', () => { const r = multiMediator(d, 'x', 'y', ['m1', 'm2']); if (r) expectKeys(r, ['test','totalEffect','totalIndirect','indirect','n','apa']); });
+  it('indirect non-empty', () => {
+    const r = multiMediator(d, 'x', 'y', ['m1', 'm2']);
+    if (r) expect(Array.isArray(r.indirect)).toBe(true);
+  });
+
+  it('totalEffect is finite when valid', () => {
+    const r = multiMediator(d, 'x', 'y', ['m1', 'm2']);
+    if (r) expect(Number.isFinite(r.totalEffect)).toBe(true);
+  });
+});
+describe('longitudinalMediation', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ x: i % 3, m: i * 0.1, y: i * 0.2, time: i % 5, id: Math.floor(i/5) });
+  it('contract keys', () => expectKeys(longitudinalMediation(d, 'x', 'm', 'y', 'time'), ['test','aPath','bPath','indirect','nSubjects','apa']));
+  it('indirect is finite', () => {
+    const r = longitudinalMediation(d, 'x', 'm', 'y', 'time');
+    if (r) expect(Number.isFinite(r.indirect)).toBe(true);
+  });
+
+  it('aPath is finite when valid', () => {
+    const r = longitudinalMediation(d, 'x', 'm', 'y', 'time');
+    if (r) expect(Number.isFinite(r.aPath)).toBe(true);
+  });
+});
+describe('sensitivityBounds', () => {
+  it('contract keys', () => expectKeys(sensitivityBounds(0.5, 0.1), ['test','original','adjusted','bias','rho','apa']));
+  it('adjusted between -1 and 1', () => {
+    const r = sensitivityBounds(0.5, 0.1);
+    if (r) { expect(r.adjusted).toBeGreaterThanOrEqual(-1); expect(r.adjusted).toBeLessThanOrEqual(1); }
+  });
+
+  it('bias is finite', () => {
+    const r = sensitivityBounds(0.5, 0.1);
+    if (r) expect(Number.isFinite(r.bias)).toBe(true);
+  });
 });

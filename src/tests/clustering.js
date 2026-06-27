@@ -33,6 +33,8 @@ function _silhouette(X, labels, k) {
 }
 
 /** k-means (Lloyd) on numeric columns; seeded init for reproducibility */
+
+// ── k-Means ───────────────────────────────────────────────────────
 export function kmeans(data, vars, k = 3, maxIter = 100, seed = 42) {
   const rows = data.filter(r => vars.every(v => Number.isFinite(+r[v])));
   const X = rows.map(r => vars.map(v => +r[v]));
@@ -111,6 +113,8 @@ function clusterDist(A, B, linkage = 'ward') {
 }
 
 /** Agglomerative hierarchical clustering (Ward/single/complete) */
+
+// ── Hierarchical Cluster ──────────────────────────────────────────
 export function hierarchicalCluster(data, vars, linkage = 'ward') {
   const rows = data.filter(r => vars.every(v => Number.isFinite(+r[v])));
   const X = rows.map(r => vars.map(v => +r[v]));
@@ -156,6 +160,8 @@ export function hierarchicalCluster(data, vars, linkage = 'ward') {
 }
 
 /** Latent class analysis — EM for binary/categorical indicators (2–4 classes) */
+
+// ── Latent Class Analysis ─────────────────────────────────────────
 export function latentClassAnalysis(data, catVars, nClasses = 2) {
   const rows = data.filter(r => catVars.every(v => r[v] != null));
   const n = rows.length;
@@ -514,7 +520,7 @@ export function optimalK(data, vars, maxK = 8, { method = 'silhouette', seed = 4
   };
 }
 
-// Affinity Matrix
+// ── Affinity Matrix ───────────────────────────────────────────────
 export function affinityMatrix(data, vars, { sigma = null } = {}) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const n = data.length;
@@ -529,10 +535,10 @@ export function affinityMatrix(data, vars, { sigma = null } = {}) {
   const A = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) =>
     i === j ? 0 : +Math.exp(-dists[i][j] * dists[i][j] / (2 * sig * sig)).toFixed(4)
   ));
-  return { test: 'Affinity Matrix', A: A.slice(0, 5).map(r => r.slice(0, 5)), sigma: +sig.toFixed(4), n, apa: `Affinity: n = ${n}, σ = ${sig.toFixed(2)}` };
+  return { test: 'Affinity Matrix', A, sigma: +sig.toFixed(4), n, apa: `Affinity: n = ${n}, σ = ${sig.toFixed(2)}` };
 }
 
-// Normalized Laplacian
+// ── Normalized Laplacian ──────────────────────────────────────────
 export function normalizedLaplacian(A, { type = 'symmetric' } = {}) {
   if (!A || !A.length || A.length < 2) return null;
   const n = A.length;
@@ -544,10 +550,10 @@ export function normalizedLaplacian(A, { type = 'symmetric' } = {}) {
   }));
   if (type === 'symmetric') for (let i = 0; i < n; i++) L[i][i] = 1;
   else for (let i = 0; i < n; i++) L[i][i] = D[i] > 0 ? 1 : 1;
-  return { test: 'Normalized Laplacian', L: L.slice(0, 5).map(r => r.slice(0, 5)), type, n, apa: `Laplacian: ${type}, n = ${n}` };
+  return { test: 'Normalized Laplacian', L, type, n, apa: `Laplacian: ${type}, n = ${n}` };
 }
 
-// Spectral Embedding
+// ── Spectral Embedding ────────────────────────────────────────────
 export function spectralEmbedding(A, nClusters = 2, { type = 'symmetric' } = {}) {
   if (!A || !A.length || nClusters < 2 || nClusters >= A.length) return null;
   const L = normalizedLaplacian(A, { type });
@@ -558,11 +564,12 @@ export function spectralEmbedding(A, nClusters = 2, { type = 'symmetric' } = {})
     const idx = eigs.eigenvalues.indexOf(v);
     return eigs.eigenvectors[idx];
   });
+  const n = A.length;
   const embedding = A.map((_, i) => vecs.map(vec => +(vec[i] || 0).toFixed(4)));
-  return { test: 'Spectral Embedding', embedding: embedding.slice(0, 10), nClusters, n, apa: `Spectral embedding: ${nClusters} clusters` };
+  return { test: 'Spectral Embedding', embedding, nClusters, n, apa: `Spectral embedding: ${nClusters} clusters` };
 }
 
-// Eigengap
+// ── Eigengap ──────────────────────────────────────────────────────
 export function eigengap(values) {
   if (!values || values.length < 2) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -574,7 +581,7 @@ export function eigengap(values) {
   return { test: 'Eigengap', bestK, maxGap: +maxGap.toFixed(4), nValues: sorted.length, apa: `Eigengap: best k = ${bestK}` };
 }
 
-// Spectral Clustering
+// ── Spectral Clustering ───────────────────────────────────────────
 export function spectralClustering(data, vars, nClusters = 2, { type = 'symmetric', sigma = null } = {}) {
   if (!data || !vars || data.length < 5) return null;
   const A = affinityMatrix(data, vars, { sigma });
@@ -600,5 +607,6 @@ export function spectralClustering(data, vars, nClusters = 2, { type = 'symmetri
       if (memb.length) memb[0].forEach((_, j) => { c[j] = avg(memb.map(m => m[j])); });
     });
   }
+  const n = data.length;
   return { test: 'Spectral Clustering', labels, nClusters: k, n, apa: `Spectral clustering: ${k} clusters, n = ${n}` };
 }

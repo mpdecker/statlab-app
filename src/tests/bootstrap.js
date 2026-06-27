@@ -165,7 +165,7 @@ export function empiricalInfluence(data, statistic) {
   };
 }
 
-// Bootstrap Mediation
+// ── Bootstrap Mediation ───────────────────────────────────────────
 export function bootstrapMediation(data, treatVar, mediator, outcomeVar, { B = 500, seed = 42 } = {}) {
   if (!data || data.length < 15 || !treatVar || !mediator || !outcomeVar) return null;
   const n = data.length;
@@ -187,7 +187,7 @@ export function bootstrapMediation(data, treatVar, mediator, outcomeVar, { B = 5
   return { test: 'Bootstrap Mediation', indirect: +(indirects[Math.floor(B / 2)]).toFixed(4), ci: [+lo.toFixed(4), +hi.toFixed(4)], B, n, apa: `Bootstrap IE = ${indirects[Math.floor(B / 2)].toFixed(3)}, CI [${lo.toFixed(3)}, ${hi.toFixed(3)}]` };
 }
 
-// Moderated Mediation
+// ── Moderated Mediation ───────────────────────────────────────────
 export function moderatedMediation(data, treatVar, mediator, moderator, outcomeVar) {
   if (!data || data.length < 20 || !treatVar || !mediator || !moderator || !outcomeVar) return null;
   const n = data.length;
@@ -204,7 +204,7 @@ export function moderatedMediation(data, treatVar, mediator, moderator, outcomeV
   return { test: 'Moderated Mediation', a: +a.toFixed(4), bw: +bw.toFixed(4), index: +(a * bw).toFixed(4), n, apa: `ModMed index = ${(a * bw).toFixed(3)}` };
 }
 
-// Split Conformal
+// ── Split Conformal ───────────────────────────────────────────────
 export function splitConformal(yTrain, yCal, { alpha = 0.1 } = {}) {
   if (!yTrain || !yCal || yTrain.length < 10 || yCal.length < 10) return null;
   const nCal = yCal.length;
@@ -215,7 +215,7 @@ export function splitConformal(yTrain, yCal, { alpha = 0.1 } = {}) {
   return { test: 'Split Conformal', radius: +radius.toFixed(4), alpha, nTrain: yTrain.length, nCal: nCal, apa: `Conformal radius = ${radius.toFixed(3)}, α = ${alpha}` };
 }
 
-// Conformal P-values
+// ── Conformal P-values ────────────────────────────────────────────
 export function conformalPvalues(scores, testScore) {
   if (!scores || !scores.length || !Number.isFinite(testScore)) return null;
   const n = scores.length;
@@ -224,7 +224,7 @@ export function conformalPvalues(scores, testScore) {
   return { test: 'Conformal P-values', p: +p.toFixed(4), n, apa: `Conformal p = ${p.toFixed(3)}` };
 }
 
-// Jackknife+
+// ── Jackknife+ ────────────────────────────────────────────────────
 export function jackknifePlus(X, y, { alpha = 0.1 } = {}) {
   if (!X || !y || X.length < 10 || X.length !== y.length) return null;
   const n = X.length;

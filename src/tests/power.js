@@ -95,17 +95,23 @@ export function powerANOVA(cohenF, k, nPerGroup, alpha = 0.05, seed = 42) {
   return { test: 'ANOVA Power', power: +p.toFixed(4), cohenF, f2: +(cohenF * cohenF).toFixed(4), k, nPerGroup, alpha, apa: `Power = ${p.toFixed(3)} (one-way ANOVA, k = ${k}, n/group = ${nPerGroup}, f = ${cohenF})` };
 }
 
+// ── Chi-Square Power ──────────────────────────────────────────────
+
 export function powerChiSq(cohenW, df, N, alpha = 0.05) {
   const p = _powerChi(cohenW, df, N, alpha);
   if (p == null) return null;
   return { test: 'Chi-Square Power', power: +p.toFixed(4), cohenW, df, N, alpha, apa: `Power = ${p.toFixed(3)} (χ² test, df = ${df}, N = ${N}, w = ${cohenW})` };
 }
 
+// ── Logistic Power ────────────────────────────────────────────────
+
 export function powerLogisticReg(or, pControl, nPerGroup, alpha = 0.05) {
   const p = _powerLogistic(or, pControl, nPerGroup, alpha);
   if (p == null) return null;
   return { test: 'Logistic Power', power: +p.toFixed(4), or, pControl, nPerGroup, alpha, apa: `Power = ${p.toFixed(3)} (logistic, OR = ${or}, p₀ = ${pControl}, n/group = ${nPerGroup})` };
 }
+
+// ── Multilevel Power ──────────────────────────────────────────────
 
 export function powerMultilevel(ICC, mClustersEach, subjectsPerCluster, d, alpha = 0.05) {
   const p = _powerMixed(ICC, mClustersEach, subjectsPerCluster, d, alpha);
@@ -115,11 +121,15 @@ export function powerMultilevel(ICC, mClustersEach, subjectsPerCluster, d, alpha
   return { test: 'Multilevel Power', power: +p.toFixed(4), ICC, mClustersEach, subjectsPerCluster, d, nEff, alpha, apa: `Power = ${p.toFixed(3)} (multilevel, ICC = ${ICC}, ${mClustersEach} clusters × ${subjectsPerCluster}, d = ${d})` };
 }
 
+// ── Correlation Power ─────────────────────────────────────────────
+
 export function powerCorrelation(n, r, alpha = 0.05) {
   if (n < 5 || !Number.isFinite(r) || Math.abs(r) >= 1) return null;
   const p = computePowerCorr(n, r, alpha);
   return { test: 'Correlation Power', power: +p.toFixed(4), n, r, alpha, apa: `Power = ${p.toFixed(3)} (correlation, n = ${n}, r = ${r})` };
 }
+
+// ── Mediation Power ───────────────────────────────────────────────
 
 export function powerMediationTest(aHat, bHat, seA, seB, { B = 2000, alpha = 0.05, seed = 42 } = {}) {
   const r = _powerMediation(aHat, bHat, seA, seB, B, alpha, seed);
@@ -134,11 +144,15 @@ export function requiredNT(d, power = 0.8, alpha = 0.05, type = 'two-sample') {
   return { test: 'Required N (t-test)', n, d, power, alpha, type, apa: `Required n = ${n} per group (t-test, d = ${d}, power = ${power}, α = ${alpha})` };
 }
 
+// ── Required N (Correlation) ──────────────────────────────────────
+
 export function requiredNCorrelation(r, power = 0.8, alpha = 0.05) {
   const n = _requiredNCorr(r, power, alpha);
   if (n == null || n >= 10000) return null;
   return { test: 'Required N (Correlation)', n, r, power, alpha, apa: `Required n = ${n} (correlation, r = ${r}, power = ${power})` };
 }
+
+// ── Required N (One Proportion) ───────────────────────────────────
 
 export function requiredNOneProp(p0, p1, power = 0.8, alpha = 0.05) {
   const n = _requiredNOneProp(p0, p1, power, alpha);
@@ -146,11 +160,15 @@ export function requiredNOneProp(p0, p1, power = 0.8, alpha = 0.05) {
   return { test: 'Required N (One Proportion)', n, p0, p1, power, alpha, apa: `Required n = ${n} (one prop, p₀ = ${p0} vs p₁ = ${p1}, power = ${power})` };
 }
 
+// ── Required N (Two Proportions) ──────────────────────────────────
+
 export function requiredNTwoProp(p1, p2, power = 0.8, alpha = 0.05) {
   const n = _requiredNTwoProp(p1, p2, power, alpha);
   if (n == null || n >= 20000) return null;
   return { test: 'Required N (Two Proportions)', n, p1, p2, power, alpha, apa: `Required n = ${n} per group (two props, p₁ = ${p1} vs p₂ = ${p2}, power = ${power})` };
 }
+
+// ── Required N (Wilcoxon) ─────────────────────────────────────────
 
 export function requiredNWilcoxon(d, power = 0.8, alpha = 0.05) {
   const n = _requiredNWilcoxon(d, power, alpha);
@@ -158,17 +176,23 @@ export function requiredNWilcoxon(d, power = 0.8, alpha = 0.05) {
   return { test: 'Required N (Wilcoxon)', n, d, power, alpha, apa: `Required n = ${n} per group (MWU, d = ${d}, power = ${power})` };
 }
 
+// ── Required N (Log-Rank) ─────────────────────────────────────────
+
 export function requiredNLogRank(hr, power = 0.8, alpha = 0.05) {
   const n = _requiredNLogRank(hr, power, alpha);
   if (n == null || n >= 20000) return null;
   return { test: 'Required N (Log-Rank)', nEvents: n, hr, power, alpha, apa: `Required events = ${n} (log-rank, HR = ${hr}, power = ${power})` };
 }
 
+// ── Required N (OLS) ──────────────────────────────────────────────
+
 export function requiredNOLS(rSquared, k = 1, power = 0.8, alpha = 0.05) {
   const n = _requiredNOLS(rSquared, k, power, alpha);
   if (n == null || n >= 5000) return null;
   return { test: 'Required N (OLS)', n, rSquared, k, power, alpha, apa: `Required n = ${n} (OLS, R² = ${rSquared}, k = ${k}, power = ${power})` };
 }
+
+// ── Required N (ANOVA) ────────────────────────────────────────────
 
 export function requiredNANOVA(cohenF, k, power = 0.8, alpha = 0.05) {
   if (!(cohenF > 0) || k < 2) return null;
@@ -188,11 +212,15 @@ export function powerTTestWrapper(n1, n2 = n1, d, type = 'two-sample', alpha = 0
   return { test: 'T-Test Power', ...r };
 }
 
+// ── One-Proportion Power ──────────────────────────────────────────
+
 export function powerProportionOne(n, p0, p1, alpha = 0.05) {
   const r = _powerOneProportion(n, p0, p1, alpha);
   if (!r) return null;
   return { test: 'One-Proportion Power', ...r };
 }
+
+// ── Two-Proportion Power ──────────────────────────────────────────
 
 export function powerProportionTwo(n1, n2, p1, p2, alpha = 0.05) {
   const r = _powerTwoProportion(n1, n2, p1, p2, alpha);
@@ -200,11 +228,15 @@ export function powerProportionTwo(n1, n2, p1, p2, alpha = 0.05) {
   return { test: 'Two-Proportion Power', ...r };
 }
 
+// ── Wilcoxon Power ────────────────────────────────────────────────
+
 export function powerWilcoxonTest(n1, n2 = n1, d, alpha = 0.05) {
   const r = _powerWilcoxon(n1, n2, d, alpha);
   if (!r) return null;
   return { test: 'Wilcoxon Power', ...r };
 }
+
+// ── Log-Rank Power ────────────────────────────────────────────────
 
 export function powerLogRankTest(nEvents, hr, alpha = 0.05) {
   const r = _powerLogRank(nEvents, hr, alpha);
@@ -212,17 +244,23 @@ export function powerLogRankTest(nEvents, hr, alpha = 0.05) {
   return { test: 'Log-Rank Power', ...r };
 }
 
+// ── RM ANOVA Power ────────────────────────────────────────────────
+
 export function powerRMANOVA(k, n, epsilon = 1, f, alpha = 0.05) {
   const r = _powerRMANOVA(k, n, epsilon, f, alpha);
   if (!r) return null;
   return { test: 'RM ANOVA Power', ...r };
 }
 
+// ── OLS Power ─────────────────────────────────────────────────────
+
 export function powerOLS_apa(rSquared, n, k, alpha = 0.05) {
   const r = _powerOLS(rSquared, n, k, alpha);
   if (!r) return null;
   return { test: 'OLS Power', ...r };
 }
+
+// ── Spearman Power ────────────────────────────────────────────────
 
 export function powerSpearmanTest(n, rho, alpha = 0.05) {
   const r = _powerSpearman(n, rho, alpha);

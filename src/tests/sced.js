@@ -1,8 +1,8 @@
-import { avg } from '../math/core.js';
+import { avg, sampleVar } from '../math/core.js';
 import { normalCDF } from '../math/distributions.js';
 
-// Tau-U
-export function tauU(baseline, intervention, { tau = 'A' } = {}) {
+// ── Tau-U ─────────────────────────────────────────────────────────
+export function tauU(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
   const nB = baseline.length, nI = intervention.length;
   let S = 0, tied = 0;
@@ -19,7 +19,7 @@ export function tauU(baseline, intervention, { tau = 'A' } = {}) {
   return { test: 'Tau-U', tau: +tau.toFixed(4), z: +z.toFixed(4), p, nB, nI, apa: `Tau-U = ${tau.toFixed(3)}, z = ${z.toFixed(2)}` };
 }
 
-// PND
+// ── PND ───────────────────────────────────────────────────────────
 export function pnd(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5) return null;
   const maxB = Math.max(...baseline);
@@ -28,7 +28,7 @@ export function pnd(baseline, intervention) {
   return { test: 'PND', pnd: +(100 * above / nI).toFixed(1), nB: baseline.length, nI, apa: `PND = ${(100 * above / nI).toFixed(0)}%` };
 }
 
-// PEM
+// ── PEM ───────────────────────────────────────────────────────────
 export function pem(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5) return null;
   const medB = baseline.slice().sort((a, b) => a - b)[Math.floor(baseline.length / 2)];
@@ -37,7 +37,7 @@ export function pem(baseline, intervention) {
   return { test: 'PEM', pem: +(100 * above / nI).toFixed(1), nB: baseline.length, nI, apa: `PEM = ${(100 * above / nI).toFixed(0)}%` };
 }
 
-// NAP
+// ── NAP ───────────────────────────────────────────────────────────
 export function nap(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
   const nB = baseline.length, nI = intervention.length;
@@ -50,7 +50,7 @@ export function nap(baseline, intervention) {
   return { test: 'NAP', nap: +napVal.toFixed(4), nB, nI, apa: `NAP = ${napVal.toFixed(3)}` };
 }
 
-// Randomization Test for SCED
+// ── Randomization Test for SCED ───────────────────────────────────
 export function randomizationTest(baseline, intervention, { nPerm = 199 } = {}) {
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
   const all = [...baseline, ...intervention];
@@ -64,4 +64,24 @@ export function randomizationTest(baseline, intervention, { nPerm = 199 } = {}) 
   }
   const p = count / nPerm;
   return { test: 'SCED Randomization Test', observedDiff: +obsDiff.toFixed(4), p, nPerm, nB, nI: intervention.length, apa: `Random p = ${p.toFixed(3)}` };
+}
+
+// ── Baseline-Corrected Tau ────────────────────────────────────────
+export function baselineCorrectedTau(baseline, intervention) {
+  if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
+  const nB = baseline.length, nI = intervention.length;
+  const tauRaw = tauU(baseline, intervention)?.tau || 0;
+  const trendB = baseline.slice(1).reduce((s, v, i) => s + (v - baseline[i]), 0) / Math.max(baseline.length - 1, 1);
+  const corrected = tauRaw - trendB * nI / (nB + nI);
+  return { test: 'Baseline-Corrected Tau', tau: +tauRaw.toFixed(4), corrected: +corrected.toFixed(4), trendB: +trendB.toFixed(4), nB, nI, apa: `BC-Tau: ${corrected.toFixed(3)} (raw=${tauRaw.toFixed(3)})` };
+}
+
+// ── Between-Case SMD ──────────────────────────────────────────────
+export function betweenCaseSMD(caseA, caseB) {
+  if (!caseA || !caseB || caseA.length < 5 || caseB.length < 5) return null;
+  const mA = avg(caseA), mB = avg(caseB);
+  const sd = Math.sqrt((sampleVar(caseA) + sampleVar(caseB)) / 2);
+  const smd = sd > 0 ? (mB - mA) / sd : 0;
+  const se = Math.sqrt(1 / caseA.length + 1 / caseB.length + smd * smd / (2 * (caseA.length + caseB.length)));
+  return { test: 'Between-Case SMD', smd: +smd.toFixed(4), se: +se.toFixed(4), nA: caseA.length, nB: caseB.length, apa: `BC-SMD = ${smd.toFixed(2)} (se=${se.toFixed(2)})` };
 }

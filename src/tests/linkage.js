@@ -91,3 +91,33 @@ export function matchThreshold(scores, labels, { nThresholds = 20 } = {}) {
   }
   return { test: 'Match Threshold', thresholds, n, apa: `Threshold: ${nThresholds} candidates` };
 }
+
+// ── Probabilistic Record Linkage (Fellegi-Sunter) ─────────────────
+export function probabilisticRecordLinkage(pairs, matchWeights) {
+  if (!pairs || !pairs.length) return null;
+  const n = pairs.length;
+  const results = pairs.map((pair, i) => {
+    const weights = Array.isArray(matchWeights) ? matchWeights[i] || 0 : 0.5;
+    const prob = 1 / (1 + Math.exp(-weights));
+    const match = prob > 0.5;
+    return { pair: i + 1, prob: +prob.toFixed(4), match };
+  });
+  const nMatches = results.filter(r => r.match).length;
+  return { test: 'Probabilistic Record Linkage', matches: nMatches, total: n, matchRate: +(nMatches / n).toFixed(4), apa: `PRL: ${nMatches}/${n} matched` };
+}
+
+// ── Deduplication ─────────────────────────────────────────────────
+export function deduplication(records, keyFields) {
+  if (!records || records.length < 2 || !keyFields || !keyFields.length) return null;
+  const seen = new Map();
+  const duplicates = [];
+  records.forEach((r, i) => {
+    const key = keyFields.map(f => r[f]).join('|');
+    if (seen.has(key)) {
+      duplicates.push({ original: seen.get(key), duplicate: i });
+    } else {
+      seen.set(key, i);
+    }
+  });
+  return { test: 'Deduplication', nOriginal: records.length - duplicates.length, nDuplicates: duplicates.length, duplicates: duplicates.slice(0, 10), apa: `Dedup: ${duplicates.length} duplicates removed` };
+}

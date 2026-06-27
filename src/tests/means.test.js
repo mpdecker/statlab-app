@@ -1,7 +1,7 @@
 // src/tests/means.test.js
 import { describe, it, expect } from 'vitest';
-import { tWelch, tOne, tPaired, yuentTest, zTestKnownSD, signTest } from './means.js';
-import { expectAPA } from './__fixtures__/helpers.js';
+import { tWelch, tOne, tPaired, yuentTest, zTestKnownSD, signTest, cohensDGroup, equivalenceT, sampleSizeT } from './means.js';
+import { expectAPA, expectKeys } from './__fixtures__/helpers.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const r = ref.means;
@@ -133,4 +133,22 @@ describe('means edge cases', () => {
   it('signTest null for empty data', () => expect(signTest([], 0)).toBeNull());
   it('tWelch d effect size present', () => { const r = tWelch([1, 2, 3, 4, 5], [6, 7, 8, 9, 10]); expect(r).toHaveProperty('d'); });
   it('tOne t-value present', () => { const r = tOne([1, 2, 3, 4]); expect(r).toHaveProperty('t'); });
+});
+
+describe('cohensDGroup', () => {
+  const g1 = [10,12,14,16,18]; const g2 = [6,7,8,9,10];
+  it('contract keys', () => expectKeys(cohensDGroup(g1, g2), ['test','d','se','label','n1','n2','apa']));
+  it('null <3', () => expect(cohensDGroup([1,2], [3,4])).toBeNull());
+  it('d finite', () => { const r = cohensDGroup(g1, g2); if (r) expect(Number.isFinite(r.d)).toBe(true); });
+});
+describe('equivalenceT', () => {
+  const g1 = [10,12,14,16,18]; const g2 = [11,13,15,17,19];
+  it('contract keys', () => expectKeys(equivalenceT(g1, g2, -3, 3), ['test','tLow','tHigh','equivalent','dL','dU','alpha','apa']));
+  it('null dL>=dU', () => expect(equivalenceT(g1, g2, 3, -3)).toBeNull());
+  it('equivalent is boolean', () => { const r = equivalenceT(g1, g2, -3, 3); if (r) expect(typeof r.equivalent).toBe('boolean'); });
+});
+describe('sampleSizeT', () => {
+  it('contract keys', () => expectKeys(sampleSizeT(0.5), ['test','nPerGroup','total','d','power','alpha','type','apa']));
+  it('null d<=0', () => expect(sampleSizeT(0)).toBeNull());
+  it('nPerGroup positive integer', () => { const r = sampleSizeT(0.5); if (r) { expect(r.nPerGroup).toBeGreaterThan(0); expect(Number.isInteger(r.nPerGroup)).toBe(true); } });
 });

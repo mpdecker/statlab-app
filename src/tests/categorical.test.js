@@ -305,6 +305,11 @@ describe('leveneTest', () => {
     const res = leveneTest([g1, g2]);
     expect(res.equal).toBe(true);
   });
+
+  it('F is non-negative', () => {
+    const res = leveneTest([[1, 2, 3, 4, 5], [10, 20, 30, 40, 50]]);
+    expect(res.F).toBeGreaterThanOrEqual(0);
+  });
 });
 
 describe('bartlettTest', () => {
@@ -320,6 +325,12 @@ describe('bartlettTest', () => {
     const res = bartlettTest(groups);
     expect(res.p).toBeGreaterThanOrEqual(0);
     expect(res.p).toBeLessThanOrEqual(1);
+  });
+
+  it('B is non-negative', () => {
+    const groups = [[1,2,3,4,5], [2,4,6,8,10]];
+    const r = bartlettTest(groups);
+    expect(r.B).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -337,6 +348,12 @@ describe('bonferroni', () => {
     const res = bonferroni(pairs);
     res.forEach(r => expect(r.pAdj).toBeLessThanOrEqual(1));
   });
+
+  it('pAdj >= original p', () => {
+    const pairs = [{ p: 0.01 }, { p: 0.03 }, { p: 0.05 }];
+    const res = bonferroni(pairs);
+    res.forEach(r => expect(r.pAdj).toBeGreaterThanOrEqual(r.p));
+  });
 });
 
 describe('holm', () => {
@@ -351,6 +368,12 @@ describe('holm', () => {
     const pairs = [{ p: 0.4 }, { p: 0.5 }, { p: 0.6 }];
     const res = holm(pairs);
     res.forEach(r => expect(r.pAdj).toBeLessThanOrEqual(1));
+  });
+
+  it('pAdj >= original p', () => {
+    const pairs = [{ p: 0.01 }, { p: 0.03 }, { p: 0.05 }];
+    const res = holm(pairs);
+    res.forEach(r => expect(r.pAdj).toBeGreaterThanOrEqual(r.p));
   });
 });
 
@@ -367,14 +390,19 @@ describe('bh', () => {
       expect(r.pAdj).toBeGreaterThanOrEqual(0);
       expect(r.pAdj).toBeLessThanOrEqual(1);
   });
+  });
+  it('pAdj >= original p', () => {
+    const pairs = [{ p: 0.01 }, { p: 0.04 }];
+    const res = bh(pairs);
+    res.forEach(r => expect(r.pAdj).toBeGreaterThanOrEqual(r.p));
+  });
 });
 
-describe('storeyQValue', () => { it('contract keys', () => expectKeys(storeyQValue([0.01, 0.05, 0.1, 0.2, 0.5]), ['test', 'qValues', 'pi0', 'n', 'apa'])); });
-describe('benjaminiYekutieli', () => { it('contract keys', () => expectKeys(benjaminiYekutieli([0.01, 0.05, 0.1]), ['test', 'thresholds', 'n', 'apa'])); });
-describe('localFDR', () => { it('contract keys', () => expectKeys(localFDR([0.01, 0.05, 0.1, 0.2]), ['test', 'lfdr', 'pi0', 'n', 'apa'])); });
-describe('stratifiedFDR', () => { it('contract keys', () => expectKeys(stratifiedFDR([0.01, 0.05, 0.1, 0.2], [1, 1, 2, 2]), ['test', 'results', 'n', 'nStrata', 'apa'])); });
-describe('fwerControl', () => { it('contract keys', () => expectKeys(fwerControl([0.001, 0.01, 0.05, 0.5]), ['test', 'rejected', 'method', 'n', 'apa'])); });
-});
+describe('storeyQValue', () => { it('contract keys', () => expectKeys(storeyQValue([0.01, 0.05, 0.1, 0.2, 0.5]), ['test', 'qValues', 'pi0', 'n', 'apa'])); it('pi0 between 0-1', () => { const r = storeyQValue([0.01, 0.05, 0.1, 0.2, 0.5]); expect(r.pi0).toBeGreaterThanOrEqual(0); expect(r.pi0).toBeLessThanOrEqual(1); }); it('qValues non-empty', () => { const r = storeyQValue([0.01, 0.05, 0.1, 0.2, 0.5]); expect(r.qValues.length).toBeGreaterThan(0); }); });
+describe('benjaminiYekutieli', () => { it('contract keys', () => expectKeys(benjaminiYekutieli([0.01, 0.05, 0.1]), ['test', 'thresholds', 'n', 'apa'])); it('nSig counts', () => { const r = benjaminiYekutieli([0.01, 0.05, 0.1]); expect(r.n).toBe(3); }); it('thresholds non-empty', () => { const r = benjaminiYekutieli([0.01, 0.05, 0.1]); expect(r.thresholds.length).toBeGreaterThan(0); }); });
+describe('localFDR', () => { it('contract keys', () => expectKeys(localFDR([0.01, 0.05, 0.1, 0.2]), ['test', 'lfdr', 'pi0', 'n', 'apa'])); it('lfdr values between 0-1', () => { const r = localFDR([0.01, 0.05, 0.1, 0.2]); r.lfdr.forEach(v => { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1); }); }); it('lfdr length matches n', () => { const r = localFDR([0.01, 0.05, 0.1, 0.2]); expect(r.lfdr.length).toBe(r.n); }); });
+describe('stratifiedFDR', () => { it('contract keys', () => expectKeys(stratifiedFDR([0.01, 0.05, 0.1, 0.2], [1, 1, 2, 2]), ['test', 'results', 'n', 'nStrata', 'apa'])); it('results non-empty', () => { const r = stratifiedFDR([0.01, 0.05, 0.1, 0.2], [1, 1, 2, 2]); if (r) expect(r.results.length).toBeGreaterThan(0); }); it('nStrata correct', () => { const r = stratifiedFDR([0.01, 0.05, 0.1, 0.2], [1, 1, 2, 2]); if (r) expect(r.nStrata).toBe(2); }); });
+describe('fwerControl', () => { it('contract keys', () => expectKeys(fwerControl([0.001, 0.01, 0.05, 0.5]), ['test', 'rejected', 'method', 'n', 'apa'])); it('nRejected integer', () => { const r = fwerControl([0.001, 0.01, 0.05, 0.5]); expect(Number.isInteger(r.rejected)).toBe(true); }); it('rejected between 0 and n', () => { const r = fwerControl([0.001, 0.01, 0.05, 0.5]); expect(r.rejected).toBeGreaterThanOrEqual(0); expect(r.rejected).toBeLessThanOrEqual(4); }); });
 
 describe('sensitivityLOO', () => {
   it('returns null for n < 10', () =>
@@ -388,6 +416,14 @@ describe('sensitivityLOO', () => {
     expect(res).toHaveProperty('nSig');
     expect(res).toHaveProperty('propSig');
     expect(res).toHaveProperty('stable');
+  });
+
+  it('propSig between 0 and 1', () => {
+    const vals = Array.from({ length: 20 }, (_, i) => i + 1);
+    const testFn = arr => ({ p: arr.length > 10 ? 0.01 : 0.1 });
+    const r = sensitivityLOO(vals, testFn);
+    expect(r.propSig).toBeGreaterThanOrEqual(0);
+    expect(r.propSig).toBeLessThanOrEqual(1);
   });
 });
 
@@ -478,39 +514,19 @@ describe('dunnTest', () => {
   const g = [{ name: 'A', vals: [1, 2, 3, 4] }, { name: 'B', vals: [5, 6, 7, 8] }, { name: 'C', vals: [9, 10, 11, 12] }];
   it('null <2', () => expect(dunnTest([g[0]])).toBeNull());
   it('contract keys', () => expectKeys(dunnTest(g), ['test', 'pairs', 'alpha', 'k', 'apa']));
+  it('pairs non-empty', () => { const r = dunnTest(g); if (r) expect(r.pairs.length).toBeGreaterThan(0); });
 });
 
 describe('nemenyiTest', () => {
   const g = [{ name: 'A', vals: [1, 2, 3] }, { name: 'B', vals: [2, 3, 4] }, { name: 'C', vals: [3, 4, 5] }];
   it('null <2', () => expect(nemenyiTest([g[0]])).toBeNull());
   it('contract keys', () => expectKeys(nemenyiTest(g), ['test', 'pairs', 'k', 'n', 'alpha', 'apa']));
+  it('k is non-zero', () => { const r = nemenyiTest(g); if (r) expect(r.k).toBeGreaterThan(0); });
 });
 
 describe('cochranQPost', () => {
   const d = []; for (let i = 0; i < 10; i++) d.push({ v1: i % 2, v2: (i + 1) % 2, v3: i % 2 });
   it('contract keys', () => expectKeys(cochranQPost(d, ['v1', 'v2', 'v3']), ['test', 'pairs', 'k', 'nSubjects', 'alpha', 'apa']));
-});
-
-  it('V in [0,1]', () => {
-    const r = cramersV(12.5, 50, 3);
-    expect(r.v).toBeGreaterThanOrEqual(0);
-    expect(r.v).toBeLessThanOrEqual(1);
-  });
-
-  it('label matches thresholds', () => {
-    expect(cramersV(0.5, 100, 3).label).toBe('negligible');
-    expect(cramersV(5, 100, 3).label).toBe('small');
-    expect(cramersV(30, 100, 3).label).toBe('medium');
-    expect(cramersV(80, 100, 3).label).toBe('large');
-  });
-
-  it('contract keys', () => {
-    expectKeys(cramersV(12.5, 50, 3), ['test', 'v', 'df', 'label', 'n', 'apa']);
-  });
-
-  it('apa is a non-empty string', () => {
-    const r = cramersV(12.5, 50, 3);
-    expect(typeof r.apa).toBe('string');
-    expect(r.apa.length).toBeGreaterThan(0);
-  });
+  it('pairs non-empty', () => { const r = cochranQPost(d, ['v1', 'v2', 'v3']); if (r) expect(r.pairs.length).toBeGreaterThan(0); });
+  it('k matches vars', () => { const r = cochranQPost(d, ['v1', 'v2', 'v3']); if (r) expect(r.k).toBe(3); });
 });

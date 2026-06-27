@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { giniCoefficient, lorenzCurve, theilIndex, atkinsonIndex, concentrationIndex } from './inequality.js';
+import { giniCoefficient, lorenzCurve, theilIndex, atkinsonIndex, concentrationIndex, hooverIndex, palmaRatio, decomposition } from './inequality.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 50];
@@ -19,14 +19,37 @@ describe('lorenzCurve', () => {
 describe('theilIndex', () => {
   it('contract keys', () => expectKeys(theilIndex(data), ['test', 'theil', 'n', 'apa']));
   it('null <5', () => expect(theilIndex([1, 2, 3])).toBeNull());
+  it('theil non-negative', () => { const r = theilIndex(data); if (r) expect(r.theil).toBeGreaterThanOrEqual(0); });
 });
 
 describe('atkinsonIndex', () => {
   it('contract keys', () => expectKeys(atkinsonIndex(data), ['test', 'atkinson', 'epsilon', 'n', 'apa']));
   it('epsilon=2 works', () => { const r = atkinsonIndex(data, { epsilon: 2 }); expect(r.epsilon).toBe(2); });
+  it('atkinson between 0-1', () => { const r = atkinsonIndex(data); if (r) { expect(r.atkinson).toBeGreaterThanOrEqual(0); expect(r.atkinson).toBeLessThanOrEqual(1); } });
 });
 
 describe('concentrationIndex', () => {
   it('contract keys', () => expectKeys(concentrationIndex(data, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), ['test', 'ci', 'n', 'apa']));
   it('null <5', () => expect(concentrationIndex([1, 2], [3, 4])).toBeNull());
+  it('ci between -1 and 1', () => { const r = concentrationIndex(data, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]); if (r) { expect(r.ci).toBeGreaterThanOrEqual(-1); expect(r.ci).toBeLessThanOrEqual(1); } });
+});
+
+describe('hooverIndex', () => {
+  const data = [1,2,3,4,5,10,20,50];
+  it('contract keys', () => expectKeys(hooverIndex(data), ['test','H','n','apa']));
+  it('null <3', () => expect(hooverIndex([1,2])).toBeNull());
+  it('H between 0-1', () => { const r = hooverIndex(data); if (r) { expect(r.H).toBeGreaterThanOrEqual(0); expect(r.H).toBeLessThanOrEqual(1); } });
+});
+describe('palmaRatio', () => {
+  const data = [1,2,3,4,5,6,7,8,10,20,50,100];
+  it('contract keys', () => expectKeys(palmaRatio(data), ['test','ratio','n','apa']));
+  it('null <10', () => expect(palmaRatio([1,2,3])).toBeNull());
+  it('ratio >= 0', () => { const r = palmaRatio(data); if (r) expect(r.ratio).toBeGreaterThanOrEqual(0); });
+});
+describe('decomposition', () => {
+  const data = [1,2,3,10,20,30,100,200,300];
+  const groups = [1,1,1,2,2,2,3,3,3];
+  it('contract keys', () => expectKeys(decomposition(data, groups), ['test','Tbetween','Twithin','Ttotal','n','apa']));
+  it('null mismatched', () => expect(decomposition([1,2,3], [1,2])).toBeNull());
+  it('Tbetween non-negative', () => { const r = decomposition(data, groups); if (r) expect(r.Tbetween).toBeGreaterThanOrEqual(0); });
 });

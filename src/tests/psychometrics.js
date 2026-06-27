@@ -41,6 +41,8 @@ export function omegaMcDonald(matrix) {
 }
 
 /** Parallel analysis (Monte Carlo) — compare data eigenvalues to random */
+
+// ── Parallel Analysis ─────────────────────────────────────────────
 export function parallelAnalysis(data, vars, nReps = 40, seed = 42) {
   const matrix = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
   const n = matrix.length;
@@ -76,6 +78,8 @@ export function parallelAnalysis(data, vars, nReps = 40, seed = 42) {
 }
 
 /** Rasch 1PL — joint ML difficulties (discrimination fixed at 1) */
+
+// ── IRT Rasch (1PL) ───────────────────────────────────────────────
 export function irtRasch1PL(matrix) {
   const n = matrix.length;
   const k = matrix[0]?.length;
@@ -128,6 +132,8 @@ export function irtRasch1PL(matrix) {
 }
 
 /** 2PL IRT — per-item a and b (simplified JML) */
+
+// ── IRT 2PL ───────────────────────────────────────────────────────
 export function irt2PL(matrix) {
   const n = matrix.length;
   const k = matrix[0]?.length;
@@ -185,6 +191,8 @@ export function irt2PL(matrix) {
 }
 
 /** Composite scale scoring (sum/mean) with optional reverse coding */
+
+// ── Scale Scoring ─────────────────────────────────────────────────
 export function scaleScore(matrix, { method = 'sum', reverseIdx = [] } = {}) {
   const k = matrix[0]?.length;
   const n = matrix.length;
@@ -221,6 +229,8 @@ export function scaleScore(matrix, { method = 'sum', reverseIdx = [] } = {}) {
 function logistic(x) {
   return 1 / (1 + Math.exp(-Math.max(-20, Math.min(20, x))));
 }
+
+// ── IRT 3PL ───────────────────────────────────────────────────────
 
 export function irt3PL(matrix, { maxIter = 60, tolerance = 1e-5 } = {}) {
   if (!matrix || matrix.length < 10 || !matrix[0]) return null;
@@ -502,7 +512,7 @@ export function testInformation(items, thetaMin = -4, thetaMax = 4, nPoints = 81
   };
 }
 
-// DIF via Mantel-Haenszel
+// ── DIF via Mantel-Haenszel ───────────────────────────────────────
 export function difMH(data, groupVar, items) {
   if (!data || data.length < 20 || !groupVar || !items || items.length < 3) return null;
   const groups = [...new Set(data.map(r => r[groupVar]))];
@@ -554,7 +564,7 @@ export function difMH(data, groupVar, items) {
   };
 }
 
-// EAP Scoring
+// ── EAP Scoring ───────────────────────────────────────────────────
 export function eapScoring(itemParams, response, { nQPoints = 40 } = {}) {
   if (!itemParams || !itemParams.length || !response || response.length !== itemParams.length) return null;
   const n = itemParams.length;
@@ -609,7 +619,7 @@ export function eapScoring(itemParams, response, { nQPoints = 40 } = {}) {
   };
 }
 
-// Multidimensional 2PL
+// ── Multidimensional 2PL ──────────────────────────────────────────
 export function multidimensional2PL(data, items, dimensions) {
   if (!data || data.length < 20 || !items || !items.length || !dimensions || !dimensions.length) return null;
   const n = data.length;
@@ -668,7 +678,7 @@ export function multidimensional2PL(data, items, dimensions) {
   };
 }
 
-// Item Fit
+// ── Item Fit ──────────────────────────────────────────────────────
 export function itemFit(itemParams, responseMatrix, scores) {
   if (!itemParams || !itemParams.length || !responseMatrix || responseMatrix.length < 3) return null;
   const nItems = itemParams.length;
@@ -723,7 +733,7 @@ export function itemFit(itemParams, responseMatrix, scores) {
   };
 }
 
-// Nominal Response Model
+// ── Nominal Response Model ────────────────────────────────────────
 export function nominalResponseModel(itemResponses, categories) {
   if (!itemResponses || itemResponses.length < 10) return null;
   const n = itemResponses.length, k = categories || 3;
@@ -734,7 +744,7 @@ export function nominalResponseModel(itemResponses, categories) {
   return { test: 'Nominal Response Model', probabilities: probs, n, nCategories: k, apa: `NRM: ${k} categories, n = ${n}` };
 }
 
-// Generalized Partial Credit Model
+// ── Generalized Partial Credit Model ──────────────────────────────
 export function generalizedPartialCredit(itemScores, nCategories) {
   if (!itemScores || itemScores.length < 10) return null;
   const n = itemScores.length, k = nCategories || 3;
@@ -747,7 +757,7 @@ export function generalizedPartialCredit(itemScores, nCategories) {
   return { test: 'Generalized Partial Credit', thresholds, n, nCategories: k, apa: `GPCM: ${k} categories, n = ${n}` };
 }
 
-// Test Equating (Tucker)
+// ── Test Equating (Tucker) ────────────────────────────────────────
 export function testEquating(scoresA, scoresB) {
   if (!scoresA || !scoresB || scoresA.length < 10 || scoresB.length < 10) return null;
   const mA = avg(scoresA), mB = avg(scoresB);
@@ -758,7 +768,7 @@ export function testEquating(scoresA, scoresB) {
   return { test: 'Test Equating (Tucker)', equated: equated.slice(0, 10), slope: +(sA / sB).toFixed(4), intercept: +(mA - (sA / sB) * mB).toFixed(4), nA: scoresA.length, nB: scoresB.length, apa: `Equated: A ~ B, slope = ${(sA / sB).toFixed(2)}` };
 }
 
-// Mixed-Format IRT
+// ── Mixed-Format IRT ──────────────────────────────────────────────
 export function mixedFormatIRT(responses, formats) {
   if (!responses || !formats || responses.length !== formats.length || responses.length < 5) return null;
   const n = responses.length;
@@ -768,7 +778,7 @@ export function mixedFormatIRT(responses, formats) {
   return { test: 'Mixed-Format IRT', results, n, nBinary: formats.filter(f => f === 'binary').length, nOrdinal: formats.filter(f => f === 'ordinal').length, apa: `Mixed IRT: ${n} items` };
 }
 
-// DIF via Logistic Regression
+// ── DIF via Logistic Regression ───────────────────────────────────
 export function difLogistic(data, groupVar, item, totalScore) {
   if (!data || data.length < 20 || !groupVar || !item) return null;
   const n = data.length;
@@ -782,4 +792,87 @@ export function difLogistic(data, groupVar, item, totalScore) {
   const diag = XtX.map((r, i) => r[i] || 1);
   const beta = XtY.map((v, i) => v / diag[i]);
   return { test: 'DIF Logistic', uniform: +beta[2].toFixed(4), nonUniform: +beta[3].toFixed(4), n, apa: `DIF logit: uniform = ${beta[2].toFixed(3)}, non-uniform = ${beta[3].toFixed(3)}` };
+}
+
+// ── Test-Retest Reliability ───────────────────────────────────────
+export function testRetestReliability(t1, t2) {
+  if (!t1 || !t2 || t1.length < 5 || t1.length !== t2.length) return null;
+  const n = t1.length;
+  const r = corr(t1, t2);
+  const diff = t1.map((v, i) => v - t2[i]);
+  const meanDiff = avg(diff);
+  const sdDiff = Math.sqrt(sampleVar(diff));
+  const loa = [meanDiff - 1.96 * sdDiff, meanDiff + 1.96 * sdDiff];
+  return { test: 'Test-Retest Reliability', r: +r.toFixed(4), meanDiff: +meanDiff.toFixed(4), loa: loa.map(v => +v.toFixed(4)), n, apa: `Test-retest: r = ${r.toFixed(3)}, mean diff = ${meanDiff.toFixed(2)}` };
+}
+
+// ── Inter-Rater Reliability (Fleiss Kappa expansion) ──────────────
+export function interRaterReliability(ratings) {
+  if (!ratings || !ratings.length || ratings.length < 3) return null;
+  const nSubjects = ratings[0].length;
+  const nRaters = ratings.length;
+  const categories = [...new Set(ratings.flat())];
+  if (categories.length < 2) return null;
+  const k = categories.length;
+  const nij = Array.from({ length: nSubjects }, () => Array(k).fill(0));
+  for (let i = 0; i < nSubjects; i++) {
+    for (const rater of ratings) {
+      const idx = categories.indexOf(rater[i]);
+      if (idx >= 0) nij[i][idx]++;
+    }
+  }
+  const pj = Array(k).fill(0);
+  for (let i = 0; i < nSubjects; i++) for (let j = 0; j < k; j++) pj[j] += nij[i][j];
+  for (let j = 0; j < k; j++) pj[j] /= nSubjects * nRaters;
+  const Pi = nij.map(ni => {
+    let sum = 0;
+    for (let j = 0; j < k; j++) sum += ni[j] * (ni[j] - 1);
+    return sum / (nRaters * (nRaters - 1));
+  });
+  const Pbar = avg(Pi);
+  const Pe = pj.reduce((s, p) => s + p * p, 0);
+  const fleissKappa = Pe < 1 ? (Pbar - Pe) / (1 - Pe) : 0;
+  return { test: 'Inter-Rater Reliability', kappa: +fleissKappa.toFixed(4), nSubjects, nRaters, apa: `Fleiss k = ${fleissKappa.toFixed(3)}, ${nRaters} raters` };
+}
+
+// ── Parallel Forms Reliability ────────────────────────────────────
+export function parallelFormsReliability(formA, formB) {
+  if (!formA || !formB || formA.length < 5 || formA.length !== formB.length) return null;
+  const n = formA.length;
+  const r = corr(formA, formB);
+  const rCorrected = 2 * r / (1 + r);
+  return { test: 'Parallel Forms Reliability', r: +r.toFixed(4), corrected: +rCorrected.toFixed(4), n, apa: `Parallel forms: r = ${r.toFixed(3)}, corrected = ${rCorrected.toFixed(3)}` };
+}
+
+// ── Item Difficulty Index (P-value) ───────────────────────────────
+export function itemDifficultyIndex(responses) {
+  if (!responses || responses.length < 5 || !responses[0]?.length) return null;
+  const nItems = responses[0].length;
+  const nExaminees = responses.length;
+  const difficulties = Array.from({ length: nItems }, (_, j) => {
+    const correct = responses.filter(r => r[j] === 1).length;
+    return +((correct / nExaminees)).toFixed(4);
+  });
+  return { test: 'Item Difficulty Index', difficulties, nItems, nExaminees, apa: `Item difficulty: ${difficulties.map(d => d.toFixed(2)).join(', ')}` };
+}
+
+// ── Item Discrimination Index ─────────────────────────────────────
+export function itemDiscriminationIndex(responses, totalScores = null) {
+  if (!responses || responses.length < 10 || !responses[0]?.length) return null;
+  const nExaminees = responses.length;
+  const nItems = responses[0].length;
+  const totals = totalScores || responses.map(r => r.reduce((s, v) => s + v, 0));
+  const sorted = totals.map((t, i) => ({ i, t })).sort((a, b) => b.t - a.t);
+  const nTop = Math.floor(nExaminees * 0.27);
+  const topIdx = new Set(sorted.slice(0, nTop).map(s => s.i));
+  const bottomIdx = new Set(sorted.slice(-nTop).map(s => s.i));
+  const discriminations = Array.from({ length: nItems }, (_, j) => {
+    let topCorrect = 0, bottomCorrect = 0;
+    for (let i = 0; i < nExaminees; i++) {
+      if (topIdx.has(i)) topCorrect += responses[i][j];
+      if (bottomIdx.has(i)) bottomCorrect += responses[i][j];
+    }
+    return +((topCorrect - bottomCorrect) / nTop).toFixed(4);
+  });
+  return { test: 'Item Discrimination Index', discriminations, nItems, nExaminees, apa: `Item disc: ${discriminations.map(d => d.toFixed(2)).join(', ')}` };
 }

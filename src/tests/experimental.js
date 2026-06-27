@@ -13,6 +13,8 @@ function sourceRow(source, df, ss, ms, F, p) {
   };
 }
 
+// ── Randomized Block ANOVA ────────────────────────────────────────
+
 export function randomizedBlockANOVA(data, { treatment, block, response } = {}) {
   if (!data || data.length < 4 || !treatment || !block || !response) return null;
   const gAvg = avg(data.map(r => +r[response]));
@@ -41,6 +43,8 @@ export function randomizedBlockANOVA(data, { treatment, block, response } = {}) 
     apa: `Randomized block: F(Treatment, ${dfTreat},${dfError}) = ${Ft.toFixed(2)}, ${fmtP(fPVal(Ft, dfTreat, dfError))}`,
   };
 }
+
+// ── Latin Square ANOVA ────────────────────────────────────────────
 
 export function latinSquareANOVA(matrix) {
   if (!matrix || !matrix.length || !matrix[0]?.length) return null;
@@ -79,6 +83,8 @@ export function latinSquareANOVA(matrix) {
     apa: `Latin square: F(Treatment, ${dfT},${dfE}) = ${(msT / msE).toFixed(2)}, ${fmtP(fPVal(msT / msE, dfT, dfE))}`,
   };
 }
+
+// ── Split-Plot ANOVA ──────────────────────────────────────────────
 
 export function splitPlotANOVA(data, { between, within, subject, response } = {}) {
   if (!data || data.length < 6 || !between || !within || !subject || !response) return null;
@@ -137,6 +143,8 @@ export function splitPlotANOVA(data, { between, within, subject, response } = {}
     apa: `Split-plot: F(Between, ${dfB},${dfWP}) = ${(msB / msWP).toFixed(2)}, F(Within, ${dfW},${dfSP}) = ${(msW / msSP).toFixed(2)}`,
   };
 }
+
+// ── Crossover ANOVA ───────────────────────────────────────────────
 
 export function crossoverANOVA(data, { subject, period, treatment, response, sequence } = {}) {
   if (!data || data.length < 4 || !subject || !period || !treatment || !response) return null;
@@ -647,7 +655,7 @@ export function optimalDesign(factors, nRuns, { model = 'linear+interaction', se
   };
 }
 
-// Plackett-Burman Design
+// ── Plackett-Burman Design ────────────────────────────────────────
 export function plackettBurman(factors) {
   if (!factors || factors.length < 2 || factors.length > 20) return null;
   const k = factors.length;
@@ -664,7 +672,7 @@ export function plackettBurman(factors) {
   return { test: 'Plackett-Burman', runs, nRuns: runs.length, nFactors: k, apa: `PB: ${runs.length} runs, ${k} factors` };
 }
 
-// Taguchi L-Array
+// ── Taguchi L-Array ───────────────────────────────────────────────
 export function taguchiLArray(factors, levels) {
   if (!factors || factors.length < 2 || !levels || levels.length < 2) return null;
   const k = factors.length, L = levels.length;
@@ -683,7 +691,7 @@ export function taguchiLArray(factors, levels) {
   return { test: 'Taguchi L-Array', runs, nRuns, nFactors: k, nLevels: L, apa: `L-array: ${nRuns} runs, ${k} factors at ${L} levels` };
 }
 
-// DOE Power
+// ── DOE Power ─────────────────────────────────────────────────────
 export function doePower(nFactors, nRuns, effectSize, alpha = 0.05) {
   if (!nFactors || nFactors < 2 || nRuns < nFactors + 2) return null;
   const dfError = nRuns - nFactors - 1;
@@ -694,7 +702,7 @@ export function doePower(nFactors, nRuns, effectSize, alpha = 0.05) {
   return { test: 'DOE Power', power: +power.toFixed(4), nFactors, nRuns, effectSize, alpha, apa: `DOE power = ${power.toFixed(3)} for ${nFactors} factors, ${nRuns} runs` };
 }
 
-// Definitive Screening Design
+// ── Definitive Screening Design ───────────────────────────────────
 export function definitiveScreening(factors) {
   if (!factors || factors.length < 3) return null;
   const k = factors.length;
@@ -710,4 +718,54 @@ export function definitiveScreening(factors) {
   }
   runs.push(factors.reduce((obj, f) => ({ ...obj, [f.name]: 0, type: 'dsd' }), {}));
   return { test: 'Definitive Screening', runs, nRuns: runs.length, nFactors: k, apa: `DSD: ${runs.length} runs, ${k} factors` };
+}
+
+// ── Latin Hypercube Sampling ──────────────────────────────────────
+export function latinHypercube(n, d, { range = [0, 1] } = {}) {
+  if (n < 2 || d < 1 || d > 10) return null;
+  const samples = Array.from({length: n}, (_, i) => Array(d).fill(0));
+  for (let j = 0; j < d; j++) {
+    const perm = [...Array(n).keys()].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < n; i++) {
+      samples[i][j] = +((range[0] + (perm[i] + Math.random()) * (range[1] - range[0]) / n).toFixed(4));
+    }
+  }
+  return { test: 'Latin Hypercube', samples, n, d, apa: `LHS: ${n} points, ${d} dim` };
+}
+
+// ── Gaussian Process Emulator ─────────────────────────────────────
+export function gpEmulator(X, y, { lengthScale = 1, noiseVar = 0.01 } = {}) {
+  if (!X || !y || X.length < 5 || y.length < 5) return null;
+  const n = X.length;
+  const K = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => {
+    let s = 0;
+    for (let k = 0; k < X[i].length; k++) s += (X[i][k] - X[j][k]) ** 2;
+    return Math.exp(-0.5 * s / (lengthScale * lengthScale)) + (i === j ? noiseVar : 0);
+  }));
+  const alpha = K.map((row, i) => row.reduce((s, v, j) => s + v * y[j], 0) / Math.max(row.reduce((r, v) => r + v, 0), 1));
+  const pred = X.map((xi, i) => {
+    let s = 0;
+    for (let j = 0; j < n; j++) {
+      let d2 = 0;
+      for (let k = 0; k < xi.length; k++) d2 += (xi[k] - X[j][k]) ** 2;
+      s += alpha[j] * Math.exp(-0.5 * d2 / (lengthScale * lengthScale));
+    }
+    return +s.toFixed(4);
+  });
+  const rmse = Math.sqrt(pred.reduce((s, p, i) => s + (p - y[i]) ** 2, 0) / n);
+  return { test: 'GP Emulator', predictions: pred.slice(0, 15), rmse: +rmse.toFixed(4), n, apa: `GP: RMSE=${rmse.toFixed(2)}, n=${n}` };
+}
+
+// ── Expected Improvement ──────────────────────────────────────────
+export function expectedImprovement(gpMean, gpStd, bestObserved) {
+  if (!gpMean || !gpStd || gpMean.length < 2) return null;
+  const n = gpMean.length;
+  const ei = gpMean.map((mu, i) => {
+    const sig = Math.max(gpStd[i] || 0.01, 0.001);
+    const z = (mu - bestObserved) / sig;
+    const phi = Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+    return +((mu - bestObserved) * (0.5 + 0.5 * Math.tanh(z / Math.SQRT2)) + sig * phi).toFixed(6);
+  });
+  const bestIdx = ei.indexOf(Math.max(...ei));
+  return { test: 'Expected Improvement', ei, bestIdx, bestObserved, n, apa: `EI: best index = ${bestIdx}` };
 }

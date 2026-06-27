@@ -1,0 +1,35 @@
+import { describe, it, expect } from 'vitest';
+import { expectKeys } from './__fixtures__/helpers.js';
+import { partWorthUtilities, attributeImportance, choiceSimulation, orthogonalDesign, marketSimulator } from './conjoint.js';
+
+const profiles = []; for (let i = 0; i < 12; i++) profiles.push({ brand: (i % 3) + 1, price: (i % 2) + 1, feature: (Math.floor(i / 4) % 3) + 1 });
+const ratings = profiles.map(() => Math.random() * 10);
+
+describe('partWorthUtilities', () => {
+  it('contract keys', () => expectKeys(partWorthUtilities(ratings, profiles, ['brand','price','feature']), ['test','utilities','n','apa']));
+  it('null <2 attrs', () => expect(partWorthUtilities(ratings, profiles, ['brand'])).toBeNull());
+  it('utilities array non-empty', () => { const r = partWorthUtilities(ratings, profiles, ['brand','price','feature']); if (r) expect(r.utilities.length).toBeGreaterThan(0) });
+});
+describe('attributeImportance', () => {
+  const pw = partWorthUtilities(ratings, profiles, ['brand','price','feature']);
+  it('contract keys', () => { if (pw) expectKeys(attributeImportance(pw), ['test','importance','apa']); });
+  it('importance sums to 100%', () => { if (pw) { const r = attributeImportance(pw); if (r) { const sum = r.importance.reduce((s, v) => s + v.importance, 0); expect(Math.abs(sum - 100) < 2).toBe(true) } } });
+  it('importance non-empty', () => { if (pw) { const r = attributeImportance(pw); if (r) expect(r.importance.length).toBeGreaterThan(0); } });
+});
+describe('choiceSimulation', () => {
+  it('contract keys', () => expectKeys(choiceSimulation(profiles, ['brand','price']), ['test','marketShares','nRespondents','nProfiles','apa']));
+  it('null <3 profiles', () => expect(choiceSimulation(profiles.slice(0,2), ['brand'])).toBeNull());
+  it('shares sum to 100%', () => { const r = choiceSimulation(profiles, ['brand','price']); if (r && r.marketShares) { const sum = r.marketShares.reduce((s, v) => s + v.share, 0); expect(Math.abs(sum - 100) < 2).toBe(true) } });
+});
+describe('orthogonalDesign', () => {
+  it('contract keys', () => expectKeys(orthogonalDesign(['A','B','C'], [2,2,2]), ['test','runs','nRuns','nAttrs','apa']));
+  it('null <2 attrs', () => expect(orthogonalDesign(['A'], [2])).toBeNull());
+  it('each run has all attributes', () => { const r = orthogonalDesign(['A','B','C'], [2,2,2]); if (r) r.runs.forEach(run => { expect(run).toHaveProperty('A'); expect(run).toHaveProperty('B'); expect(run).toHaveProperty('C') }) });
+});
+describe('marketSimulator', () => {
+  const pw = partWorthUtilities(ratings, profiles, ['brand','price','feature']);
+  const scenario = [{brand:1,price:1,feature:2},{brand:2,price:2,feature:1}];
+  it('contract keys', () => { if (pw) expectKeys(marketSimulator(pw, scenario), ['test','shares','nProfiles','apa']); });
+  it('null <2 profiles', () => { if (pw) expect(marketSimulator(pw, [scenario[0]])).toBeNull(); });
+  it('shares have correct profile count', () => { if (pw) { const r = marketSimulator(pw, scenario); if (r) expect(r.shares.length).toBe(scenario.length) } });
+});

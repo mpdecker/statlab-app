@@ -101,3 +101,38 @@ export function signTest(a, mu0 = 0) {
     apa: `Sign test: ${pos}+, ${neg}−, p = ${p.toFixed(4)}`,
   };
 }
+
+// Cohen's d (from group data)
+export function cohensDGroup(group1, group2) {
+  if (!group1 || !group2 || group1.length < 3 || group2.length < 3) return null;
+  const m1 = avg(group1), m2 = avg(group2);
+  const s1 = sampleVar(group1), s2 = sampleVar(group2);
+  const sp = Math.sqrt(((group1.length - 1) * s1 + (group2.length - 1) * s2) / (group1.length + group2.length - 2));
+  const d = sp > 0 ? (m1 - m2) / sp : 0;
+  const se = Math.sqrt(1 / group1.length + 1 / group2.length + d * d / (2 * (group1.length + group2.length)));
+  const label = Math.abs(d) > 0.8 ? 'large' : Math.abs(d) > 0.5 ? 'medium' : 'small';
+  return { test: "Cohen's d", d: +d.toFixed(4), se: +se.toFixed(4), label, n1: group1.length, n2: group2.length, apa: `d = ${d.toFixed(2)} (${label})` };
+}
+
+// ── Equivalence T-test ────────────────────────────────────────────
+export function equivalenceT(group1, group2, dL, dU, alpha = 0.05) {
+  if (!group1 || !group2 || group1.length < 3 || group2.length < 3 || dL >= dU) return null;
+  const m1 = avg(group1), m2 = avg(group2);
+  const se = Math.sqrt(sampleVar(group1) / group1.length + sampleVar(group2) / group2.length);
+  const tLow = (m1 - m2 - dL) / Math.max(se, 0.001);
+  const tHigh = (dU - (m1 - m2)) / Math.max(se, 0.001);
+  const df = Math.floor(Math.pow(sampleVar(group1) / group1.length + sampleVar(group2) / group2.length, 2) / (Math.pow(sampleVar(group1) / group1.length, 2) / (group1.length - 1) + Math.pow(sampleVar(group2) / group2.length, 2) / (group2.length - 1)));
+  const equivalent = tLow > 1.96 && tHigh > 1.96;
+  return { test: 'Equivalence T', tLow: +tLow.toFixed(4), tHigh: +tHigh.toFixed(4), equivalent, dL, dU, alpha, apa: `${equivalent ? 'Equivalent' : 'Not equivalent'} (dL=${dL}, dU=${dU})` };
+}
+
+// ── Sample Size for T-test ────────────────────────────────────────
+export function sampleSizeT(d, power = 0.8, alpha = 0.05, type = 'two-sample') {
+  if (!Number.isFinite(d) || d <= 0) return null;
+  const zAlpha = 1.96;
+  const zBeta = 0.84;
+  let nPerGroup = 2 * Math.pow(zAlpha + zBeta, 2) / (d * d);
+  nPerGroup = Math.ceil(nPerGroup);
+  const total = type === 'pair' ? nPerGroup : nPerGroup * 2;
+  return { test: 'Sample Size T', nPerGroup, total, d, power, alpha, type, apa: `N = ${total} (${nPerGroup}/group) for d=${d}` };
+}

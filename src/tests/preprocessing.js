@@ -153,3 +153,66 @@ export function frequencyEncode(data, column) {
     apa: `Freq encode "${column}": ${cats.length} categories, n = ${data.length}`,
   };
 }
+
+// ── SMOTE (Synthetic Minority Oversampling) ───────────────────────
+export function smote(X, y, { k = 5, multiplier = 1 } = {}) {
+  if (!X || !y || X.length < 5 || y.length !== X.length) return null;
+  const n = X.length, p = X[0].length;
+  const minority = y.map((v, i) => v === 1 ? i : -1).filter(i => i >= 0);
+  const majority = y.map((v, i) => v === 0 ? i : -1).filter(i => i >= 0);
+  if (minority.length < 3 || majority.length < 3) return null;
+  const synthetic = [];
+  for (let m = 0; m < multiplier; m++) {
+    for (const idx of minority) {
+      const neighbors = minority.filter(j => j !== idx).map(j => {
+        let d = 0;
+        for (let f = 0; f < p; f++) d += (X[idx][f] - X[j][f]) ** 2;
+        return { j, d: Math.sqrt(d) };
+      }).sort((a, b) => a.d - b.d).slice(0, Math.min(k, minority.length - 1));
+      if (neighbors.length > 0) {
+        const nn = neighbors[Math.floor(Math.random() * neighbors.length)];
+        const synth = X[idx].map((v, f) => v + Math.random() * (X[nn.j][f] - v));
+        synthetic.push(synth);
+      }
+    }
+  }
+  const newX = [...X, ...synthetic];
+  const newY = [...y, ...Array(synthetic.length).fill(1)];
+  return { test: 'SMOTE', nOriginal: n, nSynthetic: synthetic.length, nNew: newX.length, p, k, apa: `SMOTE: ${synthetic.length} synthetic points` };
+}
+
+// ── ADASYN ────────────────────────────────────────────────────────
+export function adasyn(X, y, { k = 5, beta = 0.5 } = {}) {
+  if (!X || !y || X.length < 5) return null;
+  const minority = y.map((v, i) => v === 1 ? i : -1).filter(i => i >= 0);
+  const majority = y.map((v, i) => v === 0 ? i : -1).filter(i => i >= 0);
+  if (minority.length < 3 || majority.length < 3) return null;
+  const imbalance = Math.max(0, Math.floor(beta * (majority.length - minority.length)));
+  const synthetic = [];
+  for (let g = 0; g < Math.min(imbalance, minority.length * 2); g++) {
+    const i = minority[g % minority.length];
+    const neighbors = minority.filter(j => j !== i).sort(() => Math.random() - 0.5).slice(0, Math.min(k, minority.length - 1));
+    if (neighbors.length > 0) {
+      const nn = neighbors[0];
+      const synth = X[i].map((v, f) => v + Math.random() * (X[nn][f] - v));
+      synthetic.push(synth);
+    }
+  }
+  const newX = [...X, ...synthetic];
+  const newY = [...y, ...Array(synthetic.length).fill(1)];
+  return { test: 'ADASYN', nOriginal: X.length, nSynthetic: synthetic.length, nNew: newX.length, k, apa: `ADASYN: ${synthetic.length} synth (${X.length}->${newX.length})` };
+}
+
+// ── Random Undersampling ──────────────────────────────────────────
+export function randomUnderSample(X, y) {
+  if (!X || !y || X.length < 3) return null;
+  const minority = y.map((v, i) => v === 1 ? i : -1).filter(i => i >= 0);
+  const majority = y.map((v, i) => v === 0 ? i : -1).filter(i => i >= 0);
+  if (!minority.length || !majority.length) return null;
+  const shuffled = [...majority].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, minority.length);
+  const indices = [...minority, ...selected];
+  const newX = indices.map(i => X[i]);
+  const newY = indices.map(i => y[i]);
+  return { test: 'Random UnderSample', nOriginal: X.length, nNew: newX.length, nMajorityRemoved: majority.length - selected.length, apa: `UnderSample: ${X.length} -> ${newX.length}` };
+}

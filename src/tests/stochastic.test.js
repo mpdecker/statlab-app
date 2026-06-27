@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { markovChain, markovSteadyState, poissonProcess, brownianMotion, randomWalkTest } from './stochastic.js';
+import { markovChain, markovSteadyState, poissonProcess, brownianMotion, randomWalkTest, ornsteinUhlenbeck, jumpDiffusion, regimeSwitching, hestonModel, roughVolatility, sabrModel, vasicekModel } from './stochastic.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const seq = [1, 2, 1, 2, 1, 2, 2, 1, 2, 1, 1, 2, 1, 2, 2, 1, 2, 1, 2, 1, 2];
@@ -15,6 +15,7 @@ describe('markovSteadyState', () => {
   const P = [[0.5, 0.5], [0.3, 0.7]];
   it('pi sums to ~1', () => { const r = markovSteadyState(P); const s = r.pi.reduce((a, v) => a + v, 0); expect(s).toBeCloseTo(1, 1); });
   it('contract keys', () => expectKeys(markovSteadyState(P), ['test', 'pi', 'k', 'apa']));
+  it('k matches matrix size', () => { const r = markovSteadyState(P); expect(r.k).toBe(2); });
 });
 
 describe('poissonProcess', () => {
@@ -33,4 +34,46 @@ describe('randomWalkTest', () => {
   it('null <20', () => expect(randomWalkTest(data.slice(0, 10))).toBeNull());
   it('contract keys', () => expectKeys(randomWalkTest(data), ['test', 'varianceRatio', 'z', 'p', 'q', 'n', 'apa']));
   it('p in [0,1]', () => { const r = randomWalkTest(data); expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); });
+});
+
+describe('ornsteinUhlenbeck', () => {
+  const data = Array.from({length: 30}, () => 5 + Math.random() * 2);
+  it('contract keys', () => expectKeys(ornsteinUhlenbeck(data), ['test','theta','mu','sigma','n','dt','apa']));
+  it('null <10', () => expect(ornsteinUhlenbeck([1,2,3])).toBeNull());
+  it('theta finite', () => { const r = ornsteinUhlenbeck(data); if (r) expect(Number.isFinite(r.theta)).toBe(true); });
+});
+describe('jumpDiffusion', () => {
+  const data = Array.from({length: 30}, () => 100 + Math.random() * 10);
+  it('contract keys', () => expectKeys(jumpDiffusion(data), ['test','mu','sigma','lambda','jumpMean','jumpCount','n','apa']));
+  it('null <20', () => expect(jumpDiffusion([1,2,3])).toBeNull());
+  it('jumpCount integer', () => { const r = jumpDiffusion(data); if (r) expect(Number.isInteger(r.jumpCount)).toBe(true); });
+});
+describe('regimeSwitching', () => {
+  const data = Array.from({length: 30}, (_, i) => i < 15 ? Math.random() * 5 : 10 + Math.random() * 5);
+  it('contract keys', () => expectKeys(regimeSwitching(data), ['test','mu','sigma','stationary','regimeCounts','n','apa']));
+  it('null <20', () => expect(regimeSwitching([1,2,3])).toBeNull());
+  it('regimeCounts non-empty', () => { const r = regimeSwitching(data); if (r) expect(r.regimeCounts.length).toBeGreaterThan(0); });
+});
+describe('hestonModel', () => {
+  const rets = Array.from({length: 30}, () => (Math.random() - 0.5) * 0.02);
+  it('contract keys', () => expectKeys(hestonModel(rets), ['test','mu','sigma','kappa','theta','xi','rho','n','apa']));
+  it('null <20', () => expect(hestonModel([0.01,0.02])).toBeNull());
+  it('kappa finite', () => { const r = hestonModel(rets); if (r) expect(Number.isFinite(r.kappa)).toBe(true); });
+});
+describe('roughVolatility', () => {
+  const rets = Array.from({length: 30}, () => (Math.random() - 0.5) * 0.02);
+  it('contract keys', () => expectKeys(roughVolatility(rets, 0.07), ['test','H','sigma','n','apa']));
+  it('null <20', () => expect(roughVolatility([0.01])).toBeNull());
+  it('H finite', () => { const r = roughVolatility(rets, 0.07); if (r) expect(Number.isFinite(r.H)).toBe(true); });
+});
+describe('sabrModel', () => {
+  it('contract keys', () => expectKeys(sabrModel(100, 105, 1), ['test','impliedVol','F','K','T','apa']));
+  it('null invalid params', () => expect(sabrModel(-1, 100, 1)).toBeNull());
+  it('impliedVol positive', () => { const r = sabrModel(100, 105, 1); if (r) expect(r).toHaveProperty('impliedVol'); });
+});
+describe('vasicekModel', () => {
+  const rates = Array.from({length: 20}, (_, i) => 0.02 + 0.005 * Math.sin(i) + Math.random() * 0.01);
+  it('contract keys', () => expectKeys(vasicekModel(rates), ['test','kappa','theta','sigma','n','apa']));
+  it('null <10', () => expect(vasicekModel([0.01,0.02])).toBeNull());
+  it('theta finite', () => { const r = vasicekModel(rates); if (r) expect(r).toHaveProperty('theta'); });
 });

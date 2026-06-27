@@ -3,7 +3,7 @@ import {
   adjacencyFromEdges, centralityMeasures, communityDetection,
   sociogramLayout, networkFromEdgeList,
   pageRank, closenessCentrality, graphMetrics, louvainCommunities, fitPowerLaw,
-  networkDiffusion, SIRModel,
+  networkDiffusion, SIRModel, qapTest, cugTest, networkAutocorrelation, degreeAssortativity, clusteringProfile,
 } from './network.js';
 import { starEdgeList, ringEdgeList } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
@@ -300,3 +300,9 @@ describe('SIRModel', () => {
   it('contract keys', () => expectKeys(SIRModel(A, { steps: 5 }), ['test', 'curve', 'params', 'n', 'apa']));
   it('curve has entries', () => { const r = SIRModel(A, { steps: 5 }); expect(r.curve.length).toBeGreaterThan(0); });
 });
+
+describe('qapTest', () => { const A = [[0,1,0],[1,0,1],[0,1,0]]; it('contract keys', () => expectKeys(qapTest(A, A, {permutations:20}), ['test','obs','p','permutations','n','apa'])); it('p between 0-1', () => { const r = qapTest(A, A, {permutations:20}); expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); }); });
+describe('cugTest', () => { const A = [[0,1,0],[1,0,1],[0,1,0]]; it('contract keys', () => expectKeys(cugTest(A, a => 1, {permutations:10}), ['test','obs','p','n','apa'])); it('p between 0-1', () => { const r = cugTest(A, a => 1, {permutations:10}); expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); }); });
+describe('networkAutocorrelation', () => { const A2 = [[0,1,0],[1,0,1],[0,1,0]]; it('contract keys', () => expectKeys(networkAutocorrelation(A2, [1,2,3]), ['test','I','n','apa'])); it('autocorr between -1-1', () => { const r = networkAutocorrelation(A2, [1,2,3]); expect(r.I).toBeGreaterThanOrEqual(-1); expect(r.I).toBeLessThanOrEqual(1); }); });
+describe('degreeAssortativity', () => { const A2 = [[0,1,0],[1,0,1],[0,1,0]]; it('contract keys', () => expectKeys(degreeAssortativity(A2), ['test','assortativity','m','n','apa'])); it('assortativity between -1-1', () => { const r = degreeAssortativity(A2); expect(r.assortativity).toBeGreaterThanOrEqual(-1); expect(r.assortativity).toBeLessThanOrEqual(1); }); });
+describe('clusteringProfile', () => { const A2 = [[0,1,0],[1,0,1],[0,1,0]]; it('contract keys', () => expectKeys(clusteringProfile(A2), ['test','profile','n','apa'])); it('profile non-empty', () => { const r = clusteringProfile(A2); expect(r.profile.length).toBeGreaterThan(0); }); });

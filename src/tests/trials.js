@@ -1,7 +1,7 @@
 import { avg } from '../math/core.js';
 import { normalCDF, normalINV, chiPVal } from '../math/distributions.js';
 
-// Randomized Blocks
+// ── Randomized Blocks ─────────────────────────────────────────────
 export function randomizedBlocks(strata, treatments, { blockSize = 4 } = {}) {
   if (!strata || !strata.length || !treatments || treatments.length < 2) return null;
   const n = strata.length;
@@ -28,7 +28,7 @@ export function simons2Stage(p0, p1, alpha = 0.05, beta = 0.2) {
   return { test: "Simon's Two-Stage", n1, n2, r1, r, p0: +p0.toFixed(4), p1: +p1.toFixed(4), alpha, beta, apa: `Simon: n1=${n1}, r1=${r1}, n2=${n2}, r=${r}` };
 }
 
-// Sample Size Re-estimation
+// ── Sample Size Re-estimation ─────────────────────────────────────
 export function sampleSizeReestimation(data, target, stage = 1) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -39,7 +39,7 @@ export function sampleSizeReestimation(data, target, stage = 1) {
   return { test: 'SSR', nObserved: n, nNeeded, ratio: +(nNeeded / Math.max(n, 1)).toFixed(2), stage, apa: `SSR: n_needed = ${nNeeded} (observed ${n})` };
 }
 
-// Stratified Permuted Blocks
+// ── Stratified Permuted Blocks ────────────────────────────────────
 export function stratifiedPermutedBlocks(strata) {
   if (!strata || !strata.length) return null;
   const uniqueStrata = [...new Set(strata)];
@@ -57,7 +57,7 @@ export function stratifiedPermutedBlocks(strata) {
   return { test: 'Stratified Permuted Blocks', assignment, nStrata: uniqueStrata.length, n: strata.length, apa: `Stratified blocks: ${uniqueStrata.length} strata, n = ${strata.length}` };
 }
 
-// Fisher Exact Design
+// ── Fisher Exact Design ───────────────────────────────────────────
 export function fisherExactDesign(a, b, c, d) {
   if (![a, b, c, d].every(v => v >= 0)) return null;
   const n = a + b + c + d;
@@ -66,4 +66,18 @@ export function fisherExactDesign(a, b, c, d) {
   const rr = (a / Math.max(a + b, 1)) / (c / Math.max(c + d, 1));
   const rd = a / Math.max(a + b, 1) - c / Math.max(c + d, 1);
   return { test: 'Fisher Exact Design', or: +or.toFixed(4), rr: +rr.toFixed(4), rd: +rd.toFixed(4), n, apa: `2x2: OR=${or.toFixed(2)}, RR=${rr.toFixed(2)}` };
+}
+
+// ── Adaptive Design (Group Sequential with sample size re-estimation) ───
+export function adaptiveDesign(effectSize, targetPower = 0.8, alpha = 0.05, { maxStages = 3, nMin = 20 } = {}) {
+  if (!Number.isFinite(effectSize) || effectSize <= 0 || maxStages < 2) return null;
+  const stages = Array.from({ length: maxStages }, (_, stage) => {
+    const nStage = Math.max(nMin, Math.floor(nMin * (stage + 1) * 1.5));
+    const z = effectSize * Math.sqrt(nStage) / 2;
+    const power = normalCDF(z - 1.96);
+    const futility = power < 0.2;
+    return { stage: stage + 1, n: nStage, power: +power.toFixed(4), futility };
+  });
+  const finalN = stages.reduce((s, st) => s + st.n, 0);
+  return { test: 'Adaptive Design', stages, finalN, maxStages, alpha, apa: `Adaptive: ${maxStages} stages, max N = ${finalN}` };
 }

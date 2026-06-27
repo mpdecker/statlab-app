@@ -69,3 +69,59 @@ export function dataMasking(data, column, { method = 'swap', pct = 10 } = {}) {
   }
   return { test: 'Data Masking', nMasked: nMask, method, column, pct, n, apa: `${method}: ${nMask} masked (${pct}%)` };
 }
+
+// ── l-Diversity ───────────────────────────────────────────────────
+export function lDiversity(data, qidCols, sensitiveCol, l = 2) {
+  if (!data || data.length < 5 || !qidCols || !qidCols.length || !sensitiveCol) return null;
+  const n = data.length;
+  const groups = {};
+  data.forEach(r => {
+    const key = qidCols.map(c => r[c]).join('|');
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r[sensitiveCol]);
+  });
+  const diverse = Object.values(groups).filter(vals => new Set(vals).size >= l).length;
+  const totalGroups = Object.keys(groups).length;
+  const proportion = totalGroups > 0 ? diverse / totalGroups : 0;
+  return { test: 'l-Diversity', l, diverseGroups: diverse, totalGroups, proportion: +proportion.toFixed(4), n, apa: `l-diversity(l=${l}): ${diverse}/${totalGroups} groups diverse` };
+}
+
+// ── t-Closeness ───────────────────────────────────────────────────
+export function tCloseness(data, qidCols, sensitiveCol, t = 0.2) {
+  if (!data || data.length < 5 || !qidCols || !sensitiveCol) return null;
+  const n = data.length;
+  const globalDist = freqDist(data.map(r => r[sensitiveCol]));
+  const groups = {};
+  data.forEach(r => {
+    const key = qidCols.map(c => r[c]).join('|');
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r[sensitiveCol]);
+  });
+  let closeCount = 0;
+  const totalGroups = Object.keys(groups).length;
+  for (const vals of Object.values(groups)) {
+    const localDist = freqDist(vals);
+    const emdDist = earthMover(localDist, globalDist);
+    if (emdDist <= t) closeCount++;
+  }
+  const proportion = totalGroups > 0 ? closeCount / totalGroups : 0;
+  return { test: 't-Closeness', t, closeGroups: closeCount, totalGroups, proportion: +proportion.toFixed(4), n, apa: `t-closeness(t=${t}): ${closeCount}/${totalGroups} close` };
+}
+
+function freqDist(arr) {
+  const dist = {};
+  arr.forEach(v => { dist[v] = (dist[v] || 0) + 1; });
+  const total = arr.length || 1;
+  Object.keys(dist).forEach(k => { dist[k] /= total; });
+  return dist;
+}
+
+function earthMover(d1, d2) {
+  const keys = [...new Set([...Object.keys(d1), ...Object.keys(d2)])].sort();
+  let emd = 0, cum = 0;
+  for (const k of keys) {
+    cum += (d1[k] || 0) - (d2[k] || 0);
+    emd += Math.abs(cum);
+  }
+  return emd / Math.max(keys.length - 1, 1);
+}

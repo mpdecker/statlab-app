@@ -1,6 +1,6 @@
 import { avg } from '../math/core.js';
 
-// STAR Model
+// ── STAR Model ────────────────────────────────────────────────────
 export function starModel(data, yVar, xVars, W, { p = 1 } = {}) {
   if (!data || data.length < 10 || !yVar || !xVars || !W) return null;
   const n = data.length, k = xVars.length;
@@ -21,7 +21,7 @@ export function starModel(data, yVar, xVars, W, { p = 1 } = {}) {
   return { test: 'STAR Model', rho: +beta[0].toFixed(4), coefficients: xVars.map((n, j) => ({ name: n, b: +beta[1 + j].toFixed(4) })), rSquared: +r2.toFixed(4), n, apa: `STAR: ρ = ${beta[0].toFixed(3)}, R² = ${r2.toFixed(3)}` };
 }
 
-// GSTAR
+// ── GSTAR ─────────────────────────────────────────────────────────
 export function gstarModel(data, yVar, xVars, W, { p = 1, q = 1 } = {}) {
   if (!data || data.length < 10 || !yVar || !W) return null;
   const n = data.length;
@@ -37,7 +37,7 @@ export function gstarModel(data, yVar, xVars, W, { p = 1, q = 1 } = {}) {
   return { test: 'GSTAR Model', rho: +beta[0].toFixed(4), coefficients: (xVars || []).map((n, j) => ({ name: n, b: +beta[1 + j].toFixed(4) })), n, apa: `GSTAR: ρ = ${beta[0].toFixed(3)}, n = ${n}` };
 }
 
-// Space-Time Interaction
+// ── Space-Time Interaction ────────────────────────────────────────
 export function spaceTimeInteraction(data, yVar, xVars, timeVar) {
   if (!data || data.length < 10 || !yVar || !timeVar) return null;
   const n = data.length;
@@ -55,7 +55,7 @@ export function spaceTimeInteraction(data, yVar, xVars, timeVar) {
   return { test: 'Space-Time Interaction', interaction: +inter.toFixed(4), n, apa: `ST interaction = ${inter.toFixed(3)}, n = ${n}` };
 }
 
-// Spatiotemporal Moran's I
+// ── Spatiotemporal Moran's I ──────────────────────────────────────
 export function spatiotemporalMoran(data, yVar, timeVar) {
   if (!data || data.length < 10 || !yVar || !timeVar) return null;
   const n = data.length;
@@ -73,7 +73,7 @@ export function spatiotemporalMoran(data, yVar, timeVar) {
   return { test: 'Spatiotemporal Moran', I: +I.toFixed(4), n, apa: `ST Moran I = ${I.toFixed(3)}` };
 }
 
-// Space-Time Forecast
+// ── Space-Time Forecast ───────────────────────────────────────────
 export function spaceTimeForecast(model, nSteps = 1) {
   if (!model || !model.rho || nSteps < 1) return null;
   const forecasts = Array(nSteps).fill(model.rho * 2);

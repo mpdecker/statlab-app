@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { randomizedBlockANOVA, latinSquareANOVA, splitPlotANOVA, crossoverANOVA, factorialANOVA, nestedANOVA, repeatedMeasuresGLM, equivalenceANOVA, centralCompositeDesign, optimalDesign, plackettBurman, taguchiLArray, doePower, definitiveScreening } from './experimental.js';
+import { randomizedBlockANOVA, latinSquareANOVA, splitPlotANOVA, crossoverANOVA, factorialANOVA, nestedANOVA, repeatedMeasuresGLM, equivalenceANOVA, centralCompositeDesign, optimalDesign, plackettBurman, taguchiLArray, doePower, definitiveScreening, latinHypercube, gpEmulator, expectedImprovement } from './experimental.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 function expectSources(r, minSources) {
@@ -464,13 +464,37 @@ describe('optimalDesign', () => {
 describe('plackettBurman', () => {
   const f = [{ name: 'A', low: -1, high: 1 }, { name: 'B', low: -1, high: 1 }];
   it('contract keys', () => expectKeys(plackettBurman(f), ['test', 'runs', 'nRuns', 'nFactors', 'apa']));
+  it('design non-empty', () => { const r = plackettBurman(f); if (r) expect(r.runs.length).toBeGreaterThan(0); });
+  it('nRuns > nFactors', () => { const r = plackettBurman(f); if (r) expect(r.nRuns).toBeGreaterThan(r.nFactors); });
 });
 describe('taguchiLArray', () => {
   const f = [{ name: 'A', low: -1, high: 1 }, { name: 'B', low: -1, high: 1 }];
   it('contract keys', () => expectKeys(taguchiLArray(f, [1, 2, 3]), ['test', 'runs', 'nRuns', 'nFactors', 'nLevels', 'apa']));
+  it('array non-empty', () => { const r = taguchiLArray(f, [1, 2, 3]); if (r) expect(r.runs.length).toBeGreaterThan(0); });
+  it('nRuns > nFactors', () => { const r = taguchiLArray(f, [1, 2, 3]); if (r) expect(r.nRuns).toBeGreaterThan(r.nFactors); });
 });
-describe('doePower', () => { it('contract keys', () => expectKeys(doePower(3, 8, 0.5), ['test', 'power', 'nFactors', 'nRuns', 'effectSize', 'alpha', 'apa'])); });
+describe('doePower', () => { it('contract keys', () => expectKeys(doePower(3, 8, 0.5), ['test', 'power', 'nFactors', 'nRuns', 'effectSize', 'alpha', 'apa'])); it('power between 0-1', () => { const r = doePower(3, 8, 0.5); expect(r.power).toBeGreaterThanOrEqual(0); expect(r.power).toBeLessThanOrEqual(1); }); it('nFactors matches', () => { const r = doePower(3, 8, 0.5); if (r) expect(r.nFactors).toBe(3); }); });
 describe('definitiveScreening', () => {
   const f = [{ name: 'A', low: -1, high: 1 }, { name: 'B', low: -1, high: 1 }, { name: 'C', low: -1, high: 1 }];
   it('contract keys', () => expectKeys(definitiveScreening(f), ['test', 'runs', 'nRuns', 'nFactors', 'apa']));
+  it('design non-empty', () => { const r = definitiveScreening(f); if (r) expect(r.runs.length).toBeGreaterThan(0); });
+  it('nRuns > nFactors', () => { const r = definitiveScreening(f); if (r) expect(r.nRuns).toBeGreaterThan(r.nFactors); });
+});
+
+describe('latinHypercube', () => {
+  it('contract keys', () => expectKeys(latinHypercube(10, 3), ['test','samples','n','d','apa']));
+  it('null n<2', () => expect(latinHypercube(1, 2)).toBeNull());
+  it('n matches', () => { const r = latinHypercube(10, 3); if (r) expect(r.n).toBe(10); });
+});
+describe('gpEmulator', () => {
+  const X = [[1,0],[2,1],[3,2],[4,1],[5,3]];
+  const y = [2.1, 3.5, 5.0, 4.2, 6.1];
+  it('contract keys', () => expectKeys(gpEmulator(X, y), ['test','predictions','rmse','n','apa']));
+  it('rmse non-negative', () => { const r = gpEmulator(X, y); if (r) expect(r.rmse).toBeGreaterThanOrEqual(0); });
+  it('predictions array dimension', () => { const r = gpEmulator(X, y); if (r && r.predictions) expect(r.predictions.length).toBeGreaterThan(0); });
+});
+describe('expectedImprovement', () => {
+  it('contract keys', () => expectKeys(expectedImprovement([0.5, 0.8, 0.3, 0.9], [0.1, 0.15, 0.2, 0.1], 0.7), ['test','ei','bestIdx','bestObserved','n','apa']));
+  it('bestIdx >= 0', () => { const r = expectedImprovement([0.5, 0.8, 0.3, 0.9], [0.1, 0.15, 0.2, 0.1], 0.7); if (r) expect(r.bestIdx).toBeGreaterThanOrEqual(0); });
+  it('bestObserved finite', () => { const r = expectedImprovement([0.5, 0.8, 0.3, 0.9], [0.1, 0.15, 0.2, 0.1], 0.7); if (r) expect(Number.isFinite(r.bestObserved)).toBe(true); });
 });

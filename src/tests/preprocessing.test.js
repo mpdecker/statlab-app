@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { standardize, iqrOutliers, madOutliers, oneHotEncode, equalWidthBinning, winsorize, frequencyEncode } from './preprocessing.js';
+import { standardize, iqrOutliers, madOutliers, oneHotEncode, equalWidthBinning, winsorize, frequencyEncode, smote, adasyn, randomUnderSample } from './preprocessing.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 50];
@@ -64,4 +64,26 @@ describe('edge cases', () => {
   it('equalWidthBinning null for constant data', () => expect(equalWidthBinning([5, 5, 5, 5, 5], 3)).toBeNull());
   it('winsorize null for <3', () => expect(winsorize([1, 2])).toBeNull());
   it('frequencyEncode null for missing column', () => expect(frequencyEncode(dv, 'z')).toBeNull());
+});
+
+describe('smote', () => {
+  const X = [[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9]];
+  const y = [1,1,1,0,0,0,0,0];
+  it('contract keys', () => expectKeys(smote(X, y), ['test','nOriginal','nSynthetic','nNew','p','k','apa']));
+  it('null <5', () => expect(smote([[1]], [1])).toBeNull());
+  it('nNew > nOriginal', () => { const r = smote(X, y); if (r) expect(r.nNew).toBeGreaterThan(r.nOriginal); });
+});
+describe('adasyn', () => {
+  const X = [[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9]];
+  const y = [1,1,1,0,0,0,0,0];
+  it('contract keys', () => expectKeys(adasyn(X, y), ['test','nOriginal','nSynthetic','nNew','k','apa']));
+  it('null <5', () => expect(adasyn([[1]], [0])).toBeNull());
+  it('nSynthetic positive', () => { const r = adasyn(X, y); if (r) expect(r.nSynthetic).toBeGreaterThan(0); });
+});
+describe('randomUnderSample', () => {
+  const X = [[1,2],[2,3],[3,4],[4,5],[5,6],[6,7]];
+  const y = [1,1,0,0,0,0];
+  it('contract keys', () => expectKeys(randomUnderSample(X, y), ['test','nOriginal','nNew','nMajorityRemoved','apa']));
+  it('null <3', () => expect(randomUnderSample([[1]], [1])).toBeNull());
+  it('nMajorityRemoved positive', () => { const r = randomUnderSample(X, y); if (r) expect(r.nMajorityRemoved).toBeGreaterThan(0); });
 });

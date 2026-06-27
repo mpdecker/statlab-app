@@ -8,7 +8,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "docs": "node scripts/statlab.mjs",
+    "docs:list": "node scripts/statlab.mjs list",
+    "docs:search": "node scripts/statlab.mjs search",
+    "docs:generate": "node scripts/document.mjs"
   },
   "dependencies": {
     "papaparse": "^5.5.3",

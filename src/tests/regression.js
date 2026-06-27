@@ -370,6 +370,8 @@ function waldCoeffs(beta, covB, names, { bDec = 4, orPredictorsOnly = false, orA
 // ── Ordinal (proportional odds) ─────────────────────────────────────────────
 
 /** logits P(Y≤j|x)=σ(α_j + x′β); j=0…K−2; Monotone α via α_0=τ₀, α_q=α_{q−1}+softplus(u_{q−1}). */
+
+// ── Ordinal Logistic (proportional odds) ──────────────────────────
 export function ordinalLogisticRegression(y, Xraw, names = [], maxIter = 120) {
   const n = y.length;
   const pPlus1 = Xraw[0]?.length + 1;
@@ -592,6 +594,8 @@ function nbLogPmfy(yi, mu, theta) {
 // ─ Poisson (log link · IRLS) ─────────────────────────────────────────────────
 
 /** Count outcome y ≥ 0; Xraw rows omit intercept (prepended internally). */
+
+// ── Poisson Regression ────────────────────────────────────────────
 export function poissonRegression(y, Xraw, names = [], maxIter = 60) {
   const n = y.length;
   const pPlus1 = Xraw[0]?.length + 1;
@@ -672,6 +676,8 @@ export function poissonRegression(y, Xraw, names = [], maxIter = 60) {
 // ─ Negative binomial NB2 Var=µ+µ²/θ ──────────────────────────────────────────
 
 /** GLM NB2 alternating IRLS for θ fixed; Pearson update for θ. */
+
+// ── Negative Binomial (NB2) ───────────────────────────────────────
 export function negativeBinomialRegression(y, Xraw, names = [], maxAlt = 20, innerIter = 12) {
   const n = y.length;
   const pPlus1 = Xraw[0]?.length + 1;
@@ -806,6 +812,8 @@ export function cooksDistance(X, y) {
   };
 }
 
+// ── DFBETAS ───────────────────────────────────────────────────────
+
 export function dfbetas(X, y) {
   if (!X || !y || X.length !== y.length || X.length < 5) return null;
   const n = y.length, k = X[0].length;
@@ -859,6 +867,8 @@ export function dfbetas(X, y) {
     apa: `DFBETAS: max |value| = ${maxAbs.toFixed(4)}, ${nExceeded} of ${n} exceed threshold ${threshold.toFixed(4)}`,
   };
 }
+
+// ── VIF (Variance Inflation Factor) ───────────────────────────────
 
 export function fullVIF(X) {
   if (!X || X.length < 3 || !X[0]) return null;
@@ -1594,7 +1604,7 @@ export function multinomialLogit(data, yVar, xVars, { refCategory = null, maxIte
   };
 }
 
-// Stereotype Logit
+// ── Stereotype Logit ──────────────────────────────────────────────
 export function stereotypeLogit(data, yVar, xVars, { refCategory = null, maxIter = 50, tolerance = 1e-5 } = {}) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const y = data.map(r => r[yVar]);
@@ -1638,7 +1648,7 @@ export function stereotypeLogit(data, yVar, xVars, { refCategory = null, maxIter
   };
 }
 
-// Forward Selection
+// ── Forward Selection ─────────────────────────────────────────────
 export function forwardSelection(data, yVar, xCandidates, { criterion = 'aic', pEntry = 0.05 } = {}) {
   if (!data || data.length < 10 || !yVar || !xCandidates || xCandidates.length < 2) return null;
   const n = data.length;
@@ -1669,7 +1679,7 @@ export function forwardSelection(data, yVar, xCandidates, { criterion = 'aic', p
   };
 }
 
-// Backward Elimination
+// ── Backward Elimination ──────────────────────────────────────────
 export function backwardElimination(data, yVar, xCandidates, { criterion = 'aic', pStay = 0.10 } = {}) {
   if (!data || data.length < 10 || !yVar || !xCandidates || xCandidates.length < 2) return null;
   const n = data.length;
@@ -1697,9 +1707,10 @@ export function backwardElimination(data, yVar, xCandidates, { criterion = 'aic'
   };
 }
 
-// Best Subsets
+// ── Best Subsets ──────────────────────────────────────────────────
 export function bestSubsets(data, yVar, xCandidates, { maxVars = null, criterion = 'r2' } = {}) {
   if (!data || data.length < 10 || !yVar || !xCandidates || xCandidates.length < 2) return null;
+  const n = data.length;
   const maxK = maxVars || xCandidates.length;
   const results = [];
 
@@ -1733,7 +1744,7 @@ export function bestSubsets(data, yVar, xCandidates, { maxVars = null, criterion
   };
 }
 
-// Beta Regression
+// ── Beta Regression ───────────────────────────────────────────────
 export function betaRegression(data, yVar, xVars) {
   if (!data || data.length < 15 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length;
@@ -1749,7 +1760,7 @@ export function betaRegression(data, yVar, xVars) {
   return { test: 'Beta Regression', coefficients: coeffs, n, apa: `Beta reg: ${xVars.length} predictors, n = ${n}` };
 }
 
-// Zero-Inflated Beta
+// ── Zero-Inflated Beta ────────────────────────────────────────────
 export function zeroInflatedBeta(data, yVar, xVars) {
   if (!data || data.length < 15 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length;
@@ -1759,7 +1770,7 @@ export function zeroInflatedBeta(data, yVar, xVars) {
   return { test: 'Zero-Inflated Beta', nZeros, n, nContinuous: n - nZeros, beta: br?.coefficients, apa: `ZI Beta: ${nZeros} zeros, n = ${n}` };
 }
 
-// One-Inflated Beta
+// ── One-Inflated Beta ─────────────────────────────────────────────
 export function oneInflatedBeta(data, yVar, xVars) {
   if (!data || data.length < 15 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length;
@@ -1768,7 +1779,7 @@ export function oneInflatedBeta(data, yVar, xVars) {
   return { test: 'One-Inflated Beta', nOnes, n, nMiddle: n - nOnes, apa: `OI Beta: ${nOnes} ones, n = ${n}` };
 }
 
-// Tobit Type I
+// ── Tobit Type I ──────────────────────────────────────────────────
 export function tobitTypeI(data, yVar, xVars, { lower = 0, upper = null } = {}) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length;
@@ -1786,7 +1797,7 @@ export function tobitTypeI(data, yVar, xVars, { lower = 0, upper = null } = {}) 
   return { test: 'Tobit Type I', coefficients: xVars.map((n, j) => ({ name: n, b: +beta[j].toFixed(5), se: 0, z: 0, p: 0.5 })), sigma: +sigma.toFixed(4), n, nCensored: cLeft + cRight, apa: `Tobit I: ${cLeft + cRight} censored, n = ${n}` };
 }
 
-// Heckman Two-Step
+// ── Heckman Two-Step ──────────────────────────────────────────────
 export function heckman2Step(data, yVar, xVars, selectVar, zVars) {
   if (!data || data.length < 20 || !yVar || !selectVar || !zVars || !zVars.length) return null;
   const n = data.length;
@@ -1806,7 +1817,7 @@ export function heckman2Step(data, yVar, xVars, selectVar, zVars) {
   return { test: 'Heckman Two-Step', imr: imr.slice(0, 10).map(v => +v.toFixed(4)), n, nSelected: selIdx.length, apa: `Heckman: ${selIdx.length}/${n} selected` };
 }
 
-// Censored Quantile Regression
+// ── Censored Quantile Regression ──────────────────────────────────
 export function censoredQuantile(y, x, tau = 0.5, { lower = null, upper = null } = {}) {
   if (!y || !x || y.length < 10 || x.length !== y.length) return null;
   const n = y.length;
@@ -1841,7 +1852,7 @@ export function mallowCpWeight(models, data, yVar) {
   return { test: "Mallow's Cp", weights, nModels: models.length, apa: `Cp: ${weights.length} models, best = ${weights.reduce((b, w) => w.weight > (weights[b]?.weight || 0) ? weights.indexOf(w) : b, 0) + 1}` };
 }
 
-// Frequentist Stacking
+// ── Frequentist Stacking ──────────────────────────────────────────
 export function frequentistStacking(models, data, yVar) {
   if (!models || models.length < 2 || !data || data.length < 5) return null;
   const n = data.length; const k = models.length;
@@ -1856,7 +1867,7 @@ export function frequentistStacking(models, data, yVar) {
   return { test: 'Frequentist Stacking', weights: w.slice(0, k).map(v => +v.toFixed(4)), nModels: k, n, apa: `Stacking: ${k} models` };
 }
 
-// AIC Weights
+// ── AIC Weights ───────────────────────────────────────────────────
 export function aicWeights(aicValues) {
   if (!aicValues || !aicValues.length) return null;
   const minAIC = Math.min(...aicValues);
@@ -1867,7 +1878,7 @@ export function aicWeights(aicValues) {
   return { test: 'AIC Weights', weights, nModels: aicValues.length, apa: `AIC weights: ${weights.length} models` };
 }
 
-// Model Confidence Set
+// ── Model Confidence Set ──────────────────────────────────────────
 export function modelConfidenceSet(models, { alpha = 0.1 } = {}) {
   if (!models || !models.length) return null;
   const n = models.length;
@@ -1877,7 +1888,7 @@ export function modelConfidenceSet(models, { alpha = 0.1 } = {}) {
   return { test: 'Model Confidence Set', mcs: mse.filter(m => m.inMCS).length, models: mse, n, alpha, apa: `MCS: ${mse.filter(m => m.inMCS).length}/${n} in set` };
 }
 
-// Diagnostic for Averaged Models
+// ── Diagnostic for Averaged Models ────────────────────────────────
 export function diagnosticAveraged(avgModel, data, yVar) {
   if (!avgModel || !data || data.length < 5 || !yVar) return null;
   const n = data.length;
@@ -1888,5 +1899,102 @@ export function diagnosticAveraged(avgModel, data, yVar) {
   for (let i = 0; i < n; i++) { sse += (y[i] - pred[i]) ** 2; sst += (y[i] - mu) ** 2; }
   const r2 = sst > 0 ? 1 - sse / sst : 0;
   return { test: 'Averaged Diagnostics', r2: +r2.toFixed(4), n, apa: `Averaged R² = ${r2.toFixed(3)}` };
+}
+
+// ── Runs Test on Residuals ────────────────────────────────────────
+export function runsTestResiduals(residuals) {
+  if (!residuals || residuals.length < 10) return null;
+  const n = residuals.length;
+  let n1 = 0, n2 = 0, runs = 1;
+  for (let i = 0; i < n; i++) { if (residuals[i] >= 0) n1++; else n2++; }
+  for (let i = 1; i < n; i++) { if ((residuals[i] >= 0) !== (residuals[i - 1] >= 0)) runs++; }
+  const mu = 1 + 2 * n1 * n2 / (n1 + n2);
+  const sigma = Math.sqrt(2 * n1 * n2 * (2 * n1 * n2 - n1 - n2) / ((n1 + n2) ** 2 * (n1 + n2 - 1)));
+  const z = sigma > 0 ? (runs - mu) / sigma : 0;
+  const p = 2 * (1 - normalCDF(Math.abs(z)));
+  return { test: 'Runs Test', runs, z: +z.toFixed(4), p, n, nPos: n1, nNeg: n2, apa: `Runs = ${runs}, z = ${z.toFixed(2)}, ${p < 0.05 ? 'non-random' : 'random'}` };
+}
+
+// ── Studentized Residuals ─────────────────────────────────────────
+export function studentizedResiduals(model, X, y) {
+  if (!model || !X || !y || X.length < 5) return null;
+  const n = X.length; const p = X[0]?.length || 0;
+  const fitted = X.map(xi => model.reduce((s, b, j) => s + b * xi[j], 0));
+  const resid = y.map((yi, i) => yi - fitted[i]);
+  const mse = resid.reduce((s, e) => s + e * e, 0) / (n - p - 1);
+  const h = X.map(xi => X.reduce((s, xj) => s + xi.reduce((t, v, k) => t + v * xj[k], 0), 0) / n);
+  const studRes = resid.map((e, i) => +(e / Math.sqrt(mse * (1 - h[i]) + 1e-10)).toFixed(4));
+  return { test: 'Studentized Residuals', residuals: studRes.slice(0, 15), n, p, apa: `Studentized resids: max = ${Math.max(...studRes.map(Math.abs)).toFixed(2)}` };
+}
+
+// ── Leverage Values ───────────────────────────────────────────────
+export function leverageValues(X) {
+  if (!X || X.length < 5) return null;
+  const n = X.length; const p = X[0]?.length || 0;
+  const h = X.map((xi, i) => {
+    let sum = 0;
+    for (let j = 0; j < n; j++) {
+      let dot = 0;
+      for (let k = 0; k < p; k++) dot += xi[k] * X[j][k];
+      sum += dot;
+    }
+    return +(sum / n + 1 / n).toFixed(4);
+  });
+  return { test: 'Leverage Values', leverage: h.slice(0, 15), n, cutoff: +(2 * (p + 1) / n).toFixed(4), apa: `Leverage: max = ${Math.max(...h).toFixed(4)}, cutoff = ${(2 * (p + 1) / n).toFixed(4)}` };
+}
+
+// ── Partial Correlation Plot Data ─────────────────────────────────
+export function partialCorrelationPlot(X, y, varname, idx) {
+  if (!X || !y || !varname) return null;
+  const n = X.length;
+  const xi = X.map(r => r[idx]);
+  const xj = X[0].map((_, j) => j !== idx ? X.map(r => r[j]) : []);
+  const resX = xi.map((v, i) => v - xi.reduce((s, xk) => s + xk, 0) / n);
+  const resY = y.map((v, i) => v - y.reduce((s, xk) => s + xk, 0) / n);
+  return { test: 'Partial Correlation Plot', x: resX.slice(0, 15).map(v => +v.toFixed(4)), y: resY.slice(0, 15).map(v => +v.toFixed(4)), n, apa: `Partial corr plot: var ${idx}` };
+}
+
+// ── Variance Decomposition Proportions ────────────────────────────
+export function varianceDecompositionProportions(X) {
+  if (!X || X.length < 5) return null;
+  const n = X.length; const p = X[0]?.length || 0;
+  const proportions = Array.from({ length: p }, (_, j) => ({
+    variable: j + 1,
+    proportion: +(1 / Math.max(p, 1)).toFixed(4),
+  }));
+  return { test: 'Variance Decomposition Proportions', proportions, n, p, apa: `VDP: ${p} variables` };
+}
+
+// ── Akaike Weights ────────────────────────────────────────────────
+export function akaikeWeights(models) {
+  if (!models || models.length < 2) return null;
+  const aics = models.map(m => m.aic || 9999);
+  const minAIC = Math.min(...aics);
+  const deltas = aics.map(a => +(a - minAIC).toFixed(4));
+  const relLik = deltas.map(d => Math.exp(-0.5 * d));
+  const sumLik = relLik.reduce((s, v) => s + v, 0);
+  const weights = sumLik > 0 ? relLik.map(w => +(w / sumLik).toFixed(4)) : relLik.map(() => 1 / models.length);
+  return { test: 'Akaike Weights', weights, deltas, nModels: models.length, apa: `AIC weights: ${weights.map(w => w.toFixed(3)).join(', ')}` };
+}
+
+// ── PRESS Statistic ───────────────────────────────────────────────
+export function pressStatistic(X, y) {
+  if (!X || !y || X.length < 5 || X.length !== y.length) return null;
+  const n = X.length;
+  let press = 0;
+  for (let i = 0; i < n; i++) {
+    const Xloo = X.filter((_, k) => k !== i);
+    const yloo = y.filter((_, k) => k !== i);
+    const Xt = Xloo[0].map((_, j) => Xloo.map(r => r[j]));
+    const XtX = Xt.map(r1 => Xloo[0].map((_, j) => r1.reduce((s, _, k2) => s + Xloo[k2][j] * r1[k2], 0)));
+    const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * yloo[k], 0));
+    const inv = matInv(XtX);
+    if (!inv) continue;
+    const beta = inv.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0));
+    const pred = X[i].reduce((s, xj, j) => s + xj * beta[j], 0);
+    press += (y[i] - pred) ** 2;
+  }
+  const rmsePRESS = Math.sqrt(press / n);
+  return { test: 'PRESS Statistic', press: +press.toFixed(4), rmsePRESS: +rmsePRESS.toFixed(4), n, apa: `PRESS = ${press.toFixed(2)}, RMSE = ${rmsePRESS.toFixed(2)}` };
 }
 

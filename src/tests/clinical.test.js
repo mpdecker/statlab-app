@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { blandAltman, diagnosticAccuracy, likelihoodRatios, netReclassification, weightedKappa, ac1Agreement, blandAltmanRatio, diagnosticOddsRatio, agreementTable, youdenIndex, deLongTest, partialAUC, optimalThreshold, fleissKappa, krippendorffAlpha, cliffsDelta, rankBiserial, stochasticOrdering, populationAttributableFraction, cornfieldBounds, hosmerLemeshow, calibrationPlot, netBenefit, decisionCurve, brierScore, haybittlePeto, wangTsiatis, inverseNormal, fisherCombination, adaptiveDesign } from './clinical.js';
+import { blandAltman, diagnosticAccuracy, likelihoodRatios, netReclassification, weightedKappa, ac1Agreement, blandAltmanRatio, clinicalUtility, diagnosticOddsRatio, agreementTable, youdenIndex, deLongTest, partialAUC, optimalThreshold, fleissKappa, krippendorffAlpha, cliffsDelta, rankBiserial, stochasticOrdering, populationAttributableFraction, cornfieldBounds, hosmerLemeshow, calibrationPlot, netBenefit, decisionCurve, brierScore, haybittlePeto, wangTsiatis, inverseNormal, fisherCombination, adaptiveDesign } from './clinical.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const a = [10, 10.2, 10.5, 9.8, 10.1, 10.3, 9.9, 10.4, 10.0, 10.6];
@@ -149,6 +149,7 @@ describe('ac1Agreement', () => {
   const r2 = [1, 2, 1, 1, 1, 2, 1, 1, 2, 2];
   it('null small', () => expect(ac1Agreement(r1.slice(0, 2), r2.slice(0, 2))).toBeNull());
   it('contract keys', () => expectKeys(ac1Agreement(r1, r2), ['test', 'ac1', 'se', 'ci', 'pObserved', 'pChance', 'k', 'n', 'apa']));
+  it('ac1 in [-1, 1]', () => { const r = ac1Agreement(r1, r2); if (r) { expect(r.ac1).toBeGreaterThanOrEqual(-1); expect(r.ac1).toBeLessThanOrEqual(1); } });
 });
 
 describe('blandAltmanRatio', () => {
@@ -168,6 +169,7 @@ describe('diagnosticOddsRatio', () => {
 describe('agreementTable', () => {
   it('null <2', () => expect(agreementTable([1], [1])).toBeNull());
   it('contract keys', () => expectKeys(agreementTable([1, 2, 1], [1, 2, 2]), ['test', 'table', 'labels', 'k', 'n', 'apa']));
+  it('table dimensions match k', () => { const r = agreementTable([1, 2, 1], [1, 2, 2]); if (r) { expect(r.table).toHaveLength(r.k); r.table.forEach(row => expect(row).toHaveLength(r.k)); } });
 });
 
 describe('youdenIndex', () => {
@@ -181,28 +183,33 @@ describe('deLongTest', () => {
   const r2 = { auc: 0.78, se: 0.04, n: 20, scores: [0.1, 0.3, 0.7] };
   it('null for invalid', () => expect(deLongTest(null, r2)).toBeNull());
   it('contract keys or null', () => { const r = deLongTest(r1, r2); if (r) expectKeys(r, ['test', 'z', 'p', 'auc1', 'auc2', 'apa']); });
+  it('p between 0 and 1', () => { const r = deLongTest(r1, r2); if (r) { expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); } });
 });
 
 describe('partialAUC', () => {
   it('null for mismatch', () => expect(partialAUC([0, 1], [0.2])).toBeNull());
   it('contract keys', () => expectKeys(partialAUC([0, 0, 1, 1, 0, 1], [0.1, 0.3, 0.7, 0.9, 0.2, 0.8], [0, 0.2]), ['test', 'pauc', 'fprRange', 'n', 'apa']));
+  it('pauc is finite', () => { const r = partialAUC([0, 0, 1, 1, 0, 1], [0.1, 0.3, 0.7, 0.9, 0.2, 0.8], [0, 0.2]); if (r) expect(Number.isFinite(r.pauc)).toBe(true); });
 });
 
 describe('optimalThreshold', () => {
   it('null for mismatch', () => expect(optimalThreshold([0, 1], [0.2])).toBeNull());
   it('contract keys', () => expectKeys(optimalThreshold([0, 0, 1, 1, 0, 1], [0.1, 0.3, 0.7, 0.9, 0.2, 0.8]), ['test', 'threshold', 'sens', 'spec', 'costRatio', 'n', 'apa']));
+  it('sens and spec in [0, 1]', () => { const r = optimalThreshold([0, 0, 1, 1, 0, 1], [0.1, 0.3, 0.7, 0.9, 0.2, 0.8]); if (r) { expect(r.sens).toBeGreaterThanOrEqual(0); expect(r.sens).toBeLessThanOrEqual(1); expect(r.spec).toBeGreaterThanOrEqual(0); expect(r.spec).toBeLessThanOrEqual(1); } });
 });
 
 describe('fleissKappa', () => {
   const d = []; for (let i = 0; i < 10; i++) d.push({ r1: i % 3, r2: (i + 1) % 3, r3: i % 3 });
   it('null small', () => expect(fleissKappa(d.slice(0, 3), ['r1', 'r2'], [0, 1, 2])).toBeNull());
   it('contract keys', () => expectKeys(fleissKappa(d, ['r1', 'r2', 'r3'], [0, 1, 2]), ['test', 'kappa', 'n', 'nRaters', 'nItems', 'apa']));
+  it('kappa in [-1, 1]', () => { const r = fleissKappa(d, ['r1', 'r2', 'r3'], [0, 1, 2]); if (r) { expect(r.kappa).toBeGreaterThanOrEqual(-1); expect(r.kappa).toBeLessThanOrEqual(1); } });
 });
 
 describe('krippendorffAlpha', () => {
   const d = []; for (let i = 0; i < 10; i++) d.push({ r1: i % 3, r2: (i + 1) % 3 });
   it('null small', () => expect(krippendorffAlpha(d.slice(0, 3), ['r1', 'r2'], [0, 1, 2])).toBeNull());
   it('contract keys', () => expectKeys(krippendorffAlpha(d, ['r1', 'r2'], [0, 1, 2]), ['test', 'alpha', 'level', 'n', 'nRaters', 'nItems', 'apa']));
+  it('alpha in [-1, 1]', () => { const r = krippendorffAlpha(d, ['r1', 'r2'], [0, 1, 2]); if (r) { expect(r.alpha).toBeGreaterThanOrEqual(-1); expect(r.alpha).toBeLessThanOrEqual(1); } });
 });
 
 describe('cliffsDelta', () => {
@@ -215,51 +222,92 @@ describe('rankBiserial', () => {
   const d = []; for (let i = 0; i < 10; i++) d.push({ grp: i < 5 ? 'A' : 'B', score: i + (i < 5 ? 0 : 3) });
   it('null <6', () => expect(rankBiserial(d.slice(0, 4), 'grp', 'score')).toBeNull());
   it('contract keys', () => expectKeys(rankBiserial(d, 'grp', 'score'), ['test', 'rbc', 'pSuperiority', 'n1', 'n2', 'apa']));
+  it('rbc in [-1, 1]', () => { const r = rankBiserial(d, 'grp', 'score'); if (r) { expect(r.rbc).toBeGreaterThanOrEqual(-1); expect(r.rbc).toBeLessThanOrEqual(1); } });
 });
 
 describe('stochasticOrdering', () => {
   const g = [{ name: 'A', vals: [1, 2, 3] }, { name: 'B', vals: [4, 5, 6] }];
   it('null <2 groups', () => expect(stochasticOrdering([g[0]])).toBeNull());
   it('contract keys', () => expectKeys(stochasticOrdering(g), ['test', 'pairs', 'k', 'apa']));
+  it('pairs is an array', () => { const r = stochasticOrdering(g); if (r) { expect(Array.isArray(r.pairs)).toBe(true); expect(r.pairs.length).toBeGreaterThan(0); } });
 });
 
 describe('populationAttributableFraction', () => {
   it('null for OR<=0', () => expect(populationAttributableFraction(0.3, -1)).toBeNull());
   it('contract keys', () => expectKeys(populationAttributableFraction(0.3, 2.5), ['test', 'paf', 'se', 'ci', 'prevalence', 'or', 'apa']));
+  it('paf in [0, 1]', () => { const r = populationAttributableFraction(0.3, 2.5); if (r) { expect(r.paf).toBeGreaterThanOrEqual(0); expect(r.paf).toBeLessThanOrEqual(1); } });
 });
 
 describe('cornfieldBounds', () => {
   it('null for zero cells', () => expect(cornfieldBounds(0, 10, 20, 30, 0.3)).toBeNull());
   it('contract keys', () => expectKeys(cornfieldBounds(50, 20, 30, 100, 0.3), ['test', 'observedOR', 'lowerBound', 'confounderPrevalence', 'n', 'apa']));
+  it('lowerBound is a finite number', () => { const r = cornfieldBounds(50, 20, 30, 100, 0.3); if (r) expect(Number.isFinite(r.lowerBound)).toBe(true); });
 });
 
 describe('hosmerLemeshow', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ y: i % 2, prob: 0.3 + (i % 5) * 0.1 });
   it('contract keys', () => expectKeys(hosmerLemeshow(d, 'y', 'prob'), ['test', 'chi2', 'df', 'p', 'nGroups', 'n', 'apa']));
   it('null <20', () => expect(hosmerLemeshow(d.slice(0, 10), 'y', 'prob')).toBeNull());
+  it('chi2 >= 0', () => { const r = hosmerLemeshow(d, 'y', 'prob'); if (r) expect(r.chi2).toBeGreaterThanOrEqual(0); });
 });
 
 describe('calibrationPlot', () => {
   const d = []; for (let i = 0; i < 30; i++) d.push({ y: i % 2, prob: 0.3 + (i % 5) * 0.1 });
   it('contract keys', () => expectKeys(calibrationPlot(d, 'y', 'prob'), ['test', 'bins', 'n', 'apa']));
+  it('calibration finite', () => { const r = calibrationPlot(d, 'y', 'prob'); if (r) r.bins.forEach(b => { expect(Number.isFinite(b.observed)).toBe(true); expect(Number.isFinite(b.predicted)).toBe(true); }); });
+  it('null for <20', () => expect(calibrationPlot(d.slice(0, 10), 'y', 'prob')).toBeNull());
 });
 
 describe('netBenefit', () => {
   it('is defined', () => expect(typeof netBenefit).toBe('function'));
   it('null mismatch', () => expect(netBenefit([0.1], [0, 1], [0.5])).toBeNull());
+  it('netBenefits is an array', () => { const p = [0.1, 0.3, 0.7, 0.8, 0.9]; const y = [0, 0, 1, 1, 1]; const r = netBenefit(p, y, [0.2, 0.5]); if (r) { expect(Array.isArray(r.netBenefits)).toBe(true); expect(r.netBenefits.length).toBe(2); } });
 });
 
 describe('decisionCurve', () => {
   it('is defined', () => expect(typeof decisionCurve).toBe('function'));
+  it('netBenefit finite', () => { const probs = [0.1, 0.3, 0.5, 0.7, 0.9]; const y = [0, 1, 1, 1, 0]; const r = decisionCurve(probs, y, [0.2, 0.4, 0.6, 0.8]); if (r && r.netBenefit) { expect(Number.isFinite(r.netBenefit[0])).toBe(true); } });
+  it('null for null probs', () => expect(decisionCurve(null, [0, 1], [0.5])).toBeNull());
 });
 
 describe('brierScore', () => {
   it('is defined', () => expect(typeof brierScore).toBe('function'));
   it('null mismatch', () => expect(brierScore([0.1], [0, 1])).toBeNull());
+  it('brier >= 0', () => { const p = [0.1, 0.3, 0.5, 0.7, 0.9]; const y = [0, 0, 1, 1, 1]; const r = brierScore(p, y); if (r) expect(r.brier).toBeGreaterThanOrEqual(0); });
 });
 
-describe('haybittlePeto', () => { it('contract keys', () => expectKeys(haybittlePeto(4), ['test','boundaries','stages','alpha','apa'])); it('stages correct', () => { const r = haybittlePeto(4); expect(r.boundaries).toHaveLength(4) }) });
-describe('wangTsiatis', () => { it('contract keys', () => expectKeys(wangTsiatis(4), ['test','boundaries','stages','alpha','delta','apa'])) });
-describe('inverseNormal', () => { it('contract keys', () => expectKeys(inverseNormal(0.5, 1.0, 1.5, 2.0, 50, 50), ['test','z','p','t1','t2','apa'])) });
-describe('fisherCombination', () => { it('contract keys', () => expectKeys(fisherCombination([0.01, 0.03]), ['test','chi2','df','p','nStages','apa'])); it('chi2 > 0', () => { const r = fisherCombination([0.01, 0.03]); expect(r.chi2).toBeGreaterThan(0) }) });
-describe('adaptiveDesign', () => { it('contract keys', () => expectKeys(adaptiveDesign(50, 50, 0.5), ['test','n1','n2','total','power','method','apa'])) });
+describe('haybittlePeto', () => {
+  it('contract keys', () => expectKeys(haybittlePeto(4), ['test','boundaries','stages','alpha','apa']));
+  it('stages correct', () => { const r = haybittlePeto(4); expect(r.boundaries).toHaveLength(4); });
+  it('null for stages < 1', () => { expect(haybittlePeto(0)).toBeNull(); expect(haybittlePeto(null)).toBeNull(); });
+});
+
+describe('wangTsiatis', () => {
+  it('contract keys', () => expectKeys(wangTsiatis(4), ['test','boundaries','stages','alpha','delta','apa']));
+  it('null for stages < 1', () => { expect(wangTsiatis(0)).toBeNull(); expect(wangTsiatis(null)).toBeNull(); });
+  it('boundaries are finite numbers', () => { const r = wangTsiatis(4); if (r) r.boundaries.forEach(b => { expect(Number.isFinite(b.t)).toBe(true); expect(Number.isFinite(b.boundary)).toBe(true); }); });
+});
+
+describe('inverseNormal', () => {
+  it('contract keys', () => expectKeys(inverseNormal(0.5, 1.0, 1.5, 2.0, 50, 50), ['test','z','p','t1','t2','apa']));
+  it('null for non-finite z', () => { expect(inverseNormal(0.5, 1.0, NaN, 2.0, 50, 50)).toBeNull(); expect(inverseNormal(0.5, 1.0, 1.5, Infinity, 50, 50)).toBeNull(); });
+  it('p is between 0 and 1', () => { const r = inverseNormal(0.5, 1.0, 1.5, 2.0, 50, 50); if (r) { expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); } });
+});
+
+describe('fisherCombination', () => {
+  it('contract keys', () => expectKeys(fisherCombination([0.01, 0.03]), ['test','chi2','df','p','nStages','apa']));
+  it('chi2 > 0', () => { const r = fisherCombination([0.01, 0.03]); expect(r.chi2).toBeGreaterThan(0); });
+  it('null for insufficient p-values', () => { expect(fisherCombination(null)).toBeNull(); expect(fisherCombination([])).toBeNull(); expect(fisherCombination([0.05])).toBeNull(); });
+});
+
+describe('adaptiveDesign', () => {
+  it('contract keys', () => expectKeys(adaptiveDesign(50, 50, 0.5), ['test','n1','n2','total','power','method','apa']));
+  it('null for invalid args', () => { expect(adaptiveDesign(0, 50, 0.5)).toBeNull(); expect(adaptiveDesign(50, 50, NaN)).toBeNull(); });
+  it('total equals n1 + n2', () => { const r = adaptiveDesign(50, 50, 0.5); if (r) expect(r.total).toBe(100); });
+});
+
+describe('clinicalUtility', () => {
+  it('contract keys', () => expectKeys(clinicalUtility(0.9, 0.85, 0.1), ['test','sens','spec','prevalence','utility','netBenefit','apa']));
+  it('null invalid', () => expect(clinicalUtility(NaN, 0.8, 0.1)).toBeNull());
+  it('netBenefit positive for good test', () => { const r = clinicalUtility(0.95, 0.9, 0.2); expect(r.netBenefit).toBeGreaterThan(0); });
+});

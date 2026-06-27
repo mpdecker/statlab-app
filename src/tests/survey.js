@@ -298,7 +298,7 @@ export function effectiveSampleSize(weights) {
   };
 }
 
-// BRR Weights
+// ── BRR Weights ───────────────────────────────────────────────────
 export function brrWeights(data, strataVar, psuVar, { method = 'fay', epsilon = 0.3 } = {}) {
   if (!data || data.length < 20 || !strataVar || !psuVar) return null;
   const n = data.length;
@@ -319,7 +319,7 @@ export function brrWeights(data, strataVar, psuVar, { method = 'fay', epsilon = 
   return { test: 'BRR Weights', replicates, nRep, nStrata: strata.length, n, apa: `BRR: ${nRep} replicates, ${strata.length} strata` };
 }
 
-// Jackknife Replicates
+// ── Jackknife Replicates ──────────────────────────────────────────
 export function jackknifeReplicates(data, strataVar, psuVar, { method = 'JK1' } = {}) {
   if (!data || data.length < 20 || !strataVar || !psuVar) return null;
   const n = data.length;
@@ -359,7 +359,7 @@ export function fayReplicates(data, strataVar, psuVar, { epsilon = 0.3 } = {}) {
   return { test: "Fay's Replicates", replicates, nRep: R, epsilon, n, apa: `Fay: ε=${epsilon}, ${R} reps` };
 }
 
-// Taylor Linearization
+// ── Taylor Linearization ──────────────────────────────────────────
 export function taylorLinearization(data, yVar, xVars, strataVar, psuVar) {
   if (!data || data.length < 20 || !yVar || !strataVar || !psuVar) return null;
   const n = data.length;
@@ -381,7 +381,7 @@ export function taylorLinearization(data, yVar, xVars, strataVar, psuVar) {
   return { test: 'Taylor Linearization', total: +total.toFixed(4), se: +Math.sqrt(se2).toFixed(4), n, nStrata: strata.length, apa: `Total = ${total.toFixed(2)}, SE = ${Math.sqrt(se2).toFixed(2)}` };
 }
 
-// Design Total (Horvitz-Thompson)
+// ── Design Total (Horvitz-Thompson) ───────────────────────────────
 export function designTotal(vals, weights) {
   if (!vals || !weights || !vals.length || vals.length !== weights.length) return null;
   const n = vals.length;
@@ -392,7 +392,7 @@ export function designTotal(vals, weights) {
   return { test: 'Design Total', total: +total.toFixed(4), se: +se.toFixed(4), n, apa: `HT total = ${total.toFixed(2)}, SE = ${se.toFixed(2)}` };
 }
 
-// PPS Sampling
+// ── PPS Sampling ──────────────────────────────────────────────────
 export function ppsSampling(sizes, nSample) {
   if (!sizes || !sizes.length || nSample < 1) return null;
   const total = sizes.reduce((s, v) => s + v, 0);
@@ -410,7 +410,7 @@ export function ppsSampling(sizes, nSample) {
   return { test: 'PPS Sampling', sample, nPopulation: sizes.length, nSample, apa: `PPS: ${nSample} of ${sizes.length}` };
 }
 
-// Systematic Sample
+// ── Systematic Sample ─────────────────────────────────────────────
 export function systematicSample(data, nSample) {
   if (!data || !data.length || nSample < 1) return null;
   const n = data.length, k = Math.floor(n / nSample);
@@ -421,7 +421,7 @@ export function systematicSample(data, nSample) {
   return { test: 'Systematic Sample', sample: sampled, nOriginal: n, nSampled: sampled.length, interval: k, apa: `Systematic: ${sampled.length}/${n} sampled` };
 }
 
-// Multistage Variance
+// ── Multistage Variance ───────────────────────────────────────────
 export function multistageVariance(data, strataVar, clusterVar, yVar) {
   if (!data || data.length < 10 || !strataVar || !clusterVar || !yVar) return null;
   const n = data.length;
@@ -438,7 +438,7 @@ export function multistageVariance(data, strataVar, clusterVar, yVar) {
   return { test: 'Multistage Variance', variance: +totalVar.toFixed(4), n, nStrata: strata.length, apa: `Multistage var = ${totalVar.toFixed(3)}` };
 }
 
-// Domain Total/Mean
+// ── Domain Total/Mean ─────────────────────────────────────────────
 export function domainTotal(data, yVar, domainVar) {
   if (!data || data.length < 5 || !yVar || !domainVar) return null;
   const domains = [...new Set(data.map(r => r[domainVar]))];
@@ -447,10 +447,10 @@ export function domainTotal(data, yVar, domainVar) {
     const vals = memb.map(r => +r[yVar]);
     return { domain: d, n: vals.length, total: +vals.reduce((s, v) => s + v, 0).toFixed(4), mean: +avg(vals).toFixed(4) };
   });
-  return { test: 'Domain Total', estimates, n, nDomains: domains.length, apa: `Domains: ${domains.length} groups` };
+  return { test: 'Domain Total', estimates, n: data.length, nDomains: domains.length, apa: `Domains: ${domains.length} groups` };
 }
 
-// Non-Response Adjustment (IPW)
+// ── Non-Response Adjustment (IPW) ─────────────────────────────────
 export function nonresponseAdjustment(data, responseVar, covarVars) {
   if (!data || data.length < 10 || !responseVar || !covarVars) return null;
   const n = data.length;

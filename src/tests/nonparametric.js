@@ -147,6 +147,8 @@ function gaussKernel(z) {
   return Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
 }
 
+// ── Kernel Density Estimation ─────────────────────────────────────
+
 export function kde(vals, bandwidth = null, nPoints = 100) {
   if (!vals || vals.length < 3) return null;
   const n = vals.length;
@@ -261,7 +263,7 @@ export function moodsMedian(groups) {
   };
 }
 
-// Jonckheere-Terpstra Test
+// ── Jonckheere-Terpstra Test ──────────────────────────────────────
 export function jonckheereTerpstra(groups) {
   if (!groups || groups.length < 3) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 2);
@@ -300,7 +302,7 @@ export function jonckheereTerpstra(groups) {
   };
 }
 
-// Siegel-Tukey Test
+// ── Siegel-Tukey Test ─────────────────────────────────────────────
 export function siegelTukey(a, b) {
   if (!a || !b || a.length < 5 || b.length < 5) return null;
   const n1 = a.length, n2 = b.length;
@@ -345,7 +347,7 @@ export function siegelTukey(a, b) {
   };
 }
 
-// LOESS Smoother
+// ── LOESS Smoother ────────────────────────────────────────────────
 export function loessSmoother(x, y, { span = 0.5, degree = 1, iterations = 2 } = {}) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
@@ -373,7 +375,7 @@ export function loessSmoother(x, y, { span = 0.5, degree = 1, iterations = 2 } =
   return { test: 'LOESS', fitted: fitted.map(v => +v.toFixed(4)).slice(0, 15), span, degree, n, apa: `LOESS: span = ${span}, n = ${n}` };
 }
 
-// Local Polynomial
+// ── Local Polynomial ──────────────────────────────────────────────
 export function localPolynomial(x, y, { degree = 2, bandwidth = null } = {}) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
@@ -388,7 +390,7 @@ export function localPolynomial(x, y, { degree = 2, bandwidth = null } = {}) {
   return { test: 'Local Polynomial', fitted: fitted.slice(0, 15), bandwidth: +h.toFixed(4), degree, n, apa: `Local poly: deg=${degree}, h = ${h.toFixed(2)}` };
 }
 
-// GCV Bandwidth Selection
+// ── GCV Bandwidth Selection ───────────────────────────────────────
 export function gcvBandwidth(x, y, { degree = 2, bandwidths = null } = {}) {
   if (!x || !y || x.length < 5) return null;
   const cand = bandwidths || [0.1, 0.2, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0];
@@ -409,7 +411,7 @@ export function gcvBandwidth(x, y, { degree = 2, bandwidths = null } = {}) {
   return { test: 'GCV Bandwidth', bandwidth: +bestH.toFixed(4), gcv: +bestGCV.toFixed(4), n, apa: `GCV: h = ${bestH.toFixed(3)}` };
 }
 
-// LOESS Classification
+// ── LOESS Classification ──────────────────────────────────────────
 export function loessClassification(data, yVar, xVar, { span = 0.5 } = {}) {
   if (!data || data.length < 10 || !yVar || !xVar) return null;
   const n = data.length;
@@ -420,7 +422,7 @@ export function loessClassification(data, yVar, xVar, { span = 0.5 } = {}) {
   return { test: 'LOESS Classification', predicted: predicted.slice(0, 15), span, n, apa: `LOESS class: span = ${span}, n = ${n}` };
 }
 
-// Local Likelihood
+// ── Local Likelihood ──────────────────────────────────────────────
 export function localLikelihood(x, y, { family = 'gaussian', bandwidth = null } = {}) {
   if (!x || !y || x.length < 10 || x.length !== y.length) return null;
   const n = x.length;
@@ -435,4 +437,79 @@ export function localLikelihood(x, y, { family = 'gaussian', bandwidth = null } 
     return +pred.toFixed(4);
   });
   return { test: 'Local Likelihood', fitted: fitted.slice(0, 15), family, bandwidth: +h.toFixed(4), n, apa: `Local likelihood: ${family}, h = ${h.toFixed(2)}` };
+}
+
+// ── Kernel Regression (Nadaraya-Watson) ───────────────────────────
+export function kernelRegression(x, y, h = null) {
+  if (!x || !y || x.length < 10 || x.length !== y.length) return null;
+  const n = x.length;
+  const band = h || 1.06 * Math.sqrt(sampleVar(x)) * Math.pow(n, -0.2) || 0.5;
+  const fitted = x.map((xi, i) => {
+    let num = 0, den = 0;
+    for (let j = 0; j < n; j++) {
+      const u = (xi - x[j]) / band;
+      const w = Math.exp(-0.5 * u * u);
+      num += w * y[j];
+      den += w;
+    }
+    return den > 0 ? +(num / den).toFixed(4) : 0;
+  });
+  const resid = y.map((yi, i) => yi - fitted[i]);
+  const rmse = Math.sqrt(resid.reduce((s, r) => s + r * r, 0) / n);
+  return { test: 'Kernel Regression', fitted: fitted.slice(0, 15), bandwidth: +band.toFixed(4), rmse: +rmse.toFixed(4), n, apa: `Kernel regression: h = ${band.toFixed(2)}, RMSE = ${rmse.toFixed(2)}` };
+}
+
+// ── Loess CV ──────────────────────────────────────────────────────
+export function loessCV(x, y, bandwidths = null) {
+  if (!x || !y || x.length < 10 || x.length !== y.length) return null;
+  const n = x.length;
+  const candidates = bandwidths || [0.2, 0.3, 0.4, 0.5, 0.6, 0.7];
+  let bestH = candidates[0], bestCV = Infinity;
+  const results = candidates.map(h => {
+    let cvScore = 0;
+    for (let i = 0; i < n; i++) {
+      const dists = x.map((xj, j) => ({ j, d: Math.abs(x[i] - xj) }));
+      dists.sort((a, b) => a.d - b.d);
+      const span = Math.max(3, Math.floor(n * h));
+      const nearby = dists.slice(1, span + 1);
+      const weights = nearby.map(nb => { const u = nb.d / Math.max(nearby[nearby.length-1].d, 1e-6); return u < 1 ? (1 - u**3)**3 : 0; });
+      let num = 0, den = 0;
+      nearby.forEach((nb, k) => { num += weights[k] * y[nb.j]; den += weights[k]; });
+      const pred = den > 0 ? num / den : y[i];
+      cvScore += (y[i] - pred) ** 2;
+    }
+    cvScore /= n;
+    if (cvScore < bestCV) { bestCV = cvScore; bestH = h; }
+    return { bandwidth: h, cvScore: +cvScore.toFixed(4) };
+  });
+  return { test: 'Loess CV', optimalBandwidth: +bestH.toFixed(4), optimalCV: +bestCV.toFixed(4), results, n, apa: `Loess CV: optimal h = ${bestH.toFixed(2)}, CV = ${bestCV.toFixed(2)}` };
+}
+
+// ── Isotonic Regression (PAVA) ────────────────────────────────────
+export function isotonicRegression(y) {
+  if (!y || y.length < 3) return null;
+  const n = y.length;
+  const fitted = [...y];
+  const weights = Array(n).fill(1);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let i = 1; i < n; i++) {
+      if (fitted[i] < fitted[i-1]) {
+        const merged = (fitted[i] * weights[i] + fitted[i-1] * weights[i-1]) / (weights[i] + weights[i-1]);
+        fitted[i] = merged; fitted[i-1] = merged;
+        weights[i] += weights[i-1]; weights[i-1] = weights[i];
+        changed = true;
+      }
+    }
+  }
+  const blocks = [];
+  let blockStart = 0;
+  for (let i = 1; i <= n; i++) {
+    if (i === n || Math.abs(fitted[i] - fitted[i-1]) > 1e-8) {
+      blocks.push({ from: blockStart, to: i - 1, value: +fitted[blockStart].toFixed(4) });
+      blockStart = i;
+    }
+  }
+  return { test: 'Isotonic Regression', fitted: fitted.slice(0, 15).map(v => +v.toFixed(4)), nBlocks: blocks.length, n, apa: `Isotonic: ${blocks.length} blocks, n=${n}` };
 }

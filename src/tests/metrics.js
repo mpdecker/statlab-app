@@ -1,6 +1,6 @@
 import { avg } from '../math/core.js';
 
-// PSNR
+// ── PSNR ──────────────────────────────────────────────────────────
 export function psnr(img1, img2, { maxVal = 255 } = {}) {
   if (!img1 || !img2 || img1.length !== img2.length || !img1.length) return null;
   const n = img1.length;
@@ -11,7 +11,7 @@ export function psnr(img1, img2, { maxVal = 255 } = {}) {
   return { test: 'PSNR', psnr: +psnrVal.toFixed(2), maxVal, n, apa: `PSNR = ${psnrVal.toFixed(1)} dB` };
 }
 
-// SSIM
+// ── SSIM ──────────────────────────────────────────────────────────
 export function ssim(img1, img2, { L = 255, k1 = 0.01, k2 = 0.03 } = {}) {
   if (!img1 || !img2 || img1.length !== img2.length || !img1.length) return null;
   const n = img1.length;
@@ -26,7 +26,7 @@ export function ssim(img1, img2, { L = 255, k1 = 0.01, k2 = 0.03 } = {}) {
   return { test: 'SSIM', ssim: +ssimVal.toFixed(4), n, apa: `SSIM = ${ssimVal.toFixed(4)}` };
 }
 
-// IoU
+// ── IoU ───────────────────────────────────────────────────────────
 export function iou(box1, box2) {
   if (!box1 || !box2 || box1.length < 4 || box2.length < 4) return null;
   const x1 = Math.max(box1[0], box2[0]), y1 = Math.max(box1[1], box2[1]);
@@ -38,7 +38,7 @@ export function iou(box1, box2) {
   return { test: 'IoU', iou: +(inter / Math.max(union, 1)).toFixed(4), apa: `IoU = ${(inter / Math.max(union, 1)).toFixed(4)}` };
 }
 
-// BLEU Score
+// ── BLEU Score ────────────────────────────────────────────────────
 export function bleuScore(candidate, references, { n = 4 } = {}) {
   if (!candidate || !references || !candidate.length || !references.length) return null;
   const cand = Array.isArray(candidate) ? candidate : candidate.toLowerCase().split(/\s+/);
@@ -61,7 +61,7 @@ export function bleuScore(candidate, references, { n = 4 } = {}) {
   return { test: 'BLEU', bleu: +bleu.toFixed(4), n, apa: `BLEU = ${bleu.toFixed(4)}` };
 }
 
-// ROUGE-L
+// ── ROUGE-L ───────────────────────────────────────────────────────
 export function rougeL(candidate, reference) {
   if (!candidate || !reference) return null;
   const cand = Array.isArray(candidate) ? candidate : String(candidate).toLowerCase().split(/\s+/);
@@ -77,9 +77,41 @@ export function rougeL(candidate, reference) {
   return { test: 'ROUGE-L', precision: +prec.toFixed(4), recall: +rec.toFixed(4), f1: +f1.toFixed(4), apa: `ROUGE-L F1 = ${f1.toFixed(4)}` };
 }
 
-// Perplexity
+// ── Perplexity ────────────────────────────────────────────────────
 export function perplexity(logLik, nTokens) {
   if (!Number.isFinite(logLik) || !nTokens || nTokens < 1) return null;
   const ppl = Math.exp(-logLik / nTokens);
   return { test: 'Perplexity', perplexity: +ppl.toFixed(2), logLik: +logLik.toFixed(4), nTokens, apa: `Perplexity = ${ppl.toFixed(1)}` };
+}
+
+// ── Matthews Correlation Coefficient ──────────────────────────────
+export function matthewsCorrelation(tp, fp, tn, fn) {
+  if (tp == null || fp == null || tn == null || fn == null) return null;
+  const num = tp * tn - fp * fn;
+  const denom = Math.sqrt(Math.max((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn), 1));
+  const mcc = denom > 0 ? num / denom : 0;
+  const label = Math.abs(mcc) > 0.7 ? 'strong' : Math.abs(mcc) > 0.3 ? 'moderate' : 'weak';
+  return { test: 'Matthews Correlation', mcc: +mcc.toFixed(4), label, tp, fp, tn, fn, apa: `MCC = ${mcc.toFixed(3)} (${label})` };
+}
+
+// ── Precision-Recall Curve ────────────────────────────────────────
+export function precisionRecallCurve(scores, labels, { nThresholds = 10 } = {}) {
+  if (!scores || !labels || scores.length < 5 || scores.length !== labels.length) return null;
+  const n = scores.length;
+  const sorted = scores.map((s, i) => ({ s, l: labels[i] })).sort((a, b) => b.s - a.s);
+  const thresholds = Array.from({ length: nThresholds }, (_, i) => sorted[Math.floor(i * n / nThresholds)]?.s || 0);
+  const curve = thresholds.map(t => {
+    const pred = scores.map(s => s >= t ? 1 : 0);
+    let tp = 0, fp = 0, fn = 0;
+    for (let i = 0; i < n; i++) {
+      if (labels[i] === 1 && pred[i] === 1) tp++;
+      else if (labels[i] === 0 && pred[i] === 1) fp++;
+      else if (labels[i] === 1 && pred[i] === 0) fn++;
+    }
+    const prec = tp + fp > 0 ? tp / (tp + fp) : 0;
+    const rec = tp + fn > 0 ? tp / (tp + fn) : 0;
+    return { threshold: +t.toFixed(4), precision: +prec.toFixed(4), recall: +rec.toFixed(4) };
+  });
+  const avgPrec = avg(curve.map(c => c.precision));
+  return { test: 'Precision-Recall Curve', curve, averagePrecision: +avgPrec.toFixed(4), n, apa: `PR curve: AP = ${avgPrec.toFixed(3)}` };
 }

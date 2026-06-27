@@ -152,7 +152,7 @@ export function rollingWindow(data, fn, windowSize, { step = 1 } = {}) {
   };
 }
 
-// Fama-French 3-Factor
+// ── Fama-French 3-Factor ──────────────────────────────────────────
 export function famaFrench3F(returns, market, smb, hml) {
   if (!returns || !market || !smb || !hml) return null;
   const n = Math.min(returns.length, market.length, smb.length, hml.length);
@@ -171,7 +171,7 @@ export function famaFrench3F(returns, market, smb, hml) {
   return { test: 'Fama-French 3F', coefficients: [{ name: 'Market', b: +beta[0].toFixed(4) }, { name: 'SMB', b: +beta[1].toFixed(4) }, { name: 'HML', b: +beta[2].toFixed(4) }], rSquared: +rsq.toFixed(4), n, apa: `FF3: R² = ${rsq.toFixed(3)}, n = ${n}` };
 }
 
-// Carhart 4-Factor
+// ── Carhart 4-Factor ──────────────────────────────────────────────
 export function carhart4F(returns, market, smb, hml, mom) {
   if (!returns || !market || !smb || !hml || !mom) return null;
   const n = Math.min(returns.length, market.length, smb.length, hml.length, mom.length);
@@ -188,7 +188,7 @@ export function carhart4F(returns, market, smb, hml, mom) {
   return { test: 'Carhart 4F', coefficients: [{ name: 'Market', b: +beta[0].toFixed(4) }, { name: 'SMB', b: +beta[1].toFixed(4) }, { name: 'HML', b: +beta[2].toFixed(4) }, { name: 'MOM', b: +beta[3].toFixed(4) }], rSquared: +rsq.toFixed(4), n, apa: `C4F: R² = ${rsq.toFixed(3)}, n = ${n}` };
 }
 
-// EGARCH
+// ── EGARCH ────────────────────────────────────────────────────────
 export function egarch(returns) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
@@ -204,7 +204,7 @@ export function egarch(returns) {
   return { test: 'EGARCH', omega, alpha, beta, gamma, conditionalVar: sigma2.slice(-10).map(v => +v.toFixed(6)), n, apa: `EGARCH: γ = ${gamma.toFixed(3)}, n = ${n}` };
 }
 
-// TGARCH
+// ── TGARCH ────────────────────────────────────────────────────────
 export function tgarch(returns) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
@@ -220,7 +220,7 @@ export function tgarch(returns) {
   return { test: 'TGARCH', omega, alpha, beta, gamma, conditionalVar: sigma2.slice(-10).map(v => +v.toFixed(6)), n, apa: `TGARCH: γ = ${gamma.toFixed(3)}, n = ${n}` };
 }
 
-// Treynor Ratio
+// ── Treynor Ratio ─────────────────────────────────────────────────
 export function treynorRatio(returns, beta, riskFree = 0) {
   if (!returns || !returns.length || !beta || beta === 0) return null;
   const n = returns.length;
@@ -229,7 +229,7 @@ export function treynorRatio(returns, beta, riskFree = 0) {
   return { test: 'Treynor Ratio', treynor: +treynor.toFixed(4), beta, mean: +avg(returns).toFixed(6), riskFree, n, apa: `Treynor = ${treynor.toFixed(2)} (β = ${beta.toFixed(2)})` };
 }
 
-// Black-Scholes
+// ── Black-Scholes ─────────────────────────────────────────────────
 export function blackScholes(spot, strike, time, rate, sigma, type = 'call') {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || spot <= 0 || strike <= 0 || sigma <= 0) return null;
   const d1 = (Math.log(spot / strike) + (rate + sigma * sigma / 2) * time) / (sigma * Math.sqrt(time));
@@ -240,7 +240,7 @@ export function blackScholes(spot, strike, time, rate, sigma, type = 'call') {
   return { test: 'Black-Scholes', price: +price.toFixed(4), type, spot, strike, time, rate, sigma, apa: `BS ${type}: ${price.toFixed(2)}` };
 }
 
-// Implied Volatility
+// ── Implied Volatility ────────────────────────────────────────────
 export function impliedVolatility(marketPrice, spot, strike, time, rate, type = 'call') {
   if (![marketPrice, spot, strike, time, rate].every(Number.isFinite)) return null;
   let lo = 0.01, hi = 3;
@@ -253,7 +253,7 @@ export function impliedVolatility(marketPrice, spot, strike, time, rate, type = 
   return { test: 'Implied Volatility', iv: +((lo + hi) / 2).toFixed(4), marketPrice, spot, strike, time, rate, type, apa: `IV = ${((lo + hi) / 2 * 100).toFixed(1)}%` };
 }
 
-// Option Greeks
+// ── Option Greeks ─────────────────────────────────────────────────
 export function optionGreeks(spot, strike, time, rate, sigma) {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite)) return null;
   const d1 = (Math.log(spot / strike) + (rate + sigma * sigma / 2) * time) / (sigma * Math.sqrt(time));
@@ -267,7 +267,7 @@ export function optionGreeks(spot, strike, time, rate, sigma) {
   return { test: 'Option Greeks', delta: +delta.toFixed(4), gamma: +gamma.toFixed(4), theta: +theta.toFixed(4), vega: +vega.toFixed(4), rho: +rho.toFixed(4), apa: `Greeks: δ=${delta.toFixed(3)}, γ=${gamma.toFixed(4)}` };
 }
 
-// Binomial Tree (CRR)
+// ── Binomial Tree (CRR) ───────────────────────────────────────────
 export function binomialTree(spot, strike, time, rate, sigma, steps = 100, type = 'call') {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || steps < 2) return null;
   const dt = time / steps;
@@ -284,7 +284,7 @@ export function binomialTree(spot, strike, time, rate, sigma, steps = 100, type 
   return { test: 'Binomial Tree', price: +prices[0].toFixed(4), steps, type, apa: `Binomial: ${prices[0].toFixed(2)} (${steps} steps)` };
 }
 
-// Monte Carlo Pricing
+// ── Monte Carlo Pricing ───────────────────────────────────────────
 export function monteCarloPricing(spot, strike, time, rate, sigma, nPaths = 10000, type = 'call') {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || nPaths < 100) return null;
   let sumPayoff = 0;
@@ -298,7 +298,7 @@ export function monteCarloPricing(spot, strike, time, rate, sigma, nPaths = 1000
   return { test: 'Monte Carlo Pricing', price: +price.toFixed(4), nPaths, type, apa: `MC price: ${price.toFixed(2)} (${nPaths} paths)` };
 }
 
-// Variance Reduction
+// ── Variance Reduction ────────────────────────────────────────────
 export function varReduction(payoffs, target) {
   if (!payoffs || !payoffs.length || !Number.isFinite(target)) return null;
   const n = payoffs.length;
@@ -308,4 +308,32 @@ export function varReduction(payoffs, target) {
   const cMu = control.reduce((s, v) => s + v, 0) / n;
   const reducedVar = control.reduce((s, v) => s + (v - cMu) ** 2, 0) / (n - 1);
   return { test: 'Variance Reduction', rawVar: +rawVar.toFixed(6), reducedVar: +reducedVar.toFixed(6), reduction: +((1 - reducedVar / Math.max(rawVar, 1e-10)) * 100).toFixed(1), n, apa: `Var reduction: ${((1 - reducedVar / Math.max(rawVar, 1e-10)) * 100).toFixed(0)}%` };
+}
+
+// ── Monte Carlo Option Pricing (extended) ─────────────────────────
+export function monteCarloOption(S, K, T, r, sigma, { nSim = 1000, type = 'call' } = {}) {
+  if (!Number.isFinite(S) || S <= 0 || K <= 0 || T <= 0) return null;
+  let sumPayoff = 0;
+  for (let i = 0; i < nSim; i++) {
+    const z = Math.sqrt(-2 * Math.log(Math.max(Math.random(), 1e-10))) * Math.cos(2 * Math.PI * Math.random());
+    const ST = S * Math.exp((r - sigma * sigma / 2) * T + sigma * Math.sqrt(T) * z);
+    const payoff = type === 'call' ? Math.max(0, ST - K) : Math.max(0, K - ST);
+    sumPayoff += payoff;
+  }
+  const price = Math.exp(-r * T) * sumPayoff / nSim;
+  return { test: 'Monte Carlo Option', price: +price.toFixed(4), nSim, S, K, T, type, apa: `MC ${type}: ${price.toFixed(2)} (${nSim} sim)` };
+}
+
+// ── Option Greeks ─────────────────────────────────────────────────
+export function greeks(S, K, T, r, sigma) {
+  if (!Number.isFinite(S) || S <= 0 || K <= 0 || T <= 0) return null;
+  const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+  const nd1 = Math.exp(-0.5 * d1 * d1) / Math.sqrt(2 * Math.PI);
+  const delta = 0.5 * (1 + Math.tanh(d1 / Math.SQRT2));
+  const gamma = nd1 / (S * sigma * Math.sqrt(T));
+  const theta = -S * nd1 * sigma / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * 0.5 * (1 + Math.tanh(d2 / Math.SQRT2));
+  const vega = S * Math.sqrt(T) * nd1 / 100;
+  const rho = K * T * Math.exp(-r * T) * 0.5 * (1 + Math.tanh(d2 / Math.SQRT2)) / 100;
+  return { test: 'Option Greeks', delta: +delta.toFixed(4), gamma: +gamma.toFixed(4), theta: +theta.toFixed(4), vega: +vega.toFixed(4), rho: +rho.toFixed(4), apa: `Greeks: delta=${delta.toFixed(3)}, gamma=${gamma.toFixed(3)}` };
 }

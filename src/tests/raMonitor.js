@@ -1,7 +1,7 @@
 import { avg } from '../math/core.js';
 import { normalCDF } from '../math/distributions.js';
 
-// RA-CUSUM
+// ── RA-CUSUM ──────────────────────────────────────────────────────
 export function raCusum(binary, predicted, { k = 0.5, h = 5 } = {}) {
   if (!binary || !predicted || binary.length < 10 || binary.length !== predicted.length) return null;
   const n = binary.length;
@@ -15,7 +15,7 @@ export function raCusum(binary, predicted, { k = 0.5, h = 5 } = {}) {
   return { test: 'RA-CUSUM', cusum: cusum.slice(1).map(v => +v.toFixed(4)), signals, k, h, n, apa: `RA-CUSUM: ${signals.length} signal(s), n = ${n}` };
 }
 
-// VLAD
+// ── VLAD ──────────────────────────────────────────────────────────
 export function vlad(expected, observed, { smoothing = 5 } = {}) {
   if (!expected || !observed || expected.length !== observed.length || expected.length < 5) return null;
   const n = expected.length;
@@ -31,7 +31,7 @@ export function vlad(expected, observed, { smoothing = 5 } = {}) {
   return { test: 'VLAD', vlad: smoothed.map(v => +v.toFixed(4)).slice(0, 20), n, apa: `VLAD: range [${Math.min(...smoothed).toFixed(0)}, ${Math.max(...smoothed).toFixed(0)}]` };
 }
 
-// RA-SPRT
+// ── RA-SPRT ───────────────────────────────────────────────────────
 export function raSprt(binary, predicted, { h0 = 0, h1 = 0.5 } = {}) {
   if (!binary || !predicted || binary.length < 10 || binary.length !== predicted.length) return null;
   const n = binary.length;
@@ -45,7 +45,7 @@ export function raSprt(binary, predicted, { h0 = 0, h1 = 0.5 } = {}) {
   return { test: 'RA-SPRT', llr: llr.slice(1).map(v => +v.toFixed(4)), n, apa: `RA-SPRT: final LLR = ${llr[n].toFixed(2)}` };
 }
 
-// Funnel Plot
+// ── Funnel Plot ───────────────────────────────────────────────────
 export function funnelPlot(data, yVar, nVar, { controlLimits = 3 } = {}) {
   if (!data || data.length < 5 || !yVar || !nVar) return null;
   const n = data.length;
@@ -61,7 +61,7 @@ export function funnelPlot(data, yVar, nVar, { controlLimits = 3 } = {}) {
   return { test: 'Funnel Plot', points, meanRate: +meanRate.toFixed(4), controlLimits, n, apa: `Funnel: ${points.filter(p => p.signal).length} signals` };
 }
 
-// C-Chart Risk-Adjusted
+// ── C-Chart Risk-Adjusted ─────────────────────────────────────────
 export function cChartRiskAdjusted(data, yVar, riskVar, { controlLimits = 3 } = {}) {
   if (!data || data.length < 12 || !yVar || !riskVar) return null;
   const n = data.length;
@@ -77,4 +77,29 @@ export function cChartRiskAdjusted(data, yVar, riskVar, { controlLimits = 3 } = 
     return { i: i + 1, observed: yi, expected: +exp.toFixed(4), ucl: +ucl.toFixed(4), lcl: +lcl.toFixed(4), signal: yi > ucl || yi < lcl };
   });
   return { test: 'C-Chart Risk-Adjusted', points, expectedRate: +expectedRate.toFixed(4), controlLimits, n, apa: `RA C-chart: ${points.filter(p => p.signal).length} signals` };
+}
+
+// ── Safety Signal Detection (PRR) ─────────────────────────────────
+export function safetySignal(events, expected, total) {
+  if (!events || !expected || events < 0 || expected <= 0 || !total || total <= 0) return null;
+  const observed = events;
+  const nonObserved = total - observed;
+  const nonExpected = total - expected;
+  const prr = (observed / Math.max(observed + nonObserved, 1)) / (expected / Math.max(expected + nonExpected, 1));
+  const logPRR = Math.log(Math.max(prr, 0.01));
+  const se = Math.sqrt(1 / Math.max(observed, 1) + 1 / Math.max(expected, 1));
+  const ciLow = Math.exp(logPRR - 1.96 * se);
+  const ciHigh = Math.exp(logPRR + 1.96 * se);
+  return { test: 'Safety Signal', prr: +prr.toFixed(4), ciLow: +ciLow.toFixed(4), ciHigh: +ciHigh.toFixed(4), observed, expected, total, apa: `Safety: PRR=${prr.toFixed(2)} (${ciLow.toFixed(2)}-${ciHigh.toFixed(2)})` };
+}
+
+// ── PRR Analysis (Proportional Reporting Ratio batch) ─────────────
+export function prrAnalysis(events, expecteds, totals) {
+  if (!events || !expecteds || events.length < 3 || events.length !== expecteds.length) return null;
+  const n = events.length;
+  const results = events.map((e, i) => {
+    const prr = safetySignal(e, expecteds[i], totals[i] || 1000);
+    return prr ? { index: i + 1, prr: prr.prr, signal: prr.ciLow > 1 } : { index: i + 1, prr: 0, signal: false };
+  });
+  return { test: 'PRR Analysis', results, nSignals: results.filter(r => r.signal).length, n, apa: `PRR: ${results.filter(r => r.signal).length}/${n} signals` };
 }

@@ -81,3 +81,63 @@ export function scenarioComparison(scenarios) {
   }
   return { test: 'Scenario Comparison', values, pairs, nScenarios: scenarios.length, apa: `Scenarios: ${values.map(v => `${v.name}=${v.mean.toFixed(2)}`).join(', ')}` };
 }
+
+// ── Threshold Model (Granovetter) ─────────────────────────────────
+export function thresholdModel(nAgents, thresholds, initialAdopters = 1) {
+  if (!nAgents || nAgents < 3 || !thresholds || thresholds.length < nAgents) return null;
+  const sorted = [...thresholds].sort((a, b) => a - b);
+  let adopters = initialAdopters;
+  const cascade = [];
+  for (let i = 0; i < nAgents; i++) {
+    const prop = adopters / nAgents;
+    if (sorted[i] <= prop) {
+      adopters++;
+      cascade.push({ step: i, adopters, proportion: +(adopters / nAgents).toFixed(4) });
+    }
+  }
+  return { test: 'Threshold Model', finalAdopters: adopters, proportion: +(adopters / nAgents).toFixed(4), nAgents, apa: `Threshold: ${adopters}/${nAgents} adopters` };
+}
+
+// ── Network Diffusion ─────────────────────────────────────────────
+export function networkDiffusion(adjacency, seeds, { steps = 10, prob = 0.1 } = {}) {
+  if (!adjacency || !adjacency.length || !seeds || !seeds.length) return null;
+  const n = adjacency.length;
+  let infected = new Set(seeds);
+  const history = [{ step: 0, nInfected: infected.size }];
+  for (let s = 1; s <= steps; s++) {
+    const newInfections = new Set();
+    for (const node of infected) {
+      for (let j = 0; j < n; j++) {
+        if (!infected.has(j) && adjacency[node][j] > 0 && Math.random() < prob) {
+          newInfections.add(j);
+        }
+      }
+    }
+    newInfections.forEach(v => infected.add(v));
+    history.push({ step: s, nInfected: infected.size });
+  }
+  return { test: 'Network Diffusion', history, finalInfected: infected.size, n, prob, apa: `Diffusion: ${infected.size}/${n} after ${steps} steps` };
+}
+
+// ── Segregation Index ─────────────────────────────────────────────
+export function segregationIndex(data, groupVar, locationVar) {
+  if (!data || data.length < 5 || !groupVar || !locationVar) return null;
+  const groups = [...new Set(data.map(r => r[groupVar]))];
+  const locations = [...new Set(data.map(r => r[locationVar]))];
+  if (groups.length < 2 || locations.length < 2) return null;
+  const total = data.length;
+  const overall = groups.map(g => data.filter(r => r[groupVar] === g).length / total);
+  let D = 0;
+  for (const loc of locations) {
+    const locData = data.filter(r => r[locationVar] === loc);
+    const tLoc = locData.length;
+    let sumDiff = 0;
+    for (let i = 0; i < groups.length; i++) {
+      const gCount = locData.filter(r => r[groupVar] === groups[i]).length;
+      const gLoc = tLoc > 0 ? gCount / tLoc : 0;
+      sumDiff += Math.abs(gLoc - overall[i]);
+    }
+    D += tLoc * sumDiff / (2 * total);
+  }
+  return { test: 'Segregation Index', D: +D.toFixed(4), nGroups: groups.length, nLocations: locations.length, n: total, apa: `Segregation: D=${D.toFixed(3)}` };
+}

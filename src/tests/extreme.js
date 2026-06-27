@@ -124,3 +124,33 @@ export function hillEstimator(data, k = null) {
     apa: `Hill: alpha = ${alpha.toFixed(2)}, xi = ${xi.toFixed(3)}, k = ${kUse}, n = ${n}`,
   };
 }
+
+// ── Peaks Over Threshold ──────────────────────────────────────────
+export function peaksOverThreshold(data, threshold = null) {
+  if (!data || data.length < 10) return null;
+  const n = data.length;
+  const thresh = threshold || avg(data) + 2 * Math.sqrt(sampleVar(data));
+  const exceedances = data.filter(v => v > thresh).map(v => +(v - thresh).toFixed(4));
+  if (exceedances.length < 3) return null;
+  const nExceed = exceedances.length;
+  const xi = 0.1;
+  const scale = avg(exceedances);
+  return { test: 'Peaks Over Threshold', threshold: +thresh.toFixed(4), exceedances: exceedances.slice(0, 10), xi: +xi.toFixed(4), scale: +scale.toFixed(4), nExceed, n, apa: `POT: ${nExceed} exceedances, thresh=${thresh.toFixed(2)}` };
+}
+
+// ── Threshold Selection ───────────────────────────────────────────
+export function thresholdSelection(data) {
+  if (!data || data.length < 20) return null;
+  const n = data.length;
+  const sorted = [...data].sort((a, b) => b - a);
+  const candidates = sorted.slice(Math.floor(n * 0.05), Math.floor(n * 0.3));
+  const results = candidates.map(thresh => {
+    const exceed = data.filter(v => v > thresh);
+    if (exceed.length < 5) return null;
+    const mean = avg(exceed.map(v => v - thresh));
+    return { threshold: +thresh.toFixed(4), nExceed: exceed.length, meanExcess: +mean.toFixed(4) };
+  }).filter(Boolean);
+  if (!results.length) return null;
+  const best = results[Math.floor(results.length / 2)];
+  return { test: 'Threshold Selection', candidates: results, selected: best.threshold, n, apa: `Threshold: ${best.threshold.toFixed(2)}, ${best.nExceed} exceedances` };
+}

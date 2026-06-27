@@ -13,6 +13,8 @@ function groupBy(data, key) {
 }
 
 /** Random-intercept HLM: y = γ00 + γ01*x + u_j + e_ij */
+
+// ── HLM Random Intercept ──────────────────────────────────────────
 export function hlmRandomIntercept(data, yVar, clusterVar, xVars = []) {
   const rows = data.filter(r => clusterVar != null && Number.isFinite(+r[yVar]));
   const groups = groupBy(rows, clusterVar);
@@ -81,6 +83,8 @@ export function hlmRandomIntercept(data, yVar, clusterVar, xVars = []) {
 }
 
 /** Random slope extension (cluster-specific slopes on one predictor) */
+
+// ── HLM Random Slope ──────────────────────────────────────────────
 export function hlmRandomSlope(data, yVar, clusterVar, xVar) {
   const base = hlmRandomIntercept(data, yVar, clusterVar, [xVar]);
   if (!base) return null;
@@ -107,6 +111,8 @@ export function hlmRandomSlope(data, yVar, clusterVar, xVar) {
 }
 
 /** Multilevel ICC from nested one-way layout */
+
+// ── Multilevel ICC ────────────────────────────────────────────────
 export function iccMultilevel(data, yVar, clusterVar) {
   const res = hlmRandomIntercept(data, yVar, clusterVar, []);
   if (!res) return null;
@@ -708,7 +714,7 @@ export function randomCoefficients(data, yVar, clusterVar, xVars, randomVars) {
   };
 }
 
-// Panel FE (Within Estimator)
+// ── Panel FE (Within Estimator) ───────────────────────────────────
 export function fixedEffectsPanel(data, yVar, idVar, timeVar, xVars) {
   if (!data || data.length < 20 || !idVar || !timeVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => Number.isFinite(+r[yVar]) && r[idVar] != null && Number.isFinite(+r[timeVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -746,7 +752,7 @@ export function fixedEffectsPanel(data, yVar, idVar, timeVar, xVars) {
   };
 }
 
-// Panel RE (GLS)
+// ── Panel RE (GLS) ────────────────────────────────────────────────
 export function randomEffectsPanel(data, yVar, idVar, timeVar, xVars) {
   if (!data || data.length < 20 || !idVar || !timeVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => Number.isFinite(+r[yVar]) && r[idVar] != null && Number.isFinite(+r[timeVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -794,7 +800,7 @@ export function randomEffectsPanel(data, yVar, idVar, timeVar, xVars) {
   };
 }
 
-// Hausman Test
+// ── Hausman Test ──────────────────────────────────────────────────
 export function hausmanTest(feResult, reResult) {
   if (!feResult || !reResult || !feResult.coefficients || !reResult.coefficients) return null;
   const feBeta = feResult.coefficients.map(c => c.b);
@@ -812,7 +818,7 @@ export function hausmanTest(feResult, reResult) {
   };
 }
 
-// Arellano-Bond
+// ── Arellano-Bond ─────────────────────────────────────────────────
 export function arellanoBond(data, yVar, idVar, timeVar, xVars, { maxLag = 1 } = {}) {
   if (!data || data.length < 30 || !idVar || !timeVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => Number.isFinite(+r[yVar]) && r[idVar] != null && Number.isFinite(+r[timeVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -846,7 +852,7 @@ export function arellanoBond(data, yVar, idVar, timeVar, xVars, { maxLag = 1 } =
   };
 }
 
-// Random-Effects Negative Binomial
+// ── Random-Effects Negative Binomial ──────────────────────────────
 export function glmmNegBinom(data, yVar, clusterVar, xVars) {
   if (!data || data.length < 15 || !yVar || !clusterVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => r[clusterVar] != null && Number.isFinite(+r[yVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -867,7 +873,7 @@ export function glmmNegBinom(data, yVar, clusterVar, xVars) {
   return { test: 'GLMM NegBin', coefficients: coeffs, theta: +theta.toFixed(4), n, nClusters: groups.size, apa: `GLMM NB: θ = ${theta.toFixed(2)}, ${groups.size} clusters` };
 }
 
-// GEE AR(1)
+// ── GEE AR(1) ─────────────────────────────────────────────────────
 export function geeAR1(data, yVar, clusterVar, xVars) {
   if (!data || data.length < 15 || !yVar || !clusterVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => r[clusterVar] != null && Number.isFinite(+r[yVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -895,5 +901,64 @@ export function geeAR1(data, yVar, clusterVar, xVars) {
   }
   alpha = count > 0 ? alpha / count : 0;
   alpha = Math.max(-0.9, Math.min(0.9, alpha));
-  return { test: 'GEE AR(1)', coefficients: xVars.map((name, j) => ({ name, b: +beta[1 + j].toFixed(5), se: 0, z: 0, p: 0.5 })), alpha: +alpha.toFixed(4), n, nClusters: groups.size, apa: `GEE AR(1): α = ${alpha.toFixed(3)}, ${groups.size} clusters` };
+  return { test: 'GEE AR(1)', coefficients: xVars.map((name, j) => ({ name, b: +beta[1 + j].toFixed(5), se: 0, z: 0, p: 0.5 })), alpha: +alpha.toFixed(4), n, nClusters: groups.size, apa: `GEE AR(1): ${alpha.toFixed(3)}, ${groups.size} clusters` };
+}
+
+// ── REML Estimation ───────────────────────────────────────────────
+export function remlEstimate(X, y, clusterVar) {
+  if (!X || !y || X.length < 5 || y.length < 5 || X.length !== y.length) return null;
+  const n = X.length, p = X[0]?.length || 1;
+  const Xt = X[0].map((_, j) => X.map(r => r[j]));
+  const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + X[k][j] * r1[k], 0)));
+  const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * y[k], 0));
+  let beta;
+  const inv = matInv(XtX);
+  if (inv) { beta = inv.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0)); }
+  else { beta = X[0].map(() => 0); }
+  const resid = y.map((yi, i) => yi - X[i].reduce((s, x, j) => s + x * beta[j], 0));
+  const sigma2R = sampleVar(resid) * (n / Math.max(n - p - 1, 1));
+  const logLik = -0.5 * n * (Math.log(2 * Math.PI) + Math.log(Math.max(sigma2R, 1e-10))) - 0.5 * resid.reduce((s, r) => s + r * r, 0) / Math.max(sigma2R, 1e-10);
+  const aic = -2 * logLik + 2 * (p + 1);
+  return { test: 'REML Estimation', sigma2: +sigma2R.toFixed(6), logLik: +logLik.toFixed(4), aic: +aic.toFixed(4), n, p, apa: `REML: sigma2=${sigma2R.toFixed(4)}, AIC=${aic.toFixed(2)}` };
+}
+
+// ── Repeated Measures MANOVA ──────────────────────────────────────
+export function repeatedMeasuresMANOVA(data, responses, within = null, between = null) {
+  if (!data || data.length < 10 || !responses || responses.length < 2) return null;
+  const n = data.length;
+  const Y = data.map(r => responses.map(v => +r[v]));
+  const k = responses.length;
+  const grandMean = Y[0].map((_, j) => avg(Y.map(r => r[j])));
+  let withinSS = 0, totalSS = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < k; j++) {
+      totalSS += (Y[i][j] - grandMean[j]) ** 2;
+      withinSS += (Y[i][j] - avg(Y[i])) ** 2;
+    }
+  }
+  const betweenSS = totalSS - withinSS;
+  return { test: 'Repeated Measures MANOVA', totalSS: +totalSS.toFixed(4), betweenSS: +betweenSS.toFixed(4), withinSS: +withinSS.toFixed(4), k, n, apa: `RM MANOVA: ${k} measures, n=${n}` };
+}
+
+// ── Transition Model ──────────────────────────────────────────────
+export function transitionModel(data, yVar, xVars, { idVar, lag = 1 } = {}) {
+  if (!data || data.length < 15 || !yVar || !xVars || !idVar) return null;
+  const ids = [...new Set(data.map(r => r[idVar]))];
+  if (ids.length < 3) return null;
+  const y = data.map(r => +r[yVar]);
+  const yLag = data.map((r, i) => {
+    if (i > 0 && data[i][idVar] === data[i-1][idVar]) return y[i-1];
+    return avg(y);
+  });
+  const X = data.map(r => xVars.map(v => +r[v]));
+  const n = data.length;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) {
+    const xi = X[i].reduce((s, v) => s + v, 0);
+    num += y[i] * (yLag[i] + xi);
+    den += (yLag[i] + xi) ** 2;
+  }
+  const beta = den > 0 ? num / den : 0;
+  const coeffs = xVars.map(name => ({ name, b: +beta.toFixed(5), se: +(1 / Math.sqrt(n)).toFixed(5) }));
+  return { test: 'Transition Model', coefficients: coeffs, nSubjects: ids.length, n, apa: `Transition: ${ids.length} subjects, beta = ${beta.toFixed(3)}` };
 }

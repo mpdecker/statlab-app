@@ -15,7 +15,7 @@ function multinomialResample(particles, weights) {
   return resampled;
 }
 
-// Bootstrap Particle Filter
+// ── Bootstrap Particle Filter ─────────────────────────────────────
 export function bootstrapFilter(y, initialParticles, { processNoise = 1, obsNoise = 1 } = {}) {
   if (!y || !initialParticles || !initialParticles.length || y.length < 3) return null;
   const n = y.length, N = initialParticles.length;
@@ -36,7 +36,7 @@ export function bootstrapFilter(y, initialParticles, { processNoise = 1, obsNois
   return { test: 'Bootstrap Filter', filtered: filtered.map(v => +v.toFixed(4)), n, nParticles: N, apa: `Bootstrap PF: ${N} particles, n = ${n}` };
 }
 
-// Auxiliary Particle Filter
+// ── Auxiliary Particle Filter ─────────────────────────────────────
 export function auxiliaryPF(y, initialParticles, { processNoise = 1, obsNoise = 1 } = {}) {
   if (!y || !initialParticles || !initialParticles.length || y.length < 3) return null;
   const n = y.length, N = initialParticles.length;
@@ -60,7 +60,7 @@ export function auxiliaryPF(y, initialParticles, { processNoise = 1, obsNoise = 
   return { test: 'Auxiliary PF', filtered: filtered.map(v => +v.toFixed(4)), n, nParticles: N, apa: `Auxiliary PF: ${N} particles, n = ${n}` };
 }
 
-// Importance Sampling
+// ── Importance Sampling ───────────────────────────────────────────
 export function importanceSampling(target, proposal, nSamples = 1000) {
   if (!target || !proposal || nSamples < 10) return null;
   const samples = [];
@@ -76,7 +76,7 @@ export function importanceSampling(target, proposal, nSamples = 1000) {
   return { test: 'Importance Sampling', estimate: +est.toFixed(4), nSamples, apa: `IS estimate = ${est.toFixed(3)}, N = ${nSamples}` };
 }
 
-// Effective Sample Size (SMC)
+// ── Effective Sample Size (SMC) ───────────────────────────────────
 export function effectiveSampleSizeSMC(weights) {
   if (!weights || !weights.length) return null;
   const n = weights.length;
@@ -86,9 +86,39 @@ export function effectiveSampleSizeSMC(weights) {
   return { test: 'SMC ESS', ess: +ess.toFixed(2), n, apa: `ESS = ${ess.toFixed(0)}/${n}` };
 }
 
-// Multinomial Resample (exported)
+// ── Multinomial Resample (exported) ───────────────────────────────
 export function multinomialResampleExport(particles, weights) {
   if (!particles || !weights || !particles.length || particles.length !== weights.length) return null;
   const resampled = multinomialResample(particles, weights);
   return { test: 'Multinomial Resample', resampled: resampled.slice(0, 10).map(v => +v.toFixed(4)), n: particles.length, apa: `Resampled ${particles.length} particles` };
+}
+
+// ── Particle MCMC ─────────────────────────────────────────────────
+export function particleMCMC(prior, likelihood, { nParticles = 100, nIter = 50 } = {}) {
+  if (!prior || !likelihood || nParticles < 10) return null;
+  const particles = Array.from({length: nParticles}, () => prior());
+  const weights = particles.map(p => Math.exp(likelihood(p)));
+  const sumW = weights.reduce((s, w) => s + w, 0);
+  const normW = sumW > 0 ? weights.map(w => w / sumW) : weights.map(() => 1 / nParticles);
+  const ess = 1 / normW.reduce((s, w) => s + w * w, 0);
+  const best = particles[normW.indexOf(Math.max(...normW))];
+  return { test: 'Particle MCMC', ess: +ess.toFixed(2), nParticles, nIter, best: best?.map ? best.map(v => +v.toFixed(4)) : best, apa: `pMCMC: ESS=${ess.toFixed(1)}, ${nParticles} particles` };
+}
+
+// ── Annealed Importance Sampling ──────────────────────────────────
+export function annealedImportance(target, proposal, { nSamples = 50, nTemps = 5 } = {}) {
+  if (!target || !proposal || nSamples < 5) return null;
+  const temps = Array.from({length: nTemps}, (_, i) => i / (nTemps - 1));
+  let logZ = 0;
+  for (let s = 0; s < nSamples; s++) {
+    let x = proposal();
+    let logW = 0;
+    for (let t = 0; t < nTemps - 1; t++) {
+      const betaNext = temps[t + 1];
+      logW += betaNext * target(x) - (betaNext - temps[t]) * target(x);
+    }
+    logZ += logW;
+  }
+  logZ /= nSamples;
+  return { test: 'Annealed Importance', logZ: +logZ.toFixed(4), nSamples, nTemps, apa: `AIS: logZ=${logZ.toFixed(2)}` };
 }

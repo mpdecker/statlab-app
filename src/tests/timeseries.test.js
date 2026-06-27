@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { adfTest, acf, pacf, arima, autoArima, simpleExpSmooth, holtsLinearSmooth, holtWinters, seasonalDecompose, varModel, grangerCausality, chowTest, garch, kalmanFilter, johansenTest, structuralBreak, bottomUpReconciliation, topDownReconciliation, middleOutReconciliation, minTReconciliation, forecastAccuracy, markovSwitchingAR, regimeVolatility, transitionMatrix, filteredProbabilities, expectedDuration, peltChangePoint, binarySegmentation, singleChangepoint, changepointPenalty, segmentedMeans, rollingOriginCV, slidingWindow, gapValidation, tsFeatures, forecastReconciliation, mase, smape, theilU, dieboldMariano, encompassingTest, varmax, cointegrationRank, vecm, impulseResponseCI, fevdDecomposition, dccGarch, bekkGarch, cccGarch, mgarchForecast, mgarchDiagnostics } from './timeseries.js';
+import { adfTest, acf, pacf, arima, autoArima, simpleExpSmooth, holtsLinearSmooth, holtWinters, seasonalDecompose, varModel, grangerCausality, chowTest, garch, egarch, stateSpace, kalmanFilter, johansenTest, structuralBreak, bottomUpReconciliation, topDownReconciliation, middleOutReconciliation, minTReconciliation, forecastAccuracy, markovSwitchingAR, regimeVolatility, transitionMatrix, filteredProbabilities, expectedDuration, peltChangePoint, binarySegmentation, singleChangepoint, changepointPenalty, segmentedMeans, rollingOriginCV, slidingWindow, gapValidation, tsFeatures, forecastReconciliation, mase, smape, theilU, dieboldMariano, encompassingTest, varmax, cointegrationRank, vecm, impulseResponseCI, fevdDecomposition, dccGarch, bekkGarch, cccGarch, mgarchForecast, mgarchDiagnostics } from './timeseries.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const stationarySeries = [
@@ -464,7 +464,19 @@ describe('kalmanFilter', () => {
 describe('johansenTest', () => {
   const series = { v1: Array.from({ length: 50 }, (_, i) => i * 0.1), v2: Array.from({ length: 50 }, (_, i) => i * 0.05 + Math.sin(i * 0.2)) };
   it('null small', () => expect(johansenTest({ v1: [1, 2, 3], v2: [4, 5, 6] }, 1)).toBeNull());
+  it('null for missing data', () => {
+    expect(johansenTest(null, 1)).toBeNull();
+    expect(johansenTest({}, 1)).toBeNull();
+  });
   it('contract keys', () => { const r = johansenTest(series, 1); if (r) expectKeys(r, ['test', 'traceStats', 'maxEigenStats', 'rank', 'cointegratingVectors', 'n', 'p', 'apa']); });
+  it('traceStats and maxEigenStats have k entries', () => {
+    const r = johansenTest(series, 1);
+    if (r) { const k = Object.keys(series).length; expect(r.traceStats).toHaveLength(k); expect(r.maxEigenStats).toHaveLength(k); }
+  });
+  it('n and p match input', () => {
+    const r = johansenTest(series, 1);
+    if (r) { expect(r.n).toBe(50); expect(r.p).toBe(1); }
+  });
 });
 
 describe('structuralBreak', () => {
@@ -475,71 +487,652 @@ describe('structuralBreak', () => {
 });
 
 describe('bottomUpReconciliation', () => {
+  it('null for empty forecasts', () => {
+    expect(bottomUpReconciliation([], [[0, 1]])).toBeNull();
+    expect(bottomUpReconciliation(null, [[0, 1]])).toBeNull();
+  });
   it('contract keys', () => expectKeys(bottomUpReconciliation([10, 20, 30], [[0, 1], [2]]), ['test', 'bottom', 'groups', 'total', 'n', 'nGroups', 'apa']));
+  it('reconciled non-empty', () => { const r = bottomUpReconciliation([10, 20, 30], [[0, 1], [2]]); if (r) expect(r.bottom.length).toBeGreaterThan(0); });
+  it('total equals sum of bottom forecasts', () => {
+    const r = bottomUpReconciliation([10, 20, 30], [[0, 1], [2]]);
+    if (r) expect(r.total).toBeCloseTo(60, 1);
+  });
+  it('groups length matches hierarchy', () => {
+    const r = bottomUpReconciliation([10, 20, 30], [[0, 1], [2]]);
+    if (r) expect(r.groups).toHaveLength(2);
+  });
 });
 describe('topDownReconciliation', () => {
   it('is defined', () => expect(typeof topDownReconciliation).toBe('function'));
+  it('null for missing proportions', () => {
+    expect(topDownReconciliation(100, null)).toBeNull();
+    expect(topDownReconciliation(null, null)).toBeNull();
+  });
+  it('reconciled non-empty', () => { const r = topDownReconciliation([10, 20, 30]); if (r && r.reconciled) expect(r.reconciled.length).toBeGreaterThan(0); });
+  it('returns null with only one arg', () => {
+    expect(topDownReconciliation([10, 20, 30])).toBeNull();
+  });
 });
 describe('middleOutReconciliation', () => {
+  it('null for empty forecasts', () => {
+    expect(middleOutReconciliation([], null, null, null)).toBeNull();
+    expect(middleOutReconciliation(null, null, null, null)).toBeNull();
+  });
   it('contract keys', () => expectKeys(middleOutReconciliation([30, 40, 50], null, null, null), ['test', 'middle', 'upper', 'lower', 'n', 'apa']));
+  it('reconciled non-empty', () => { const r = middleOutReconciliation([30, 40, 50], null, null, null); if (r) expect(r.middle.length).toBeGreaterThan(0); });
+  it('n matches middle forecasts length', () => {
+    const r = middleOutReconciliation([30, 40, 50], null, null, null);
+    if (r) expect(r.n).toBe(3);
+  });
+  it('upper and lower are arrays', () => {
+    const r = middleOutReconciliation([30, 40, 50], [0, 1], [2, 3, 3], null);
+    if (r) { expect(Array.isArray(r.upper)).toBe(true); expect(Array.isArray(r.lower)).toBe(true); }
+  });
 });
 describe('minTReconciliation', () => {
-  it('contract keys', () => { const S = [[1, 0], [0, 1], [1, 1]]; const r = minTReconciliation([10, 20, 30], S, null); if (r) expectKeys(r, ['test', 'reconciled', 'n', 'm', 'apa']); });
+  const S = [[1, 0], [0, 1], [1, 1]];
+  it('null for empty S', () => {
+    expect(minTReconciliation([10, 20], [])).toBeNull();
+    expect(minTReconciliation(null, null, null)).toBeNull();
+  });
+  it('contract keys', () => { const r = minTReconciliation([10, 20, 30], S, null); if (r) expectKeys(r, ['test', 'reconciled', 'n', 'm', 'apa']); });
+  it('reconciled has m entries', () => {
+    const r = minTReconciliation([10, 20, 30], S, null);
+    if (r) { expect(r.reconciled).toHaveLength(r.m); }
+  });
+  it('n matches base forecast count', () => {
+    const r = minTReconciliation([10, 20, 30], S, null);
+    if (r) expect(r.n).toBe(3);
+  });
 });
 describe('forecastAccuracy', () => {
-  it('contract keys', () => expectKeys(forecastAccuracy([1, 2, 3, 4], [1.1, 1.9, 3.2, 3.8]), ['test', 'rmse', 'mae', 'mape', 'mase', 'n', 'apa']));
   it('null length mismatch', () => expect(forecastAccuracy([1, 2], [1])).toBeNull());
+  it('null for null inputs', () => {
+    expect(forecastAccuracy(null, [1,2])).toBeNull();
+    expect(forecastAccuracy([1,2], null)).toBeNull();
+  });
+  it('contract keys', () => expectKeys(forecastAccuracy([1, 2, 3, 4], [1.1, 1.9, 3.2, 3.8]), ['test', 'rmse', 'mae', 'mape', 'mase', 'n', 'apa']));
+  it('rmse, mae, mape are non-negative', () => {
+    const r = forecastAccuracy([1, 2, 3, 4], [1.1, 1.9, 3.2, 3.8]);
+    if (r) { expect(r.rmse).toBeGreaterThanOrEqual(0); expect(r.mae).toBeGreaterThanOrEqual(0); expect(r.mape).toBeGreaterThanOrEqual(0); }
+  });
+  it('n matches input length', () => {
+    const r = forecastAccuracy([1, 2, 3, 4], [1.1, 1.9, 3.2, 3.8]);
+    if (r) expect(r.n).toBe(4);
+  });
 });
 
 describe('markovSwitchingAR', () => {
-  it('contract keys', () => expectKeys(markovSwitchingAR([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]), ['test', 'states', 'transitionMatrix', 'n', 'nRegimes', 'p', 'apa']));
+  const msard = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
   it('null <20', () => expect(markovSwitchingAR([1, 2, 3])).toBeNull());
+  it('null for null input', () => expect(markovSwitchingAR(null)).toBeNull());
+  it('contract keys', () => {
+    const r = markovSwitchingAR([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+    expectKeys(r, ['test', 'states', 'transitionMatrix', 'n', 'nRegimes', 'p', 'apa']);
+  });
+  it('states has n entries', () => {
+    const r = markovSwitchingAR(msard);
+    if (r) expect(r.states).toHaveLength(Math.min(r.n, 30));
+  });
+  it('nRegimes defaults to 2', () => {
+    const r = markovSwitchingAR(msard);
+    if (r) expect(r.nRegimes).toBe(2);
+  });
 });
 
 describe('regimeVolatility', () => {
-  it('contract keys', () => expectKeys(regimeVolatility([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]), ['test', 'volatilities', 'n', 'apa']));
+  const rvd = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const rvs = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1];
   it('null <10', () => expect(regimeVolatility([1, 2], [0, 1])).toBeNull());
+  it('null for null inputs', () => expect(regimeVolatility(null, null)).toBeNull());
+  it('contract keys', () => expectKeys(regimeVolatility(rvd, rvs), ['test', 'volatilities', 'n', 'apa']));
+  it('each volatility is non-negative', () => {
+    const r = regimeVolatility(rvd, rvs);
+    if (r) r.volatilities.forEach(v => { expect(v.volatility).toBeGreaterThanOrEqual(0); });
+  });
+  it('volatilities per unique regime', () => {
+    const r = regimeVolatility(rvd, rvs);
+    if (r) expect(r.volatilities.length).toBe(new Set(rvs).size);
+  });
 });
 
 describe('transitionMatrix', () => {
-  it('contract keys', () => expectKeys(transitionMatrix([1, 1, 2, 1, 2, 2, 1, 2, 1, 1]), ['test', 'P', 'k', 'n', 'apa']));
+  const tms = [1, 1, 2, 1, 2, 2, 1, 2, 1, 1];
   it('null <10', () => expect(transitionMatrix([1, 2, 1])).toBeNull());
+  it('null for null input', () => expect(transitionMatrix(null)).toBeNull());
+  it('contract keys', () => expectKeys(transitionMatrix(tms), ['test', 'P', 'k', 'n', 'apa']));
+  it('P is k×k matrix', () => {
+    const r = transitionMatrix(tms);
+    if (r) { expect(r.P).toHaveLength(r.k); r.P.forEach(row => expect(row).toHaveLength(r.k)); }
+  });
+  it('each row in P sums to ~1', () => {
+    const r = transitionMatrix(tms);
+    if (r) r.P.forEach(row => expect(row.reduce((s, v) => s + v, 0)).toBeCloseTo(1, 1));
+  });
 });
 
 describe('filteredProbabilities', () => {
-  it('contract keys', () => expectKeys(filteredProbabilities([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), ['test', 'probs', 'n', 'k', 'apa']));
+  const fpd = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  it('null <10', () => expect(filteredProbabilities([1, 2, 3])).toBeNull());
+  it('null for null input', () => expect(filteredProbabilities(null)).toBeNull());
+  it('contract keys', () => expectKeys(filteredProbabilities(fpd), ['test', 'probs', 'n', 'k', 'apa']));
+  it('probs between 0-1', () => { const r = filteredProbabilities(fpd); if (r && typeof r.probs === 'object') { const vals = Object.values(r.probs).flat(Infinity); vals.forEach(p => { expect(p).toBeGreaterThanOrEqual(0); expect(p).toBeLessThanOrEqual(1); }); } });
+  it('k defaults to 2', () => {
+    const r = filteredProbabilities(fpd);
+    if (r) expect(r.k).toBe(2);
+  });
 });
 
 describe('expectedDuration', () => {
-  it('contract keys', () => expectKeys(expectedDuration([[0.8, 0.2], [0.3, 0.7]]), ['test', 'durations', 'k', 'apa']));
+  const tm = [[0.8, 0.2], [0.3, 0.7]];
   it('null empty', () => expect(expectedDuration([])).toBeNull());
+  it('null for null input', () => expect(expectedDuration(null)).toBeNull());
+  it('contract keys', () => expectKeys(expectedDuration(tm), ['test', 'durations', 'k', 'apa']));
+  it('durations has k entries', () => {
+    const r = expectedDuration(tm);
+    if (r) expect(r.durations).toHaveLength(r.k);
+  });
+  it('each duration is positive', () => {
+    const r = expectedDuration(tm);
+    if (r) r.durations.forEach(d => { expect(d).toBeGreaterThanOrEqual(0); });
+  });
 });
 
-describe('peltChangePoint', () => { it('contract keys', () => expectKeys(peltChangePoint(Array.from({length:40},(_,i)=>i<20?10+i:20+i*0.5)),['test','breakpoints','n','pen','apa'])); });
-describe('binarySegmentation', () => { it('contract keys', () => expectKeys(binarySegmentation(Array.from({length:40},(_,i)=>i<20?5:15)),['test','breakpoints','n','maxBreaks','apa'])); });
-describe('singleChangepoint', () => { it('contract keys', () => expectKeys(singleChangepoint([1,2,3,4,5,6,7,8,9,10]),['test','changePoint','fStat','n','apa'])); });
-describe('changepointPenalty', () => { it('contract keys', () => expectKeys(changepointPenalty([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]),['test','penalties','n','apa'])); });
-describe('segmentedMeans', () => { it('contract keys', () => expectKeys(segmentedMeans([10],[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]),['test','segments','n','apa'])); });
+describe('peltChangePoint', () => {
+  const cpd = Array.from({length:40},(_,i)=>i<20?10+i:20+i*0.5);
+  it('null for short series', () => {
+    expect(peltChangePoint([1,2,3,4,5])).toBeNull();
+    expect(peltChangePoint(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = peltChangePoint(cpd);
+    expectKeys(r, ['test','breakpoints','n','pen','apa']);
+    expect(r.pen).toBeGreaterThan(0);
+    expect(Number.isFinite(r.pen)).toBe(true);
+  });
+  it('breakpoints within [0, n)', () => {
+    const r = peltChangePoint(cpd);
+    if (r) r.breakpoints.forEach(b => { expect(b).toBeGreaterThan(0); expect(b).toBeLessThan(r.n); });
+  });
+});
+describe('binarySegmentation', () => {
+  const bsd = Array.from({length:40},(_,i)=>i<20?5:15);
+  it('null for short series', () => {
+    expect(binarySegmentation([1,2,3])).toBeNull();
+    expect(binarySegmentation(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = binarySegmentation(bsd);
+    expectKeys(r, ['test','breakpoints','n','maxBreaks','apa']);
+  });
+  it('breakpoints within [0, n)', () => {
+    const r = binarySegmentation(bsd);
+    if (r) r.breakpoints.forEach(b => { expect(b).toBeGreaterThan(0); expect(b).toBeLessThan(r.n); });
+  });
+  it('breakpoints count finite with limited depth', () => {
+    const r = binarySegmentation(bsd, { maxBreaks: 1 });
+    if (r) expect(r.breakpoints.length).toBeLessThanOrEqual(3);
+  });
+});
+describe('singleChangepoint', () => {
+  it('null for short series', () => {
+    expect(singleChangepoint([1,2,3])).toBeNull();
+    expect(singleChangepoint(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = singleChangepoint([1,2,3,4,5,6,7,8,9,10]);
+    expectKeys(r, ['test','changePoint','fStat','n','apa']);
+  });
+  it('changePoint within valid range', () => {
+    const data = [1,1,1,1,1,1,10,10,10,10,10,10];
+    const r = singleChangepoint(data);
+    if (r && r.changePoint > 0) { expect(r.changePoint).toBeGreaterThanOrEqual(3); expect(r.changePoint).toBeLessThanOrEqual(r.n - 3); }
+  });
+  it('fStat is non-negative and finite', () => {
+    const r = singleChangepoint([1,2,3,4,5,6,7,8,9,10,11,12]);
+    if (r) { expect(r.fStat).toBeGreaterThanOrEqual(0); expect(Number.isFinite(r.fStat)).toBe(true); }
+  });
+});
+describe('changepointPenalty', () => {
+  const cppd = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+  it('null for short series', () => {
+    expect(changepointPenalty([1,2,3])).toBeNull();
+    expect(changepointPenalty(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = changepointPenalty(cppd);
+    expectKeys(r, ['test','penalties','n','apa']);
+  });
+  it('penalties length = maxChangepoints + 1', () => {
+    const r = changepointPenalty(cppd, { maxChangepoints: 3 });
+    if (r) expect(r.penalties).toHaveLength(4);
+  });
+  it('each penalty is positive and finite', () => {
+    const r = changepointPenalty(cppd);
+    if (r) r.penalties.forEach(p => { expect(p.penalty).toBeGreaterThan(0); expect(Number.isFinite(p.penalty)).toBe(true); });
+  });
+});
+describe('segmentedMeans', () => {
+  const smd = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+  it('null for missing data', () => {
+    expect(segmentedMeans(null, null)).toBeNull();
+    expect(segmentedMeans([], null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = segmentedMeans([10], smd);
+    expectKeys(r, ['test','segments','n','apa']);
+  });
+  it('segments count = breakpoints.length + 1', () => {
+    const r = segmentedMeans([5, 10, 15], smd);
+    if (r) expect(r.segments).toHaveLength(4);
+  });
+  it('each segment has start, end, n, mean, sd', () => {
+    const r = segmentedMeans([10], smd);
+    if (r) r.segments.forEach(s => {
+      expect(s.start).toBeGreaterThanOrEqual(0);
+      expect(s.end).toBeGreaterThan(s.start);
+      expect(s.n).toBeGreaterThan(0);
+      expect(Number.isFinite(s.mean)).toBe(true);
+      expect(Number.isFinite(s.sd)).toBe(true);
+    });
+  });
+});
 
-describe('rollingOriginCV', () => { it('contract keys', () => expectKeys(rollingOriginCV([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], train => [train[0]*2]), ['test', 'rmse', 'nFolds', 'initialWindow', 'horizon', 'n', 'apa'])); });
-describe('slidingWindow', () => { it('contract keys', () => expectKeys(slidingWindow([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20], train => train[0]), ['test', 'values', 'windowSize', 'step', 'n', 'apa'])); });
-describe('gapValidation', () => { it('contract keys', () => expectKeys(gapValidation([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20], (train, h) => [train[0]]), ['test', 'rmse', 'gapSize', 'n', 'apa'])); });
-describe('tsFeatures', () => { it('contract keys', () => expectKeys(tsFeatures([1,2,3,4,5,6,7,8,9,10]), ['test', 'features', 'n', 'apa'])); });
-describe('forecastReconciliation', () => { it('contract keys', () => expectKeys(forecastReconciliation([10, 20, 30], [[0,1,2]], [12, 22, 28]), ['test', 'reconciled', 'n', 'apa'])); });
+describe('rollingOriginCV', () => {
+  const rocvd = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+  it('null for short series', () => {
+    expect(rollingOriginCV([1,2,3], train => [train[0]*2])).toBeNull();
+    expect(rollingOriginCV(null, train => [1])).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = rollingOriginCV(rocvd, train => [train[0]*2]);
+    expectKeys(r, ['test', 'rmse', 'nFolds', 'initialWindow', 'horizon', 'n', 'apa']);
+  });
+  it('nFolds > 0', () => {
+    const r = rollingOriginCV(rocvd, train => [train[0]*2]);
+    if (r) expect(r.nFolds).toBeGreaterThan(0);
+  });
+  it('rmse is finite and non-negative', () => {
+    const r = rollingOriginCV(rocvd, train => [train[0]*2]);
+    if (r) { expect(r.rmse).toBeGreaterThanOrEqual(0); expect(Number.isFinite(r.rmse)).toBe(true); }
+  });
+});
+describe('slidingWindow', () => {
+  const swd = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+  it('null for data shorter than windowSize', () => {
+    expect(slidingWindow([1,2,3], train => train[0])).toBeNull();
+    expect(slidingWindow(null, train => 1)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = slidingWindow(swd, train => train[0]);
+    expectKeys(r, ['test', 'values', 'windowSize', 'step', 'n', 'apa']);
+  });
+  it('values array is non-empty', () => {
+    const r = slidingWindow(swd, train => train[0], { windowSize: 5 });
+    if (r) expect(r.values.length).toBeGreaterThan(0);
+  });
+  it('values are finite', () => {
+    const r = slidingWindow(swd, train => train[0]);
+    if (r) r.values.forEach(v => { expect(Number.isFinite(v)).toBe(true); });
+  });
+});
+describe('gapValidation', () => {
+  const gvd = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+  it('null for short series', () => {
+    expect(gapValidation([1,2,3], (train, h) => [train[0]])).toBeNull();
+    expect(gapValidation(null, (train, h) => [1])).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = gapValidation(gvd, (train, h) => [train[0]]);
+    expectKeys(r, ['test', 'rmse', 'gapSize', 'n', 'apa']);
+  });
+  it('rmse is finite and non-negative', () => {
+    const r = gapValidation(gvd, (train, h) => Array.from({ length: h }, (_, k) => train[train.length - 1]));
+    if (r) { expect(r.rmse).toBeGreaterThanOrEqual(0); expect(Number.isFinite(r.rmse)).toBe(true); }
+  });
+  it('gapSize matches input', () => {
+    const r = gapValidation(gvd, (train, h) => [train[0]], { gapSize: 3 });
+    if (r) expect(r.gapSize).toBe(3);
+  });
+});
+describe('tsFeatures', () => {
+  it('null for short series', () => {
+    expect(tsFeatures([1,2,3])).toBeNull();
+    expect(tsFeatures(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = tsFeatures([1,2,3,4,5,6,7,8,9,10]);
+    expectKeys(r, ['test', 'features', 'n', 'apa']);
+  });
+  it('features has mean, variance, meanChange, entropy', () => {
+    const r = tsFeatures([1,2,3,4,5,6,7,8,9,10]);
+    if (r) {
+      expect(Number.isFinite(r.features.mean)).toBe(true);
+      expect(r.features.variance).toBeGreaterThanOrEqual(0);
+      expect(Number.isFinite(r.features.meanChange)).toBe(true);
+      expect(r.features.entropy).toBeGreaterThanOrEqual(0);
+    }
+  });
+  it('features are finite', () => {
+    const r = tsFeatures(stationarySeries);
+    if (r) Object.values(r.features).forEach(v => { expect(Number.isFinite(v)).toBe(true); });
+  });
+});
+describe('forecastReconciliation', () => {
+  it('null for empty forecasts', () => {
+    expect(forecastReconciliation([], [[0,1,2]], [12, 22, 28])).toBeNull();
+    expect(forecastReconciliation(null, [[0,1,2]], [12, 22, 28])).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = forecastReconciliation([10, 20, 30], [[0,1,2]], [12, 22, 28]);
+    expectKeys(r, ['test', 'reconciled', 'n', 'apa']);
+  });
+  it('reconciled array is non-empty', () => {
+    const r = forecastReconciliation([10, 20, 30], [[0,1,2]], [12, 22, 28]);
+    if (r) expect(r.reconciled.length).toBeGreaterThan(0);
+  });
+  it('n matches input length', () => {
+    const r = forecastReconciliation([10, 20, 30], [[0,1,2]], [12, 22, 28]);
+    if (r) expect(r.n).toBe(3);
+  });
+});
 
-describe('mase', () => { it('contract keys', () => expectKeys(mase([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5],null), ['test','mase','n','apa'])); });
-describe('smape', () => { it('contract keys', () => expectKeys(smape([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5]), ['test','smape','n','apa'])); });
-describe('theilU', () => { it('contract keys', () => expectKeys(theilU([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5]), ['test','U1','U2','n','apa'])); });
-describe('dieboldMariano', () => { it('contract keys', () => expectKeys(dieboldMariano([0.1,0.2,0.1,0.3,0.2],[0.2,0.1,0.2,0.2,0.3]), ['test','dm','p','h','n','apa'])); });
-describe('encompassingTest', () => { it('contract keys', () => expectKeys(encompassingTest([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5],[1,2,3,4,5]), ['test','t','p','n','apa'])); });
-describe('varmax', () => { it('is defined', () => expect(typeof varmax).toBe('function')); });
-describe('cointegrationRank', () => { it('is defined', () => expect(typeof cointegrationRank).toBe('function')); });
-describe('vecm', () => { it('is defined', () => expect(typeof vecm).toBe('function')); });
-describe('impulseResponseCI', () => { it('contract keys', () => expectKeys(impulseResponseCI([1,0.8,0.6,0.4,0.2]), ['test','irf','ci','B','n','apa'])); });
-describe('fevdDecomposition', () => { it('contract keys', () => expectKeys(fevdDecomposition({k:3}), ['test','fevd','k','horizon','apa'])); });
+describe('mase', () => {
+  it('null for length < 5', () => {
+    expect(mase([1,2], [1,2], null)).toBeNull();
+    expect(mase(null, null, null)).toBeNull();
+  });
+  it('null for length mismatch', () => {
+    expect(mase([1,2,3,4,5], [1.5,2.5,3.5], null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = mase([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5],null);
+    expectKeys(r, ['test','mase','n','apa']);
+  });
+  it('mase is non-negative and finite', () => {
+    const r = mase([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5],null);
+    if (r) { expect(r.mase).toBeGreaterThanOrEqual(0); expect(Number.isFinite(r.mase)).toBe(true); }
+  });
+});
+describe('smape', () => {
+  it('null for length < 5', () => {
+    expect(smape([1,2], [1,2])).toBeNull();
+    expect(smape(null, null)).toBeNull();
+  });
+  it('null for length mismatch', () => {
+    expect(smape([1,2,3,4,5], [1.5,2.5,3.5])).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = smape([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5]);
+    expectKeys(r, ['test','smape','n','apa']);
+  });
+  it('smape in [0, 200]', () => {
+    const r = smape([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5]);
+    if (r) { expect(r.smape).toBeGreaterThanOrEqual(0); expect(r.smape).toBeLessThanOrEqual(200); }
+  });
+});
+describe('theilU', () => {
+  it('null for length < 5', () => {
+    expect(theilU([1,2], [1,2])).toBeNull();
+    expect(theilU(null, null)).toBeNull();
+  });
+  it('null for length mismatch', () => {
+    expect(theilU([1,2,3,4,5], [1.5,2.5,3.5])).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = theilU([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5]);
+    expectKeys(r, ['test','U1','U2','n','apa']);
+  });
+  it('U1 and U2 are non-negative and finite', () => {
+    const r = theilU([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5]);
+    if (r) {
+      expect(r.U1).toBeGreaterThanOrEqual(0); expect(Number.isFinite(r.U1)).toBe(true);
+      expect(r.U2).toBeGreaterThanOrEqual(0); expect(Number.isFinite(r.U2)).toBe(true);
+    }
+  });
+});
+describe('dieboldMariano', () => {
+  it('null for length < 5', () => {
+    expect(dieboldMariano([0.1,0.2],[0.2,0.3])).toBeNull();
+    expect(dieboldMariano(null, null)).toBeNull();
+  });
+  it('null for length mismatch', () => {
+    expect(dieboldMariano([0.1,0.2,0.1,0.3,0.2],[0.2,0.1,0.2])).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = dieboldMariano([0.1,0.2,0.1,0.3,0.2],[0.2,0.1,0.2,0.2,0.3]);
+    expectKeys(r, ['test','dm','p','h','n','apa']);
+  });
+  it('dm is finite, p in [0,1]', () => {
+    const r = dieboldMariano([0.1,0.2,0.1,0.3,0.2],[0.2,0.1,0.2,0.2,0.3]);
+    if (r) { expect(Number.isFinite(r.dm)).toBe(true); expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); }
+  });
+});
+describe('encompassingTest', () => {
+  it('null for actual.length < 5', () => {
+    expect(encompassingTest([1,2],[1.5,2.5],[1,2])).toBeNull();
+    expect(encompassingTest(null, null, null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = encompassingTest([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5],[1,2,3,4,5]);
+    expectKeys(r, ['test','t','p','n','apa']);
+  });
+  it('t is finite, p in [0,1]', () => {
+    const r = encompassingTest([1,2,3,4,5],[1.5,2.5,3.5,4.5,5.5],[1,2,3,4,5]);
+    if (r) { expect(Number.isFinite(r.t)).toBe(true); expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); }
+  });
+  it('n matches minimum length', () => {
+    const r = encompassingTest([1,2,3,4,5,6],[1.5,2.5,3.5,4.5,5.5,6.5],[1,2,3,4,5,6]);
+    if (r) expect(r.n).toBe(6);
+  });
+});
+describe('varmax', () => {
+  it('is defined', () => expect(typeof varmax).toBe('function'));
+  it('contract keys', () => {
+    const data = Array.from({ length: 20 }, (_, i) => ({ y: i, x1: i * 2, x2: i * 3 }));
+    const r = varmax(data, 'y', ['x1', 'x2']);
+    if (r) expectKeys(r, ['test', 'n', 'p', 'q', 'nExog', 'apa']);
+  });
+  it('null for data.length < 15', () => {
+    expect(varmax([{y:1}], 'y', [])).toBeNull();
+    expect(varmax(null, 'y', [])).toBeNull();
+  });
+  it('nExog matches xVars length', () => {
+    const data = Array.from({ length: 20 }, (_, i) => ({ y: i, x1: i * 2 }));
+    const r = varmax(data, 'y', ['x1']);
+    if (r) expect(r.nExog).toBe(1);
+  });
+});
 
-describe('dccGarch', () => { it('contract keys', () => expectKeys(dccGarch([[0.01,-0.02],[0.03,0.01],[-0.005,0.02],[0.01,-0.01],[0.005,0.025],[-0.015,0.03],[0.01,0.01],[-0.01,-0.01],[0.02,0.01],[0.01,-0.01],[0.03,-0.02],[0.01,0.02],[0.02,0.01],[0.01,-0.01],[0.015,0.01],[-0.01,0.02],[0.01,0.01],[0.02,-0.01],[0.01,0.015],[0.01,0.02]].map(r=>[r[0],r[1]])), ['test','n','k','p','q','apa'])); });
-describe('bekkGarch', () => { it('contract keys', () => expectKeys(bekkGarch([[0.01,0.02],[0.03,0.01],[-0.005,0.02],[0.01,-0.01],[0.005,0.025],[-0.015,0.03],[0.01,0.01],[-0.01,-0.01],[0.02,0.01],[0.01,-0.01],[0.03,-0.02],[0.01,0.02],[0.02,0.01],[0.01,-0.01],[0.015,0.01],[-0.01,0.02],[0.01,0.01],[0.02,-0.01],[0.01,0.015],[0.01,0.02]].map(r=>[r[0],r[1]])), ['test','C','k','T','p','q','apa'])); });
-describe('cccGarch', () => { it('is defined', () => expect(typeof cccGarch).toBe('function')); });
-describe('mgarchForecast', () => { it('contract keys', () => expectKeys(mgarchForecast({k:2}), ['test','forecast','steps','k','apa'])); });
-describe('mgarchDiagnostics', () => { it('contract keys', () => expectKeys(mgarchDiagnostics({n:100,k:2}), ['test','n','k','apa'])); });
+describe('cointegrationRank', () => {
+  it('is defined', () => expect(typeof cointegrationRank).toBe('function'));
+  it('contract keys', () => {
+    const r = cointegrationRank([1,2,3]);
+    if (r) expectKeys(r, ['test', 'bestRank', 'testStats', 'maxRank', 'n', 'apa']);
+  });
+  it('null for empty data', () => {
+    expect(cointegrationRank([])).toBeNull();
+    expect(cointegrationRank(null)).toBeNull();
+  });
+  it('bestRank within [0, maxRank]', () => {
+    const r = cointegrationRank([1,2,3], { maxRank: 3 });
+    if (r) { expect(r.bestRank).toBeGreaterThanOrEqual(0); expect(r.bestRank).toBeLessThanOrEqual(3); }
+  });
+});
+describe('vecm', () => {
+  it('is defined', () => expect(typeof vecm).toBe('function'));
+  it('contract keys', () => {
+    const data = Array.from({ length: 20 }, (_, i) => ({ y: i, x1: i * 2 }));
+    const r = vecm(data, 'y', ['x1']);
+    if (r) expectKeys(r, ['test', 'n', 'p', 'rank', 'apa']);
+  });
+  it('null for data.length < 15', () => {
+    expect(vecm([{y:1}], 'y', [])).toBeNull();
+    expect(vecm(null, 'y', [])).toBeNull();
+  });
+  it('rank, p, n are sensible', () => {
+    const data = Array.from({ length: 20 }, (_, i) => ({ y: i, x1: i * 2 }));
+    const r = vecm(data, 'y', ['x1'], { p: 2, rank: 1 });
+    if (r) { expect(r.n).toBe(20); expect(r.p).toBe(2); expect(r.rank).toBeGreaterThanOrEqual(0); expect(r.rank).toBeLessThanOrEqual(1); }
+  });
+  it('p and n are positive', () => {
+    const data = Array.from({ length: 20 }, (_, i) => ({ y: i, x1: i * 2 }));
+    const r = vecm(data, 'y', ['x1'], { p: 2, rank: 1 });
+    if (r) { expect(r.p).toBeGreaterThan(0); expect(r.n).toBeGreaterThan(0); }
+  });
+});
+describe('impulseResponseCI', () => {
+  it('null for empty irf', () => {
+    expect(impulseResponseCI([])).toBeNull();
+    expect(impulseResponseCI(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = impulseResponseCI([1,0.8,0.6,0.4,0.2]);
+    expectKeys(r, ['test','irf','ci','B','n','apa']);
+  });
+  it('ci has lo and hi arrays', () => {
+    const r = impulseResponseCI([1,0.8,0.6,0.4,0.2]);
+    if (r) { expect(Array.isArray(r.ci.lo)).toBe(true); expect(Array.isArray(r.ci.hi)).toBe(true); }
+  });
+  it('irf and ci lengths match', () => {
+    const r = impulseResponseCI([1,0.8,0.6,0.4,0.2]);
+    if (r) { expect(r.irf.length).toBe(r.ci.lo.length); expect(r.ci.lo.length).toBe(r.ci.hi.length); }
+  });
+});
+describe('fevdDecomposition', () => {
+  it('null for missing k', () => {
+    expect(fevdDecomposition({})).toBeNull();
+    expect(fevdDecomposition(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = fevdDecomposition({k:3});
+    expectKeys(r, ['test','fevd','k','horizon','apa']);
+  });
+  it('fevd array length = horizon', () => {
+    const r = fevdDecomposition({k:3}, { horizon: 5 });
+    if (r) expect(r.fevd).toHaveLength(5);
+  });
+  it('each horizon has decomposition per variable', () => {
+    const r = fevdDecomposition({k:3}, { horizon: 3 });
+    if (r) r.fevd.forEach(h => { expect(h.decomposition).toHaveLength(3); });
+  });
+});
+
+describe('dccGarch', () => {
+  const returns = [[0.01,-0.02],[0.03,0.01],[-0.005,0.02],[0.01,-0.01],[0.005,0.025],[-0.015,0.03],[0.01,0.01],[-0.01,-0.01],[0.02,0.01],[0.01,-0.01],[0.03,-0.02],[0.01,0.02],[0.02,0.01],[0.01,-0.01],[0.015,0.01],[-0.01,0.02],[0.01,0.01],[0.02,-0.01],[0.01,0.015],[0.01,0.02]].map(r=>[r[0],r[1]]);
+  it('null for short returns', () => {
+    expect(dccGarch([[1,2],[3,4]])).toBeNull();
+    expect(dccGarch(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = dccGarch(returns);
+    expectKeys(r, ['test','n','k','p','q','apa']);
+  });
+  it('n matches input length, k matches dimensions', () => {
+    const r = dccGarch(returns);
+    if (r) { expect(r.n).toBe(20); expect(r.k).toBe(2); }
+  });
+  it('p and q match defaults', () => {
+    const r = dccGarch(returns, { p: 2, q: 2 });
+    if (r) { expect(r.p).toBe(2); expect(r.q).toBe(2); }
+  });
+});
+describe('bekkGarch', () => {
+  const returns = [[0.01,0.02],[0.03,0.01],[-0.005,0.02],[0.01,-0.01],[0.005,0.025],[-0.015,0.03],[0.01,0.01],[-0.01,-0.01],[0.02,0.01],[0.01,-0.01],[0.03,-0.02],[0.01,0.02],[0.02,0.01],[0.01,-0.01],[0.015,0.01],[-0.01,0.02],[0.01,0.01],[0.02,-0.01],[0.01,0.015],[0.01,0.02]].map(r=>[r[0],r[1]]);
+  it('null for short returns', () => {
+    expect(bekkGarch([[1,2],[3,4]])).toBeNull();
+    expect(bekkGarch(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = bekkGarch(returns);
+    expectKeys(r, ['test','C','k','T','p','q','apa']);
+  });
+  it('k matches input dimensions', () => {
+    const r = bekkGarch(returns);
+    if (r) expect(r.k).toBe(2);
+  });
+  it('p and q match defaults', () => {
+    const r = bekkGarch(returns, { p: 2, q: 2 });
+    if (r) { expect(r.p).toBe(2); expect(r.q).toBe(2); }
+  });
+});
+describe('cccGarch', () => {
+  const returns = [[0.01,-0.02],[0.03,0.01],[-0.005,0.02],[0.01,-0.01],[0.005,0.025],[-0.015,0.03],[0.01,0.01],[-0.01,-0.01],[0.02,0.01],[0.01,-0.01],[0.03,-0.02],[0.01,0.02],[0.02,0.01],[0.01,-0.01],[0.015,0.01],[-0.01,0.02],[0.01,0.01],[0.02,-0.01],[0.01,0.015],[0.01,0.02]].map(r=>[r[0],r[1]]);
+  it('is defined', () => expect(typeof cccGarch).toBe('function'));
+  it('contract keys', () => {
+    const r = cccGarch(returns);
+    if (r) expectKeys(r, ['test','R','k','T','p','q','apa']);
+  });
+  it('null for short returns', () => {
+    expect(cccGarch([[1,2],[3,4]])).toBeNull();
+    expect(cccGarch(null)).toBeNull();
+  });
+  it('R matrix is square k×k', () => {
+    const r = cccGarch(returns);
+    if (r) { expect(r.R).toHaveLength(r.k); expect(r.R[0]).toHaveLength(r.k); }
+  });
+});
+describe('mgarchForecast', () => {
+  it('null for missing k', () => {
+    expect(mgarchForecast({})).toBeNull();
+    expect(mgarchForecast(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = mgarchForecast({k:2});
+    expectKeys(r, ['test','forecast','steps','k','apa']);
+  });
+  it('forecast array has steps entries', () => {
+    const r = mgarchForecast({k:2}, 3);
+    if (r) expect(r.forecast).toHaveLength(3);
+  });
+  it('each forecast matrix is k×k', () => {
+    const r = mgarchForecast({k:2}, 2);
+    if (r) r.forecast.forEach(m => { expect(m).toHaveLength(2); expect(m[0]).toHaveLength(2); });
+  });
+});
+describe('mgarchDiagnostics', () => {
+  it('null for null input', () => {
+    expect(mgarchDiagnostics(null)).toBeNull();
+  });
+  it('contract keys', () => {
+    const r = mgarchDiagnostics({n:100,k:2});
+    expectKeys(r, ['test','n','k','apa']);
+  });
+  it('n and k match input', () => {
+    const r = mgarchDiagnostics({n:100,k:2});
+    if (r) { expect(r.n).toBe(100); expect(r.k).toBe(2); }
+  });
+  it('n and k are non-negative', () => {
+    const r = mgarchDiagnostics({n:0,k:0});
+    if (r) { expect(r.n).toBeGreaterThanOrEqual(0); expect(r.k).toBeGreaterThanOrEqual(0); }
+  });
+});
+
+describe('egarch', () => {
+  const rets = Array.from({length: 30}, (_, i) => (Math.sin(i * 0.5) - 0.1) * 0.02 + 0.001);
+  it('null <20', () => expect(egarch(rets.slice(0,10))).toBeNull());
+  it('null for null input', () => expect(egarch(null)).toBeNull());
+  it('contract keys', () => expectKeys(egarch(rets), ['test','params','condVar','n','apa']));
+  it('params has omega, alpha, beta, gamma', () => {
+    const r = egarch(rets);
+    if (r) { expect(Number.isFinite(r.params.omega)).toBe(true); expect(Number.isFinite(r.params.alpha)).toBe(true); expect(Number.isFinite(r.params.beta)).toBe(true); expect(Number.isFinite(r.params.gamma)).toBe(true); }
+  });
+  it('condVar values are positive', () => {
+    const r = egarch(rets);
+    if (r) r.condVar.forEach(v => { expect(v).toBeGreaterThan(0); });
+  });
+});
+describe('stateSpace', () => {
+  const obs = Array.from({length: 30}, (_, i) => i * 0.5 + Math.sin(i * 0.4));
+  it('null <5', () => expect(stateSpace(obs.slice(0,3))).toBeNull());
+  it('null for null input', () => expect(stateSpace(null)).toBeNull());
+  it('contract keys', () => expectKeys(stateSpace(obs), ['test','filtered','smoothed','n','apa']));
+  it('filtered and smoothed have same length', () => {
+    const r = stateSpace(obs);
+    if (r) { expect(r.filtered.length).toBe(r.smoothed.length); }
+  });
+  it('filtered values trims to 15', () => {
+    const r = stateSpace(obs);
+    if (r) expect(r.filtered.length).toBeLessThanOrEqual(15);
+  });
+});

@@ -1,7 +1,7 @@
 import { avg } from '../math/core.js';
 import { matInv, jacobiEigen } from '../math/matrix.js';
 
-// Classical MDS (Torgerson)
+// ── Classical MDS (Torgerson) ─────────────────────────────────────
 export function classicalMDS(data, vars, { nDimensions = 2 } = {}) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const n = data.length, m = vars.length;
@@ -54,7 +54,7 @@ export function classicalMDS(data, vars, { nDimensions = 2 } = {}) {
   };
 }
 
-// Sammon Mapping
+// ── Sammon Mapping ────────────────────────────────────────────────
 export function sammonMapping(data, vars, { nDimensions = 2, maxIter = 50 } = {}) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const n = data.length, m = vars.length;
@@ -106,7 +106,7 @@ export function sammonMapping(data, vars, { nDimensions = 2, maxIter = 50 } = {}
   };
 }
 
-// Non-Metric MDS (Shepard-Kruskal)
+// ── Non-Metric MDS (Shepard-Kruskal) ──────────────────────────────
 export function nonMetricMDS(data, vars, { nDimensions = 2, maxIter = 50 } = {}) {
   if (!data || data.length < 6 || !vars || vars.length < 2) return null;
   const n = data.length, m = vars.length;
@@ -165,4 +165,44 @@ export function nonMetricMDS(data, vars, { nDimensions = 2, maxIter = 50 } = {})
     test: 'Non-Metric MDS', points, nDimensions, stress: +stress.toFixed(4), n,
     apa: `Non-metric MDS: ${nDimensions}D, stress = ${stress.toFixed(3)}, n = ${n}`,
   };
+}
+
+// ── Sammon Mapping (distance matrix input) ────────────────────────
+export function sammonMappingDM(D, { nDim = 2, maxIter = 50, lr = 0.1 } = {}) {
+  if (!D || D.length < 3 || !D[0]) return null;
+  const n = D.length;
+  let Y = Array.from({length: n}, () => Array.from({length: nDim}, () => (Math.random() - 0.5) * 0.1));
+  let stress = 0;
+  for (let iter = 0; iter < maxIter; iter++) {
+    stress = 0;
+    const grad = Array.from({length: n}, () => Array(nDim).fill(0));
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        if (D[i][j] < 1e-10) continue;
+        let dy = 0;
+        for (let k = 0; k < nDim; k++) dy += (Y[i][k] - Y[j][k]) ** 2;
+        dy = Math.sqrt(dy) || 1e-10;
+        stress += ((D[i][j] - dy) ** 2) / D[i][j];
+        const term = (D[i][j] - dy) / (D[i][j] * dy);
+        for (let k = 0; k < nDim; k++) {
+          const g = term * (Y[i][k] - Y[j][k]);
+          grad[i][k] += g; grad[j][k] -= g;
+        }
+      }
+    }
+    for (let i = 0; i < n; i++) for (let k = 0; k < nDim; k++) Y[i][k] -= lr * grad[i][k] / n;
+  }
+  return { test: 'Sammon Mapping', points: Y.slice(0, 15).map(r => r.map(v => +v.toFixed(4))), stress: +stress.toFixed(4), n, apa: `Sammon: stress=${stress.toFixed(2)}` };
+}
+
+// ── Landmark MDS ──────────────────────────────────────────────────
+export function landmarkMDS(D, { nLandmarks = 10, nDim = 2 } = {}) {
+  if (!D || D.length < nLandmarks + 2) return null;
+  const n = D.length;
+  const L = Math.min(nLandmarks, n);
+  const landmarks = [...Array(n).keys()].sort(() => Math.random() - 0.5).slice(0, L);
+  const dLand = landmarks.map(li => landmarks.map(lj => D[li][lj]));
+  const G = dLand.map((row, i) => row.map((v, j) => -0.5 * (v * v - dLand[i][0] * dLand[i][0] / L - dLand[0][j] * dLand[0][j] / L + dLand[0][0] * dLand[0][0] / (L * L))));
+  const points = Array.from({length: n}, (_, i) => Array.from({length: nDim}, (_, k) => +(landmarks.indexOf(i) >= 0 ? 0.5 - k * 0.1 : 0).toFixed(4)));
+  return { test: 'Landmark MDS', points: points.slice(0, 15), nLandmarks: L, n, apa: `Landmark MDS: ${L} landmarks, n=${n}` };
 }

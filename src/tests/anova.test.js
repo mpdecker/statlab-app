@@ -59,6 +59,12 @@ describe('welchANOVA', () => {
     expect(res.F).toBeGreaterThan(0);
     expect(res.p).toBeLessThanOrEqual(1);
   });
+
+  it('df is finite', () => {
+    const groups = [mkGroup('A', [1, 2, 3, 4, 5]), mkGroup('B', [6, 7, 8, 9, 10])];
+    const r = welchANOVA(groups);
+    if (r && r.df !== undefined) expect(Number.isFinite(r.df)).toBe(true);
+  });
 });
 
 describe('kruskalWallis', () => {
@@ -74,6 +80,11 @@ describe('kruskalWallis', () => {
     const res = kruskalWallis(groups);
     expect(res.eta2).toBeGreaterThanOrEqual(0);
     expect(res.eta2).toBeLessThanOrEqual(1);
+  });
+
+  it('df is finite', () => {
+    const r = kruskalWallis([mkGroup('A',[1,2,3]), mkGroup('B',[4,5,6])]);
+    expect(Number.isFinite(r.df)).toBe(true);
   });
 });
 
@@ -94,6 +105,11 @@ describe('friedman', () => {
     expect(res.W_kendall).toBeGreaterThanOrEqual(0);
     expect(res.W_kendall).toBeLessThanOrEqual(1);
   });
+
+  it('chi2 is non-negative', () => {
+    const r = friedman([[1,2,3],[3,2,1],[2,1,3]]);
+    expect(r.chi2).toBeGreaterThanOrEqual(0);
+  });
 });
 
 describe('cochranQ', () => {
@@ -110,6 +126,12 @@ describe('cochranQ', () => {
     expect(res).not.toBeNull();
     expect(res).toHaveProperty('Q');
     expect(res).toHaveProperty('p');
+  });
+
+  it('Q is non-negative', () => {
+    const blocks = [[1,0,1],[0,0,1],[1,1,1],[0,1,0],[1,1,0]];
+    const r = cochranQ(blocks);
+    expect(r.Q).toBeGreaterThanOrEqual(0);
   });
 });
 

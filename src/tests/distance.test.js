@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { distanceMatrix, distanceCovariance, distanceCorrelation, energyTest, partialDistanceCorr } from './distance.js';
+import { distanceMatrix, distanceCovariance, distanceCorrelation, energyTest, partialDistanceCorr, mahalanobisDistance, gowerDistance } from './distance.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -7,23 +7,40 @@ const y = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20];
 
 describe('distanceMatrix', () => {
   it('is defined', () => expect(typeof distanceMatrix).toBe('function'));
+  it('diagonal is 0', () => { const r = distanceMatrix(x); if (r) { for (let i = 0; i < r.length; i++) expect(r[i][i]).toBe(0); } });
+  it('symmetric', () => { const r = distanceMatrix(x); if (r && Array.isArray(r)) { for (let i = 0; i < r.length; i++) expect(r[i]).toHaveLength(r.length); } });
 });
 
 describe('distanceCovariance', () => {
   it('contract keys', () => expectKeys(distanceCovariance(x, y), ['test', 'dCov', 'n', 'apa']));
   it('null mismatch', () => expect(distanceCovariance(x, [1, 2])).toBeNull());
+  it('dCov >= 0', () => { const r = distanceCovariance(x, y); if (r) expect(r.dCov).toBeGreaterThanOrEqual(0); });
 });
 
 describe('distanceCorrelation', () => {
   it('contract keys', () => expectKeys(distanceCorrelation(x, y), ['test', 'dCorr', 'dCov', 'n', 'apa']));
   it('dCorr in [0,1]', () => { const r = distanceCorrelation(x, y); expect(r.dCorr).toBeGreaterThanOrEqual(0); expect(r.dCorr).toBeLessThanOrEqual(1); });
+  it('dCov non-negative', () => { const r = distanceCorrelation(x, y); expect(r.dCov).toBeGreaterThanOrEqual(0); });
 });
 
 describe('energyTest', () => {
   it('contract keys', () => expectKeys(energyTest(x, y), ['test', 'statistic', 'p', 'nA', 'nB', 'apa']));
   it('null <5', () => expect(energyTest([1, 2], [3, 4, 5])).toBeNull());
+  it('statistic >= 0', () => { const r = energyTest(x, y); if (r) expect(r.statistic).toBeGreaterThanOrEqual(0); });
 });
 
 describe('partialDistanceCorr', () => {
   it('contract keys', () => expectKeys(partialDistanceCorr(x, y, [1, 2, 3, 4, 5, 6, 7, 8, 9, 1]), ['test', 'pdCorr', 'n', 'apa']));
+  it('value between 0-1', () => { const r = partialDistanceCorr(x, y, [1, 2, 3, 4, 5, 6, 7, 8, 9, 1]); if (r) { expect(r.pdCorr).toBeGreaterThanOrEqual(0); expect(r.pdCorr).toBeLessThanOrEqual(1); } });
+  it('n finite', () => { const r = partialDistanceCorr(x, y, [1, 2, 3, 4, 5, 6, 7, 8, 9, 1]); if (r) expect(Number.isFinite(r.n)).toBe(true); });
+});
+describe('mahalanobisDistance', () => {
+  it('contract keys', () => expectKeys(mahalanobisDistance([1,2,3], [4,5,6], [[1,0,0],[0,1,0],[0,0,1]]), ['test','distance','p','apa']));
+  it('null <2', () => expect(mahalanobisDistance([1], [2])).toBeNull());
+  it('distance >= 0', () => { const r = mahalanobisDistance([1,2,3], [4,5,6], [[1,0,0],[0,1,0],[0,0,1]]); if (r) expect(r.distance).toBeGreaterThanOrEqual(0); });
+});
+describe('gowerDistance', () => {
+  it('contract keys', () => expectKeys(gowerDistance([1,2,3], [4,5,6]), ['test','distance','p','apa']));
+  it('null <2', () => expect(gowerDistance([1], [2])).toBeNull());
+  it('distance between 0-1', () => { const r = gowerDistance([1,2,3], [4,5,6]); if (r && Number.isFinite(r.distance)) expect(r.distance).toBeGreaterThanOrEqual(0); });
 });

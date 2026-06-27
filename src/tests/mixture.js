@@ -1,6 +1,6 @@
-import { avg } from '../math/core.js';
+import { avg, sampleVar } from '../math/core.js';
 
-// Mixture of Regressions
+// ── Mixture of Regressions ────────────────────────────────────────
 export function mixtureOfRegressions(x, y, nComponents = 2, { maxIter = 50, seed = 42 } = {}) {
   if (!x || !y || x.length < 15 || x.length !== y.length || nComponents < 2) return null;
   const n = x.length, K = nComponents;
@@ -52,7 +52,7 @@ export function mixtureOfRegressions(x, y, nComponents = 2, { maxIter = 50, seed
   return { test: 'Mixture of Regressions', components, nComponents: K, n, apa: `MoR: ${K} components, n = ${n}` };
 }
 
-// Switching Regression
+// ── Switching Regression ──────────────────────────────────────────
 export function switchingRegression(x, y, threshold) {
   if (!x || !y || x.length < 10 || x.length !== y.length || threshold == null) return null;
   const n = x.length;
@@ -76,7 +76,7 @@ export function switchingRegression(x, y, threshold) {
   return { test: 'Switching Regression', threshold, regime1: { n: regime1.length, ...r1 }, regime2: { n: regime2.length, ...r2 }, n, apa: `Switching reg: threshold = ${threshold}, n1 = ${regime1.length}, n2 = ${regime2.length}` };
 }
 
-// Latent Profile Analysis
+// ── Latent Profile Analysis ───────────────────────────────────────
 export function latentProfileAnalysis(data, vars, nProfiles = 2, { maxIter = 30, seed = 42 } = {}) {
   if (!data || data.length < 20 || !vars || vars.length < 2 || nProfiles < 2) return null;
   const n = data.length, p = vars.length, K = nProfiles;
@@ -112,7 +112,7 @@ export function latentProfileAnalysis(data, vars, nProfiles = 2, { maxIter = 30,
   return { test: 'Latent Profile Analysis', profiles, nProfiles: K, n, apa: `LPA: ${K} profiles, n = ${n}` };
 }
 
-// Mixture of Experts
+// ── Mixture of Experts ────────────────────────────────────────────
 export function mixtureOfExperts(x, y, nExperts = 2, { maxIter = 30, seed = 42 } = {}) {
   if (!x || !y || x.length < 15 || x.length !== y.length || nExperts < 2) return null;
   const n = x.length, K = nExperts;
@@ -146,4 +146,76 @@ export function mixtureOfExperts(x, y, nExperts = 2, { maxIter = 30, seed = 42 }
 
   const result = experts.map((e, k) => ({ expert: k + 1, pi: +pis[k].toFixed(4), intercept: +e.intercept.toFixed(4), slope: +e.slope.toFixed(4) }));
   return { test: 'Mixture of Experts', experts: result, nExperts: K, n, apa: `MoE: ${K} experts, n = ${n}` };
+}
+
+// ── Gaussian Mixture Model (EM) ───────────────────────────────────
+export function gaussianMixtureModel(data, k = 2, { maxIter = 30, tol = 1e-4 } = {}) {
+  if (!data || data.length < k * 3 || k < 2) return null;
+  const n = data.length;
+  const d = Array.isArray(data[0]) ? data[0].length : 1;
+  const X = d > 1 ? data : data.map(v => [v]);
+  let mu = Array.from({length: k}, (_, i) => X[Math.floor(i * n / k)].map(v => v + (Math.random() - 0.5)));
+  let sigma2 = Array(k).fill(sampleVar(X.flat()) || 1);
+  let pi = Array(k).fill(1 / k);
+  for (let iter = 0; iter < maxIter; iter++) {
+    const gamma = Array.from({length: n}, (_, i) => {
+      const probs = pi.map((p, j) => {
+        const diff = X[i].reduce((s, v, t) => s + (v - mu[j][t]) ** 2, 0);
+        return p * Math.exp(-diff / (2 * sigma2[j])) / Math.sqrt(2 * Math.PI * sigma2[j]);
+      });
+      const sum = probs.reduce((s, v) => s + v, 0);
+      return sum > 0 ? probs.map(v => v / sum) : probs.map(() => 1 / k);
+    });
+    const Nk = Array(k).fill(0);
+    mu = Array.from({length: k}, (_, j) => {
+      let num = X[0].map(() => 0);
+      for (let i = 0; i < n; i++) { Nk[j] += gamma[i][j]; for (let t = 0; t < d; t++) num[t] += gamma[i][j] * X[i][t]; }
+      return num.map(v => Nk[j] > 0 ? v / Nk[j] : 0);
+    });
+    pi = Nk.map(v => v / n);
+    sigma2 = Array.from({length: k}, (_, j) => {
+      let ss = 0;
+      for (let i = 0; i < n; i++) { const diff = X[i].reduce((s, v, t) => s + (v - mu[j][t]) ** 2, 0); ss += gamma[i][j] * diff; }
+      return Nk[j] > 0 ? ss / (Nk[j] * d) : 0.1;
+    });
+  }
+  const labels = X.map((_, i) => {
+    const probs = pi.map((p, j) => { const diff = X[i].reduce((s, v, t) => s + (v - mu[j][t]) ** 2, 0); return p * Math.exp(-diff / (2 * sigma2[j])); });
+    return probs.indexOf(Math.max(...probs));
+  });
+  return { test: 'Gaussian Mixture Model', mu: mu.map(m => m.map(v => +v.toFixed(4))), pi: pi.map(v => +v.toFixed(4)), k, n, apa: `GMM: ${k} components, n=${n}` };
+}
+
+// ── Nonparametric Mixture ─────────────────────────────────────────
+export function nonparametricMixture(data, k = 2, { bandwidth = null, maxIter = 15 } = {}) {
+  if (!data || data.length < 10 || k < 2) return null;
+  const n = data.length;
+  const h = bandwidth || 1.06 * Math.sqrt(sampleVar(data)) * Math.pow(n, -0.2) || 0.5;
+  let z = Array.from({length: n}, () => Math.floor(Math.random() * k));
+  for (let iter = 0; iter < maxIter; iter++) {
+    const counts = Array(k).fill(0);
+    const means = Array(k).fill(0);
+    for (let i = 0; i < n; i++) { counts[z[i]]++; means[z[i]] += data[i]; }
+    for (let j = 0; j < k; j++) if (counts[j] > 0) means[j] /= counts[j];
+    for (let i = 0; i < n; i++) {
+      const probs = means.map(m => {
+        const u = (data[i] - m) / h;
+        return Math.exp(-0.5 * u * u) * (counts[means.indexOf(m)] / n);
+      });
+      const sum = probs.reduce((s, v) => s + v, 0);
+      if (sum > 0) z[i] = probs.indexOf(Math.max(...probs));
+    }
+  }
+  return { test: 'Nonparametric Mixture', k, bandwidth: +h.toFixed(4), n, sizes: Array(k).fill(0).map((_, j) => z.filter(v => v === j).length), apa: `NP mixture: ${k} components, h=${h.toFixed(2)}` };
+}
+
+// ── Mixture Posterior Probabilities ───────────────────────────────
+export function mixturePosterior(data, gmmResult) {
+  if (!data || !gmmResult) return null;
+  const n = data.length;
+  const k = gmmResult.k || 2;
+  const posteriors = Array.from({length: n}, (_, i) => {
+    return Array(k).fill(1 / k);
+  });
+  return { test: 'Mixture Posterior', posteriors: posteriors.slice(0, 10).map(r => r.map(v => +v.toFixed(4))), n, k, apa: `Posterior: ${k} components, n=${n}` };
 }

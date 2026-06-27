@@ -1,7 +1,7 @@
-import { avg } from '../math/core.js';
+import { avg, sampleVar } from '../math/core.js';
 import { normalCDF, normalINV } from '../math/distributions.js';
 
-// Wald SPRT
+// ── Wald SPRT ─────────────────────────────────────────────────────
 export function waldSPRT(data, h0, h1, { alpha = 0.05, beta = 0.2 } = {}) {
   if (!data || data.length < 3) return null;
   const n = data.length;
@@ -32,7 +32,7 @@ export function obrienFleming(stages, alpha = 0.05) {
   return { test: "O'Brien-Fleming", boundaries, stages, alpha, apa: `O-F: ${stages} stages, ${boundaries.map(b => b.boundary.toFixed(2)).join(', ')}` };
 }
 
-// Pocock Boundaries
+// ── Pocock Boundaries ─────────────────────────────────────────────
 export function pocockBoundaries(stages, alpha = 0.05) {
   if (!stages || stages < 2) return null;
   const cp = normalINV(1 - alpha / 2);
@@ -44,7 +44,7 @@ export function pocockBoundaries(stages, alpha = 0.05) {
   return { test: 'Pocock Boundaries', boundaries, stages, alpha, apa: `Pocock: ${stages} stages, boundary = ${pock.toFixed(2)}` };
 }
 
-// Group Sequential
+// ── Group Sequential ──────────────────────────────────────────────
 export function groupSequential(data, stages, { method = 'of', alpha = 0.05 } = {}) {
   if (!data || data.length < 5 || !stages || stages < 2) return null;
   const n = data.length;
@@ -68,7 +68,7 @@ export function groupSequential(data, stages, { method = 'of', alpha = 0.05 } = 
   return { test: 'Group Sequential', results, method, stoppedAt: stoppedAt >= 0 ? stoppedAt : null, decision, n, stages, apa: `Group seq (${method}): ${decision || 'continued'} at stage ${(stoppedAt != null ? stoppedAt + 1 : stages)}` };
 }
 
-// Lan-DeMets Alpha Spending
+// ── Lan-DeMets Alpha Spending ─────────────────────────────────────
 export function lanDemets(data, stages, { alpha = 0.05 } = {}) {
   if (!data || data.length < 5 || stages < 2) return null;
   const n = data.length;
@@ -94,7 +94,7 @@ export function lanDemets(data, stages, { alpha = 0.05 } = {}) {
   return { test: 'Lan-DeMets', results, alpha, nStages: stages, n, apa: `Lan-DeMets: ${results.length} looks, ${results.filter(r => r.sig).length} significant` };
 }
 
-// Conditional Power
+// ── Conditional Power ─────────────────────────────────────────────
 export function conditionalPower(data, nObserved, nPlanned, effectSize, alpha = 0.05) {
   if (!data || !data.length || nObserved < 5 || nPlanned < nObserved) return null;
   const n = data.length;
@@ -104,4 +104,31 @@ export function conditionalPower(data, nObserved, nPlanned, effectSize, alpha = 
   const zAlpha = normalINV(1 - alpha / 2);
   const cp = normalCDF(Math.abs(nonC) - zAlpha);
   return { test: 'Conditional Power', cp: +cp.toFixed(4), nObserved, nPlanned, effectSize, apa: `Cond power = ${cp.toFixed(3)} (${nObserved}/${nPlanned} observed)` };
+}
+
+// ── Double Triangular Test ────────────────────────────────────────
+export function doubleTriangular(data, { alpha = 0.05, beta = 0.2, delta = 0.5 } = {}) {
+  if (!data || data.length < 10) return null;
+  const n = data.length;
+  const z = data.reduce((s, v) => s + v, 0) / Math.sqrt(Math.max(sampleVar(data) * n, 1));
+  const infoTime = n / Math.max(n + 1, 1);
+  const upperBound = 2 + 2 * infoTime;
+  const lowerBound = -2 - infoTime;
+  const crossedUpper = z > upperBound;
+  const crossedLower = z < lowerBound;
+  return { test: 'Double Triangular', z: +z.toFixed(4), upper: +upperBound.toFixed(4), lower: +lowerBound.toFixed(4), crossedUpper, crossedLower, n, apa: `Double triangular: z=${z.toFixed(2)}, n=${n}` };
+}
+
+// ── Haybittle-Peto Boundary ───────────────────────────────────────
+export function haybittlePeto(data, { alpha = 0.05, nStages = 5 } = {}) {
+  if (!data || data.length < 5) return null;
+  const n = data.length;
+  const zStages = Array.from({length: nStages}, (_, i) => {
+    const stageData = data.slice(0, Math.floor(n * (i + 1) / nStages));
+    const mean = avg(stageData);
+    const z = mean / Math.sqrt(Math.max(sampleVar(stageData) / stageData.length, 0.001));
+    return { stage: i + 1, n: stageData.length, z: +z.toFixed(4), boundary: 3.29 };
+  });
+  const stopped = zStages.some(s => Math.abs(s.z) > s.boundary);
+  return { test: 'Haybittle-Peto', stages: zStages, stopped, n, nStages, apa: `H-P: ${stopped ? 'stopped' : 'continued'}, n=${n}` };
 }

@@ -10,6 +10,7 @@ import {
   obliminRotation, geominRotation, quartiminRotation, targetRotation, promaxRotation,
   bivariateMeta, metaProportion, labbePlot, forestPlotData, cumulativeMeta,
   simpleCA, multipleCA, correspBiplot, totalInertia, correspContributions,
+  procrustesRotation, rvCoefficient, generalizedProcrustes,
 } from './multivariate.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
 import { expectKeys } from './__fixtures__/helpers.js';
@@ -129,6 +130,11 @@ describe('manova', () => {
     expect(m.pillaiTrace).not.toBeNaN();
     expect(m.ndep).toBe(2);
   });
+
+  it('contract keys when valid', () => {
+    const r = manova(data, ['y1', 'y2'], 'species');
+    if (r) expectKeys(r, ['test', 'wilksLambda', 'pillaiTrace', 'prob', 'ndep', 'n', 'apa']);
+  });
 });
 
 describe('canonicalCorr', () => {
@@ -146,6 +152,12 @@ describe('canonicalCorr', () => {
     expect(cc.correlations.length).toBeGreaterThan(0);
     expect(cc.correlations[0]).toBeGreaterThan(0);
     expect(cc.pCanon).not.toBeNaN();
+  });
+
+  it('nCorrelations is positive when valid', () => {
+    const ccRows = rows.map((r, ix) => ({ ...r, ySyn: +(r.x1 + r.x3) / 3 + ix * .001 }));
+    const r = canonicalCorr(ccRows, ['x1', 'x2'], ['x3', 'ySyn']);
+    if (r) expect(r.correlations.length).toBeGreaterThan(0);
   });
 });
 
@@ -166,6 +178,11 @@ describe('linearDiscriminant', () => {
     expect(L.coefficients?.length).toBe(2);
     expect(L.accuracyTrain).toBeGreaterThanOrEqual(0);
     expect(L.accuracyTrain).toBeLessThanOrEqual(100);
+  });
+
+  it('contract keys when valid', () => {
+    const r = linearDiscriminant(ldaRows, 'grp', ['x1', 'x2']);
+    if (r) { expect(r).toHaveProperty('coefficients'); expect(r).toHaveProperty('accuracyTrain'); }
   });
 });
 
@@ -532,55 +549,201 @@ describe('boxMTest', () => {
 describe('networkMetaAnalysis', () => {
   const s = []; for (let i = 0; i < 8; i++) s.push({ d: 0.2 + i * 0.05, se: 0.1, trt: i % 2 ? 'B' : 'A', ref: 'C' });
   it('contract keys', () => expectKeys(networkMetaAnalysis(s), ['test', 'directEstimates', 'nTreatments', 'nStudies', 'apa']));
+  it('estimates non-empty', () => {
+    const r = networkMetaAnalysis(s);
+    if (r) expect(r.directEstimates).toBeDefined();
+  });
+
+  it('nStudies is positive when valid', () => {
+    const r = networkMetaAnalysis(s);
+    if (r) expect(r.nStudies).toBeGreaterThan(0);
+  });
 });
 
 describe('baujatPlot', () => {
   const meta = { studies: [{ d: 0.2, se: 0.1 }, { d: 0.3, se: 0.12 }, { d: 0.25, se: 0.11 }] };
   it('contract keys', () => expectKeys(baujatPlot(meta), ['test', 'points', 'nStudies', 'apa']));
+  it('contributions non-empty', () => {
+    const r = baujatPlot(meta);
+    if (r) expect(r.points).toBeDefined();
+  });
+
+  it('points have entries', () => {
+    const r = baujatPlot(meta);
+    if (r) { expect(Array.isArray(r.points)).toBe(true); expect(r.points.length).toBeGreaterThan(0); }
+  });
 });
 
 describe('leaveOneOutMeta', () => {
   const s = [{ d: 0.2, se: 0.1 }, { d: 0.3, se: 0.12 }, { d: 0.25, se: 0.11 }, { d: 0.15, se: 0.09 }];
   it('contract keys', () => expectKeys(leaveOneOutMeta(s), ['test', 'results', 'n', 'apa']));
   it('results = n', () => { const r = leaveOneOutMeta(s); expect(r.results).toHaveLength(4); });
+
+  it('results entries have finite d', () => {
+    const r = leaveOneOutMeta(s);
+    if (r) r.results.forEach(e => expect(Number.isFinite(e.d)).toBe(true));
+  });
 });
 
 describe('metaRegressionDiagnostics', () => {
   const meta = { coefficients: [{ term: 'x', b: 0.1, se: 0.05, z: 2, p: 0.04 }], tau2: 0.01, iSquared: 30, k: 8 };
   it('contract keys', () => expectKeys(metaRegressionDiagnostics(meta), ['test', 'parameters', 'tau2', 'iSquared', 'k', 'apa']));
+  it('diagnostics non-empty', () => {
+    const r = metaRegressionDiagnostics(meta);
+    if (r) { expect(r.parameters).toBeDefined(); expect(r.tau2).toBeGreaterThanOrEqual(0); }
+  });
+
+  it('iSquared is between 0 and 100', () => {
+    const r = metaRegressionDiagnostics(meta);
+    if (r) { expect(r.iSquared).toBeGreaterThanOrEqual(0); expect(r.iSquared).toBeLessThanOrEqual(100); }
+  });
 });
 
-describe('obliminRotation', () => { it('contract keys', () => expectKeys(obliminRotation([[0.5, 0.1], [0.6, 0.2], [0.3, 0.7]]), ['test', 'loadings', 'gamma', 'p', 'm', 'apa'])); });
-describe('geominRotation', () => { it('contract keys', () => expectKeys(geominRotation([[0.5, 0.1], [0.6, 0.2]]), ['test', 'loadings', 'epsilon', 'p', 'm', 'apa'])); });
-describe('quartiminRotation', () => { it('contract keys', () => expectKeys(quartiminRotation([[0.5, 0.1], [0.6, 0.2]]), ['test', 'loadings', 'gamma', 'p', 'm', 'apa'])); });
-describe('targetRotation', () => { it('contract keys', () => expectKeys(targetRotation([[0.5, 0.1], [0.6, 0.2]], [[1, 0], [1, 0]]), ['test', 'loadings', 'p', 'm', 'apa'])); });
-describe('promaxRotation', () => { it('contract keys', () => expectKeys(promaxRotation([[0.5, 0.1], [0.6, 0.2]]), ['test', 'loadings', 'k', 'p', 'm', 'apa'])); });
+describe('obliminRotation', () => { it('contract keys', () => expectKeys(obliminRotation([[0.5, 0.1], [0.6, 0.2], [0.3, 0.7]]), ['test', 'loadings', 'gamma', 'p', 'm', 'apa']));   it('loadings non-empty', () => { const r = obliminRotation([[0.5, 0.1], [0.6, 0.2], [0.3, 0.7]]); expect(r.loadings.length).toBeGreaterThan(0); });
+
+  it('gamma is finite', () => { const r = obliminRotation([[0.5, 0.1], [0.6, 0.2], [0.3, 0.7]]); expect(Number.isFinite(r.gamma)).toBe(true); });
+});
+describe('geominRotation', () => { it('contract keys', () => expectKeys(geominRotation([[0.5, 0.1], [0.6, 0.2]]), ['test', 'loadings', 'epsilon', 'p', 'm', 'apa']));   it('loadings non-empty', () => { const r = geominRotation([[0.5, 0.1], [0.6, 0.2]]); expect(r.loadings.length).toBeGreaterThan(0); });
+
+  it('epsilon is positive', () => { const r = geominRotation([[0.5, 0.1], [0.6, 0.2]]); expect(r.epsilon).toBeGreaterThan(0); });
+});
+describe('quartiminRotation', () => { it('contract keys', () => expectKeys(quartiminRotation([[0.5, 0.1], [0.6, 0.2]]), ['test', 'loadings', 'gamma', 'p', 'm', 'apa']));   it('loadings non-empty', () => { const r = quartiminRotation([[0.5, 0.1], [0.6, 0.2]]); expect(r.loadings.length).toBeGreaterThan(0); });
+
+  it('gamma is finite', () => { const r = quartiminRotation([[0.5, 0.1], [0.6, 0.2]]); expect(Number.isFinite(r.gamma)).toBe(true); });
+});
+describe('targetRotation', () => { it('contract keys', () => expectKeys(targetRotation([[0.5, 0.1], [0.6, 0.2]], [[1, 0], [1, 0]]), ['test', 'loadings', 'p', 'm', 'apa']));   it('loadings non-empty', () => { const r = targetRotation([[0.5, 0.1], [0.6, 0.2]], [[1, 0], [1, 0]]); expect(r.loadings.length).toBeGreaterThan(0); });
+
+  it('loadings match input row count', () => { const r = targetRotation([[0.5, 0.1], [0.6, 0.2]], [[1, 0], [1, 0]]); expect(r.loadings).toHaveLength(2); });
+});
+describe('promaxRotation', () => { it('contract keys', () => expectKeys(promaxRotation([[0.5, 0.1], [0.6, 0.2]]), ['test', 'loadings', 'k', 'p', 'm', 'apa']));   it('loadings non-empty', () => { const r = promaxRotation([[0.5, 0.1], [0.6, 0.2]]); expect(r.loadings.length).toBeGreaterThan(0); });
+
+  it('k is finite', () => { const r = promaxRotation([[0.5, 0.1], [0.6, 0.2]]); expect(Number.isFinite(r.k)).toBe(true); });
+});
 
 describe('bivariateMeta', () => {
   const s = []; for (let i = 0; i < 8; i++) s.push({ sens: 0.7 + i * 0.02, spec: 0.8 + i * 0.01 });
   it('contract keys', () => expectKeys(bivariateMeta(s), ['test', 'pooledSens', 'pooledSpec', 'correlation', 'n', 'apa']));
+  it('correlation between -1 and 1', () => {
+    const r = bivariateMeta(s);
+    if (r) { expect(r.correlation).toBeGreaterThanOrEqual(-1); expect(r.correlation).toBeLessThanOrEqual(1); }
+  });
+
+  it('pooledSens is between 0 and 1', () => {
+    const r = bivariateMeta(s);
+    if (r) { expect(r.pooledSens).toBeGreaterThanOrEqual(0); expect(r.pooledSens).toBeLessThanOrEqual(1); }
+  });
 });
 describe('metaProportion', () => {
   it('contract keys', () => expectKeys(metaProportion([5, 8, 12, 15, 20], [20, 30, 25, 35, 40]), ['test', 'proportion', 'se', 'k', 'n', 'apa']));
+  it('proportion between 0 and 1', () => {
+    const r = metaProportion([5, 8, 12, 15, 20], [20, 30, 25, 35, 40]);
+    if (r) { expect(r.proportion).toBeGreaterThanOrEqual(0); expect(r.proportion).toBeLessThanOrEqual(1); }
+  });
+
+  it('se is positive when valid', () => {
+    const r = metaProportion([5, 8, 12, 15, 20], [20, 30, 25, 35, 40]);
+    if (r) expect(r.se).toBeGreaterThan(0);
+  });
 });
 describe('labbePlot', () => {
   it('contract keys', () => expectKeys(labbePlot([5, 8, 12], [20, 30, 25], [3, 6, 10], [20, 30, 25]), ['test', 'points', 'n', 'apa']));
+  it('events array returns valid points', () => {
+    const r = labbePlot([5, 8, 12], [20, 30, 25], [3, 6, 10], [20, 30, 25]);
+    if (r) { expect(Array.isArray(r.points)).toBe(true); expect(r.points.length).toBeGreaterThan(0); }
+  });
+
+  it('points have entries', () => {
+    const r = labbePlot([5, 8, 12], [20, 30, 25], [3, 6, 10], [20, 30, 25]);
+    if (r) { expect(Array.isArray(r.points)).toBe(true); expect(r.points.length).toBeGreaterThan(0); }
+  });
 });
 describe('forestPlotData', () => {
   const s = [{ d: 0.2, se: 0.1 }, { d: 0.3, se: 0.12 }, { d: 0.25, se: 0.11 }];
   it('contract keys', () => expectKeys(forestPlotData(s), ['test', 'studies', 'n', 'apa']));
+  it('data non-empty', () => {
+    const r = forestPlotData(s);
+    if (r) { expect(Array.isArray(r.studies)).toBe(true); expect(r.studies.length).toBeGreaterThan(0); }
+  });
+
+  it('studies entries have finite d and weight', () => {
+    const r = forestPlotData(s);
+    if (r) r.studies.forEach(s2 => { expect(Number.isFinite(s2.d)).toBe(true); });
+  });
 });
 describe('cumulativeMeta', () => {
   const s = []; for (let i = 0; i < 6; i++) s.push({ d: 0.2 + i * 0.03, se: 0.1 });
   it('contract keys', () => expectKeys(cumulativeMeta(s), ['test', 'cumulative', 'n', 'apa']));
+  it('cumulative non-empty', () => {
+    const r = cumulativeMeta(s);
+    if (r) { expect(Array.isArray(r.cumulative)).toBe(true); expect(r.cumulative.length).toBeGreaterThan(0); }
+  });
+
+  it('cumulative entries have finite d', () => {
+    const r = cumulativeMeta(s);
+    if (r) r.cumulative.forEach(e => expect(Number.isFinite(e.d)).toBe(true));
+  });
 });
 
 describe('simpleCA', () => {
   const d = []; for (let i = 0; i < 20; i++) d.push({ r: `R${i%3}`, c: `C${i%4}` });
   it('contract keys', () => expectKeys(simpleCA(d, ['r','c']), ['test','inertia','rows','cols','n','apa']));
+  it('inertia positive', () => {
+    const r = simpleCA(d, ['r', 'c']);
+    if (r) expect(r.inertia).toBeGreaterThan(0);
+  });
+
+  it('rows and cols are positive', () => {
+    const r = simpleCA(d, ['r', 'c']);
+    if (r) { expect(r.rows).toBeGreaterThan(0); expect(r.cols).toBeGreaterThan(0); }
+  });
 });
 
-describe('multipleCA', () => { it('is defined', () => expect(typeof multipleCA).toBe('function')); });
-describe('correspBiplot', () => { it('contract keys', () => expectKeys(correspBiplot({rows:3,cols:4}), ['test','rows','cols','apa'])); });
-describe('totalInertia', () => { it('contract keys', () => expectKeys(totalInertia({inertia:0.05,n:100}), ['test','inertia','chisq','n','apa'])); });
-describe('correspContributions', () => { it('contract keys', () => expectKeys(correspContributions({inertia:0.05}), ['test','inertia','apa'])); });
+describe('multipleCA', () => { it('is defined', () => expect(typeof multipleCA).toBe('function'));   it('nCategories positive', () => { const d = []; for (let i = 0; i < 20; i++) d.push({ r: `R${i%3}`, c: `C${i%4}`, s: `S${i%2}` }); const r = multipleCA(d, ['r','c','s']); if (r) expect(r.nCategories).toBeGreaterThan(0); });
+
+  it('contract keys when valid', () => { const d = []; for (let i = 0; i < 20; i++) d.push({ r: `R${i%3}`, c: `C${i%4}`, s: `S${i%2}` }); const r = multipleCA(d, ['r','c','s']); if (r) { expect(r).toHaveProperty('nCategories'); expect(r).toHaveProperty('n'); } });
+});
+describe('correspBiplot', () => { it('contract keys', () => expectKeys(correspBiplot({rows:3,cols:4}), ['test','rows','cols','apa']));   it('biplot non-empty', () => { const r = correspBiplot({rows:3,cols:4}); expect(r.rows).toBeGreaterThan(0); });
+
+  it('cols is positive', () => { const r = correspBiplot({rows:3,cols:4}); expect(r.cols).toBeGreaterThan(0); });
+});
+describe('totalInertia', () => { it('contract keys', () => expectKeys(totalInertia({inertia:0.05,n:100}), ['test','inertia','chisq','n','apa']));   it('inertia positive', () => { const r = totalInertia({inertia:0.05,n:100}); expect(r.inertia).toBeGreaterThan(0); });
+
+  it('chisq is positive', () => { const r = totalInertia({inertia:0.05,n:100}); expect(r.chisq).toBeGreaterThan(0); });
+});
+describe('correspContributions', () => { it('contract keys', () => expectKeys(correspContributions({inertia:0.05}), ['test','inertia','apa']));   it('contributions non-empty', () => { const r = correspContributions({inertia:0.05}); if (r) expect(r.inertia).toBeGreaterThan(0); });
+
+  it('apa is a non-empty string', () => { const r = correspContributions({inertia:0.05}); if (r) { expect(typeof r.apa).toBe('string'); expect(r.apa.length).toBeGreaterThan(0); } });
+});
+
+describe('procrustesRotation', () => {
+  const X = [[1,2],[3,4],[5,6],[7,8],[9,10]];
+  const target = X.map(r => [r[0]*0.8, r[1]*1.2]);
+  it('contract keys', () => expectKeys(procrustesRotation(X, target), ['test','R','rotated','n','p','apa']));
+  it('null mismatched', () => expect(procrustesRotation([[1,2]], [[1]])).toBeNull());
+
+  it('rotated dimensions match input', () => {
+    const r = procrustesRotation(X, target);
+    if (r) { expect(r.rotated).toHaveLength(X.length); expect(r.rotated[0]).toHaveLength(X[0].length); }
+  });
+});
+describe('rvCoefficient', () => {
+  const X = [[1,2],[3,4],[5,6],[7,8],[9,10]];
+  const Y = [[2,1],[4,3],[6,5],[8,7],[10,9]];
+  it('contract keys', () => expectKeys(rvCoefficient(X, Y), ['test','rv','n','pX','pY','apa']));
+  it('rv in [0,1]', () => { const r = rvCoefficient(X, Y); expect(r.rv).toBeGreaterThanOrEqual(0); expect(r.rv).toBeLessThanOrEqual(1); });
+
+  it('rv is finite', () => { const r = rvCoefficient(X, Y); expect(Number.isFinite(r.rv)).toBe(true); });
+});
+describe('generalizedProcrustes', () => {
+  const m = [[1,2],[3,4],[5,6],[7,8],[9,10]];
+  it('contract keys', () => expectKeys(generalizedProcrustes([m, m.map(r => [r[0]*0.9, r[1]*1.1])], { maxIter: 5 }), ['test','consensus','nMatrices','n','p','apa']));
+  it('consensus non-empty', () => {
+    const r = generalizedProcrustes([m, m.map(r => [r[0] * 0.9, r[1] * 1.1])], { maxIter: 5 });
+    if (r) { expect(Array.isArray(r.consensus)).toBe(true); expect(r.consensus.length).toBeGreaterThan(0); }
+  });
+
+  it('nMatrices matches input', () => {
+    const r = generalizedProcrustes([m, m.map(r => [r[0] * 0.9, r[1] * 1.1])], { maxIter: 5 });
+    if (r) expect(r.nMatrices).toBe(2);
+  });
+});

@@ -1,4 +1,5 @@
 import { avg } from '../math/core.js';
+import { matInv } from '../math/matrix.js';
 
 // Pairwise distance matrix
 export function distanceMatrix(x) {
@@ -13,7 +14,7 @@ export function distanceMatrix(x) {
   return D;
 }
 
-// Distance Covariance
+// ── Distance Covariance ───────────────────────────────────────────
 export function distanceCovariance(x, y) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
@@ -45,7 +46,7 @@ export function distanceCovariance(x, y) {
   return { test: 'Distance Covariance', dCov: +dCov.toFixed(4), n, apa: `dCov = ${dCov.toFixed(4)}` };
 }
 
-// Distance Correlation
+// ── Distance Correlation ──────────────────────────────────────────
 export function distanceCorrelation(x, y) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const dCov = distanceCovariance(x, y)?.dCov || 0;
@@ -53,10 +54,10 @@ export function distanceCorrelation(x, y) {
   const dVarY = distanceCovariance(y, y)?.dCov || 0;
   const denom = Math.sqrt(Math.max(dVarX * dVarY, 0));
   const dCorr = denom > 0 ? dCov / denom : 0;
-  return { test: 'Distance Correlation', dCorr: +dCorr.toFixed(4), dCov: +dCov.toFixed(4), n, apa: `dCorr = ${dCorr.toFixed(3)}, dCov = ${dCov.toFixed(3)}` };
+  return { test: 'Distance Correlation', dCorr: +dCorr.toFixed(4), dCov: +dCov.toFixed(4), n: x.length, apa: `dCorr = ${dCorr.toFixed(3)}, dCov = ${dCov.toFixed(3)}` };
 }
 
-// Energy Test for Equal Distributions
+// ── Energy Test for Equal Distributions ───────────────────────────
 export function energyTest(x, y, { permutations = 199 } = {}) {
   if (!x || !y || x.length < 5 || y.length < 5) return null;
   const nA = x.length, nB = y.length;
@@ -71,7 +72,7 @@ export function energyTest(x, y, { permutations = 199 } = {}) {
   return { test: 'Energy Test', statistic: +stat.toFixed(4), p, nA, nB, apa: `Energy = ${stat.toFixed(3)}, p ≈ ${p.toFixed(3)}` };
 }
 
-// Partial Distance Correlation
+// ── Partial Distance Correlation ──────────────────────────────────
 export function partialDistanceCorr(x, y, z) {
   if (!x || !y || !z || x.length < 5) return null;
   const n = x.length;
@@ -84,4 +85,35 @@ export function partialDistanceCorr(x, y, z) {
   const resY = ry.map((v, i) => v - rz[i] * avg(ry) / avg(rz));
   const dc = distanceCorrelation(resX, resY);
   return { test: 'Partial Distance Correlation', pdCorr: dc?.dCorr || 0, n, apa: `pdCorr = ${(dc?.dCorr || 0).toFixed(3)}` };
+}
+
+// ── Mahalanobis Distance ──────────────────────────────────────────
+export function mahalanobisDistance(x, y, cov) {
+  if (!x || !y || x.length < 2 || x.length !== y.length) return null;
+  const p = x.length;
+  const diff = x.map((v, i) => v - (y[i] || 0));
+  const covInv = cov ? matInv(cov) : Array.from({length: p}, (_, i) => Array.from({length: p}, (_, j) => i === j ? 1 : 0));
+  if (!covInv) return null;
+  let d2 = 0;
+  for (let i = 0; i < p; i++) for (let j = 0; j < p; j++) d2 += diff[i] * covInv[i][j] * diff[j];
+  return { test: 'Mahalanobis Distance', distance: +Math.sqrt(Math.max(0, d2)).toFixed(4), p, apa: `Mahalanobis: ${Math.sqrt(Math.max(0, d2)).toFixed(3)}` };
+}
+
+// ── Gower Distance ────────────────────────────────────────────────
+export function gowerDistance(x, y) {
+  if (!x || !y || x.length < 2 || x.length !== y.length) return null;
+  const p = x.length;
+  let sum = 0, count = 0;
+  for (let j = 0; j < p; j++) {
+    if (x[j] == null || y[j] == null) continue;
+    if (typeof x[j] === 'number' && typeof y[j] === 'number') {
+      const range = 1;
+      sum += range > 0 ? Math.abs(x[j] - y[j]) / Math.max(range, 1) : 0;
+    } else {
+      sum += x[j] === y[j] ? 0 : 1;
+    }
+    count++;
+  }
+  const dist = count > 0 ? sum / count : 1;
+  return { test: 'Gower Distance', distance: +dist.toFixed(4), p, apa: `Gower: ${dist.toFixed(3)}` };
 }

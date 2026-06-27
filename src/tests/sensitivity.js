@@ -1,6 +1,6 @@
 import { avg, sampleVar } from '../math/core.js';
 
-// Morris Elementary Effects
+// ── Morris Elementary Effects ─────────────────────────────────────
 export function morrisMethod(model, X, { levels = 4, grid = 2 } = {}) {
   if (!model || !X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length;
@@ -20,7 +20,7 @@ export function morrisMethod(model, X, { levels = 4, grid = 2 } = {}) {
   return { test: 'Morris Method', effects: effects.map(e => ({ ...e, mu: +e.mu.toFixed(4), muStar: +e.muStar.toFixed(4), sigma: +e.sigma.toFixed(4) })), n, p, levels, apa: `Morris: ${p} factors` };
 }
 
-// FAST Sensitivity
+// ── FAST Sensitivity ──────────────────────────────────────────────
 export function fastSensitivity(model, X, { M = 4 } = {}) {
   if (!model || !X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length;
@@ -44,7 +44,7 @@ export function fastSensitivity(model, X, { M = 4 } = {}) {
   return { test: 'FAST Sensitivity', Si: Si.map(v => +(v / Math.max(total, 1)).toFixed(4)), n, p, apa: `FAST: ${p} factors` };
 }
 
-// Model Comparison F-test
+// ── Model Comparison F-test ───────────────────────────────────────
 export function modelComparison(mse1, mse2, n, k1, k2) {
   if (!Number.isFinite(mse1) || !Number.isFinite(mse2) || n < 5) return null;
   const fStat = mse2 > 0 ? mse1 / mse2 : 0;
@@ -57,7 +57,7 @@ function fPVal(f, df1, df2) {
   return Math.min(1, Math.max(0, Math.exp(-0.5 * f * f / (df1 + df2))));
 }
 
-// Forecast Combination
+// ── Forecast Combination ──────────────────────────────────────────
 export function forecastCombination(forecasts, actual, { method = 'equal' } = {}) {
   if (!forecasts || !actual || !forecasts.length || actual.length < 5) return null;
   const k = forecasts.length, n = actual.length;
@@ -72,7 +72,7 @@ export function forecastCombination(forecasts, actual, { method = 'equal' } = {}
   return { test: 'Forecast Combination', mse: +(mse / n).toFixed(4), method, n, k, apa: `Combination: MSE = ${(mse / n).toFixed(4)}` };
 }
 
-// Sobol First Order
+// ── Sobol First Order ─────────────────────────────────────────────
 export function sobolFirstOrder(model, X, { nSamples = 50 } = {}) {
   if (!model || !X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length;
@@ -94,4 +94,62 @@ export function sobolFirstOrder(model, X, { nSamples = 50 } = {}) {
     Si[j] = vY > 0 ? vj / vY : 0;
   }
   return { test: 'Sobol First Order', Si: Si.map(v => +(Math.max(0, Math.min(1, v))).toFixed(4)), n, p, apa: `Sobol: ${p} factors` };
+}
+
+// ── Sobol Total Index ─────────────────────────────────────────────
+export function sobolTotalIndex(model, X, { nSamples = 50 } = {}) {
+  if (!model || !X || X.length < 5 || !X[0]) return null;
+  const n = X.length, p = X[0].length;
+  const Y = X.map(row => model(row));
+  const varY = sampleVar(Y);
+  if (varY < 1e-10) return null;
+  const totalIndices = Array(p).fill(0);
+  for (let j = 0; j < p; j++) {
+    let Vj = 0;
+    for (let s = 0; s < nSamples; s++) {
+      const Xj = X.map(row => {
+        const newRow = [...row];
+        const altIdx = Math.floor(Math.random() * n);
+        newRow[j] = X[altIdx][j];
+        return newRow;
+      });
+      const Yj = Xj.map(row => model(row));
+      Vj += Yj.reduce((s, v, i) => s + v * Y[i], 0) / nSamples;
+    }
+    totalIndices[j] = +(1 - Vj / (nSamples * n * avg(Y) * avg(Y))).toFixed(4);
+  }
+  return { test: 'Sobol Total Index', totalIndices: totalIndices.map(v => +Math.max(0, Math.min(1, v)).toFixed(4)), n, p, nSamples, apa: `Sobol total: ${p} factors` };
+}
+
+// ── Delta Method (propagation of error) ───────────────────────────
+export function deltaMethod(means, ses, fn, h = 1e-6) {
+  if (!means || !ses || means.length < 1 || means.length !== ses.length) return null;
+  const p = means.length;
+  const grad = means.map((m, i) => {
+    const plus = [...means]; plus[i] = m + h;
+    const minus = [...means]; minus[i] = m - h;
+    return (fn(plus) - fn(minus)) / (2 * h);
+  });
+  const variance = grad.reduce((s, g, i) => s + g * g * ses[i] * ses[i], 0);
+  const se = Math.sqrt(Math.max(variance, 0));
+  return { test: 'Delta Method', estimate: +fn(means).toFixed(4), se: +se.toFixed(4), p, apa: `Delta: est=${fn(means).toFixed(3)}, se=${se.toFixed(3)}` };
+}
+
+// ── Andrews Plot Data ─────────────────────────────────────────────
+export function andrewsPlot(X, labels = null, { nPts = 50 } = {}) {
+  if (!X || X.length < 2 || !X[0]) return null;
+  const n = X.length, p = X[0].length;
+  const t = Array.from({length: nPts}, (_, i) => -Math.PI + 2 * Math.PI * i / (nPts - 1));
+  const curves = X.map((row, idx) => ({
+    label: labels ? labels[idx] : (idx + 1),
+    curve: t.map(ti => {
+      let s = row[0] / Math.SQRT2;
+      for (let j = 1; j < p; j++) {
+        const freq = Math.floor((j + 1) / 2);
+        s += j % 2 === 1 ? row[j] * Math.sin(freq * ti) : row[j] * Math.cos(freq * ti);
+      }
+      return { t: +ti.toFixed(4), f: +s.toFixed(4) };
+    })
+  }));
+  return { test: 'Andrews Plot', curves, nCurves: n, p, nPts, apa: `Andrews: ${n} curves, ${p} vars` };
 }

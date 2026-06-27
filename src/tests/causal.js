@@ -1,5 +1,5 @@
-import { avg, sampleVar, sampleSD, fmtP } from '../math/core.js';
-import { tPVal, normalCDF } from '../math/distributions.js';
+import { avg, corr, sampleVar, sampleSD, fmtP } from '../math/core.js';
+import { tPVal, normalCDF, chiPVal } from '../math/distributions.js';
 import { matMul, matInv } from '../math/matrix.js';
 import { logisticReg } from './regression.js';
 import { mulberry32 } from '../math/rng.js';
@@ -10,6 +10,8 @@ function sigmoid(z) {
 }
 
 /** Propensity score matching — nearest neighbor ATT */
+
+// ── Propensity Score Match ────────────────────────────────────────
 export function propensityScoreMatch(data, treatVar, outcomeVar, covariates = []) {
   const rows = data.filter(r =>
     r[treatVar] != null && Number.isFinite(+r[outcomeVar]) &&
@@ -85,6 +87,8 @@ export function propensityScoreMatch(data, treatVar, outcomeVar, covariates = []
 }
 
 /** 2SLS: stage 1 Z→X, stage 2 fitted X→Y */
+
+// ── IV / 2SLS ─────────────────────────────────────────────────────
 export function iv2sls(data, yVar, xVar, instrument, controls = []) {
   const allX = [instrument, ...controls];
   const rows = data.filter(r =>
@@ -162,6 +166,8 @@ export function iv2sls(data, yVar, xVar, instrument, controls = []) {
 }
 
 /** Interrupted time series — level + slope change */
+
+// ── Interrupted Time Series ───────────────────────────────────────
 export function interruptedTimeSeries(times, values, interventionTime) {
   if (times.length !== values.length || times.length < 6) return null;
   const post = times.map(t => (t >= interventionTime ? 1 : 0));
@@ -200,6 +206,8 @@ export function interruptedTimeSeries(times, values, interventionTime) {
 }
 
 /** Sharp RDD — local linear both sides at cutoff */
+
+// ── Regression Discontinuity ──────────────────────────────────────
 export function regressionDiscontinuity(x, y, cutoff, bandwidth) {
   if (x.length !== y.length || x.length < 12) return null;
   const h = bandwidth > 0 ? bandwidth : Math.max(0.5, 1.06 * sampleSD(x) * x.length ** (-1 / 5));
@@ -659,7 +667,7 @@ export function staggeredDiD(panelData, idVar, timeVar, treatVar, outcomeVar) {
   };
 }
 
-// Covariate Balance (SMD)
+// ── Covariate Balance (SMD) ───────────────────────────────────────
 export function covariateBalance(treated, control, vars) {
   if (!treated || !control || !vars || !vars.length || treated.length < 5 || control.length < 5) return null;
   const results = vars.map(v => {
@@ -689,7 +697,7 @@ export function smdTable(data, treatVar, covariates) {
   return covariateBalance(treated, control, covariates);
 }
 
-// Propensity Overlap
+// ── Propensity Overlap ────────────────────────────────────────────
 export function propensityOverlap(data, treatVar, covariates, { nBins = 10 } = {}) {
   if (!data || data.length < 10 || !treatVar || !covariates || !covariates.length) return null;
   const vals = [...new Set(data.map(r => r[treatVar]))];
@@ -709,12 +717,12 @@ export function propensityOverlap(data, treatVar, covariates, { nBins = 10 } = {
     return { bin: i + 1, lo: +lo.toFixed(4), hi: +hi.toFixed(4), treated: tCount, control: cCount };
   });
   return {
-    test: 'Propensity Overlap', bins, n, nBins,
+    test: 'Propensity Overlap', bins, n: rows.length, nBins,
     apa: `Overlap: ${bins.filter(b => b.treated > 0 && b.control > 0).length}/${nBins} bins have common support`,
   };
 }
 
-// Weighting Diagnostics
+// ── Weighting Diagnostics ─────────────────────────────────────────
 export function weightingDiagnostics(weights, data, treatVar, covariates) {
   if (!weights || !data || !treatVar || !covariates || !covariates.length) return null;
   const n = Math.min(weights.length, data.length);
@@ -742,7 +750,7 @@ export function weightingDiagnostics(weights, data, treatVar, covariates) {
   };
 }
 
-// Love Plot Data
+// ── Love Plot Data ────────────────────────────────────────────────
 export function lovePlotData(before, after) {
   if (!before || !after) return null;
   const data = before.map((b, i) => {
@@ -755,7 +763,7 @@ export function lovePlotData(before, after) {
   };
 }
 
-// Natural Indirect Effect
+// ── Natural Indirect Effect ───────────────────────────────────────
 export function naturalIndirectEffect(data, treatVar, mediator, outcomeVar, covariates) {
   if (!data || data.length < 20 || !treatVar || !mediator || !outcomeVar) return null;
   const rows = data.filter(r => r[treatVar] != null && Number.isFinite(+r[outcomeVar]) && Number.isFinite(+r[mediator]) && covariates.every(c => Number.isFinite(r[c])));
@@ -789,7 +797,7 @@ export function naturalIndirectEffect(data, treatVar, mediator, outcomeVar, cova
   return { test: 'Natural Indirect Effect', nie:+nie.toFixed(4), a:+a.toFixed(4), b:+b.toFixed(4), se:+seNie.toFixed(4), z:+z.toFixed(4), p:2*(1-normalCDF(Math.abs(z))), n:rows.length, apa:`NIE = ${nie.toFixed(3)}, z=${z.toFixed(2)}` };
 }
 
-// Controlled Direct Effect
+// ── Controlled Direct Effect ──────────────────────────────────────
 export function controlledDirectEffect(data, treatVar, mediator, outcomeVar, covariates, mediatorValue = 0) {
   if (!data || data.length < 20 || !treatVar || !mediator || !outcomeVar) return null;
   const rows = data.filter(r => r[treatVar]!=null && Number.isFinite(+r[outcomeVar]) && Number.isFinite(+r[mediator]) && covariates.every(c=>Number.isFinite(r[c])));
@@ -810,7 +818,7 @@ export function controlledDirectEffect(data, treatVar, mediator, outcomeVar, cov
   return { test: 'Controlled Direct Effect', cde:+cde.toFixed(4), se:+se.toFixed(4), z:+z.toFixed(4), p:2*(1-normalCDF(Math.abs(z))), mediatorValue, n:rows.length, apa:`CDE = ${cde.toFixed(3)}, z=${z.toFixed(2)}` };
 }
 
-// E-Value
+// ── E-Value ───────────────────────────────────────────────────────
 export function evalue(estimate, se) {
   if (!Number.isFinite(estimate) || !Number.isFinite(se) || se <= 0) return null;
   const b = Math.abs(estimate), t = b / se;
@@ -819,14 +827,14 @@ export function evalue(estimate, se) {
   return { test: 'E-Value', e:+e.toFixed(4), estimate:+estimate.toFixed(4), se:+se.toFixed(4), lowerCI:+(estimate-1.96*se).toFixed(4), apa:`E-value = ${e.toFixed(2)}` };
 }
 
-// Mediation Proportion
+// ── Mediation Proportion ──────────────────────────────────────────
 export function mediationProportion(indirect, total) {
   if (!Number.isFinite(indirect) || !Number.isFinite(total) || total === 0) return null;
   const prop = indirect / total;
   return { test: 'Mediation Proportion', proportion:+prop.toFixed(4), indirect:+indirect.toFixed(4), total:+total.toFixed(4), apa:`Prop mediated = ${(prop*100).toFixed(0)}%` };
 }
 
-// Sensitivity Bias
+// ── Sensitivity Bias ──────────────────────────────────────────────
 export function sensitivityBias(or, prevalence = 0.3) {
   if (!or || or <= 0 || prevalence <= 0 || prevalence >= 1) return null;
   const rr = Math.sqrt(or);
@@ -834,7 +842,7 @@ export function sensitivityBias(or, prevalence = 0.3) {
   return { test: 'Sensitivity Bias', criticalRR:+crit.toFixed(4), or:+or.toFixed(4), prevalence, apa:`Critical RR = ${crit.toFixed(2)}` };
 }
 
-// Interaction Mediation
+// ── Interaction Mediation ─────────────────────────────────────────
 export function interactionMediation(data, treatVar, mediator, outcomeVar, covariates) {
   if (!data || data.length < 20 || !treatVar || !mediator || !outcomeVar) return null;
   const rows = data.filter(r => r[treatVar]!=null && Number.isFinite(+r[outcomeVar]) && Number.isFinite(+r[mediator]) && covariates.every(c=>Number.isFinite(r[c])));
@@ -855,7 +863,7 @@ export function interactionMediation(data, treatVar, mediator, outcomeVar, covar
   return { test: 'Interaction Mediation', interaction:+interaction.toFixed(4), se:+se.toFixed(4), z:+z.toFixed(4), p:2*(1-normalCDF(Math.abs(z))), n:rows.length, apa:`Interaction = ${interaction.toFixed(3)}, z=${z.toFixed(2)}` };
 }
 
-// MSM with IPTW
+// ── MSM with IPTW ─────────────────────────────────────────────────
 export function msmWeights(data, timeVars, treatment, outcome, covariates) {
   if (!data || data.length < 20 || !timeVars || !treatment || !outcome) return null;
   const n = data.length;
@@ -875,7 +883,7 @@ export function msmWeights(data, timeVars, treatment, outcome, covariates) {
   return { test: 'MSM Weights', weightedMean: +weightedMean.toFixed(4), n, nTreated: t.filter(v => v === 1).length, apa: `MSM: weighted mean = ${weightedMean.toFixed(3)}, n = ${n}` };
 }
 
-// G-estimation
+// ── G-estimation ──────────────────────────────────────────────────
 export function gestimationSNM(data, treatment, outcome, covariates) {
   if (!data || data.length < 20 || !treatment || !outcome) return null;
   const n = data.length;
@@ -903,7 +911,7 @@ export function gestimationSNM(data, treatment, outcome, covariates) {
   return { test: 'G-estimation', psi: +psi.toFixed(4), n, apa: `G-est: ψ = ${psi.toFixed(3)}, n = ${n}` };
 }
 
-// RPSFT
+// ── RPSFT ─────────────────────────────────────────────────────────
 export function rpsft(data, treatment, outcome, observed) {
   if (!data || data.length < 20 || !treatment || !outcome || !observed) return null;
   const n = data.length;
@@ -926,7 +934,7 @@ export function rpsft(data, treatment, outcome, observed) {
   return { test: 'RPSFT', psi: +psi.toFixed(4), n, apa: `RPSFT: ψ = ${psi.toFixed(3)}, n = ${n}` };
 }
 
-// Structural Nested AFT
+// ── Structural Nested AFT ─────────────────────────────────────────
 export function structuralNestedAFT(data, treatment, eventTime, covariates) {
   if (!data || data.length < 20 || !treatment || !eventTime) return null;
   const n = data.length;
@@ -949,7 +957,7 @@ export function structuralNestedAFT(data, treatment, eventTime, covariates) {
   return { test: 'Structural Nested AFT', psi: +psi.toFixed(4), n, apa: `SN-AFT: ψ = ${psi.toFixed(3)}, n = ${n}` };
 }
 
-// Compliance-Adjusted ATE
+// ── Compliance-Adjusted ATE ───────────────────────────────────────
 export function complianceAdjusted(data, randomized, received, outcome) {
   if (!data || data.length < 20 || !randomized || !received || !outcome) return null;
   const n = data.length;
@@ -967,7 +975,7 @@ export function complianceAdjusted(data, randomized, received, outcome) {
   return { test: 'Compliance-Adjusted', cace: cace != null ? +cace.toFixed(4) : null, n, complianceRate: +(dZ1 - dZ0).toFixed(4), apa: `CACE = ${cace?.toFixed(3) || 'N/A'} (compliance = ${(dZ1 - dZ0).toFixed(2)})` };
 }
 
-// Weak IV Test (F > 10 rule)
+// ── Weak IV Test (F > 10 rule) ────────────────────────────────────
 export function weakIVTest(data, yVar, xVar, instrument, zVars) {
   if (!data || data.length < 20 || !yVar || !xVar || !instrument) return null;
   const rows = data.filter(r => Number.isFinite(+r[xVar]) && Number.isFinite(+r[instrument]) && (zVars || []).every(c => Number.isFinite(+r[c])));
@@ -985,7 +993,7 @@ export function weakIVTest(data, yVar, xVar, instrument, zVars) {
   return { test: 'Weak IV Test', fStat: +fStat.toFixed(4), isWeak: fStat < 10, n, apa: `IV F = ${fStat.toFixed(1)}, ${fStat < 10 ? 'WEAK' : 'adequate'}` };
 }
 
-// Sargan-Hansen J Test
+// ── Sargan-Hansen J Test ──────────────────────────────────────────
 export function sarganHansenJ(data, yVar, xVar, instruments) {
   if (!data || data.length < 20 || !yVar || !xVar || !instruments || instruments.length < 2) return null;
   const n = data.length;
@@ -997,7 +1005,7 @@ export function sarganHansenJ(data, yVar, xVar, instruments) {
   return { test: 'Sargan-Hansen J', J: +J.toFixed(4), df: L - 1, p, n, apa: `J(${L - 1}) = ${J.toFixed(3)}, ${p > 0.05 ? 'instruments valid' : 'overidentified'}` };
 }
 
-// Durbin-Wu-Hausman Endogeneity Test
+// ── Durbin-Wu-Hausman Endogeneity Test ────────────────────────────
 export function durbinWuHausman(data, yVar, xVar, instruments) {
   if (!data || data.length < 20 || !yVar || !xVar || !instruments || !instruments.length) return null;
   const n = data.length;
@@ -1015,8 +1023,80 @@ export function durbinWuHausman(data, yVar, xVar, instruments) {
   return { test: 'Durbin-Wu-Hausman', chi2: +chi2.toFixed(4), p, n, apa: `DWH: χ²(1) = ${chi2.toFixed(2)}, ${p < 0.05 ? 'endogenous' : 'exogenous OK'}` };
 }
 
-// IV Diagnostics Summary
+// ── IV Diagnostics Summary ────────────────────────────────────────
 export function ivDiagnosticsSummary(fsFstat, sarganJ, hausman) {
   if (!fsFstat || !sarganJ || !hausman) return null;
   return { test: 'IV Diagnostics Summary', weakInstruments: fsFstat.isWeak || false, overidentified: sarganJ.p < 0.05, endogenous: hausman.p < 0.05, apa: `IV diag: weak=${fsFstat.isWeak}, overID=${sarganJ.p < 0.05}, endog=${hausman.p < 0.05}` };
+}
+
+// ── Moderated Mediation ───────────────────────────────────────────
+export function moderatedMediation(data, xVar, mVar, yVar, wVar, { nBoot = 100 } = {}) {
+  if (!data || data.length < 20 || !xVar || !mVar || !yVar || !wVar) return null;
+  const n = data.length;
+  const x = data.map(r => +r[xVar]), m = data.map(r => +r[mVar]), y = data.map(r => +r[yVar]), w = data.map(r => +r[wVar]);
+  const xw = x.map((xi, i) => xi * w[i]);
+  const mw = m.map((mi, i) => mi * w[i]);
+  const idx = w.map((wi, i) => wi >= avg(w) ? 'high' : 'low');
+  const idxHigh = idx.map((v, i) => v === 'high' ? i : -1).filter(i => i >= 0);
+  const idxLow = idx.map((v, i) => v === 'low' ? i : -1).filter(i => i >= 0);
+  const ieHigh = corr(x.filter((_, i) => idx[i] === 'high'), m.filter((_, i) => idx[i] === 'high'));
+  const ieLow = corr(x.filter((_, i) => idx[i] === 'low'), m.filter((_, i) => idx[i] === 'low'));
+  return { test: 'Moderated Mediation', ieHigh: +ieHigh.toFixed(4), ieLow: +ieLow.toFixed(4), moderator: wVar, n, apa: `Mod-med: IE_high=${ieHigh.toFixed(3)}, IE_low=${ieLow.toFixed(3)} (mod=${wVar})` };
+}
+
+// ── Multi-Mediator ────────────────────────────────────────────────
+export function multiMediator(data, xVar, yVar, mVars, { nBoot = 100 } = {}) {
+  if (!data || data.length < 20 || !xVar || !yVar || !mVars || mVars.length < 2) return null;
+  const x = data.map(r => +r[xVar]), y = data.map(r => +r[yVar]);
+  const totaLE = corr(x, y);
+  const indirect = mVars.map(mv => {
+    const m = data.map(r => +r[mv]);
+    const aPath = corr(x, m);
+    const bPath = partialCorrSimple(m, y, [x]);
+    return { mediator: mv, aPath: +aPath.toFixed(4), bPath: +bPath.toFixed(4), indirect: +(aPath * bPath).toFixed(4) };
+  });
+  const totalIndirect = indirect.reduce((s, r) => s + r.indirect, 0);
+  const n = data.length;
+  return { test: 'Multi-Mediator', totalEffect: +totaLE.toFixed(4), totalIndirect: +totalIndirect.toFixed(4), indirect, n, apa: `Multi-med: total indirect = ${totalIndirect.toFixed(3)}` };
+}
+
+function partialCorrSimple(x, y, zVars) {
+  if (!zVars.length) return corr(x, y);
+  const z = zVars.map(v => [v]); const zAvg = z.map(arr => arr.reduce((s, v) => s + v, 0) / arr.length);
+  let num = 0, dx = 0, dy = 0;
+  for (let i = 0; i < x.length; i++) {
+    const xRes = x[i] - x.reduce((s, v, j) => s + v * zVars.length, 0) / x.length;
+    const yRes = y[i] - y.reduce((s, v, j) => s + v, 0) / y.length;
+    num += xRes * yRes; dx += xRes * xRes; dy += yRes * yRes;
+  }
+  return Math.sqrt(dx * dy) > 0 ? num / Math.sqrt(dx * dy) : 0;
+}
+
+// ── Longitudinal Mediation ────────────────────────────────────────
+export function longitudinalMediation(data, xVar, mVar, yVar, timeVar, { idVar = 'id' } = {}) {
+  if (!data || data.length < 20 || !xVar || !mVar || !yVar || !timeVar) return null;
+  const ids = [...new Set(data.map(r => r[idVar] || r[timeVar]))];
+  const xBl = ids.map(id => {
+    const rows = data.filter(r => (r[idVar] || r[timeVar]) === id).sort((a, b) => +a[timeVar] - +b[timeVar]);
+    return rows.length > 0 ? +rows[0][xVar] : 0;
+  });
+  const mChg = ids.map(id => {
+    const rows = data.filter(r => (r[idVar] || r[timeVar]) === id).sort((a, b) => +a[timeVar] - +b[timeVar]);
+    return rows.length > 1 ? +rows[rows.length-1][mVar] - +rows[0][mVar] : 0;
+  });
+  const yChg = ids.map(id => {
+    const rows = data.filter(r => (r[idVar] || r[timeVar]) === id).sort((a, b) => +a[timeVar] - +b[timeVar]);
+    return rows.length > 1 ? +rows[rows.length-1][yVar] - +rows[0][yVar] : 0;
+  });
+  const aPath = corr(xBl, mChg);
+  const bPath = corr(mChg, yChg);
+  return { test: 'Longitudinal Mediation', aPath: +aPath.toFixed(4), bPath: +bPath.toFixed(4), indirect: +(aPath * bPath).toFixed(4), nSubjects: ids.length, apa: `Longitudinal med: a=${aPath.toFixed(3)}, b=${bPath.toFixed(3)}` };
+}
+
+// ── Sensitivity Bounds ────────────────────────────────────────────
+export function sensitivityBounds(effect, se, rho = 0.1) {
+  if (effect == null || !se || se <= 0) return null;
+  const bias = rho * se;
+  const adjusted = effect - bias;
+  return { test: 'Sensitivity Bounds', original: +effect.toFixed(4), adjusted: +adjusted.toFixed(4), bias: +bias.toFixed(4), rho, apa: `Sensitivity: adjusted effect = ${adjusted.toFixed(3)} (rho=${rho})` };
 }

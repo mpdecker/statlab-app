@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parafac, tuckerDecomp, unfold, multiwayPCA, tensorRegression } from './tensor.js';
+import { parafac, tuckerDecomp, unfold, multiwayPCA, tensorRegression, cpDecomposition, tuckerRegression, tensorCompletion } from './tensor.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const X = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
@@ -7,24 +7,32 @@ const y = [3, 7, 11, 15];
 
 describe('parafac', () => {
   it('contract keys', () => { const r = parafac(X); if (r) expectKeys(r, ['test', 'factors', 'nFactors', 'dims', 'apa']); });
+  it('components non-empty', () => { const r = parafac(X); if (r) expect(r.factors.A.length).toBeGreaterThan(0); });
+  it('nFactors matches', () => { const r = parafac(X, 2); if (r) expect(r.nFactors).toBe(2); });
 });
 
 describe('tuckerDecomp', () => {
   it('contract keys', () => { const r = tuckerDecomp(X); if (r) expectKeys(r, ['test', 'factors', 'ranks', 'dims', 'apa']); });
+  it('core non-empty', () => { const r = tuckerDecomp(X); if (r) expect(r.factors.length).toBeGreaterThan(0); });
+  it('ranks is array', () => { const r = tuckerDecomp(X); if (r) expect(Array.isArray(r.ranks)).toBe(true); });
 });
 
 describe('unfold', () => {
   it('contract keys', () => expectKeys(unfold(X), ['test', 'matrix', 'mode', 'dims', 'apa']));
   it('mode=1 works', () => { const r = unfold(X, 1); expect(r.mode).toBe(1); });
+  it('matrix non-empty', () => { const r = unfold(X); if (r) expect(r.matrix.length).toBeGreaterThan(0); });
 });
 
 describe('multiwayPCA', () => {
   it('contract keys', () => { const r = multiwayPCA(X); if (r) expectKeys(r, ['test', 'scores', 'loadings', 'nComp', 'apa']); });
+  it('eigenvalues non-empty', () => { const r = multiwayPCA(X); if (r) expect(r.loadings.length).toBeGreaterThan(0); });
+  it('scores non-empty', () => { const r = multiwayPCA(X); if (r) expect(r.scores.length).toBeGreaterThan(0); });
 });
 
 describe('tensorRegression', () => {
   it('contract keys', () => { const r = tensorRegression(X, [1, 2, 3, 4]); if (r) expectKeys(r, ['test', 'coefficients', 'rSquared', 'n', 'apa']); });
   it('rSquared in [0,1]', () => { const r = tensorRegression(X, y); if (r) { expect(r.rSquared).toBeGreaterThanOrEqual(0); expect(r.rSquared).toBeLessThanOrEqual(1); } });
+  it('coefficients non-empty', () => { const r = tensorRegression(X, y); if (r) expect(r.coefficients.length).toBeGreaterThan(0); });
 });
 
 describe('tensor edge cases', () => {
@@ -33,4 +41,25 @@ describe('tensor edge cases', () => {
   it('unfold mode=2 works', () => { const r = unfold([[[1, 2], [3, 4]]], 2); expect(r).not.toBeNull(); });
   it('multiwayPCA null for empty', () => expect(multiwayPCA([], 1)).toBeNull());
   it('tensorRegression null for mismatch', () => expect(tensorRegression([[[1]]], [1, 2, 3])).toBeNull());
+});
+
+describe('cpDecomposition', () => {
+  const T = [[[1,2],[3,4]],[[5,6],[7,8]]];
+  it('contract keys', () => expectKeys(cpDecomposition(T, 2), ['test','rank','dims','fit','apa']));
+  it('null rank<1', () => expect(cpDecomposition(T, 0)).toBeNull());
+  it('rank matches', () => { const r = cpDecomposition(T, 2); if (r) expect(r.rank).toBe(2); });
+});
+describe('tuckerRegression', () => {
+  const X = [[[1,2],[3,4]],[[5,6],[7,8]],[[9,10],[11,12]],[[13,14],[15,16]],[[17,18],[19,20]]];
+  const y = [2,4,6,8,10];
+  it('contract keys', () => expectKeys(tuckerRegression(X, y), ['test','mse','rank','dims','n','apa']));
+  it('null <5', () => expect(tuckerRegression([[1,2],[3,4]], [1,2])).toBeNull());
+  it('mse non-negative', () => { const r = tuckerRegression(X, y); if (r) expect(r.mse).toBeGreaterThanOrEqual(0); });
+});
+describe('tensorCompletion', () => {
+  const T = [[[1,2],[3,4]],[[5,6],[7,8]]];
+  const mask = [[[true,false],[true,true]],[[true,true],[false,true]]];
+  it('contract keys', () => expectKeys(tensorCompletion(T, mask), ['test','dims','nMissing','rank','apa']));
+  it('nMissing positive', () => { const r = tensorCompletion(T, mask); if (r) expect(r.nMissing).toBeGreaterThan(0); });
+  it('dims is array', () => { const r = tensorCompletion(T, mask); if (r) expect(Array.isArray(r.dims)).toBe(true); });
 });

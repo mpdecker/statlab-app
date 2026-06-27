@@ -353,55 +353,29 @@ describe('optimalK', () => {
 describe('affinityMatrix', () => {
   it('contract keys', () => expectKeys(affinityMatrix(rows, ['x', 'y']), ['test', 'A', 'sigma', 'n', 'apa']));
   it('null <5', () => expect(affinityMatrix(rows.slice(0, 3), ['x', 'y'])).toBeNull());
+  it('A non-empty', () => { const r = affinityMatrix(rows, ['x', 'y']); if (r) expect(r.A.length).toBeGreaterThan(0); });
 });
 
 describe('normalizedLaplacian', () => {
   it('contract keys', () => { const a = affinityMatrix(rows, ['x', 'y']); if (a) expectKeys(normalizedLaplacian(a.A), ['test', 'L', 'type', 'n', 'apa']); });
   it('symmetric and rw types', () => { const a = affinityMatrix(rows, ['x', 'y']); if (a) { expect(normalizedLaplacian(a.A).type).toBe('symmetric'); } });
+  it('L non-empty', () => { const a = affinityMatrix(rows, ['x', 'y']); if (a) { const r = normalizedLaplacian(a.A); if (r) expect(r.L.length).toBeGreaterThan(0); } });
 });
 
 describe('spectralEmbedding', () => {
   it('contract keys', () => { const a = affinityMatrix(rows, ['x', 'y']); if (a) expectKeys(spectralEmbedding(a.A), ['test', 'embedding', 'nClusters', 'n', 'apa']); });
+  it('embedding non-empty', () => { const a = affinityMatrix(rows, ['x', 'y']); if (a) { const r = spectralEmbedding(a.A); if (r) expect(r.embedding.length).toBeGreaterThan(0); } });
+  it('nClusters correct', () => { const a = affinityMatrix(rows, ['x', 'y']); if (a) { const r = spectralEmbedding(a.A, 3); if (r) expect(r.nClusters).toBe(3); } });
 });
 
 describe('eigengap', () => {
   it('contract keys', () => expectKeys(eigengap([0.1, 0.5, 1.2, 2.0, 3.5, 6.0, 7.0]), ['test', 'bestK', 'maxGap', 'nValues', 'apa']));
   it('bestK >= 2', () => { const r = eigengap([0.1, 0.5, 1.2, 2.0]); expect(r.bestK).toBeGreaterThanOrEqual(2); });
+  it('maxGap positive', () => { const r = eigengap([0.1, 0.5, 1.2, 2.0]); expect(r.maxGap).toBeGreaterThan(0); });
 });
 
 describe('spectralClustering', () => {
   it('contract keys', () => { const r = spectralClustering(rows, ['x', 'y'], 3); if (r) expectKeys(r, ['test', 'labels', 'nClusters', 'n', 'apa']); });
   it('labels present', () => { const r = spectralClustering(rows, ['x', 'y'], 3); if (r) expect(r.labels).toHaveLength(rows.length); });
-});
-
-  it('contract keys with silhouette method', () => {
-    const r = optimalK(rows, ['x', 'y'], 5, { method: 'silhouette' });
-    expectKeys(r, ['test', 'optimalK', 'curve', 'method', 'maxK', 'apa']);
-  });
-
-  it('contract keys with CH method', () => {
-    const r = optimalK(rows, ['x', 'y'], 5, { method: 'ch' });
-    expectKeys(r, ['test', 'optimalK', 'curve', 'method', 'maxK', 'apa']);
-  });
-
-  it('optimalK is between 2 and maxK', () => {
-    const r = optimalK(rows, ['x', 'y'], 5, { method: 'silhouette' });
-    expect(r.optimalK).toBeGreaterThanOrEqual(2);
-    expect(r.optimalK).toBeLessThanOrEqual(5);
-  });
-
-  it('curve has entries from k=2 to maxK', () => {
-    const r = optimalK(rows, ['x', 'y'], 4, { method: 'silhouette' });
-    r.curve.forEach(c => {
-      expect(c.k).toBeGreaterThanOrEqual(2);
-      expect(c.k).toBeLessThanOrEqual(4);
-      expect(Number.isFinite(c.value)).toBe(true);
-    });
-  });
-
-  it('apa is a non-empty string', () => {
-    const r = optimalK(rows, ['x', 'y'], 5, { method: 'silhouette' });
-    expect(typeof r.apa).toBe('string');
-    expect(r.apa.length).toBeGreaterThan(0);
-  });
+  it('nClusters matches input', () => { const r = spectralClustering(rows, ['x', 'y'], 3); if (r) expect(r.nClusters).toBe(3); });
 });

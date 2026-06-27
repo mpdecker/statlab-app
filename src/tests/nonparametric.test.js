@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ksTestOneSample, ksTestTwoSample, permutationTest, runsTestWaldWolfowitz, runsTestAboveBelowMedian, mannWhitney, wilcoxonSR, kde, nadarayaWatson, moodsMedian, jonckheereTerpstra, siegelTukey, loessSmoother, localPolynomial, gcvBandwidth, loessClassification, localLikelihood } from './nonparametric.js';
+import { ksTestOneSample, ksTestTwoSample, permutationTest, runsTestWaldWolfowitz, runsTestAboveBelowMedian, mannWhitney, wilcoxonSR, kde, nadarayaWatson, moodsMedian, jonckheereTerpstra, siegelTukey, loessSmoother, localPolynomial, gcvBandwidth, loessClassification, localLikelihood, kernelRegression, loessCV, isotonicRegression } from './nonparametric.js';
 import { expectKeys, expectPInRange } from './__fixtures__/helpers.js';
 import { normalCDF } from '../math/distributions.js';
 
@@ -413,6 +413,7 @@ describe('jonckheereTerpstra', () => {
   const g = [{ name: 'A', vals: [1, 2, 3] }, { name: 'B', vals: [4, 5, 6] }, { name: 'C', vals: [7, 8, 9] }];
   it('null small', () => expect(jonckheereTerpstra([{ name: 'A', vals: [1] }, { name: 'B', vals: [2] }])).toBeNull());
   it('contract keys', () => expectKeys(jonckheereTerpstra(g), ['test', 'J', 'z', 'p', 'direction', 'n', 'apa']));
+  it('p between 0-1', () => { const r = jonckheereTerpstra(g); if (r) { expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); } });
 });
 
 describe('siegelTukey', () => {
@@ -422,8 +423,27 @@ describe('siegelTukey', () => {
   it('contract keys', () => expectKeys(siegelTukey(a, b), ['test', 'R', 'z', 'p', 'n1', 'n2', 'apa']));
 });
 
-describe('loessSmoother', () => { it('contract keys', () => expectKeys(loessSmoother([1,2,3,4,5,6,7,8,9,10],[2,3,4,5,6,7,8,9,10,11]),['test','fitted','span','degree','n','apa'])); });
-describe('localPolynomial', () => { it('contract keys', () => expectKeys(localPolynomial([1,2,3,4,5,6,7,8,9,10],[2,3,4,5,6,7,8,9,10,11]),['test','fitted','bandwidth','degree','n','apa'])); });
-describe('gcvBandwidth', () => { it('contract keys', () => expectKeys(gcvBandwidth([1,2,3,4,5,6,7,8,9,10],[2,3,4,5,6,7,8,9,10,11]),['test','bandwidth','gcv','n','apa'])); });
-describe('loessClassification', () => { it('contract keys', () => expectKeys(loessClassification([{y:0,x:1},{y:1,x:2},{y:0,x:3},{y:1,x:4},{y:1,x:5},{y:0,x:6},{y:1,x:7},{y:0,x:8},{y:1,x:9},{y:1,x:10}],'y','x'),['test','predicted','span','n','apa'])); });
-describe('localLikelihood', () => { it('contract keys', () => expectKeys(localLikelihood([1,2,3,4,5,6,7,8,9,10],[0,0,0,1,1,1,1,0,1,1],{family:'binomial'}),['test','fitted','family','bandwidth','n','apa'])); });
+describe('loessSmoother', () => { it('contract keys', () => expectKeys(loessSmoother([1,2,3,4,5,6,7,8,9,10],[2,3,4,5,6,7,8,9,10,11]),['test','fitted','span','degree','n','apa'])); it('fitted non-empty', () => { const r = loessSmoother([1,2,3,4,5,6,7,8,9,10],[2,3,4,5,6,7,8,9,10,11]); expect(r.fitted.length).toBeGreaterThan(0); }); });
+describe('localPolynomial', () => { it('contract keys', () => expectKeys(localPolynomial([1,2,3,4,5,6,7,8,9,10],[2,3,4,5,6,7,8,9,10,11]),['test','fitted','bandwidth','degree','n','apa'])); it('fitted non-empty', () => { const r = localPolynomial([1,2,3,4,5,6,7,8,9,10],[2,3,4,5,6,7,8,9,10,11]); expect(r.fitted.length).toBeGreaterThan(0); }); });
+describe('gcvBandwidth', () => { it('contract keys', () => expectKeys(gcvBandwidth([1,2,3,4,5,6,7,8,9,10],[2,3,4,5,6,7,8,9,10,11]),['test','bandwidth','gcv','n','apa'])); it('h positive', () => { const r = gcvBandwidth([1,2,3,4,5,6,7,8,9,10],[2,3,4,5,6,7,8,9,10,11]); expect(r.bandwidth).toBeGreaterThan(0); }); it('gcv non-negative', () => { const r = gcvBandwidth([1,2,3,4,5,6,7,8,9,10],[2,3,4,5,6,7,8,9,10,11]); if (r) expect(r.gcv).toBeGreaterThanOrEqual(0); }); });
+describe('loessClassification', () => { it('contract keys', () => expectKeys(loessClassification([{y:0,x:1},{y:1,x:2},{y:0,x:3},{y:1,x:4},{y:1,x:5},{y:0,x:6},{y:1,x:7},{y:0,x:8},{y:1,x:9},{y:1,x:10}],'y','x'),['test','predicted','span','n','apa'])); it('accuracy between 0-1', () => { const r = loessClassification([{y:0,x:1},{y:1,x:2},{y:0,x:3},{y:1,x:4},{y:1,x:5},{y:0,x:6},{y:1,x:7},{y:0,x:8},{y:1,x:9},{y:1,x:10}],'y','x'); if (r.accuracy != null) { expect(r.accuracy).toBeGreaterThanOrEqual(0); expect(r.accuracy).toBeLessThanOrEqual(1); } }); });
+describe('localLikelihood', () => { it('contract keys', () => expectKeys(localLikelihood([1,2,3,4,5,6,7,8,9,10],[0,0,0,1,1,1,1,0,1,1],{family:'binomial'}),['test','fitted','family','bandwidth','n','apa'])); it('fitted non-empty', () => { const r = localLikelihood([1,2,3,4,5,6,7,8,9,10],[0,0,0,1,1,1,1,0,1,1],{family:'binomial'}); expect(r.fitted.length).toBeGreaterThan(0); }); });
+
+describe('kernelRegression', () => {
+  const x = Array.from({length: 20}, (_, i) => i);
+  const y = x.map(v => v * 2 + Math.random());
+  it('contract keys', () => expectKeys(kernelRegression(x, y), ['test','fitted','bandwidth','rmse','n','apa']));
+  it('null <10', () => expect(kernelRegression([1,2], [3,4])).toBeNull());
+  it('rmse non-negative', () => { const x2 = Array.from({length: 20}, (_, i) => i); const y2 = x2.map(v => v * 2 + Math.random()); const r = kernelRegression(x2, y2); if (r) expect(r.rmse).toBeGreaterThanOrEqual(0); });
+});
+describe('loessCV', () => {
+  const x = Array.from({length: 20}, (_, i) => i);
+  const y = x.map(v => v * 1.5 + Math.random() * 5);
+  it('contract keys', () => expectKeys(loessCV(x, y), ['test','optimalBandwidth','optimalCV','results','n','apa']));
+  it('null <10', () => expect(loessCV([1,2], [3,4])).toBeNull());
+});
+describe('isotonicRegression', () => {
+  it('contract keys', () => expectKeys(isotonicRegression([1,2,3,2,4,5]), ['test','fitted','nBlocks','n','apa']));
+  it('null <3', () => expect(isotonicRegression([1,2])).toBeNull());
+  it('fitted matches input length', () => { const r = isotonicRegression([1,2,3,2,4,5]); if (r) expect(r.fitted).toHaveLength(6); });
+});

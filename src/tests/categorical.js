@@ -321,7 +321,7 @@ export function cmhTest(tables) {
   };
 }
 
-// Relative Risk
+// ── Relative Risk ─────────────────────────────────────────────────
 export function relativeRisk(a, b, c, d) {
   if (![a, b, c, d].every(v => Number.isFinite(v) && v >= 0)) return null;
   if (a + b === 0 || c + d === 0) return null;
@@ -416,7 +416,7 @@ export function dunnTest(groups, { alpha = 0.05 } = {}) {
   };
 }
 
-// Nemenyi Test
+// ── Nemenyi Test ──────────────────────────────────────────────────
 export function nemenyiTest(groups, { alpha = 0.05 } = {}) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 3);
@@ -475,7 +475,7 @@ function sampleSDp(arr) {
   return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / (n - 1));
 }
 
-// Storey q-value
+// ── Storey q-value ────────────────────────────────────────────────
 export function storeyQValue(pValues) {
   if (!pValues || !pValues.length) return null;
   const n = pValues.length;
@@ -485,7 +485,7 @@ export function storeyQValue(pValues) {
   return { test: 'Storey q-value', qValues: qVals.slice(0, 10).map(v => +v.toFixed(4)), pi0: +pi0.toFixed(4), n, apa: `q-values: π₀ = ${pi0.toFixed(2)}, n = ${n}` };
 }
 
-// Benjamini-Yekutieli
+// ── Benjamini-Yekutieli ───────────────────────────────────────────
 export function benjaminiYekutieli(pValues) {
   if (!pValues || !pValues.length) return null;
   const n = pValues.length;
@@ -495,7 +495,7 @@ export function benjaminiYekutieli(pValues) {
   return { test: 'Benjamini-Yekutieli', thresholds: thresholds.slice(0, 10).map(v => +v.toFixed(4)), n, apa: `BY: ${thresholds.filter((t, i) => sorted[i] <= t).length} discoveries` };
 }
 
-// Local FDR
+// ── Local FDR ─────────────────────────────────────────────────────
 export function localFDR(pValues, { nullProportion = null } = {}) {
   if (!pValues || !pValues.length) return null;
   const n = pValues.length;
@@ -504,7 +504,7 @@ export function localFDR(pValues, { nullProportion = null } = {}) {
   return { test: 'Local FDR', lfdr: lfdrs.slice(0, 10).map(v => +v.toFixed(4)), pi0: +pi0.toFixed(4), n, apa: `Local FDR: π₀ = ${pi0.toFixed(2)}, n = ${n}` };
 }
 
-// Stratified FDR
+// ── Stratified FDR ────────────────────────────────────────────────
 export function stratifiedFDR(pValues, strata) {
   if (!pValues || !strata || pValues.length !== strata.length || !pValues.length) return null;
   const n = pValues.length;
@@ -518,7 +518,7 @@ export function stratifiedFDR(pValues, strata) {
   return { test: 'Stratified FDR', results, n, nStrata: uniqueStrata.length, apa: `Strat FDR: ${uniqueStrata.length} strata` };
 }
 
-// FWER Control (Hochberg)
+// ── FWER Control (Hochberg) ───────────────────────────────────────
 export function fwerControl(pValues, { method = 'hochberg' } = {}) {
   if (!pValues || !pValues.length) return null;
   const n = pValues.length;

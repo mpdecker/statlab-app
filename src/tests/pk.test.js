@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aucTrapezoidal, aucLinearLog, pkParameters, terminalHalfLife, clearance, oneCompartmentIV, bioequivalence, emaxModel, sigmoidEmax, indirectResponse, pkpdLink, superposition, aucRatio, turnoverModel, transitCompartment } from './pk.js';
+import { aucTrapezoidal, aucLinearLog, pkParameters, terminalHalfLife, clearance, oneCompartmentIV, bioequivalence, emaxModel, sigmoidEmax, indirectResponse, pkpdLink, superposition, aucRatio, turnoverModel, transitCompartment, tmddModel, nonCompartmentalExpanded } from './pk.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
 const t = [0, 1, 2, 4, 8, 12, 24];
@@ -33,6 +33,7 @@ describe('terminalHalfLife', () => {
 describe('clearance', () => {
   it('null zero dose', () => expect(clearance(0, 100)).toBeNull());
   it('CL = dose/AUC', () => { const r = clearance(500, 200); expect(r.clearance).toBeCloseTo(2.5, 2); });
+  it('apa non-empty string', () => { const r = clearance(500, 200); expect(typeof r.apa).toBe('string'); });
 });
 
 describe('oneCompartmentIV', () => {
@@ -57,12 +58,12 @@ describe('edge cases', () => {
   it('bioequivalence null for empty arrays', () => expect(bioequivalence([], [100, 105])).toBeNull());
 });
 
-describe('emaxModel', () => { it('contract keys', () => expectKeys(emaxModel([1, 2, 4, 8, 16], [5, 12, 25, 38, 46]), ['test', 'parameters', 'fitted', 'rSquared', 'n', 'apa'])); });
-describe('sigmoidEmax', () => { it('contract keys', () => { const r = sigmoidEmax([1, 2, 4, 8, 16, 32], [5, 12, 25, 38, 46, 48]); if (r) expectKeys(r, ['test', 'parameters', 'rSquared', 'n', 'apa']); }); });
-describe('indirectResponse', () => { it('contract keys', () => expectKeys(indirectResponse([0, 1, 2, 4, 8], [100, 80, 60, 30, 10], [5, 8, 6, 3, 1]), ['test', 'n', 'apa'])); });
-describe('pkpdLink', () => { it('contract keys', () => { const r = pkpdLink([1, 2, 4, 8, 16], [10, 20, 30, 35, 38]); if (r) expectKeys(r, ['test', 'emax', 'n', 'apa']); }); });
-describe('superposition', () => { it('contract keys', () => expectKeys(superposition([100, 100], [0, 12], 0.1, 30), ['test', 'concentration', 'ke', 'Vd', 'tau', 'nDoses', 'apa'])); });
-describe('aucRatio', () => { it('contract keys', () => expectKeys(aucRatio([100, 105, 98], [95, 100, 97]), ['test', 'ratio', 'ci', 'nT', 'nR', 'apa'])); });
+describe('emaxModel', () => { it('contract keys', () => expectKeys(emaxModel([1, 2, 4, 8, 16], [5, 12, 25, 38, 46]), ['test', 'parameters', 'fitted', 'rSquared', 'n', 'apa'])); it('emax positive', () => { const r = emaxModel([1, 2, 4, 8, 16], [5, 12, 25, 38, 46]); expect(r.parameters.Emax).toBeGreaterThan(0); }); it('fitted non-empty', () => { const r = emaxModel([1, 2, 4, 8, 16], [5, 12, 25, 38, 46]); expect(r.fitted.length).toBeGreaterThan(0); }); });
+describe('sigmoidEmax', () => { it('contract keys', () => { const r = sigmoidEmax([1, 2, 4, 8, 16, 32], [5, 12, 25, 38, 46, 48]); if (r) expectKeys(r, ['test', 'parameters', 'rSquared', 'n', 'apa']); }); it('ec50 positive', () => { const r = sigmoidEmax([1, 2, 4, 8, 16, 32], [5, 12, 25, 38, 46, 48]); if (r) expect(r.parameters.EC50).toBeGreaterThan(0); }); it('rSquared between 0-1', () => { const r = sigmoidEmax([1, 2, 4, 8, 16, 32], [5, 12, 25, 38, 46, 48]); if (r) expect(r).toHaveProperty('rSquared'); }); });
+describe('indirectResponse', () => { it('contract keys', () => expectKeys(indirectResponse([0, 1, 2, 4, 8], [100, 80, 60, 30, 10], [5, 8, 6, 3, 1]), ['test', 'n', 'apa'])); it('n finite', () => { const r = indirectResponse([0, 1, 2, 4, 8], [100, 80, 60, 30, 10], [5, 8, 6, 3, 1]); expect(Number.isFinite(r.n)).toBe(true); }); it('apa is string', () => { const r = indirectResponse([0, 1, 2, 4, 8], [100, 80, 60, 30, 10], [5, 8, 6, 3, 1]); expect(typeof r.apa).toBe('string'); }); });
+describe('pkpdLink', () => { it('contract keys', () => { const r = pkpdLink([1, 2, 4, 8, 16], [10, 20, 30, 35, 38]); if (r) expectKeys(r, ['test', 'emax', 'n', 'apa']); }); it('emax finite', () => { const r = pkpdLink([1, 2, 4, 8, 16], [10, 20, 30, 35, 38]); if (r && r.emax) expect(Number.isFinite(r.emax.EC50)).toBe(true); }); it('n matches', () => { const r = pkpdLink([1, 2, 4, 8, 16], [10, 20, 30, 35, 38]); if (r) expect(r.n).toBe(5); }); });
+describe('superposition', () => { it('contract keys', () => expectKeys(superposition([100, 100], [0, 12], 0.1, 30), ['test', 'concentration', 'ke', 'Vd', 'tau', 'nDoses', 'apa'])); it('concentration finite', () => { const r = superposition([100, 100], [0, 12], 0.1, 30); expect(Number.isFinite(r.concentration)).toBe(true); }); it('nDoses matches', () => { const r = superposition([100, 100], [0, 12], 0.1, 30); expect(r.nDoses).toBe(2); }); });
+describe('aucRatio', () => { it('contract keys', () => expectKeys(aucRatio([100, 105, 98], [95, 100, 97]), ['test', 'ratio', 'ci', 'nT', 'nR', 'apa'])); it('ratio positive', () => { const r = aucRatio([100, 105, 98], [95, 100, 97]); expect(r.ratio).toBeGreaterThan(0); }); it('ci has two elements', () => { const r = aucRatio([100, 105, 98], [95, 100, 97]); expect(r.ci.length).toBe(2); }); });
 
 describe('pk edge cases', () => {
   it('emaxModel null <5', () => expect(emaxModel([1, 2], [3, 4])).toBeNull());
@@ -75,9 +76,26 @@ describe('pk edge cases', () => {
 describe('turnoverModel', () => {
   it('contract keys', () => expectKeys(turnoverModel([0,1,2,4,8],[100,80,60,30,10],[5,8,6,3,1]), ['test', 'turnover', 'kin', 'kout', 'Rss', 'n', 'apa']));
   it('null <5', () => expect(turnoverModel([0,1],[10,5],[2,2])).toBeNull());
+  it('kin finite', () => { const r = turnoverModel([0,1,2,4,8],[100,80,60,30,10],[5,8,6,3,1]); if (r) expect(Number.isFinite(r.kin)).toBe(true); });
 });
 
 describe('transitCompartment', () => {
   it('contract keys', () => expectKeys(transitCompartment(100, [0,1,2,3,4,5,6,7,8,9,10]), ['test', 'output', 'nCompartments', 'k', 'n', 'apa']));
   it('null for empty time', () => expect(transitCompartment(100, [], {})).toBeNull());
+  it('output non-empty', () => { const r = transitCompartment(100, [0,1,2,3,4,5,6,7,8,9,10]); if (r) expect(r.output.length).toBeGreaterThan(0); });
+});
+
+describe('tmddModel', () => {
+  const t = [0,1,2,3,4,6,8,12,24];
+  const c = [100,80,65,50,40,25,15,8,2];
+  it('contract keys', () => expectKeys(tmddModel(t, c), ['test','kel','ksyn','kdeg','kint','rmse','n','apa']));
+  it('null <5', () => expect(tmddModel([0,1], [10,8])).toBeNull());
+  it('rmse non-negative', () => { const r = tmddModel(t, c); if (r) expect(r.rmse).toBeGreaterThanOrEqual(0); });
+});
+describe('nonCompartmentalExpanded', () => {
+  const t = [0,1,2,3,4,6,8,12,24];
+  const c = [0,50,80,90,85,60,40,20,5];
+  it('contract keys', () => expectKeys(nonCompartmentalExpanded(t, c), ['test','auc','aumc','mrt','cl','vd','n','apa']));
+  it('null <4', () => expect(nonCompartmentalExpanded([0,1], [1,2])).toBeNull());
+  it('auc positive', () => { const r = nonCompartmentalExpanded(t, c); expect(r.auc).toBeGreaterThan(0); });
 });

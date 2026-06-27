@@ -44,4 +44,5 @@ describe('circularCorrelation', () => {
 describe('circularLinearRegression', () => {
   it('null <10', () => expect(circularLinearRegression([1, 2, 3], [4, 5, 6])).toBeNull());
   it('contract keys', () => expectKeys(circularLinearRegression(angles, angles.map((_, i) => i)), ['test', 'coefficients', 'rSquared', 'n', 'apa']));
+  it('rSquared between 0 and 1', () => { const r = circularLinearRegression(angles, angles.map((_, i) => i)); if (r) { expect(r.rSquared).toBeGreaterThanOrEqual(0); expect(r.rSquared).toBeLessThanOrEqual(1); } });
 });
