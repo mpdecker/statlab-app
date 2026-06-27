@@ -22,35 +22,75 @@ function unfoldTensor(X, mode) {
   return result;
 }
 
-// ── PARAFAC ───────────────────────────────────────────────────────
-export function parafac(X, nFactors = 2, { maxIter = 50, seed = 42 } = {}) {
+// ── PARAFAC (CP decomposition via Alternating Least Squares) ──────
+export function parafac(X, nFactors = 2, { maxIter = 50, seed = 42, tol = 1e-8 } = {}) {
   if (!X || !X.length || !X[0]?.length) return null;
   const I = X.length, J = X[0].length, K = X[0]?.[0]?.length || 1;
   if (I < 2 || J < 2) return null;
-  // Initialize random factors
-  let A = Array.from({ length: I }, () => Array.from({ length: nFactors }, () => Math.random()));
-  let B = Array.from({ length: J }, () => Array.from({ length: nFactors }, () => Math.random()));
-  let C = nFactors === 1 ? null : Array.from({ length: Math.max(K, 1) }, () => Array.from({ length: nFactors }, () => Math.random()));
+  const F = Math.max(1, nFactors);
+  let s = seed >>> 0;
+  const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+  const randMat = rows => Array.from({ length: rows }, () => Array.from({ length: F }, () => rand() - 0.5));
+  const get = (i, j, k) => (K > 1 ? (X[i]?.[j]?.[k] ?? 0) : (X[i]?.[j] ?? 0));
 
-  for (let iter = 0; iter < maxIter; iter++) {
-    // Update A
-    if (C && K > 1) {
-      const X1 = unfoldTensor(X, 0);
-      const kr = Array.from({ length: J * K }, (_, r) =>
-        Array.from({ length: nFactors }, (_, f) => (B[Math.floor(r / K)]?.[f] || 0) * (C[r % K]?.[f] || 0))
-      );
-      const Xt = X1[0].map((_, j) => X1.map(row => row[j]));
-      const XtKr = Xt.map(r1 => kr[0].map((_, j) => r1.reduce((s, _, k) => s + X1[k][j] * kr[k][j], 0)));
-      const KrTKr = kr[0].map((_, j) => kr.map(row => row[j]));
-      const KK = KrTKr.map(r1 => kr[0].map((_, j) => r1.reduce((s, _, k) => s + kr[k][j] * r1[k], 0)));
-      const invKK = matInv(KK);
-      if (invKK) A = Array.from({ length: I }, (_, i) => invKK.map(row => row.reduce((s, v, j) => s + v * XtKr[j][i], 0)));
+  let A = randMat(I), B = randMat(J), C = randMat(K);
+
+  const gram = M => {                       // Mᵀ M  (F×F)
+    const g = Array.from({ length: F }, () => Array(F).fill(0));
+    for (let a = 0; a < F; a++) for (let b = 0; b < F; b++) {
+      let acc = 0; for (let r = 0; r < M.length; r++) acc += M[r][a] * M[r][b];
+      g[a][b] = acc;
     }
-    // Update B similarly
-    break; // Simplified: just one ALS iteration
+    return g;
+  };
+  const hadamard = (P, Q) => P.map((row, a) => row.map((v, b) => v * Q[a][b]));
+
+  // Mode-n least-squares update: factor = MTTKRP · pinv(gram∘gram)
+  const update = (rows, accum, inv) => {
+    const M = Array.from({ length: rows }, () => Array(F).fill(0));
+    accum(M);
+    if (!inv) return null;
+    return M.map(row => inv.map(ir => ir.reduce((acc, v, f) => acc + v * row[f], 0)));
+  };
+
+  const reconErr = () => {
+    let err = 0;
+    for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+      let rec = 0; for (let f = 0; f < F; f++) rec += A[i][f] * B[j][f] * C[k][f];
+      err += (get(i, j, k) - rec) ** 2;
+    }
+    return err;
+  };
+
+  let prev = Infinity;
+  for (let iter = 0; iter < maxIter; iter++) {
+    const nA = update(I, M => {
+      for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+        const x = get(i, j, k); if (!x) continue;
+        for (let f = 0; f < F; f++) M[i][f] += x * B[j][f] * C[k][f];
+      }
+    }, matInv(hadamard(gram(B), gram(C))));
+    if (nA) A = nA;
+    const nB = update(J, M => {
+      for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+        const x = get(i, j, k); if (!x) continue;
+        for (let f = 0; f < F; f++) M[j][f] += x * A[i][f] * C[k][f];
+      }
+    }, matInv(hadamard(gram(A), gram(C))));
+    if (nB) B = nB;
+    const nC = update(K, M => {
+      for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+        const x = get(i, j, k); if (!x) continue;
+        for (let f = 0; f < F; f++) M[k][f] += x * A[i][f] * B[j][f];
+      }
+    }, matInv(hadamard(gram(A), gram(B))));
+    if (nC) C = nC;
+    const err = reconErr();
+    if (Math.abs(prev - err) < tol * Math.max(1, prev)) { prev = err; break; }
+    prev = err;
   }
 
-  return { test: 'PARAFAC', factors: { A: A.map(r => r.map(v => +v.toFixed(4))).slice(0, 5), B: B.map(r => r.map(v => +v.toFixed(4))).slice(0, 5) }, nFactors, dims: [I, J, K], apa: `PARAFAC: ${nFactors} factors, ${I}×${J}×${K}` };
+  return { test: 'PARAFAC', factors: { A: A.map(r => r.map(v => +v.toFixed(4))).slice(0, 5), B: B.map(r => r.map(v => +v.toFixed(4))).slice(0, 5) }, nFactors: F, dims: [I, J, K], reconError: +prev.toFixed(6), n: I, apa: `PARAFAC: ${F} factors, ${I}×${J}×${K}, err=${prev.toFixed(4)}` };
 }
 
 // ── Tucker Decomposition ──────────────────────────────────────────

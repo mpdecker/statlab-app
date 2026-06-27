@@ -691,7 +691,7 @@ export function aalenModel(obs, covNames) {
     for (let j = 0; j < k; j++) {
       coefficients[j].B.push(beta[j + 1] || 0);
       coefficients[j].times.push(t);
-      coefficients[j].seB.push(Math.sqrt(Math.max(0, -inv[j + 1][j + 1])));
+      coefficients[j].seB.push(Math.sqrt(Math.max(0, inv[j + 1][j + 1])));
     }
   }
 
@@ -702,7 +702,7 @@ export function aalenModel(obs, covNames) {
       cumB += coef.B[i];
       coef.B[i] = +cumB.toFixed(6);
     }
-    // KS test: max deviation from constant slope
+    // Kolmogorov-type supremum test for a time-invariant (constant-slope) effect.
     if (coef.B.length > 1) {
       const tTotal = coef.times[coef.times.length - 1];
       const avgSlope = cumB / Math.max(tTotal, 1);
@@ -711,8 +711,15 @@ export function aalenModel(obs, covNames) {
         const expected = avgSlope * coef.times[i];
         maxDev = Math.max(maxDev, Math.abs(b - expected));
       });
+      // Standardise the sup deviation by the SE of the cumulative coefficient.
+      const seCum = Math.sqrt(coef.seB.reduce((s, v) => s + v * v, 0)) || 1e-9;
+      const lambda = maxDev / seCum;
+      // Complementary Kolmogorov distribution: Q(λ) = 2 Σ (-1)^{m-1} e^{-2 m² λ²}
+      let q = 0;
+      for (let m = 1; m <= 100; m++) q += (m % 2 ? 1 : -1) * Math.exp(-2 * m * m * lambda * lambda);
       coef.test.ks = +maxDev.toFixed(4);
-      coef.test.p = 1; // placeholder
+      coef.test.lambda = +lambda.toFixed(4);
+      coef.test.p = +Math.min(1, Math.max(0, 2 * q)).toFixed(4);
     }
   });
 

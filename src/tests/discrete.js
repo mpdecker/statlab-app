@@ -1,38 +1,117 @@
 import { avg } from '../math/core.js';
-import { normalCDF } from '../math/distributions.js';
+import { normalCDF, chiPVal } from '../math/distributions.js';
+import { matInv } from '../math/matrix.js';
+
+/**
+ * McFadden conditional logit by Newton-Raphson on the conditional log-likelihood.
+ * Each group is one choice set; the chosen alternative has y === 1.
+ * Returns { beta, cov, se, ll, k } or null if it cannot be estimated.
+ */
+function _estimateCLogit(X, y, groupIdx, k, maxIter = 50) {
+  let beta = Array(k).fill(0);
+  let cov = null, ll = 0;
+  let lastBeta = beta.slice(), lastCov = null;
+  const RIDGE = 1e-6; // penalised MLE: keeps the information matrix PD under separation
+  for (let iter = 0; iter < maxIter; iter++) {
+    const grad = Array(k).fill(0);
+    const info = Array.from({ length: k }, () => Array(k).fill(0)); // negative Hessian
+    ll = 0;
+    for (const idx of groupIdx) {
+      if (idx.length < 2) continue;
+      const scores = idx.map(i => X[i].reduce((s, v, j) => s + v * beta[j], 0));
+      const mx = Math.max(...scores);
+      const exps = scores.map(sc => Math.exp(sc - mx));
+      const sumExp = exps.reduce((s, v) => s + v, 0) || 1e-12;
+      const probs = exps.map(e => e / sumExp);
+      // expected x under current probs
+      const xbar = Array(k).fill(0);
+      idx.forEach((i, a) => { for (let j = 0; j < k; j++) xbar[j] += probs[a] * X[i][j]; });
+      idx.forEach((i, a) => {
+        if (y[i] === 1) {
+          ll += Math.log(Math.max(probs[a], 1e-300));
+          for (let j = 0; j < k; j++) grad[j] += X[i][j] - xbar[j];
+        }
+      });
+      // information: Σ_a p_a (x_a - xbar)(x_a - xbar)ᵀ
+      idx.forEach((i, a) => {
+        for (let r = 0; r < k; r++) for (let c = 0; c < k; c++)
+          info[r][c] += probs[a] * (X[i][r] - xbar[r]) * (X[i][c] - xbar[c]);
+      });
+    }
+    for (let j = 0; j < k; j++) info[j][j] += RIDGE;
+    cov = matInv(info);
+    if (!cov) { cov = lastCov; beta = lastBeta; break; } // fall back to last good estimate
+    lastCov = cov; lastBeta = beta.slice();
+    const step = cov.map(row => row.reduce((s, v, j) => s + v * grad[j], 0));
+    let maxStep = 0;
+    // Cap step length to avoid overflow under (quasi-)perfect separation.
+    const stepNorm = Math.sqrt(step.reduce((s, v) => s + v * v, 0));
+    const scale = stepNorm > 10 ? 10 / stepNorm : 1;
+    for (let j = 0; j < k; j++) { beta[j] += scale * step[j]; maxStep = Math.max(maxStep, Math.abs(scale * step[j])); }
+    if (maxStep < 1e-8) break;
+  }
+  if (!cov) return null;
+  const se = cov.map((row, j) => Math.sqrt(Math.max(0, row[j])));
+  return { beta, cov, se, ll, k };
+}
 
 // ── Conditional Logit ─────────────────────────────────────────────
-export function conditionalLogit(data, yVar, xVars, groupVar, { maxIter = 20 } = {}) {
+export function conditionalLogit(data, yVar, xVars, groupVar, { maxIter = 50 } = {}) {
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar) return null;
   const n = data.length;
   const groups = [...new Set(data.map(r => r[groupVar]))];
-  const betas = xVars.map(() => 0.1);
   const X = data.map(r => xVars.map(c => +r[c]));
   const y = data.map(r => +r[yVar]);
   const groupIdx = groups.map(g => data.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []));
-  for (let iter = 0; iter < maxIter; iter++) {
-    for (const idx of groupIdx) {
-      if (idx.length < 2) continue;
-      const Xg = idx.map(i => X[i]);
-      const yg = idx.map(i => y[i]);
-      const scores = Xg.map(xi => betas.reduce((s, b, j) => s + b * xi[j], 0));
-      const mx = Math.max(...scores);
-      const exps = scores.map(s => Math.exp(s - mx));
-      const sumExp = exps.reduce((s, v) => s + v, 0);
-    }
-  }
-  return { test: 'Conditional Logit', coefficients: xVars.map((n, j) => ({ name: n, b: +betas[j].toFixed(5), se: 0, z: 0, p: 0.5 })), n, nGroups: groups.length, apa: `CLogit: ${groups.length} choice sets, n = ${n}` };
+  const fit = _estimateCLogit(X, y, groupIdx, xVars.length, maxIter);
+  const coefficients = xVars.map((name, j) => {
+    const b = fit ? fit.beta[j] : 0;
+    const se = fit ? fit.se[j] : 0;
+    const z = se > 0 ? b / se : 0;
+    const p = se > 0 ? 2 * (1 - normalCDF(Math.abs(z))) : 1;
+    return { name, b: +b.toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +p.toFixed(4) };
+  });
+  return { test: 'Conditional Logit', coefficients, logLik: fit ? +fit.ll.toFixed(4) : null, n, nGroups: groups.length, apa: `CLogit: ${groups.length} choice sets, n = ${n}` };
 }
 
-// ── IIA Test ──────────────────────────────────────────────────────
+// ── IIA Test (Hausman-McFadden) ───────────────────────────────────
 export function iiaTest(data, yVar, xVars, groupVar, altVar) {
-  if (!data || data.length < 15 || !yVar || !altVar) return null;
+  if (!data || data.length < 15 || !yVar || !xVars || !groupVar || !altVar) return null;
   const n = data.length;
-  const fullChoices = data.map(r => r[altVar]);
-  const restricted = data.filter(r => r[altVar] !== data[0]?.[altVar]);
-  const chi2 = n * 0.1;
-  const p = chi2 > 3.84 ? 0.03 : 0.5;
-  return { test: 'IIA Test', chi2: +chi2.toFixed(4), p, n, apa: `IIA: χ² = ${chi2.toFixed(2)}, ${p < 0.05 ? 'IIA violated' : 'IIA holds'}` };
+  const k = xVars.length;
+  const buildFit = rows => {
+    const groups = [...new Set(rows.map(r => r[groupVar]))];
+    const X = rows.map(r => xVars.map(c => +r[c]));
+    const y = rows.map(r => +r[yVar]);
+    const groupIdx = groups.map(g => rows.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []))
+      .filter(idx => idx.length >= 2);
+    if (groupIdx.length < 2) return null;
+    return _estimateCLogit(X, y, groupIdx, k);
+  };
+  // Full choice set vs restricted set (one alternative removed) — under IIA the
+  // coefficient estimates should not differ systematically.
+  const refAlt = data[0]?.[altVar];
+  const full = buildFit(data);
+  const restricted = buildFit(data.filter(r => r[altVar] !== refAlt));
+  if (!full || !restricted) return null;
+  const dBeta = restricted.beta.map((b, j) => b - full.beta[j]);
+  // Hausman statistic: Δβᵀ (V_r − V_f)⁻¹ Δβ
+  const dCov = restricted.cov.map((row, r) => row.map((v, c) => v - full.cov[r][c]));
+  const dInv = matInv(dCov);
+  let chi2;
+  if (dInv) {
+    chi2 = 0;
+    for (let r = 0; r < k; r++) for (let c = 0; c < k; c++) chi2 += dBeta[r] * dInv[r][c] * dBeta[c];
+  } else {
+    // Fall back to a diagonal approximation when V_r − V_f is not invertible.
+    chi2 = dBeta.reduce((s, db, j) => {
+      const vd = restricted.cov[j][j] - full.cov[j][j];
+      return s + (vd > 1e-12 ? db * db / vd : 0);
+    }, 0);
+  }
+  chi2 = Math.max(0, chi2);
+  const p = chiPVal(chi2, k);
+  return { test: 'IIA Test', chi2: +chi2.toFixed(4), df: k, p: +p.toFixed(4), n, apa: `IIA (Hausman-McFadden): χ²(${k}) = ${chi2.toFixed(2)}, ${p < 0.05 ? 'IIA violated' : 'IIA holds'}` };
 }
 
 // ── Mixed Logit ───────────────────────────────────────────────────
