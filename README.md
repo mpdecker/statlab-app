@@ -1,4 +1,4 @@
-# StatLab — Social Science Inference Engine
+# StatLab — Inference Engine
 
 A modular, zero-dependency statistical analysis application built in React.
 No external stats libraries — all mathematics implemented from scratch.
