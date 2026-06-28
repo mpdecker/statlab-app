@@ -197,39 +197,116 @@ export function wtpSpace(data, yVar, xVars, priceVar, groupVar) {
 }
 
 // ── Nested Logit ──────────────────────────────────────────────────
-export function nestedLogit(data, yVar, xVars, groupVar, nestVar, seed = 42) {
+export function nestedLogit(data, yVar, xVars, groupVar, nestVar, { seed = 42, maxIter = 60 } = {}) {
   __rng = mulberry32(seed);
-  if (!data || data.length < 15 || !yVar || !nestVar) return null;
-  const n = data.length;
-  const nests = [...new Set(data.map(r => r[nestVar]))];
-  const icc = nests.map(nest => {
-    const memb = data.filter(r => r[nestVar] === nest);
-    return { nest, n: memb.length, lambda: +(0.5 + 0.3 * __rng()).toFixed(4) };
+  if (!data || data.length < 15 || !yVar || !nestVar || !groupVar || !xVars?.length) return null;
+  const k = xVars.length;
+  const allNests = [...new Set(data.map(r => r[nestVar]))];
+  const nIdx = Object.fromEntries(allNests.map((nm, i) => [nm, i]));
+  const groups = [...new Set(data.map(r => r[groupVar]))];
+  const sets = groups
+    .map(g => data.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []))
+    .filter(idx => idx.length >= 2);
+  if (sets.length < 2) return null;
+  const X = data.map(r => xVars.map(c => +r[c]));
+  const y = data.map(r => +r[yVar]);
+  const nest = data.map(r => nIdx[r[nestVar]]);
+  const lamOf = raw => 0.05 + 0.95 / (1 + Math.exp(-raw)); // log-sum coefficient in (0.05, 1)
+
+  // Two-level nested-logit FIML: P(i)=P(nest m)·P(i|m), with inclusive value
+  // IV_m = log Σ_{j∈m} exp(V_j/λ_m). Params: [β_0..β_{k-1}, rawλ per nest].
+  const negLogLik = theta => {
+    const beta = theta.slice(0, k);
+    const lam = theta.slice(k).map(lamOf);
+    const V = i => X[i].reduce((s, v, j) => s + v * beta[j], 0);
+    let nll = 0;
+    for (const idx of sets) {
+      const byNest = {};
+      for (const i of idx) (byNest[nest[i]] = byNest[nest[i]] || []).push(i);
+      const iv = {};
+      for (const m of Object.keys(byNest)) {
+        const lm = lam[m];
+        const scaled = byNest[m].map(i => V(i) / lm);
+        const mx = Math.max(...scaled);
+        let s = 0; for (const v of scaled) s += Math.exp(v - mx);
+        iv[m] = mx + Math.log(s);
+      }
+      const ch = idx.find(i => y[i] === 1);
+      if (ch == null) continue;
+      const mch = nest[ch];
+      const logP_i_m = V(ch) / lam[mch] - iv[mch];
+      const keys = Object.keys(byNest);
+      const lse = keys.map(m => lam[m] * iv[m]);
+      const mx2 = Math.max(...lse);
+      let den = 0; for (const v of lse) den += Math.exp(v - mx2);
+      const logP_m = lam[mch] * iv[mch] - mx2 - Math.log(den);
+      nll -= (logP_i_m + logP_m);
+    }
+    return nll;
+  };
+  const fit = mleFit([...Array(k).fill(0), ...Array(allNests.length).fill(0)], negLogLik, { maxIter });
+  const beta = fit.theta.slice(0, k);
+  const lam = fit.theta.slice(k).map(lamOf);
+  const coefficients = xVars.map((name, j) => {
+    const b = beta[j], se = fit.se[j], z = se > 0 ? b / se : 0;
+    return { name, b: +b.toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
   });
-  return { test: 'Nested Logit', nests: icc, n, apa: `Nested logit: ${nests.length} nests` };
+  const nests = allNests.map((nm, i) => ({ nest: nm, n: data.filter(r => r[nestVar] === nm).length, lambda: +lam[i].toFixed(4) }));
+  return { test: 'Nested Logit', coefficients, nests, logLik: +(-negLogLik(fit.theta)).toFixed(4), n: data.length, apa: `Nested logit: ${allNests.length} nests, λ=${nests.map(x => x.lambda).join(', ')}` };
 }
 
 // ── Latent Class Logit ────────────────────────────────────────────
-export function latentClassLogit(data, yVar, xVars, groupVar, { seed = 42, nClasses = 2, maxIter = 30 } = {}) {
+export function latentClassLogit(data, yVar, xVars, groupVar, { seed = 42, nClasses = 2, maxIter = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar || nClasses < 2) return null;
-  const n = data.length;
-  let classProbs = Array(nClasses).fill(1 / nClasses);
-  const classBeta = Array.from({ length: nClasses }, () => xVars.map(() => +(__rng() * 0.2 - 0.1).toFixed(4)));
-  const posteriors = Array.from({ length: n }, () => Array(nClasses).fill(1 / nClasses));
-  for (let iter = 0; iter < maxIter; iter++) {
-    for (let i = 0; i < n; i++) {
-      const x = xVars.reduce((s, v) => s + +data[i][v], 0);
-      const utils = classBeta.map((beta, c) => x * (beta[0] || 0.1) + Math.log(classProbs[c] + 1e-10));
-      const maxU = Math.max(...utils);
-      const exps = utils.map(u => Math.exp(u - maxU));
-      const sumExp = exps.reduce((s, e) => s + e, 0);
-      for (let c = 0; c < nClasses; c++) posteriors[i][c] = sumExp > 0 ? exps[c] / sumExp : 1 / nClasses;
+  const k = xVars.length;
+  const groups = [...new Set(data.map(r => r[groupVar]))];
+  const sets = groups
+    .map(g => data.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []))
+    .filter(idx => idx.length >= 2);
+  const G = sets.length;
+  if (G < nClasses + 1) return null;
+  const X = data.map(r => xVars.map(c => +r[c]));
+  const y = data.map(r => +r[yVar]);
+  // Conditional-logit log-probability of the observed choice in a set under β.
+  const groupLL = (idx, beta) => {
+    const sc = idx.map(i => X[i].reduce((s, v, j) => s + v * beta[j], 0));
+    const mx = Math.max(...sc);
+    let den = 0; for (const s of sc) den += Math.exp(s - mx);
+    const ch = idx.findIndex(i => y[i] === 1);
+    return ch >= 0 ? (sc[ch] - mx) - Math.log(den) : 0;
+  };
+  // EM: E-step posterior class membership per choice set; M-step updates class
+  // priors and class-specific conditional-logit coefficients (weighted MLE).
+  let pi = Array(nClasses).fill(1 / nClasses);
+  let beta = Array.from({ length: nClasses }, () => xVars.map(() => __rng() * 0.4 - 0.2));
+  const post = Array.from({ length: G }, () => Array(nClasses).fill(1 / nClasses));
+  let totalLL = -Infinity;
+  for (let it = 0; it < maxIter; it++) {
+    let ll = 0;
+    for (let g = 0; g < G; g++) {
+      const logw = beta.map((b, c) => Math.log(pi[c] + 1e-12) + groupLL(sets[g], b));
+      const mx = Math.max(...logw);
+      let den = 0; for (const lw of logw) den += Math.exp(lw - mx);
+      for (let c = 0; c < nClasses; c++) post[g][c] = Math.exp(logw[c] - mx) / den;
+      ll += mx + Math.log(den);
     }
-    for (let c = 0; c < nClasses; c++) classProbs[c] = avg(posteriors.map(p => p[c]));
+    for (let c = 0; c < nClasses; c++) pi[c] = avg(post.map(p => p[c]));
+    for (let c = 0; c < nClasses; c++) {
+      const nll = b => { let v = 0; for (let g = 0; g < G; g++) v -= post[g][c] * groupLL(sets[g], b); return v; };
+      beta[c] = mleFit(beta[c], nll, { maxIter: 15 }).theta;
+    }
+    if (Math.abs(ll - totalLL) < 1e-6 * Math.max(1, Math.abs(totalLL))) { totalLL = ll; break; }
+    totalLL = ll;
   }
-  const bic = -2 * 0 + nClasses * xVars.length * Math.log(n);
-  return { test: 'Latent Class Logit', classProbs: classProbs.map(p => +p.toFixed(4)), classBeta, bic: +bic.toFixed(2), nClasses, n, apa: `LC logit: ${nClasses} classes, n = ${n}` };
+  const nParams = nClasses * k + (nClasses - 1);
+  const bic = -2 * totalLL + nParams * Math.log(G);
+  return {
+    test: 'Latent Class Logit', classProbs: pi.map(p => +p.toFixed(4)),
+    classBeta: beta.map(b => b.map(v => +v.toFixed(4))), logLik: +totalLL.toFixed(4),
+    bic: +bic.toFixed(2), nClasses, n: data.length,
+    apa: `LC logit: ${nClasses} classes, BIC = ${bic.toFixed(1)}, n = ${data.length}`,
+  };
 }
 
 // ── Marginal Effects (Logit) ──────────────────────────────────────
