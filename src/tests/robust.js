@@ -1,4 +1,6 @@
 import { avg, sampleSD, sampleVar } from '../math/core.js';
+import { matInv, jacobiEigen } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
 
 // ── Theil-Sen Slope ────────────────────────────────────────────────────────
 export function theilSenSlope(x, y) {
@@ -114,33 +116,66 @@ export function hampelM(data, { a = 1.5, b = 3, c = 8 } = {}) {
 }
 
 // ── MCD Covariance ─────────────────────────────────────────────────────────
-export function mcdCovariance(data, vars, { alpha = 0.75 } = {}) {
+export function mcdCovariance(data, vars, { alpha = 0.75, nStarts = 50, seed = 42 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, p = vars.length;
   const h = Math.max(Math.floor(alpha * n), p + 2);
+  if (h >= n) return null;
   const X = data.map(r => vars.map(v => +r[v]));
-  // Simplified: use random subsets, pick smallest determinant
-  let bestDet = Infinity, bestSubset = null;
-  for (let trial = 0; trial < 50; trial++) {
-    const indices = [];
-    while (indices.length < h) {
-      const idx = Math.floor(Math.random() * n);
-      if (!indices.includes(idx)) indices.push(idx);
+  const rand = mulberry32(seed);
+
+  const meanCov = idx => {
+    const m = Array(p).fill(0);
+    for (const k of idx) for (let j = 0; j < p; j++) m[j] += X[k][j];
+    for (let j = 0; j < p; j++) m[j] /= idx.length;
+    const S = Array.from({ length: p }, () => Array(p).fill(0));
+    for (const k of idx) for (let a = 0; a < p; a++) for (let b = 0; b < p; b++)
+      S[a][b] += (X[k][a] - m[a]) * (X[k][b] - m[b]);
+    for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) S[a][b] /= (idx.length - 1);
+    return { m, S };
+  };
+  // Generalised variance = det(S) = ∏ eigenvalues (S symmetric PSD).
+  const logDet = S => {
+    const eig = jacobiEigen(S);
+    if (!eig) return Infinity;
+    let ld = 0;
+    for (const lam of eig.eigenvalues) ld += Math.log(Math.max(lam, 1e-12));
+    return ld;
+  };
+  // One concentration step: keep the h points with smallest Mahalanobis distance.
+  const cStep = (m, S) => {
+    const inv = matInv(S);
+    if (!inv) return null;
+    const d = X.map(row => {
+      let q = 0;
+      for (let a = 0; a < p; a++) for (let b = 0; b < p; b++) q += (row[a] - m[a]) * inv[a][b] * (row[b] - m[b]);
+      return q;
+    });
+    return d.map((dist, i) => [dist, i]).sort((u, v) => u[0] - v[0]).slice(0, h).map(t => t[1]);
+  };
+
+  let bestLD = Infinity, best = null;
+  for (let start = 0; start < nStarts; start++) {
+    // Random initial h-subset.
+    const pool = Array.from({ length: n }, (_, i) => i);
+    for (let k = n - 1; k > 0; k--) { const m = Math.floor(rand() * (k + 1)); [pool[k], pool[m]] = [pool[m], pool[k]]; }
+    let idx = pool.slice(0, h);
+    let cur = meanCov(idx);
+    // Iterate C-steps to convergence (FAST-MCD).
+    for (let it = 0; it < 20; it++) {
+      const next = cStep(cur.m, cur.S);
+      if (!next) break;
+      const nc = meanCov(next);
+      if (logDet(nc.S) >= logDet(cur.S) - 1e-10) { cur = nc; break; }
+      cur = nc; idx = next;
     }
-    const S = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => {
-      const mi = avg(indices.map(k => X[k][i]));
-      const mj = avg(indices.map(k => X[k][j]));
-      let s = 0;
-      for (const k of indices) s += (X[k][i] - mi) * (X[k][j] - mj);
-      return s / (h - 1);
-    }));
-    let det = 1;
-    for (let i = 0; i < p; i++) det *= Math.abs(S[i][i] || 1);
-    if (det < bestDet && det > 1e-10) { bestDet = det; bestSubset = S; }
+    const ld = logDet(cur.S);
+    if (ld < bestLD) { bestLD = ld; best = cur; }
   }
-  if (!bestSubset) return null;
+  if (!best) return null;
   return {
-    test: 'MCD Covariance', covariance: bestSubset.map(r => r.map(v => +v.toFixed(4))), h, n, p,
+    test: 'MCD Covariance', covariance: best.S.map(r => r.map(v => +v.toFixed(4))),
+    center: best.m.map(v => +v.toFixed(4)), logDet: +bestLD.toFixed(4), h, n, p,
     apa: `MCD: ${p}×${p} cov based on h=${h} of n=${n}`,
   };
 }
