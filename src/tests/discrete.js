@@ -1,6 +1,9 @@
 import { avg } from '../math/core.js';
 import { normalCDF, chiPVal } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 /**
  * McFadden conditional logit by Newton-Raphson on the conditional log-likelihood.
@@ -137,23 +140,25 @@ export function wtpSpace(data, yVar, xVars, priceVar, groupVar) {
 }
 
 // ── Nested Logit ──────────────────────────────────────────────────
-export function nestedLogit(data, yVar, xVars, groupVar, nestVar) {
+export function nestedLogit(data, yVar, xVars, groupVar, nestVar, seed = 42) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 15 || !yVar || !nestVar) return null;
   const n = data.length;
   const nests = [...new Set(data.map(r => r[nestVar]))];
   const icc = nests.map(nest => {
     const memb = data.filter(r => r[nestVar] === nest);
-    return { nest, n: memb.length, lambda: +(0.5 + 0.3 * Math.random()).toFixed(4) };
+    return { nest, n: memb.length, lambda: +(0.5 + 0.3 * __rng()).toFixed(4) };
   });
   return { test: 'Nested Logit', nests: icc, n, apa: `Nested logit: ${nests.length} nests` };
 }
 
 // ── Latent Class Logit ────────────────────────────────────────────
-export function latentClassLogit(data, yVar, xVars, groupVar, { nClasses = 2, maxIter = 30 } = {}) {
+export function latentClassLogit(data, yVar, xVars, groupVar, { seed = 42, nClasses = 2, maxIter = 30 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar || nClasses < 2) return null;
   const n = data.length;
   let classProbs = Array(nClasses).fill(1 / nClasses);
-  const classBeta = Array.from({ length: nClasses }, () => xVars.map(() => +(Math.random() * 0.2 - 0.1).toFixed(4)));
+  const classBeta = Array.from({ length: nClasses }, () => xVars.map(() => +(__rng() * 0.2 - 0.1).toFixed(4)));
   const posteriors = Array.from({ length: n }, () => Array(nClasses).fill(1 / nClasses));
   for (let iter = 0; iter < maxIter; iter++) {
     for (let i = 0; i < n; i++) {

@@ -1,5 +1,8 @@
 import { avg } from '../math/core.js';
 import { matInv, matMul, matTrans } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // Mode-n unfold / matricization
 function unfoldTensor(X, mode) {
@@ -94,7 +97,8 @@ export function parafac(X, nFactors = 2, { maxIter = 50, seed = 42, tol = 1e-8 }
 }
 
 // ── Tucker Decomposition ──────────────────────────────────────────
-export function tuckerDecomp(X, ranks = [2, 2, 2], { maxIter = 30 } = {}) {
+export function tuckerDecomp(X, ranks = [2, 2, 2], { seed = 42, maxIter = 30 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || !X.length) return null;
   const I = X.length, J = X[0]?.length || 1, K = X[0]?.[0]?.length || 1;
   // SVD per mode unfolding
@@ -105,7 +109,7 @@ export function tuckerDecomp(X, ranks = [2, 2, 2], { maxIter = 30 } = {}) {
     // Truncated SVD via power iteration for top r eigenvectors
     const U = Array.from({ length: M.length }, () => Array(r).fill(0));
     for (let d = 0; d < r; d++) {
-      let v = Array.from({ length: M[0].length }, () => Math.random());
+      let v = Array.from({ length: M[0].length }, () => __rng());
       for (let iter = 0; iter < 10; iter++) {
         const u = M.map(row => row.reduce((s, val, j) => s + val * v[j], 0));
         const nu = Math.sqrt(u.reduce((s, x) => s + x * x, 0)) || 1;
@@ -126,7 +130,8 @@ export function unfold(X, mode = 1) {
 }
 
 // ── Multiway PCA ──────────────────────────────────────────────────
-export function multiwayPCA(X, nComp = 2) {
+export function multiwayPCA(X, nComp = 2, seed = 42) {
+  __rng = mulberry32(seed);
   if (!X || !X.length) return null;
   const I = X.length, J = X[0]?.length || 1, K = X[0]?.[0]?.length || 1;
   const M = unfoldTensor(X, 0);
@@ -135,7 +140,7 @@ export function multiwayPCA(X, nComp = 2) {
   const scores = Array.from({ length: I }, () => Array(r).fill(0));
   const loadings = Array.from({ length: J * K }, () => Array(r).fill(0));
   for (let d = 0; d < r; d++) {
-    let v = Array.from({ length: M[0]?.length || 1 }, () => Math.random());
+    let v = Array.from({ length: M[0]?.length || 1 }, () => __rng());
     for (let iter = 0; iter < 10; iter++) {
       const u = M.map(row => row.reduce((s, val, j) => s + val * v[j], 0));
       const nu = Math.sqrt(u.reduce((s, x) => s + x * x, 0)) || 1;
@@ -174,13 +179,14 @@ export function tensorRegression(X, y, ranks = [2]) {
 }
 
 // ── CP Decomposition (CANDECOMP/PARAFAC) ──────────────────────────
-export function cpDecomposition(tensor, rank = 2, { maxIter = 10 } = {}) {
+export function cpDecomposition(tensor, rank = 2, { seed = 42, maxIter = 10 } = {}) {
+  __rng = mulberry32(seed);
   if (!tensor || !tensor.length || rank < 1) return null;
   const d1 = tensor.length, d2 = tensor[0]?.length || 0, d3 = tensor[0]?.[0]?.length || 0;
   if (d2 < 2 || d3 < 2) return null;
-  const A = Array.from({length: d1}, () => Array.from({length: rank}, () => Math.random()));
-  const B = Array.from({length: d2}, () => Array.from({length: rank}, () => Math.random()));
-  const C = Array.from({length: d3}, () => Array.from({length: rank}, () => Math.random()));
+  const A = Array.from({length: d1}, () => Array.from({length: rank}, () => __rng()));
+  const B = Array.from({length: d2}, () => Array.from({length: rank}, () => __rng()));
+  const C = Array.from({length: d3}, () => Array.from({length: rank}, () => __rng()));
   let fit = 0;
   for (let iter = 0; iter < maxIter; iter++) {
     fit = 0;
@@ -194,11 +200,12 @@ export function cpDecomposition(tensor, rank = 2, { maxIter = 10 } = {}) {
 }
 
 // ── Tucker Regression ─────────────────────────────────────────────
-export function tuckerRegression(X, y, { rank = [2, 2], maxIter = 10 } = {}) {
+export function tuckerRegression(X, y, { seed = 42, rank = [2, 2], maxIter = 10 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || !y || X.length < 5 || y.length < 5) return null;
   const n = X.length, d1 = X[0]?.length || 0, d2 = X[0]?.[0]?.length || 0;
   if (d1 < 2 || d2 < 2) return null;
-  const beta = Array.from({length: rank[0]}, () => Array.from({length: rank[1]}, () => (Math.random() - 0.5) * 0.1));
+  const beta = Array.from({length: rank[0]}, () => Array.from({length: rank[1]}, () => (__rng() - 0.5) * 0.1));
   let mse = 0;
   for (let i = 0; i < n; i++) {
     let pred = 0;

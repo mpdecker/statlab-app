@@ -1,5 +1,8 @@
 import { avg, sampleSD, corr } from '../math/core.js';
 import { normalCDF } from '../math/distributions.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Multi-Moran's I for ABM ────────────────────────────────────────────────
 export function moranIMulti(agents, valueField, { nPerm = 99 } = {}) {
@@ -99,7 +102,8 @@ export function thresholdModel(nAgents, thresholds, initialAdopters = 1) {
 }
 
 // ── Network Diffusion ─────────────────────────────────────────────
-export function networkDiffusion(adjacency, seeds, { steps = 10, prob = 0.1 } = {}) {
+export function networkDiffusion(adjacency, seeds, { seed = 42, steps = 10, prob = 0.1 } = {}) {
+  __rng = mulberry32(seed);
   if (!adjacency || !adjacency.length || !seeds || !seeds.length) return null;
   const n = adjacency.length;
   let infected = new Set(seeds);
@@ -108,7 +112,7 @@ export function networkDiffusion(adjacency, seeds, { steps = 10, prob = 0.1 } = 
     const newInfections = new Set();
     for (const node of infected) {
       for (let j = 0; j < n; j++) {
-        if (!infected.has(j) && adjacency[node][j] > 0 && Math.random() < prob) {
+        if (!infected.has(j) && adjacency[node][j] > 0 && __rng() < prob) {
           newInfections.add(j);
         }
       }

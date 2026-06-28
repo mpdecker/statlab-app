@@ -1,8 +1,12 @@
 import { avg, corr } from '../math/core.js';
 import { jacobiEigen } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── t-SNE (Barnes-Hut style simplified) ───────────────────────────
-export function tsne(X, { perplexity = 30, nComponents = 2, maxIter = 300, lr = 200 } = {}) {
+export function tsne(X, { seed = 42, perplexity = 30, nComponents = 2, maxIter = 300, lr = 200 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length, d = nComponents;
   const sigma = Array(n).fill(1);
@@ -21,7 +25,7 @@ export function tsne(X, { perplexity = 30, nComponents = 2, maxIter = 300, lr = 
   });
   const Pjoint = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => +((P[i][j] + P[j][i]) / (2 * n)).toFixed(6)));
   // Initialize embedding randomly
-  let Y = Array.from({length: n}, () => Array.from({length: d}, () => (Math.random() - 0.5) * 0.01));
+  let Y = Array.from({length: n}, () => Array.from({length: d}, () => (__rng() - 0.5) * 0.01));
   for (let iter = 0; iter < maxIter; iter++) {
     const Qdists = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => {
       if (i === j) return 0;

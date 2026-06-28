@@ -1,4 +1,7 @@
 import { avg } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Local Outlier Factor ──────────────────────────────────────────
 export function localOutlierFactor(X, { k = 5 } = {}) {
@@ -28,20 +31,21 @@ export function localOutlierFactor(X, { k = 5 } = {}) {
 }
 
 // ── Isolation Forest (simplified) ─────────────────────────────────
-export function isolationForest(X, { nTrees = 50, sampleSize = 64 } = {}) {
+export function isolationForest(X, { seed = 42, nTrees = 50, sampleSize = 64 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length;
   const anomalyScores = Array(n).fill(0);
   const actualSample = Math.min(sampleSize, n);
   for (let t = 0; t < nTrees; t++) {
-    const sample = [...Array(n).keys()].sort(() => Math.random() - 0.5).slice(0, actualSample);
+    const sample = [...Array(n).keys()].sort(() => __rng() - 0.5).slice(0, actualSample);
     const depths = sample.map(i => {
       const remaining = [...sample];
       let depth = 0, subset = remaining;
       while (subset.length > 1 && depth < 20) {
-        const feat = Math.floor(Math.random() * p);
+        const feat = Math.floor(__rng() * p);
         const vals = subset.map(j => X[j][feat]);
-        const split = Math.min(...vals) + Math.random() * (Math.max(...vals) - Math.min(...vals));
+        const split = Math.min(...vals) + __rng() * (Math.max(...vals) - Math.min(...vals));
         subset = subset.filter(j => X[j][feat] <= split);
         if (!subset.length) subset = remaining.filter(j => X[j][feat] > split);
         depth++;

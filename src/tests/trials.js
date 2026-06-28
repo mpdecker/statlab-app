@@ -1,8 +1,12 @@
 import { avg } from '../math/core.js';
 import { normalCDF, normalINV, chiPVal } from '../math/distributions.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Randomized Blocks ─────────────────────────────────────────────
-export function randomizedBlocks(strata, treatments, { blockSize = 4 } = {}) {
+export function randomizedBlocks(strata, treatments, { seed = 42, blockSize = 4 } = {}) {
+  __rng = mulberry32(seed);
   if (!strata || !strata.length || !treatments || treatments.length < 2) return null;
   const n = strata.length;
   const assignment = Array(n).fill(null);
@@ -10,7 +14,7 @@ export function randomizedBlocks(strata, treatments, { blockSize = 4 } = {}) {
     const end = Math.min(i + blockSize, n);
     const block = Array.from({ length: end - i }, (_, j) => treatments[j % treatments.length]);
     // Shuffle within block
-    for (let k = block.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [block[k], block[r]] = [block[r], block[k]]; }
+    for (let k = block.length - 1; k > 0; k--) { const r = Math.floor(__rng() * (k + 1)); [block[k], block[r]] = [block[r], block[k]]; }
     for (let j = i; j < end; j++) assignment[j] = block[j - i];
   }
   const counts = {};
@@ -40,7 +44,8 @@ export function sampleSizeReestimation(data, target, stage = 1) {
 }
 
 // ── Stratified Permuted Blocks ────────────────────────────────────
-export function stratifiedPermutedBlocks(strata) {
+export function stratifiedPermutedBlocks(strata, seed = 42) {
+  __rng = mulberry32(seed);
   if (!strata || !strata.length) return null;
   const uniqueStrata = [...new Set(strata)];
   const assignment = strata.map(s => {
@@ -51,7 +56,7 @@ export function stratifiedPermutedBlocks(strata) {
   uniqueStrata.forEach(s => {
     const indices = strata.reduce((arr, st, i) => { if (st === s) arr.push(i); return arr; }, []);
     const trts = indices.map(i => assignment[i]);
-    for (let k = trts.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [trts[k], trts[r]] = [trts[r], trts[k]]; }
+    for (let k = trts.length - 1; k > 0; k--) { const r = Math.floor(__rng() * (k + 1)); [trts[k], trts[r]] = [trts[r], trts[k]]; }
     indices.forEach((i, j) => { assignment[i] = trts[j]; });
   });
   return { test: 'Stratified Permuted Blocks', assignment, nStrata: uniqueStrata.length, n: strata.length, apa: `Stratified blocks: ${uniqueStrata.length} strata, n = ${strata.length}` };

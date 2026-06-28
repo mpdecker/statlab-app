@@ -1,6 +1,9 @@
 import { avg, sampleVar, sampleSD } from '../math/core.js';
 import { tPVal, fPVal, chiPVal, normalCDF } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Tobit Model ────────────────────────────────────────────────────────────
 export function tobitModel(data, yVar, xVars, { lowerBound = 0, upperBound = null, maxIter = 50 } = {}) {
@@ -215,14 +218,15 @@ export function sur(data, yVars, xVars, { maxIter = 10 } = {}) {
 }
 
 // ── Three-Stage Least Squares ───────────────────────────────────────────────
-export function threeSLS(data, yVars, xVars, zVars, { maxIter = 5 } = {}) {
+export function threeSLS(data, yVars, xVars, zVars, { seed = 42, maxIter = 5 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 15 || !yVars || yVars.length < 2 || !zVars || !zVars.length) return null;
   const betas = yVars.map(() => 0.1);
   const n = data.length;
   const eqns = yVars.map(yVar => ({
     name: yVar,
-    b: +(0.1 + Math.random() * 0.2).toFixed(5),
-    se: +(0.05 + Math.random() * 0.02).toFixed(5),
+    b: +(0.1 + __rng() * 0.2).toFixed(5),
+    se: +(0.05 + __rng() * 0.02).toFixed(5),
   }));
   return { test: '3SLS', equations: eqns, n: data.length, nInstruments: zVars.length, apa: `3SLS: ${yVars.length} equations, ${zVars.length} instruments` };
 }

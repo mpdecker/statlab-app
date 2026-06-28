@@ -1,5 +1,8 @@
 import { avg, sampleSD, sampleVar, fmtP } from '../math/core.js';
 import { matInv } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 function weightedOLS(Y, X, weights = null) {
   if (!Y || !X || Y.length < 2) return null;
@@ -635,15 +638,16 @@ export function localOutlierFactor(data, vars, { k = 5 } = {}) {
 }
 
 // ── Isolation Score (simplified isolation forest) ─────────────────
-export function isolationScore(data, vars, { nTrees = 100 } = {}) {
+export function isolationScore(data, vars, { seed = 42, nTrees = 100 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 5 || !vars || !vars.length) return null;
   const n = data.length;
   const scores = Array(n).fill(0);
   for (let t = 0; t < nTrees; t++) {
-    const idx1 = Math.floor(Math.random() * n);
-    const idx2 = Math.floor(Math.random() * n);
+    const idx1 = Math.floor(__rng() * n);
+    const idx2 = Math.floor(__rng() * n);
     if (idx1 === idx2) continue;
-    const v = vars[Math.floor(Math.random() * vars.length)];
+    const v = vars[Math.floor(__rng() * vars.length)];
     const val1 = +data[idx1][v], val2 = +data[idx2][v];
     const thresh = (val1 + val2) / 2;
     data.forEach((r, i) => {
@@ -733,7 +737,8 @@ export function accumulatedLE(model, data, vars, targetVar, { grid = 10 } = {}) 
 }
 
 // ── Permutation Importance ────────────────────────────────────────
-export function permutationImportance(model, X, y, { nPerm = 10 } = {}) {
+export function permutationImportance(model, X, y, { seed = 42, nPerm = 10 } = {}) {
+  __rng = mulberry32(seed);
   if (!model || !X || !y || !X.length) return null;
   const n = X.length; const p = X[0]?.length || 0;
   const baseMSE = X.reduce((s, xi, i) => s + (model(xi) - y[i]) ** 2, 0) / n;
@@ -741,7 +746,7 @@ export function permutationImportance(model, X, y, { nPerm = 10 } = {}) {
   for (let j = 0; j < p; j++) {
     let sumMSE = 0;
     for (let r = 0; r < nPerm; r++) {
-      const permX = X.map(xi => { const xp = [...xi]; xp[j] = X[Math.floor(Math.random() * n)][j]; return xp; });
+      const permX = X.map(xi => { const xp = [...xi]; xp[j] = X[Math.floor(__rng() * n)][j]; return xp; });
       sumMSE += permX.reduce((s, xi, i) => s + (model(xi) - y[i]) ** 2, 0) / n;
     }
     importance[j] = +(sumMSE / nPerm - baseMSE).toFixed(4);

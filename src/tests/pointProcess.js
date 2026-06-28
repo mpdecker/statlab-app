@@ -1,5 +1,8 @@
 import { avg } from '../math/core.js';
 import { jacobiEigen } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Hawkes Intensity ──────────────────────────────────────────────
 export function hawkesIntensity(events, { mu = 0.1, alpha = 0.2, beta = 0.5 } = {}) {
@@ -28,14 +31,15 @@ export function hawkesFit(events, { kernel = 'exp' } = {}) {
 }
 
 // ── Cox Process ───────────────────────────────────────────────────
-export function coxProcess(surface, { n = 100 } = {}) {
+export function coxProcess(surface, { seed = 42, n = 100 } = {}) {
+  __rng = mulberry32(seed);
   if (!surface || !surface.length || !surface[0]) return null;
   const rows = surface.length; const cols = surface[0].length;
   const points = [];
   for (let i = 0; i < n; i++) {
-    const r = Math.floor(Math.random() * rows);
-    const c = Math.floor(Math.random() * cols);
-    if (Math.random() < (surface[r][c] || 0)) points.push({ x: r, y: c });
+    const r = Math.floor(__rng() * rows);
+    const c = Math.floor(__rng() * cols);
+    if (__rng() < (surface[r][c] || 0)) points.push({ x: r, y: c });
   }
   return { test: 'Cox Process', points: points.slice(0, 20), nEvents: points.length, n, apa: `Cox: ${points.length} events` };
 }
@@ -64,17 +68,18 @@ export function burstinessIndex(events) {
 }
 
 // ── Thomas Cluster Process ────────────────────────────────────────
-export function thomasProcess(nParents, nOffspring, areaWidth, areaHeight, { clusterRadius = 0.1 } = {}) {
+export function thomasProcess(nParents, nOffspring, areaWidth, areaHeight, { seed = 42, clusterRadius = 0.1 } = {}) {
+  __rng = mulberry32(seed);
   if (!nParents || !nOffspring || nParents < 2 || nOffspring < 2) return null;
   const parents = Array.from({length: nParents}, () => ({
-    x: Math.random() * areaWidth, y: Math.random() * areaHeight
+    x: __rng() * areaWidth, y: __rng() * areaHeight
   }));
   const points = [];
   parents.forEach(p => {
     points.push({ x: +p.x.toFixed(4), y: +p.y.toFixed(4), type: 'parent' });
     for (let o = 0; o < nOffspring; o++) {
-      const angle = Math.random() * 2 * Math.PI;
-      const dist = Math.random() * clusterRadius * Math.min(areaWidth, areaHeight);
+      const angle = __rng() * 2 * Math.PI;
+      const dist = __rng() * clusterRadius * Math.min(areaWidth, areaHeight);
       points.push({
         x: +Math.max(0, Math.min(areaWidth, p.x + dist * Math.cos(angle))).toFixed(4),
         y: +Math.max(0, Math.min(areaHeight, p.y + dist * Math.sin(angle))).toFixed(4),
@@ -86,17 +91,18 @@ export function thomasProcess(nParents, nOffspring, areaWidth, areaHeight, { clu
 }
 
 // ── Matern Cluster Process ────────────────────────────────────────
-export function maternCluster(nClusters, radius, avgPointsPerCluster, areaWidth, areaHeight) {
+export function maternCluster(nClusters, radius, avgPointsPerCluster, areaWidth, areaHeight, seed = 42) {
+  __rng = mulberry32(seed);
   if (!nClusters || nClusters < 2 || !radius || radius <= 0) return null;
   const parents = Array.from({length: nClusters}, () => ({
-    x: Math.random() * areaWidth, y: Math.random() * areaHeight
+    x: __rng() * areaWidth, y: __rng() * areaHeight
   }));
   const points = [];
   parents.forEach(p => {
-    const nPts = Math.max(1, Math.round(avgPointsPerCluster + (Math.random() - 0.5) * avgPointsPerCluster));
+    const nPts = Math.max(1, Math.round(avgPointsPerCluster + (__rng() - 0.5) * avgPointsPerCluster));
     for (let i = 0; i < nPts; i++) {
-      const angle = Math.random() * 2 * Math.PI;
-      const dist = Math.random() * radius;
+      const angle = __rng() * 2 * Math.PI;
+      const dist = __rng() * radius;
       points.push({
         x: +Math.max(0, Math.min(areaWidth, p.x + dist * Math.cos(angle))).toFixed(4),
         y: +Math.max(0, Math.min(areaHeight, p.y + dist * Math.sin(angle))).toFixed(4)

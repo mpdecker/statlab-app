@@ -1,4 +1,7 @@
 import { avg } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Softmax ───────────────────────────────────────────────────────
 export function softmax(logits) {
@@ -75,22 +78,24 @@ export function adamUpdate(params, grads, mom, vel, { lr = 0.001, beta1 = 0.9, b
 }
 
 // ── Xavier Initialization ─────────────────────────────────────────
-export function xavierInit(nIn, nOut) {
+export function xavierInit(nIn, nOut, seed = 42) {
+  __rng = mulberry32(seed);
   if (!nIn || !nOut || nIn < 1 || nOut < 1) return null;
   const limit = Math.sqrt(6 / (nIn + nOut));
   const W = Array.from({ length: nOut }, () =>
-    Array.from({ length: nIn }, () => +((Math.random() * 2 - 1) * limit).toFixed(4))
+    Array.from({ length: nIn }, () => +((__rng() * 2 - 1) * limit).toFixed(4))
   );
   return { test: 'Xavier Init', weights: W.slice(0, 5).map(r => r.slice(0, 5)), nIn, nOut, limit: +limit.toFixed(6), apa: `Xavier: ${nIn}→${nOut}, limit = ${limit.toFixed(5)}` };
 }
 
 // ── Backpropagation (simple 2-layer MLP) ──────────────────────────
-export function backpropagation(X, y, nHidden = 4, { lr = 0.01, epochs = 100 } = {}) {
+export function backpropagation(X, y, nHidden = 4, { seed = 42, lr = 0.01, epochs = 100 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || !y || X.length < 5 || y.length < 5 || X.length !== y.length) return null;
   const n = X.length, p = X[0].length;
-  const W1 = Array.from({length: p}, () => Array.from({length: nHidden}, () => (Math.random() - 0.5) * 0.1));
+  const W1 = Array.from({length: p}, () => Array.from({length: nHidden}, () => (__rng() - 0.5) * 0.1));
   const b1 = Array(nHidden).fill(0);
-  const W2 = Array.from({length: nHidden}, () => Array(1).fill(0).map(() => (Math.random() - 0.5) * 0.1));
+  const W2 = Array.from({length: nHidden}, () => Array(1).fill(0).map(() => (__rng() - 0.5) * 0.1));
   const b2 = [0];
   let loss = 0;
   for (let e = 0; e < epochs; e++) {

@@ -1,4 +1,7 @@
 import { avg } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 function _tokenize(text, { stopwords = [], minLen = 2 } = {}) {
   const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length >= minLen);
@@ -154,7 +157,8 @@ export function ngramExtraction(text, n = 2) {
 }
 
 // ── LDA Topic Model ─────────────────────────────────────────────────────────
-export function ldaTopicModel(documents, nTopics = 3, { iterations = 50, alpha = 0.1, beta = 0.01, stopwords = [] } = {}) {
+export function ldaTopicModel(documents, nTopics = 3, { seed = 42, iterations = 50, alpha = 0.1, beta = 0.01, stopwords = [] } = {}) {
+  __rng = mulberry32(seed);
   if (!documents || documents.length < 3 || nTopics < 2) return null;
   const tokDocs = documents.map(d => _tokenize(d, { stopwords, minLen: 2 }));
   const vocab = [...new Set(tokDocs.flat())];
@@ -164,7 +168,7 @@ export function ldaTopicModel(documents, nTopics = 3, { iterations = 50, alpha =
   const wordToIdx = {}; vocab.forEach((w, i) => { wordToIdx[w] = i; });
 
   // Random initialize topic assignments
-  const z = tokDocs.map(tokens => tokens.map(() => Math.floor(Math.random() * nTopics)));
+  const z = tokDocs.map(tokens => tokens.map(() => Math.floor(__rng() * nTopics)));
   const ndk = Array.from({ length: D }, () => Array(nTopics).fill(0));
   const nkw = Array.from({ length: nTopics }, () => Array(V).fill(0));
   const nk = Array(nTopics).fill(0);
@@ -193,7 +197,7 @@ export function ldaTopicModel(documents, nTopics = 3, { iterations = 50, alpha =
                      ((nkw[t][wordToIdx[w]] + beta) / (nk[t] + V * beta + 1e-10));
         }
         const sumP = probs.reduce((s, p) => s + p, 0);
-        const u = Math.random() * sumP;
+        const u = __rng() * sumP;
         let cum = 0, newT = oldT;
         for (let t = 0; t < nTopics; t++) { cum += probs[t]; if (u <= cum) { newT = t; break; } }
         z[d][i] = newT;

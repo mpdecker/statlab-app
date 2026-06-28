@@ -1,13 +1,17 @@
 import { avg, corr } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── SHAP Values (simplified feature importance) ───────────────────
-export function shapValues(X, y, { nSamples = 50 } = {}) {
+export function shapValues(X, y, { seed = 42, nSamples = 50 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || !y || X.length < 5 || y.length < 5 || X.length !== y.length) return null;
   const n = X.length, p = X[0].length;
   const baseline = y.reduce((s, v) => s + v, 0) / n;
   const shap = Array(p).fill(0);
   for (let i = 0; i < nSamples; i++) {
-    const perm = [...Array(p).keys()].sort(() => Math.random() - 0.5);
+    const perm = [...Array(p).keys()].sort(() => __rng() - 0.5);
     let predWith = baseline;
     for (const j of perm) {
       const contrib = corr(X.map(r => r[j]), y) * sampleVar(X.map(r => r[j])) / Math.max(sampleVar(y), 1);
@@ -22,13 +26,14 @@ export function shapValues(X, y, { nSamples = 50 } = {}) {
 function sampleVar(arr) { const m = avg(arr); return arr.reduce((s, v) => s + (v - m) ** 2, 0) / Math.max(arr.length - 1, 1); }
 
 // ── LIME Importance ───────────────────────────────────────────────
-export function limeImportance(X, y, queryPoint, { nSamples = 50 } = {}) {
+export function limeImportance(X, y, queryPoint, { seed = 42, nSamples = 50 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || !y || !queryPoint || X.length < 5) return null;
   const n = X.length, p = X[0].length;
   const importance = Array(p).fill(0);
   for (let i = 0; i < nSamples; i++) {
-    const permuted = [...X[Math.floor(Math.random() * n)]];
-    const perturb = queryPoint.map((v, j) => Math.random() < 0.5 ? v : permuted[j]);
+    const permuted = [...X[Math.floor(__rng() * n)]];
+    const perturb = queryPoint.map((v, j) => __rng() < 0.5 ? v : permuted[j]);
     const pred = perturb.reduce((s, v) => s + v, 0) / p;
     const actual = queryPoint.reduce((s, v) => s + v, 0) / p;
     for (let j = 0; j < p; j++) {

@@ -1,6 +1,9 @@
 import { avg, sampleVar, fmtP } from '../math/core.js';
 import { fPVal, tPVal } from '../math/distributions.js';
 import { matInv, jacobiEigen } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 function sourceRow(source, df, ss, ms, F, p) {
   return {
@@ -721,13 +724,14 @@ export function definitiveScreening(factors) {
 }
 
 // ── Latin Hypercube Sampling ──────────────────────────────────────
-export function latinHypercube(n, d, { range = [0, 1] } = {}) {
+export function latinHypercube(n, d, { seed = 42, range = [0, 1] } = {}) {
+  __rng = mulberry32(seed);
   if (n < 2 || d < 1 || d > 10) return null;
   const samples = Array.from({length: n}, (_, i) => Array(d).fill(0));
   for (let j = 0; j < d; j++) {
-    const perm = [...Array(n).keys()].sort(() => Math.random() - 0.5);
+    const perm = [...Array(n).keys()].sort(() => __rng() - 0.5);
     for (let i = 0; i < n; i++) {
-      samples[i][j] = +((range[0] + (perm[i] + Math.random()) * (range[1] - range[0]) / n).toFixed(4));
+      samples[i][j] = +((range[0] + (perm[i] + __rng()) * (range[1] - range[0]) / n).toFixed(4));
     }
   }
   return { test: 'Latin Hypercube', samples, n, d, apa: `LHS: ${n} points, ${d} dim` };

@@ -1,6 +1,9 @@
 import { avg, sampleVar } from '../math/core.js';
 import { chiPVal } from '../math/distributions.js';
 import { jacobiEigen } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Markov Chain ────────────────────────────────────────────────────────────
 export function markovChain(sequence, { nStates = null } = {}) {
@@ -175,7 +178,8 @@ export function regimeSwitching(data, { nStates = 2, maxIter = 20 } = {}) {
 }
 
 // ── Heston Stochastic Volatility Model ────────────────────────────
-export function hestonModel(returns, dt = 1/252, { kappa = 2, theta = 0.04, xi = 0.3, rho = -0.7, v0 = 0.04 } = {}) {
+export function hestonModel(returns, dt = 1/252, { seed = 42, kappa = 2, theta = 0.04, xi = 0.3, rho = -0.7, v0 = 0.04 } = {}) {
+  __rng = mulberry32(seed);
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
   const v = Array(n).fill(v0);
@@ -191,8 +195,8 @@ export function hestonModel(returns, dt = 1/252, { kappa = 2, theta = 0.04, xi =
 
 function gauss() {
   let u = 0, v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
+  while (u === 0) u = __rng();
+  while (v === 0) v = __rng();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 

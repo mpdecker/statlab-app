@@ -1,5 +1,8 @@
 import { avg, corr, sampleVar } from '../math/core.js';
 import { tPVal, chiPVal, normalCDF, normalINV, tInv2 } from '../math/distributions.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // Partial correlation test (conditional independence)
 function partialCorr(x, y, z) {
@@ -110,13 +113,14 @@ export function pcAlgorithm(data, vars, { alpha = 0.05 } = {}) {
 }
 
 // ── LiNGAM ────────────────────────────────────────────────────────
-export function lingam(data, vars, { maxIter = 20 } = {}) {
+export function lingam(data, vars, { seed = 42, maxIter = 20 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 10 || !vars || vars.length < 3) return null;
   const n = data.length, k = vars.length;
   const X = data.map(r => vars.map(v => +r[v]));
   const B = Array.from({length: k}, () => Array(k).fill(0));
   for (let iter = 0; iter < maxIter; iter++) {
-    const order = [...Array(k).keys()].sort(() => Math.random() - 0.5);
+    const order = [...Array(k).keys()].sort(() => __rng() - 0.5);
     for (const i of order) {
       for (let j = 0; j < k; j++) {
         if (j === i) continue;

@@ -1,11 +1,15 @@
 import { avg, sampleVar } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Mixture of Regressions ────────────────────────────────────────
 export function mixtureOfRegressions(x, y, nComponents = 2, { maxIter = 50, seed = 42 } = {}) {
+  __rng = mulberry32(seed);
   if (!x || !y || x.length < 15 || x.length !== y.length || nComponents < 2) return null;
   const n = x.length, K = nComponents;
   // Initialize: randomly assign to components
-  let labels = Array.from({ length: n }, () => Math.floor(Math.random() * K));
+  let labels = Array.from({ length: n }, () => Math.floor(__rng() * K));
   let pis = Array(K).fill(1 / K);
   let coeffs = Array.from({ length: K }, () => ({ slope: 0, intercept: 0, sigma: 1 }));
   let logLik = -Infinity;
@@ -41,7 +45,7 @@ export function mixtureOfRegressions(x, y, nComponents = 2, { maxIter = 50, seed
     // Converge when labels stabilize
     const hardLabels = labels.map(lp => lp.indexOf(Math.max(...lp)));
     let changed = 0;
-    for (let i = 0; i < n; i++) if (hardLabels[i] !== Math.floor(Math.random() * 2)) changed++;
+    for (let i = 0; i < n; i++) if (hardLabels[i] !== Math.floor(__rng() * 2)) changed++;
     if (iter > 5) break;
   }
 
@@ -78,11 +82,12 @@ export function switchingRegression(x, y, threshold) {
 
 // ── Latent Profile Analysis ───────────────────────────────────────
 export function latentProfileAnalysis(data, vars, nProfiles = 2, { maxIter = 30, seed = 42 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 20 || !vars || vars.length < 2 || nProfiles < 2) return null;
   const n = data.length, p = vars.length, K = nProfiles;
   const X = data.map(r => vars.map(v => +r[v]));
   // K-means initialization
-  let labels = Array(n).fill(0).map(() => Math.floor(Math.random() * K));
+  let labels = Array(n).fill(0).map(() => Math.floor(__rng() * K));
   const means = Array.from({ length: K }, () => Array(p).fill(0));
   let pis = Array(K).fill(1 / K);
   // Simple k-means then return profile means
@@ -114,9 +119,10 @@ export function latentProfileAnalysis(data, vars, nProfiles = 2, { maxIter = 30,
 
 // ── Mixture of Experts ────────────────────────────────────────────
 export function mixtureOfExperts(x, y, nExperts = 2, { maxIter = 30, seed = 42 } = {}) {
+  __rng = mulberry32(seed);
   if (!x || !y || x.length < 15 || x.length !== y.length || nExperts < 2) return null;
   const n = x.length, K = nExperts;
-  let labels = Array(n).fill(0).map(() => Math.floor(Math.random() * K));
+  let labels = Array(n).fill(0).map(() => Math.floor(__rng() * K));
   const experts = Array.from({ length: K }, () => ({ slope: 0, intercept: 0 }));
   let pis = Array(K).fill(1 / K);
 
@@ -149,12 +155,13 @@ export function mixtureOfExperts(x, y, nExperts = 2, { maxIter = 30, seed = 42 }
 }
 
 // ── Gaussian Mixture Model (EM) ───────────────────────────────────
-export function gaussianMixtureModel(data, k = 2, { maxIter = 30, tol = 1e-4 } = {}) {
+export function gaussianMixtureModel(data, k = 2, { seed = 42, maxIter = 30, tol = 1e-4 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < k * 3 || k < 2) return null;
   const n = data.length;
   const d = Array.isArray(data[0]) ? data[0].length : 1;
   const X = d > 1 ? data : data.map(v => [v]);
-  let mu = Array.from({length: k}, (_, i) => X[Math.floor(i * n / k)].map(v => v + (Math.random() - 0.5)));
+  let mu = Array.from({length: k}, (_, i) => X[Math.floor(i * n / k)].map(v => v + (__rng() - 0.5)));
   let sigma2 = Array(k).fill(sampleVar(X.flat()) || 1);
   let pi = Array(k).fill(1 / k);
   for (let iter = 0; iter < maxIter; iter++) {
@@ -187,11 +194,12 @@ export function gaussianMixtureModel(data, k = 2, { maxIter = 30, tol = 1e-4 } =
 }
 
 // ── Nonparametric Mixture ─────────────────────────────────────────
-export function nonparametricMixture(data, k = 2, { bandwidth = null, maxIter = 15 } = {}) {
+export function nonparametricMixture(data, k = 2, { seed = 42, bandwidth = null, maxIter = 15 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 10 || k < 2) return null;
   const n = data.length;
   const h = bandwidth || 1.06 * Math.sqrt(sampleVar(data)) * Math.pow(n, -0.2) || 0.5;
-  let z = Array.from({length: n}, () => Math.floor(Math.random() * k));
+  let z = Array.from({length: n}, () => Math.floor(__rng() * k));
   for (let iter = 0; iter < maxIter; iter++) {
     const counts = Array(k).fill(0);
     const means = Array(k).fill(0);

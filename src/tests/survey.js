@@ -1,4 +1,7 @@
 import { avg } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Weighted Mean ───────────────────────────────────────────────────────────
 export function weightedMean(values, weights) {
@@ -393,7 +396,8 @@ export function designTotal(vals, weights) {
 }
 
 // ── PPS Sampling ──────────────────────────────────────────────────
-export function ppsSampling(sizes, nSample) {
+export function ppsSampling(sizes, nSample, seed = 42) {
+  __rng = mulberry32(seed);
   if (!sizes || !sizes.length || nSample < 1) return null;
   const total = sizes.reduce((s, v) => s + v, 0);
   if (!total) return null;
@@ -401,7 +405,7 @@ export function ppsSampling(sizes, nSample) {
   const sample = [];
   const used = new Set();
   while (sample.length < nSample) {
-    const u = Math.random();
+    const u = __rng();
     let cum = 0; let sel = 0;
     for (let i = 0; i < sizes.length; i++) { cum += probs[i]; if (u <= cum && !used.has(i)) { sel = i; break; } }
     used.add(sel);
@@ -411,11 +415,12 @@ export function ppsSampling(sizes, nSample) {
 }
 
 // ── Systematic Sample ─────────────────────────────────────────────
-export function systematicSample(data, nSample) {
+export function systematicSample(data, nSample, seed = 42) {
+  __rng = mulberry32(seed);
   if (!data || !data.length || nSample < 1) return null;
   const n = data.length, k = Math.floor(n / nSample);
   if (k < 1) return null;
-  const start = Math.floor(Math.random() * k);
+  const start = Math.floor(__rng() * k);
   const sampled = [];
   for (let i = start; i < n; i += k) sampled.push(data[i]);
   return { test: 'Systematic Sample', sample: sampled, nOriginal: n, nSampled: sampled.length, interval: k, apa: `Systematic: ${sampled.length}/${n} sampled` };

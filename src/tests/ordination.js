@@ -1,5 +1,8 @@
 import { avg } from '../math/core.js';
 import { fPVal, chiPVal } from '../math/distributions.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 function distanceMatrix(data, vars) {
   const X = data.map(r => vars.map(v => +r[v]));
@@ -13,7 +16,8 @@ function distanceMatrix(data, vars) {
 }
 
 // ── PERMANOVA ──────────────────────────────────────────────────────────────
-export function permanova(data, vars, groupVar, { permutations = 999 } = {}) {
+export function permanova(data, vars, groupVar, { seed = 42, permutations = 999 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 10 || !vars || !groupVar) return null;
   const D = distanceMatrix(data, vars);
   const n = D.length;
@@ -38,7 +42,7 @@ export function permanova(data, vars, groupVar, { permutations = 999 } = {}) {
   // Permutation test
   let count = 0;
   for (let p = 0; p < permutations; p++) {
-    const perm = [...data].sort(() => Math.random() - 0.5);
+    const perm = [...data].sort(() => __rng() - 0.5);
     const permIdx = groups.map(g => perm.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []));
     let ssW = 0;
     permIdx.forEach(memb => { const nG = memb.length; for (let a = 0; a < nG; a++) for (let b = a + 1; b < nG; b++) ssW += D[memb[a]][ memb[b]] ** 2; ssW /= nG; });
@@ -51,7 +55,8 @@ export function permanova(data, vars, groupVar, { permutations = 999 } = {}) {
 }
 
 // ── ANOSIM ─────────────────────────────────────────────────────────────────
-export function anosim(data, vars, groupVar, { permutations = 999 } = {}) {
+export function anosim(data, vars, groupVar, { seed = 42, permutations = 999 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 10 || !vars || !groupVar) return null;
   const D = distanceMatrix(data, vars);
   const n = D.length;
@@ -73,7 +78,7 @@ export function anosim(data, vars, groupVar, { permutations = 999 } = {}) {
   // Permutation
   let count = 0;
   for (let p = 0; p < permutations; p++) {
-    const perm = [...data].sort(() => Math.random() - 0.5);
+    const perm = [...data].sort(() => __rng() - 0.5);
     const permIdx = groups.map(g => perm.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []));
     let prB = 0, prW = 0, pnB = 0, pnW = 0;
     permIdx.forEach((a, gi) => {
@@ -90,7 +95,8 @@ export function anosim(data, vars, groupVar, { permutations = 999 } = {}) {
 }
 
 // ── Mantel Test ────────────────────────────────────────────────────────────
-export function mantelTest(matrix1, matrix2, { permutations = 999 } = {}) {
+export function mantelTest(matrix1, matrix2, { seed = 42, permutations = 999 } = {}) {
+  __rng = mulberry32(seed);
   if (!matrix1 || !matrix2 || matrix1.length < 5 || matrix1.length !== matrix2.length) return null;
   const n = matrix1.length;
   let sum12 = 0, sum1 = 0, sum2 = 0, sum11 = 0, sum22 = 0, count = 0;
@@ -106,7 +112,7 @@ export function mantelTest(matrix1, matrix2, { permutations = 999 } = {}) {
 
   let permCount = 0;
   for (let p = 0; p < permutations; p++) {
-    const perm = matrix2.map(r => [...r].sort(() => Math.random() - 0.5));
+    const perm = matrix2.map(r => [...r].sort(() => __rng() - 0.5));
     let ps12 = 0;
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) ps12 += matrix1[i][j] * perm[i][j];
     const pr = count * ps12;

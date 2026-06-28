@@ -1,5 +1,8 @@
 import { avg, sampleVar } from '../math/core.js';
 import { normalCDF } from '../math/distributions.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Tau-U ─────────────────────────────────────────────────────────
 export function tauU(baseline, intervention) {
@@ -51,14 +54,15 @@ export function nap(baseline, intervention) {
 }
 
 // ── Randomization Test for SCED ───────────────────────────────────
-export function randomizationTest(baseline, intervention, { nPerm = 199 } = {}) {
+export function randomizationTest(baseline, intervention, { seed = 42, nPerm = 199 } = {}) {
+  __rng = mulberry32(seed);
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
   const all = [...baseline, ...intervention];
   const nB = baseline.length;
   let count = 0;
   const obsDiff = avg(intervention) - avg(baseline);
   for (let p = 0; p < nPerm; p++) {
-    const perm = [...all].sort(() => Math.random() - 0.5);
+    const perm = [...all].sort(() => __rng() - 0.5);
     const permDiff = avg(perm.slice(0, nB)) - avg(perm.slice(nB));
     if (Math.abs(permDiff) >= Math.abs(obsDiff)) count++;
   }

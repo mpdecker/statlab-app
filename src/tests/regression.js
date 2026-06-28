@@ -14,6 +14,8 @@ function ols(X, y, p) {
 }
 import { mulberry32, bootstrapIndices } from '../math/rng.js';
 
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
+
 // ── Pearson r ─────────────────────────────────────────────────────────────────
 export function pearsonTest(xs, ys) {
   if (xs.length < 3) return null;
@@ -1930,10 +1932,11 @@ export function aicWeights(aicValues) {
 }
 
 // ── Model Confidence Set ──────────────────────────────────────────
-export function modelConfidenceSet(models, { alpha = 0.1 } = {}) {
+export function modelConfidenceSet(models, { seed = 42, alpha = 0.1 } = {}) {
+  __rng = mulberry32(seed);
   if (!models || !models.length) return null;
   const n = models.length;
-  const mse = models.map((m, i) => ({ model: i + 1, mse: +(m.mse || Math.random()).toFixed(4) }));
+  const mse = models.map((m, i) => ({ model: i + 1, mse: +(m.mse || __rng()).toFixed(4) }));
   const bestMSE = Math.min(...mse.map(m => m.mse));
   mse.forEach(m => { m.inMCS = m.mse <= bestMSE * 1.2; });
   return { test: 'Model Confidence Set', mcs: mse.filter(m => m.inMCS).length, models: mse, n, alpha, apa: `MCS: ${mse.filter(m => m.inMCS).length}/${n} in set` };

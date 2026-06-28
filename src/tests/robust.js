@@ -2,6 +2,8 @@ import { avg, sampleSD, sampleVar } from '../math/core.js';
 import { matInv, jacobiEigen } from '../math/matrix.js';
 import { mulberry32 } from '../math/rng.js';
 
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
+
 // ── Theil-Sen Slope ────────────────────────────────────────────────────────
 export function theilSenSlope(x, y) {
   if (!x || !y || x.length < 10 || x.length !== y.length) return null;
@@ -29,15 +31,16 @@ export function theilSenSlope(x, y) {
 }
 
 // ── MM Estimator ───────────────────────────────────────────────────────────
-export function mmEstimator(x, y) {
+export function mmEstimator(x, y, seed = 42) {
+  __rng = mulberry32(seed);
   if (!x || !y || x.length < 10 || x.length !== y.length) return null;
   const n = x.length;
   // Initial S-estimator via bisquare
   let b0 = 0, b1 = 0;
   let bestMd = Infinity;
   for (let trial = 0; trial < 20; trial++) {
-    const i1 = Math.floor(Math.random() * n);
-    const i2 = Math.floor(Math.random() * n);
+    const i1 = Math.floor(__rng() * n);
+    const i2 = Math.floor(__rng() * n);
     if (i1 === i2 || Math.abs(x[i1] - x[i2]) < 1e-10) continue;
     const s = (y[i1] - y[i2]) / (x[i1] - x[i2]);
     const ic = y[i1] - s * x[i1];
@@ -218,14 +221,15 @@ export function sEstimator(x, y, { bdp = 0.5, maxIter = 20 } = {}) {
 }
 
 // ── LTS Regression ────────────────────────────────────────────────
-export function ltsRegression(x, y, { h = null } = {}) {
+export function ltsRegression(x, y, { seed = 42, h = null } = {}) {
+  __rng = mulberry32(seed);
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
   const hSize = h || Math.floor(n / 2);
   if (hSize < 3 || hSize > n) return null;
   let bestBeta = [0, 0], bestSS = Infinity;
   for (let trial = 0; trial < 20; trial++) {
-    const subset = [...Array(n).keys()].sort(() => Math.random() - 0.5).slice(0, hSize);
+    const subset = [...Array(n).keys()].sort(() => __rng() - 0.5).slice(0, hSize);
     const xs = subset.map(i => x[i]), ys = subset.map(i => y[i]);
     const beta = simpleOLS(xs, ys);
     if (!beta) continue;

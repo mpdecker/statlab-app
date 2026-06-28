@@ -1,12 +1,16 @@
 import { avg } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Autoencoder ───────────────────────────────────────────────────
-export function autoencoder(X, { hiddenSize = 5, epochs = 100, lr = 0.01 } = {}) {
+export function autoencoder(X, { seed = 42, hiddenSize = 5, epochs = 100, lr = 0.01 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || X.length < 5 || !X[0]) return null;
   const n = X.length, d = X[0].length, h = hiddenSize;
-  const W1 = Array.from({length: d}, () => Array.from({length: h}, () => (Math.random() - 0.5) * 0.1));
+  const W1 = Array.from({length: d}, () => Array.from({length: h}, () => (__rng() - 0.5) * 0.1));
   const b1 = Array(h).fill(0);
-  const W2 = Array.from({length: h}, () => Array.from({length: d}, () => (Math.random() - 0.5) * 0.1));
+  const W2 = Array.from({length: h}, () => Array.from({length: d}, () => (__rng() - 0.5) * 0.1));
   const b2 = Array(d).fill(0);
   let loss = 0;
   for (let e = 0; e < epochs; e++) {
@@ -28,24 +32,26 @@ export function autoencoder(X, { hiddenSize = 5, epochs = 100, lr = 0.01 } = {})
 }
 
 // ── Variational Autoencoder ───────────────────────────────────────
-export function variationalAutoencoder(X, { latentSize = 2, epochs = 50, lr = 0.01 } = {}) {
+export function variationalAutoencoder(X, { seed = 42, latentSize = 2, epochs = 50, lr = 0.01 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || X.length < 5 || !X[0]) return null;
   const n = X.length, d = X[0].length;
-  const mu = Array.from({length: n}, () => Array.from({length: latentSize}, () => Math.random() * 0.1));
-  const logVar = Array.from({length: n}, () => Array.from({length: latentSize}, () => -1 + Math.random() * 0.5));
+  const mu = Array.from({length: n}, () => Array.from({length: latentSize}, () => __rng() * 0.1));
+  const logVar = Array.from({length: n}, () => Array.from({length: latentSize}, () => -1 + __rng() * 0.5));
   const kl = mu.reduce((s, mi, i) => s + mi.reduce((si, mj, j) => si + mj * mj + Math.exp(logVar[i][j]) - logVar[i][j] - 1, 0), 0) / (2 * n);
   return { test: 'Variational Autoencoder', klDivergence: +kl.toFixed(4), latentSize, epochs, n, d, apa: `VAE: ${latentSize} latent, KL=${kl.toFixed(2)}` };
 }
 
 // ── GAN (simplified) ──────────────────────────────────────────────
-export function gan(realData, { latentSize = 10, epochs = 30, lr = 0.01 } = {}) {
+export function gan(realData, { seed = 42, latentSize = 10, epochs = 30, lr = 0.01 } = {}) {
+  __rng = mulberry32(seed);
   if (!realData || realData.length < 5 || !realData[0]) return null;
   const n = realData.length, d = realData[0].length;
-  const G = Array.from({length: latentSize}, () => Array.from({length: d}, () => (Math.random() - 0.5) * 0.1));
-  const D = Array.from({length: d}, () => [Math.random() - 0.5]);
+  const G = Array.from({length: latentSize}, () => Array.from({length: d}, () => (__rng() - 0.5) * 0.1));
+  const D = Array.from({length: d}, () => [__rng() - 0.5]);
   let gLoss = 0, dLoss = 0;
   for (let e = 0; e < epochs; e++) {
-    const z = Array.from({length: n}, () => Array.from({length: latentSize}, () => Math.random() * 2 - 1));
+    const z = Array.from({length: n}, () => Array.from({length: latentSize}, () => __rng() * 2 - 1));
     const fake = z.map(zi => Array.from({length: d}, (_, j) => {
       let s = 0; for (let k = 0; k < latentSize; k++) s += zi[k] * G[k][j]; return Math.tanh(s);
     }));

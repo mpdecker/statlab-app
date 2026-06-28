@@ -1,4 +1,7 @@
 import { avg } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Collaborative Filtering (user-based) ──────────────────────────
 export function collaborativeFilter(ratings, { nNeighbors = 5 } = {}) {
@@ -38,11 +41,12 @@ export function collaborativeFilter(ratings, { nNeighbors = 5 } = {}) {
 }
 
 // ── Matrix Factorization (SVD-based) ──────────────────────────────
-export function matrixFactorize(R, k = 3, { steps = 30, lr = 0.01, lambda = 0.1 } = {}) {
+export function matrixFactorize(R, k = 3, { seed = 42, steps = 30, lr = 0.01, lambda = 0.1 } = {}) {
+  __rng = mulberry32(seed);
   if (!R || !R.length || !R[0] || k < 1) return null;
   const m = R.length, n = R[0].length;
-  let U = Array.from({length: m}, () => Array.from({length: k}, () => Math.random()));
-  let V = Array.from({length: n}, () => Array.from({length: k}, () => Math.random()));
+  let U = Array.from({length: m}, () => Array.from({length: k}, () => __rng()));
+  let V = Array.from({length: n}, () => Array.from({length: k}, () => __rng()));
   for (let s = 0; s < steps; s++) {
     for (let i = 0; i < m; i++) {
       for (let j = 0; j < n; j++) {

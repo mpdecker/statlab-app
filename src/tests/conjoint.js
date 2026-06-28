@@ -1,4 +1,7 @@
 import { avg, sampleVar } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Part-Worth Utilities ──────────────────────────────────────────
 export function partWorthUtilities(ratings, profiles, attrs) {
@@ -36,17 +39,18 @@ export function attributeImportance(pwResult) {
 }
 
 // ── Choice Simulation ─────────────────────────────────────────────
-export function choiceSimulation(profiles, attrs, { nRespondents = 50, nChoices = 3 } = {}) {
+export function choiceSimulation(profiles, attrs, { seed = 42, nRespondents = 50, nChoices = 3 } = {}) {
+  __rng = mulberry32(seed);
   if (!profiles || profiles.length < 3 || !attrs || attrs.length < 2) return null;
   const k = profiles.length;
   const shares = Array(k).fill(0);
   for (let r = 0; r < nRespondents; r++) {
-    const utils = profiles.map(() => Math.random() * 10 - 5);
+    const utils = profiles.map(() => __rng() * 10 - 5);
     const maxU = Math.max(...utils);
     const exps = utils.map(u => Math.exp(u - maxU));
     const sumExp = exps.reduce((s, e) => s + e, 0);
     const probs = exps.map(e => e / sumExp);
-    let cum = 0, u = Math.random();
+    let cum = 0, u = __rng();
     for (let j = 0; j < k; j++) { cum += probs[j]; if (u <= cum) { shares[j]++; break; } }
   }
   const marketShares = shares.map((s, i) => ({ profile: i + 1, share: +(100 * s / nRespondents).toFixed(2) }));
