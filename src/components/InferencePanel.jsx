@@ -14,11 +14,9 @@ import {
   logisticReg, ordinalLogisticRegression, poissonRegression, negativeBinomialRegression,
   mediation, moderation,
 } from '../tests/regression.js';
+import { mannWhitney, wilcoxonSR } from '../tests/nonparametric.js';
 import {
   chiSquare, chiGoF, fisherExact, mcnemar, binomialTest, onePropZ, twoPropZ,
-  mannWhitney, wilcoxonSR,
-} from '../tests/nonparametric.js';
-import {
   tost, bayesFactorT, bayesFactorCorr,
   grubbsTest, leveneTest, bartlettTest,
   bonferroni, holm, bh, sensitivityLOO,
