@@ -33,5 +33,5 @@ describe('lFunction', () => {
   it('contract keys', () => expectKeys(lFunction(pts, { nRadii: 5 }), ['test','L','lambda','n','apa']));
   it('null <20', () => expect(lFunction(pts.slice(0,5))).toBeNull());
   it('L array non-empty', () => { const r = lFunction(pts, { nRadii: 5 }); if (r) { expect(Array.isArray(r.L)).toBe(true); expect(r.L.length).toBeGreaterThan(0); } });
-  it('L near 0 for Poisson', () => { const r = lFunction(pts, { nRadii: 5 }); if (r && r.L) { r.L.forEach(v => expect(v.L).toBeGreaterThan(-10)); } });
+  it('L near 0 for Poisson', () => { const r = lFunction(pts, { nRadii: 5 }); if (r && r.L) { r.L.forEach(v => expect(v).toBeGreaterThan(-10)); } });
 });
