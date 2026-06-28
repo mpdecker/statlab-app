@@ -2,6 +2,7 @@ import { avg } from '../math/core.js';
 import { normalCDF, chiPVal } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
 import { mulberry32 } from '../math/rng.js';
+import { mleFit } from '../math/inference.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
@@ -117,25 +118,81 @@ export function iiaTest(data, yVar, xVars, groupVar, altVar) {
   return { test: 'IIA Test', chi2: +chi2.toFixed(4), df: k, p: +p.toFixed(4), n, apa: `IIA (Hausman-McFadden): χ²(${k}) = ${chi2.toFixed(2)}, ${p < 0.05 ? 'IIA violated' : 'IIA holds'}` };
 }
 
+/**
+ * Fit a McFadden conditional logit on choice sets defined by groupVar
+ * (chosen alternative has yVar === 1). Returns { beta, cov, se } or null.
+ */
+function _fitChoiceModel(data, yVar, xVars, groupVar) {
+  if (!groupVar) return null;
+  const groups = [...new Set(data.map(r => r[groupVar]))];
+  const X = data.map(r => xVars.map(c => +r[c]));
+  const y = data.map(r => +r[yVar]);
+  const groupIdx = groups
+    .map(g => data.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []))
+    .filter(idx => idx.length >= 2);
+  if (groupIdx.length < 2) return null;
+  return _estimateCLogit(X, y, groupIdx, xVars.length);
+}
+
 // ── Mixed Logit ───────────────────────────────────────────────────
-export function mixedLogit(data, yVar, xVars, groupVar, { nDraws = 50 } = {}) {
+export function mixedLogit(data, yVar, xVars, groupVar, { nDraws = 50, seed = 42 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar) return null;
-  const n = data.length;
-  const k = xVars.length;
-  const means = xVars.map(() => 0.1);
-  const sds = xVars.map(() => 0.05);
-  return { test: 'Mixed Logit', means: xVars.map((n, j) => ({ name: n, mean: +means[j].toFixed(5), sd: +sds[j].toFixed(5) })), n, nDraws, apa: `Mixed logit: ${nDraws} Halton draws` };
+  const n = data.length, k = xVars.length;
+  // Random-parameter logit by simulated maximum likelihood: each coefficient
+  // β_j ~ N(μ_j, σ_j²), simulated with `nDraws` standard-normal draws shared
+  // across choice sets. Params: [μ_0..μ_{k-1}, log σ_0..log σ_{k-1}].
+  const groups = [...new Set(data.map(r => r[groupVar]))];
+  const X = data.map(r => xVars.map(c => +r[c]));
+  const y = data.map(r => +r[yVar]);
+  const groupIdx = groups
+    .map(g => data.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []))
+    .filter(idx => idx.length >= 2);
+  if (groupIdx.length < 2) return null;
+  // Standard-normal draws (Box-Muller) for each parameter dimension.
+  const draws = Array.from({ length: nDraws }, () => Array.from({ length: k }, () => {
+    let u = 0, v = 0; while (u === 0) u = __rng(); while (v === 0) v = __rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }));
+  const negLogLik = theta => {
+    const mu = theta.slice(0, k), logsd = theta.slice(k);
+    let nll = 0;
+    for (const idx of groupIdx) {
+      let simProb = 0;
+      for (let d = 0; d < nDraws; d++) {
+        const beta = mu.map((m, j) => m + Math.exp(logsd[j]) * draws[d][j]);
+        const sc = idx.map(i => X[i].reduce((s, v, j) => s + v * beta[j], 0));
+        const mx = Math.max(...sc);
+        let den = 0; for (const s of sc) den += Math.exp(s - mx);
+        const chosen = idx.findIndex(i => y[i] === 1);
+        if (chosen >= 0) simProb += Math.exp(sc[chosen] - mx) / den;
+      }
+      nll -= Math.log(Math.max(simProb / nDraws, 1e-300));
+    }
+    return nll;
+  };
+  const fit = mleFit([...Array(k).fill(0), ...Array(k).fill(Math.log(0.5))], negLogLik, { maxIter: 40 });
+  const means = xVars.map((name, j) => {
+    const m = fit.theta[j], se = fit.se[j], z = se > 0 ? m / se : 0;
+    return { name, mean: +m.toFixed(5), sd: +Math.exp(fit.theta[k + j]).toFixed(5), seMean: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
+  return { test: 'Mixed Logit', means, n, nDraws, apa: `Mixed logit (SML): ${nDraws} draws, ${k} random coefficients` };
 }
 
 // ── WTP Space ─────────────────────────────────────────────────────
 export function wtpSpace(data, yVar, xVars, priceVar, groupVar) {
   if (!data || data.length < 15 || !yVar || !priceVar) return null;
   const priceIdx = xVars.indexOf(priceVar);
-  const betas = xVars.map(() => 0.1);
-  const wtp = xVars.filter(v => v !== priceVar).map((name, j) => ({
+  if (priceIdx < 0) return null;
+  const fit = _fitChoiceModel(data, yVar, xVars, groupVar);
+  if (!fit) return null;
+  const betas = fit.beta;
+  const bp = betas[priceIdx];
+  // WTP for an attribute = −β_attr / β_price (preference-space ratio).
+  const wtp = xVars.map((name, j) => j === priceIdx ? null : ({
     attribute: name,
-    wtp: +(betas[j] / Math.max(Math.abs(betas[priceIdx] || 0.1), 0.001)).toFixed(4),
-  }));
+    wtp: +(-betas[j] / (Math.abs(bp) < 1e-8 ? (bp < 0 ? -1e-8 : 1e-8) : bp)).toFixed(4),
+  })).filter(Boolean);
   return { test: 'WTP Space', wtpEstimates: wtp, n: data.length, apa: `WTP: ${wtp.map(w => `${w.attribute}=${w.wtp}`).join(', ')}` };
 }
 
@@ -179,11 +236,16 @@ export function latentClassLogit(data, yVar, xVars, groupVar, { seed = 42, nClas
 export function marginalEffects(data, yVar, xVars, groupVar) {
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar) return null;
   const n = data.length;
-  const betas = xVars.map(() => 0.1);
+  const fit = _fitChoiceModel(data, yVar, xVars, groupVar);
+  if (!fit) return null;
+  const betas = fit.beta;
+  // Average choice probability over the sample, then ME_j = β_j · p̄(1−p̄).
+  const X = data.map(r => xVars.map(c => +r[c]));
+  const pbar = avg(X.map(xi => 1 / (1 + Math.exp(-betas.reduce((s, b, j) => s + b * xi[j], 0)))));
   const me = xVars.map((name, j) => {
-    const prob = 1 / (1 + Math.exp(-betas[j]));
-    const meVal = betas[j] * prob * (1 - prob);
-    return { variable: name, me: +meVal.toFixed(5) };
+    const meVal = betas[j] * pbar * (1 - pbar);
+    const se = fit.se[j] * pbar * (1 - pbar);
+    return { variable: name, me: +meVal.toFixed(5), se: +se.toFixed(5) };
   });
   return { test: 'Marginal Effects (Logit)', effects: me, n, apa: `Marginal effects for logit, n = ${n}` };
 }
@@ -192,8 +254,11 @@ export function marginalEffects(data, yVar, xVars, groupVar) {
 export function elasticities(data, yVar, xVars, groupVar) {
   if (!data || data.length < 15 || !yVar || !xVars) return null;
   const xMeans = xVars.map(v => avg(data.map(r => +r[v])));
-  const betas = xVars.map(() => 0.1);
+  const fit = _fitChoiceModel(data, yVar, xVars, groupVar);
+  if (!fit) return null;
+  const betas = fit.beta;
   const prob = 1 / (1 + Math.exp(-betas.reduce((s, b, j) => s + b * xMeans[j], 0)));
+  // Point elasticity at the means: e_j = (1 − p)·β_j·x̄_j.
   const elast = xVars.map((name, j) => ({ variable: name, elasticity: +((1 - prob) * betas[j] * xMeans[j]).toFixed(5) }));
   return { test: 'Elasticities', elasticities: elast, n: data.length, apa: `Elasticities for ${xVars.length} variables` };
 }
@@ -203,12 +268,25 @@ export function choiceProbability(data, yVar, xVars, groupVar) {
   if (!data || data.length < 15 || !yVar || !xVars) return null;
   const n = data.length;
   const X = data.map(r => xVars.map(c => +r[c]));
-  const betas = xVars.map(() => 0.1);
+  const fit = _fitChoiceModel(data, yVar, xVars, groupVar);
+  if (!fit) return null;
+  const betas = fit.beta;
   const utils = X.map(xi => betas.reduce((s, b, j) => s + b * xi[j], 0));
-  const maxU = Math.max(...utils);
-  const exps = utils.map(u => Math.exp(u - maxU));
-  const sumExp = exps.reduce((s, e) => s + e, 0);
-  const probs = exps.map(e => sumExp > 0 ? +(e / sumExp).toFixed(4) : 0);
+  // Conditional-logit choice probabilities are computed within each choice set.
+  const probs = Array(n).fill(0);
+  if (groupVar) {
+    const groups = [...new Set(data.map(r => r[groupVar]))];
+    for (const g of groups) {
+      const idx = data.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []);
+      const mx = Math.max(...idx.map(i => utils[i]));
+      let den = 0; for (const i of idx) den += Math.exp(utils[i] - mx);
+      for (const i of idx) probs[i] = +(Math.exp(utils[i] - mx) / den).toFixed(4);
+    }
+  } else {
+    const mx = Math.max(...utils);
+    let den = 0; for (const u of utils) den += Math.exp(u - mx);
+    utils.forEach((u, i) => { probs[i] = +(Math.exp(u - mx) / den).toFixed(4); });
+  }
   return { test: 'Choice Probability', probabilities: probs.slice(0, 10), n, apa: `Choice probs: ${probs.slice(0, 3).join(', ')}...` };
 }
 
@@ -218,8 +296,16 @@ export function valueOfTime(data, yVar, xVars, timeVar, costVar, groupVar) {
   const timeIdx = xVars.indexOf(timeVar);
   const costIdx = xVars.indexOf(costVar);
   if (timeIdx < 0 || costIdx < 0) return null;
-  const betas = xVars.map(() => 0.1);
-  const vot = Math.abs(betas[timeIdx] / Math.max(Math.abs(betas[costIdx]), 0.001));
-  const se = vot * 0.15;
-  return { test: 'Value of Time', vot: +vot.toFixed(4), se: +se.toFixed(4), ciLow: +(vot - 1.96 * se).toFixed(4), ciHigh: +(vot + 1.96 * se).toFixed(4), n: data.length, apa: `VoT = ${vot.toFixed(2)} (${(vot - 1.96 * se).toFixed(2)}-${(vot + 1.96 * se).toFixed(2)})` };
+  const fit = _fitChoiceModel(data, yVar, xVars, groupVar);
+  if (!fit) return null;
+  const bt = fit.beta[timeIdx], bc = fit.beta[costIdx];
+  if (Math.abs(bc) < 1e-8) return null;
+  const ratio = bt / bc;
+  const vot = Math.abs(ratio);
+  // Delta method for Var(β_t/β_c): g=[1/β_c, −β_t/β_c²]; Var = gᵀ Σ g.
+  const vtt = fit.cov[timeIdx][timeIdx], vcc = fit.cov[costIdx][costIdx], vtc = fit.cov[timeIdx][costIdx];
+  const gT = 1 / bc, gC = -bt / (bc * bc);
+  const varRatio = gT * gT * vtt + gC * gC * vcc + 2 * gT * gC * vtc;
+  const se = Math.sqrt(Math.max(0, varRatio));
+  return { test: 'Value of Time', vot: +vot.toFixed(4), se: +se.toFixed(4), ciLow: +(ratio - 1.96 * se).toFixed(4), ciHigh: +(ratio + 1.96 * se).toFixed(4), n: data.length, apa: `VoT = ${vot.toFixed(2)} (${(ratio - 1.96 * se).toFixed(2)}–${(ratio + 1.96 * se).toFixed(2)})` };
 }
