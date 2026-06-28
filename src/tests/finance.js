@@ -1,6 +1,9 @@
 import { avg, sampleSD } from '../math/core.js';
 import { normalCDF, normalINV } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── CAPM Beta ──────────────────────────────────────────────────────────────
 export function capmBeta(stockReturns, marketReturns, { riskFree = 0 } = {}) {
@@ -285,11 +288,12 @@ export function binomialTree(spot, strike, time, rate, sigma, steps = 100, type 
 }
 
 // ── Monte Carlo Pricing ───────────────────────────────────────────
-export function monteCarloPricing(spot, strike, time, rate, sigma, nPaths = 10000, type = 'call') {
+export function monteCarloPricing(spot, strike, time, rate, sigma, nPaths = 10000, type = 'call', seed = 42) {
+  __rng = mulberry32(seed);
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || nPaths < 100) return null;
   let sumPayoff = 0;
   for (let i = 0; i < nPaths; i++) {
-    const z = Math.sqrt(-2 * Math.log(Math.max(Math.random(), 0.001))) * Math.cos(2 * Math.PI * Math.random());
+    const z = Math.sqrt(-2 * Math.log(Math.max(__rng(), 0.001))) * Math.cos(2 * Math.PI * __rng());
     const sT = spot * Math.exp((rate - sigma * sigma / 2) * time + sigma * Math.sqrt(time) * z);
     const payoff = type === 'call' ? Math.max(0, sT - strike) : Math.max(0, strike - sT);
     sumPayoff += payoff;
@@ -311,11 +315,12 @@ export function varReduction(payoffs, target) {
 }
 
 // ── Monte Carlo Option Pricing (extended) ─────────────────────────
-export function monteCarloOption(S, K, T, r, sigma, { nSim = 1000, type = 'call' } = {}) {
+export function monteCarloOption(S, K, T, r, sigma, { seed = 42, nSim = 1000, type = 'call' } = {}) {
+  __rng = mulberry32(seed);
   if (!Number.isFinite(S) || S <= 0 || K <= 0 || T <= 0) return null;
   let sumPayoff = 0;
   for (let i = 0; i < nSim; i++) {
-    const z = Math.sqrt(-2 * Math.log(Math.max(Math.random(), 1e-10))) * Math.cos(2 * Math.PI * Math.random());
+    const z = Math.sqrt(-2 * Math.log(Math.max(__rng(), 1e-10))) * Math.cos(2 * Math.PI * __rng());
     const ST = S * Math.exp((r - sigma * sigma / 2) * T + sigma * Math.sqrt(T) * z);
     const payoff = type === 'call' ? Math.max(0, ST - K) : Math.max(0, K - ST);
     sumPayoff += payoff;

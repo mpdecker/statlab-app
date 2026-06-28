@@ -1,21 +1,26 @@
 import { avg } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Word2Vec Skip-Gram (simplified) ───────────────────────────────
-export function word2vecSkipGram(corpus, { vecSize = 10, windowSize = 2, epochs = 10, lr = 0.01 } = {}) {
+export function word2vecSkipGram(corpus, { seed = 42, vecSize = 10, windowSize = 2, epochs = 10, lr = 0.01 } = {}) {
+  __rng = mulberry32(seed);
   if (!corpus || corpus.length < 3) return null;
   const words = corpus.join(' ').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(w => w.length > 1);
   const vocab = [...new Set(words)];
   if (vocab.length < 5) return null;
   const V = vocab.length;
   const word2idx = {}; vocab.forEach((w, i) => { word2idx[w] = i; });
-  const W1 = Array.from({length: V}, () => Array.from({length: vecSize}, () => (Math.random() - 0.5) * 0.1));
-  const W2 = Array.from({length: vecSize}, () => Array.from({length: V}, () => (Math.random() - 0.5) * 0.1));
+  const W1 = Array.from({length: V}, () => Array.from({length: vecSize}, () => (__rng() - 0.5) * 0.1));
+  const W2 = Array.from({length: vecSize}, () => Array.from({length: V}, () => (__rng() - 0.5) * 0.1));
   const embeddings = vocab.map((w, i) => W1[i].map(v => +v.toFixed(4)));
   return { test: 'Word2Vec', embeddings: embeddings.slice(0, 15), vecSize, vocabSize: V, apa: `Word2Vec: ${V} words, ${vecSize}-dim` };
 }
 
 // ── GloVe Embeddings (simplified co-occurrence) ───────────────────
-export function gloveEmbeddings(corpus, { vecSize = 10, windowSize = 3, epochs = 10 } = {}) {
+export function gloveEmbeddings(corpus, { seed = 42, vecSize = 10, windowSize = 3, epochs = 10 } = {}) {
+  __rng = mulberry32(seed);
   if (!corpus || corpus.length < 3) return null;
   const words = corpus.join(' ').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(w => w.length > 1);
   const vocab = [...new Set(words)];
@@ -29,7 +34,7 @@ export function gloveEmbeddings(corpus, { vecSize = 10, windowSize = 3, epochs =
       if (i !== j) cooc[tokens[i]][tokens[j]]++;
     }
   }
-  const embeddings = vocab.map(() => Array.from({length: vecSize}, () => +(Math.random() * 0.1).toFixed(4)));
+  const embeddings = vocab.map(() => Array.from({length: vecSize}, () => +(__rng() * 0.1).toFixed(4)));
   return { test: 'GloVe', embeddings: embeddings.slice(0, 15), vecSize, vocabSize: V, apa: `GloVe: ${V} words, ${vecSize}-dim` };
 }
 

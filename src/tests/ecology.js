@@ -1,4 +1,5 @@
 import { avg, sampleVar } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
 
 // ── Shannon Diversity ─────────────────────────────────────────────
 export function shannonDiversity(counts) {
@@ -31,16 +32,20 @@ export function chao1Richness(counts) {
 }
 
 // ── Species Accumulation ──────────────────────────────────────────
-export function speciesAccumulation(data, { nPerm = 50 } = {}) {
+export function speciesAccumulation(data, { nPerm = 50, seed = 42 } = {}) {
   if (!data || !data.length) return null;
   const n = data.length;
-  const curve = [];
-  for (let i = 0; i < n; i++) {
+  const rand = mulberry32(seed);
+  // Mean cumulative richness over random sample orderings (Mao Tau style).
+  const acc = Array(n).fill(0);
+  for (let p = 0; p < nPerm; p++) {
+    const order = [...data];
+    for (let k = n - 1; k > 0; k--) { const m = Math.floor(rand() * (k + 1)); [order[k], order[m]] = [order[m], order[k]]; }
     const seen = new Set();
-    for (let j = 0; j <= i; j++) seen.add(data[j]);
-    curve.push({ n: i + 1, species: seen.size });
+    for (let i = 0; i < n; i++) { seen.add(order[i]); acc[i] += seen.size; }
   }
-  return { test: 'Species Accumulation', curve, n, apa: `Accumulation: ${curve[curve.length - 1].species} spp in ${n} samples` };
+  const curve = acc.map(v => +(v / nPerm).toFixed(4));
+  return { test: 'Species Accumulation', curve, n, apa: `Accumulation: ${curve[n - 1].toFixed(1)} spp in ${n} samples` };
 }
 
 // ── Rarefaction ───────────────────────────────────────────────────

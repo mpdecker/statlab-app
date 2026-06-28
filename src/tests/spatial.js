@@ -1,6 +1,9 @@
 import { avg, sampleVar } from '../math/core.js';
 import { tPVal, normalCDF } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 function _spatialWeights(points, valueField, { type = 'inverseDistance', threshold = null, k = 5 } = {}) {
   const n = points.length;
@@ -223,7 +226,8 @@ export function idw(points, valueField, predictPoints, { power = 2, nNeighbors =
 }
 
 // ── Ripley's K ──────────────────────────────────────────────────────────────
-export function ripleysK(points, { nRadii = 15, maxRadius = null, nSim = 99 } = {}) {
+export function ripleysK(points, { seed = 42, nRadii = 15, maxRadius = null, nSim = 99 } = {}) {
+  __rng = mulberry32(seed);
   if (!points || points.length < 20) return null;
   const n = points.length;
   const coords = points.map(p => [p.x, p.y]);
@@ -258,8 +262,8 @@ export function ripleysK(points, { nRadii = 15, maxRadius = null, nSim = 99 } = 
     for (const r of radii) { simMax[+r.toFixed(4)] = -Infinity; simMin[+r.toFixed(4)] = Infinity; }
     for (let sim = 0; sim < nSim; sim++) {
       const simPts = Array.from({ length: n }, () => ({
-        x: xMin + Math.random() * (xMax - xMin),
-        y: yMin + Math.random() * (yMax - yMin),
+        x: xMin + __rng() * (xMax - xMin),
+        y: yMin + __rng() * (yMax - yMin),
       }));
       for (const r of radii) {
         let count = 0;

@@ -1,16 +1,20 @@
 import { avg, sampleVar } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Morris Elementary Effects ─────────────────────────────────────
-export function morrisMethod(model, X, { levels = 4, grid = 2 } = {}) {
+export function morrisMethod(model, X, { seed = 42, levels = 4, grid = 2 } = {}) {
+  __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length;
   const effects = Array(p).fill(0).map(() => ({ mu: 0, muStar: 0, sigma: 0 }));
   const deltas = [];
   for (let r = 0; r < grid * (p + 1); r++) {
-    const base = X[Math.floor(Math.random() * n)];
-    const pert = base.map((v, j) => v + (Math.random() - 0.5) * 0.2);
+    const base = X[Math.floor(__rng() * n)];
+    const pert = base.map((v, j) => v + (__rng() - 0.5) * 0.2);
     const dy = Math.abs((model(pert) - model(base)) / 0.2);
-    const j = Math.floor(Math.random() * p);
+    const j = Math.floor(__rng() * p);
     effects[j].mu += dy;
     effects[j].muStar += Math.abs(dy);
     effects[j].sigma += dy * dy;
@@ -21,7 +25,8 @@ export function morrisMethod(model, X, { levels = 4, grid = 2 } = {}) {
 }
 
 // ── FAST Sensitivity ──────────────────────────────────────────────
-export function fastSensitivity(model, X, { M = 4 } = {}) {
+export function fastSensitivity(model, X, { seed = 42, M = 4 } = {}) {
+  __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length;
   const Si = Array(p).fill(0);
@@ -29,14 +34,14 @@ export function fastSensitivity(model, X, { M = 4 } = {}) {
   for (let j = 0; j < p; j++) {
     let num = 0, den = 0;
     for (let i = 0; i < N; i++) {
-      const base = X[Math.floor(Math.random() * n)].slice();
+      const base = X[Math.floor(__rng() * n)].slice();
       const pert = base.slice();
       const kf = (i + 1) / N;
       base[j] += kf * 0.1;
       pert[j] -= kf * 0.1;
       const dy = model(base) - model(pert);
       num += dy * dy;
-      den += model(X[Math.floor(Math.random() * n)]) ** 2;
+      den += model(X[Math.floor(__rng() * n)]) ** 2;
     }
     Si[j] = num / Math.max(den, 1e-10) / N;
   }
@@ -73,7 +78,8 @@ export function forecastCombination(forecasts, actual, { method = 'equal' } = {}
 }
 
 // ── Sobol First Order ─────────────────────────────────────────────
-export function sobolFirstOrder(model, X, { nSamples = 50 } = {}) {
+export function sobolFirstOrder(model, X, { seed = 42, nSamples = 50 } = {}) {
+  __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length;
   const Si = Array(p).fill(0);
@@ -85,9 +91,9 @@ export function sobolFirstOrder(model, X, { nSamples = 50 } = {}) {
     vY /= n;
     let vj = 0;
     for (let s = 0; s < nSamples; s++) {
-      const xi = X[Math.floor(Math.random() * n)];
+      const xi = X[Math.floor(__rng() * n)];
       const xp = [...xi];
-      xp[j] = X[Math.floor(Math.random() * n)][j];
+      xp[j] = X[Math.floor(__rng() * n)][j];
       vj += model(xi) * model(xp);
     }
     vj = vj / nSamples - muY * muY;
@@ -97,7 +103,8 @@ export function sobolFirstOrder(model, X, { nSamples = 50 } = {}) {
 }
 
 // ── Sobol Total Index ─────────────────────────────────────────────
-export function sobolTotalIndex(model, X, { nSamples = 50 } = {}) {
+export function sobolTotalIndex(model, X, { seed = 42, nSamples = 50 } = {}) {
+  __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length;
   const Y = X.map(row => model(row));
@@ -109,7 +116,7 @@ export function sobolTotalIndex(model, X, { nSamples = 50 } = {}) {
     for (let s = 0; s < nSamples; s++) {
       const Xj = X.map(row => {
         const newRow = [...row];
-        const altIdx = Math.floor(Math.random() * n);
+        const altIdx = Math.floor(__rng() * n);
         newRow[j] = X[altIdx][j];
         return newRow;
       });

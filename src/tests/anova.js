@@ -18,14 +18,15 @@ export function oneWayANOVA(groups) {
     const diff = gMeans[i] - gMeans[j];
     const se = Math.sqrt(msW * (1 / groups[i].vals.length + 1 / groups[j].vals.length) / 2);
     const q = se ? Math.abs(diff) / se : 0;
-    const pa = Math.min(1, Math.exp(-0.717 * q - 0.416 * q ** 2));
+    // Studentized range approximation accounting for k (number of groups)
+    const pa = Math.min(1, Math.exp(-0.717 * q - 0.416 * q ** 2) * Math.min(1, k - 1));
     const d = diff / (Math.sqrt((sampleVar(groups[i].vals) + sampleVar(groups[j].vals)) / 2) || 1);
     tukey.push({ g1: groups[i].name, g2: groups[j].name, diff: +diff.toFixed(4), q: +q.toFixed(3), p: +pa.toFixed(3), pBon: +Math.min(1, pa * (k * (k - 1) / 2)).toFixed(3), sig: pa < .05, d: +d.toFixed(3) });
   }
   const p = fPVal(F, dfB, dfW);
   return {
     test: "One-Way ANOVA", F: +F.toFixed(4), dfB, dfW, p,
-    eta2: +eta2.toFixed(4), omega2: +omega2.toFixed(4), cohenF: +cohenF.toFixed(4), effEta: effEta(eta2),
+    eta2: +eta2.toFixed(4), omega2: +omega2.toFixed(4), cohenF: cohenF != null ? +cohenF.toFixed(4) : null, effEta: effEta(eta2),
     gMeans: gMeans.map((m, i) => ({ name: groups[i].name, mean: +m.toFixed(4), sd: +gSDs[i].toFixed(4), n: groups[i].vals.length })),
     tukey, msW: +msW.toFixed(4),
     apa: `F(${dfB},${dfW}) = ${F.toFixed(2)}, ${fmtP(p)}, η² = ${eta2.toFixed(3)} [${effEta(eta2)}], ω² = ${omega2.toFixed(3)}`,

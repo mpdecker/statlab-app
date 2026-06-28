@@ -1,4 +1,7 @@
 import { avg, sampleVar } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 function multinomialResample(particles, weights) {
   const n = particles.length;
@@ -7,7 +10,7 @@ function multinomialResample(particles, weights) {
   const sumW = cumsum[n - 1] || 1;
   const resampled = [];
   for (let i = 0; i < n; i++) {
-    const u = Math.random() * sumW;
+    const u = __rng() * sumW;
     let idx = 0;
     while (idx < n && cumsum[idx] < u) idx++;
     resampled.push(particles[Math.min(idx, n - 1)]);
@@ -16,7 +19,8 @@ function multinomialResample(particles, weights) {
 }
 
 // ── Bootstrap Particle Filter ─────────────────────────────────────
-export function bootstrapFilter(y, initialParticles, { processNoise = 1, obsNoise = 1 } = {}) {
+export function bootstrapFilter(y, initialParticles, { seed = 42, processNoise = 1, obsNoise = 1 } = {}) {
+  __rng = mulberry32(seed);
   if (!y || !initialParticles || !initialParticles.length || y.length < 3) return null;
   const n = y.length, N = initialParticles.length;
   let particles = [...initialParticles];
@@ -24,7 +28,7 @@ export function bootstrapFilter(y, initialParticles, { processNoise = 1, obsNois
   const weights = Array(N).fill(1 / N);
   for (let t = 0; t < n; t++) {
     // Predict
-    particles = particles.map(p => p + processNoise * (Math.random() - 0.5) * 2);
+    particles = particles.map(p => p + processNoise * (__rng() - 0.5) * 2);
     // Update weights
     const w = particles.map(p => Math.exp(-0.5 * (y[t] - p) ** 2 / (obsNoise ** 2)));
     const sumW = w.reduce((s, v) => s + v, 0) || 1;
@@ -37,14 +41,15 @@ export function bootstrapFilter(y, initialParticles, { processNoise = 1, obsNois
 }
 
 // ── Auxiliary Particle Filter ─────────────────────────────────────
-export function auxiliaryPF(y, initialParticles, { processNoise = 1, obsNoise = 1 } = {}) {
+export function auxiliaryPF(y, initialParticles, { seed = 42, processNoise = 1, obsNoise = 1 } = {}) {
+  __rng = mulberry32(seed);
   if (!y || !initialParticles || !initialParticles.length || y.length < 3) return null;
   const n = y.length, N = initialParticles.length;
   let particles = [...initialParticles];
   const filtered = [];
   for (let t = 0; t < n; t++) {
     // Predict
-    particles = particles.map(p => p + processNoise * (Math.random() - 0.5) * 2);
+    particles = particles.map(p => p + processNoise * (__rng() - 0.5) * 2);
     // Auxiliary weights
     const mu = particles.map(p => p);
     const auxW = particles.map((p, i) => Math.exp(-0.5 * (y[t] - mu[i]) ** 2 / (obsNoise ** 2)));
@@ -61,12 +66,13 @@ export function auxiliaryPF(y, initialParticles, { processNoise = 1, obsNoise = 
 }
 
 // ── Importance Sampling ───────────────────────────────────────────
-export function importanceSampling(target, proposal, nSamples = 1000) {
+export function importanceSampling(target, proposal, nSamples = 1000, seed = 42) {
+  __rng = mulberry32(seed);
   if (!target || !proposal || nSamples < 10) return null;
   const samples = [];
   const weights = [];
   for (let i = 0; i < nSamples; i++) {
-    const x = typeof proposal === 'function' ? proposal() : Math.random() * (proposal[1] - proposal[0]) + proposal[0];
+    const x = typeof proposal === 'function' ? proposal() : __rng() * (proposal[1] - proposal[0]) + proposal[0];
     const w = typeof target === 'function' ? target(x) : 1;
     samples.push(x);
     weights.push(w);
@@ -87,7 +93,8 @@ export function effectiveSampleSizeSMC(weights) {
 }
 
 // ── Multinomial Resample (exported) ───────────────────────────────
-export function multinomialResampleExport(particles, weights) {
+export function multinomialResampleExport(particles, weights, seed = 42) {
+  __rng = mulberry32(seed);
   if (!particles || !weights || !particles.length || particles.length !== weights.length) return null;
   const resampled = multinomialResample(particles, weights);
   return { test: 'Multinomial Resample', resampled: resampled.slice(0, 10).map(v => +v.toFixed(4)), n: particles.length, apa: `Resampled ${particles.length} particles` };

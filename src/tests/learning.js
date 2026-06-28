@@ -1,5 +1,8 @@
 import { avg, sampleSD, sampleVar, fmtP } from '../math/core.js';
 import { matInv } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 function weightedOLS(Y, X, weights = null) {
   if (!Y || !X || Y.length < 2) return null;
@@ -635,15 +638,16 @@ export function localOutlierFactor(data, vars, { k = 5 } = {}) {
 }
 
 // ── Isolation Score (simplified isolation forest) ─────────────────
-export function isolationScore(data, vars, { nTrees = 100 } = {}) {
+export function isolationScore(data, vars, { seed = 42, nTrees = 100 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 5 || !vars || !vars.length) return null;
   const n = data.length;
   const scores = Array(n).fill(0);
   for (let t = 0; t < nTrees; t++) {
-    const idx1 = Math.floor(Math.random() * n);
-    const idx2 = Math.floor(Math.random() * n);
+    const idx1 = Math.floor(__rng() * n);
+    const idx2 = Math.floor(__rng() * n);
     if (idx1 === idx2) continue;
-    const v = vars[Math.floor(Math.random() * vars.length)];
+    const v = vars[Math.floor(__rng() * vars.length)];
     const val1 = +data[idx1][v], val2 = +data[idx2][v];
     const thresh = (val1 + val2) / 2;
     data.forEach((r, i) => {
@@ -688,30 +692,30 @@ export function anomalyThreshold(scores, { pct = 95 } = {}) {
 }
 
 // ── Partial Dependence ────────────────────────────────────────────
-export function partialDependence(model, data, vars, var, { grid = 10 } = {}) {
-  if (!model || !data || !data.length || !vars || var == null) return null;
+export function partialDependence(model, data, vars, targetVar, { grid = 10 } = {}) {
+  if (!model || !data || !data.length || !vars || targetVar == null) return null;
   const n = data.length;
-  const xVals = data.map(r => +r[var]);
+  const xVals = data.map(r => +r[targetVar]);
   const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
   const pd = [];
   for (let g = 0; g < grid; g++) {
     const xVal = xMin + g * (xMax - xMin) / (grid - 1);
     let sum = 0;
     for (const row of data) {
-      const rowCopy = { ...row, [var]: xVal };
+      const rowCopy = { ...row, [targetVar]: xVal };
       const xVec = vars.map(v => +rowCopy[v]);
       sum += model(xVec);
     }
     pd.push({ x: +xVal.toFixed(4), y: +(sum / n).toFixed(4) });
   }
-  return { test: 'Partial Dependence', pd, grid, n, apa: `PDP: var=${var}, grid=${grid}` };
+  return { test: 'Partial Dependence', pd, grid, n, apa: `PDP: var=${targetVar}, grid=${grid}` };
 }
 
 // ── Accumulated Local Effects ─────────────────────────────────────
-export function accumulatedLE(model, data, vars, var, { grid = 10 } = {}) {
-  if (!model || !data || !data.length || !vars || var == null) return null;
+export function accumulatedLE(model, data, vars, targetVar, { grid = 10 } = {}) {
+  if (!model || !data || !data.length || !vars || targetVar == null) return null;
   const n = data.length;
-  const xVals = data.map(r => +r[var]);
+  const xVals = data.map(r => +r[targetVar]);
   const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
   const binWidth = (xMax - xMin) / grid;
   const ale = [0];
@@ -719,21 +723,22 @@ export function accumulatedLE(model, data, vars, var, { grid = 10 } = {}) {
   for (let g = 1; g < grid; g++) {
     const lo = xMin + g * binWidth;
     const hi = xMin + (g + 1) * binWidth;
-    const inBin = data.filter(r => +r[var] >= lo && +r[var] < hi);
+    const inBin = data.filter(r => +r[targetVar] >= lo && +r[targetVar] < hi);
     let dif = 0;
     for (const row of inBin) {
-      const loRow = { ...row, [var]: lo };
-      const hiRow = { ...row, [var]: hi };
+      const loRow = { ...row, [targetVar]: lo };
+      const hiRow = { ...row, [targetVar]: hi };
       dif += model(vars.map(v => +hiRow[v])) - model(vars.map(v => +loRow[v]));
     }
     cum += inBin.length > 0 ? dif / inBin.length : 0;
     ale.push(+cum.toFixed(4));
   }
-  return { test: 'Accumulated Local Effects', ale, grid, var, n, apa: `ALE: var=${var}, grid=${grid}` };
+  return { test: 'Accumulated Local Effects', ale, grid, var: targetVar, n, apa: `ALE: var=${targetVar}, grid=${grid}` };
 }
 
 // ── Permutation Importance ────────────────────────────────────────
-export function permutationImportance(model, X, y, { nPerm = 10 } = {}) {
+export function permutationImportance(model, X, y, { seed = 42, nPerm = 10 } = {}) {
+  __rng = mulberry32(seed);
   if (!model || !X || !y || !X.length) return null;
   const n = X.length; const p = X[0]?.length || 0;
   const baseMSE = X.reduce((s, xi, i) => s + (model(xi) - y[i]) ** 2, 0) / n;
@@ -741,7 +746,7 @@ export function permutationImportance(model, X, y, { nPerm = 10 } = {}) {
   for (let j = 0; j < p; j++) {
     let sumMSE = 0;
     for (let r = 0; r < nPerm; r++) {
-      const permX = X.map(xi => { const xp = [...xi]; xp[j] = X[Math.floor(Math.random() * n)][j]; return xp; });
+      const permX = X.map(xi => { const xp = [...xi]; xp[j] = X[Math.floor(__rng() * n)][j]; return xp; });
       sumMSE += permX.reduce((s, xi, i) => s + (model(xi) - y[i]) ** 2, 0) / n;
     }
     importance[j] = +(sumMSE / nPerm - baseMSE).toFixed(4);
@@ -773,16 +778,24 @@ export function shapleyApprox(model, X, baseline, { nSamples = 50 } = {}) {
 
 // ── Feature Interaction ───────────────────────────────────────────
 export function featureInteraction(model, X, i, j) {
-  if (!model || !X || X.length < 5 || !X[0] || i == null || j == null) return null;
+  if (!model || !X || X.length < 3 || !X[0] || i == null || j == null) return null;
   const n = X.length;
-  let h = 0;
+  // Friedman's H statistic: variance of the pure interaction (joint PD minus
+  // the two marginal PDs) relative to the variance of the joint PD.
+  const pdJoint = (a, b) => avg(X.map(r => model(r.map((v, idx) => idx === i ? a : idx === j ? b : v))));
+  const pdI = a => avg(X.map(r => model(r.map((v, idx) => idx === i ? a : v))));
+  const pdJ = b => avg(X.map(r => model(r.map((v, idx) => idx === j ? b : v))));
+  const fij = X.map(r => pdJoint(r[i], r[j]));
+  const fi = X.map(r => pdI(r[i]));
+  const fj = X.map(r => pdJ(r[j]));
+  const center = a => { const m = avg(a); return a.map(v => v - m); };
+  const cij = center(fij), ci = center(fi), cj = center(fj);
+  let num = 0, den = 0;
   for (let k = 0; k < n; k++) {
-    const xi = X[k];
-    const xSwap = [...xi]; xSwap[j] = X[(k + 1) % n][j];
-    const xOrig = xi;
-    const xMod = xi.map((v, idx) => idx === i ? xi[j] : v);
-    h += Math.abs(model(xSwap) - model(xOrig)) * Math.abs(model(xMod) - model(xOrig));
+    num += (cij[k] - ci[k] - cj[k]) ** 2;
+    den += cij[k] ** 2;
   }
-  const interaction = +(h / n).toFixed(4);
-  return { test: 'Feature Interaction', interaction, i, j, n, apa: `F-interaction(${i},${j}) = ${interaction.toFixed(4)}` };
+  const H = den > 1e-12 ? Math.sqrt(Math.max(0, num / den)) : 0;
+  const interaction = { H: +H.toFixed(4) };
+  return { test: 'Feature Interaction', interaction, i, j, n, apa: `Friedman's H(${i},${j}) = ${H.toFixed(4)}` };
 }

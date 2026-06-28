@@ -1,15 +1,19 @@
 import { avg } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Simulated Annealing ───────────────────────────────────────────
-export function simulatedAnnealing(fn, init, { temp = 1000, cooling = 0.99, steps = 200 } = {}) {
+export function simulatedAnnealing(fn, init, { seed = 42, temp = 1000, cooling = 0.99, steps = 200 } = {}) {
+  __rng = mulberry32(seed);
   if (!fn || !init) return null;
   let x = [...init]; let best = [...x]; let fx = fn(x); let bestFx = fx;
   let T = temp; const n = init.length;
   const history = [{ step: 0, value: +fx.toFixed(4), best: +bestFx.toFixed(4) }];
   for (let s = 1; s <= steps; s++) {
-    const candidate = x.map(v => v + (Math.random() - 0.5) * 2);
+    const candidate = x.map(v => v + (__rng() - 0.5) * 2);
     const fc = fn(candidate);
-    if (fc < fx || Math.random() < Math.exp(-(fc - fx) / Math.max(T, 0.001))) { x = candidate; fx = fc; }
+    if (fc < fx || __rng() < Math.exp(-(fc - fx) / Math.max(T, 0.001))) { x = candidate; fx = fc; }
     if (fx < bestFx) { best = [...x]; bestFx = fx; }
     T *= cooling;
     if (s % 50 === 0) history.push({ step: s, value: +fx.toFixed(4), best: +bestFx.toFixed(4) });
@@ -18,7 +22,8 @@ export function simulatedAnnealing(fn, init, { temp = 1000, cooling = 0.99, step
 }
 
 // ── Genetic Algorithm ─────────────────────────────────────────────
-export function geneticAlgorithm(fitness, population, { generations = 50, mutationRate = 0.1 } = {}) {
+export function geneticAlgorithm(fitness, population, { seed = 42, generations = 50, mutationRate = 0.1 } = {}) {
+  __rng = mulberry32(seed);
   if (!fitness || !population || !population.length) return null;
   const n = population.length; const gSize = population[0]?.length || 0;
   let pop = population.map(p => ({ genes: [...p], fitness: fitness(p) }));
@@ -27,10 +32,10 @@ export function geneticAlgorithm(fitness, population, { generations = 50, mutati
     pop.sort((a, b) => a.fitness - b.fitness);
     const newPop = pop.slice(0, Math.floor(n / 2));
     while (newPop.length < n) {
-      const p1 = pop[Math.floor(Math.random() * n / 2)];
-      const p2 = pop[Math.floor(Math.random() * n / 2)];
-      const child = p1.genes.map((g, i) => Math.random() < 0.5 ? g : p2.genes[i]);
-      if (Math.random() < mutationRate) child[Math.floor(Math.random() * gSize)] += (Math.random() - 0.5);
+      const p1 = pop[Math.floor(__rng() * n / 2)];
+      const p2 = pop[Math.floor(__rng() * n / 2)];
+      const child = p1.genes.map((g, i) => __rng() < 0.5 ? g : p2.genes[i]);
+      if (__rng() < mutationRate) child[Math.floor(__rng() * gSize)] += (__rng() - 0.5);
       newPop.push({ genes: child, fitness: fitness(child) });
     }
     pop = newPop;
@@ -41,10 +46,11 @@ export function geneticAlgorithm(fitness, population, { generations = 50, mutati
 }
 
 // ── Particle Swarm ────────────────────────────────────────────────
-export function particleSwarm(fn, bounds, { nParticles = 20, iterations = 50 } = {}) {
+export function particleSwarm(fn, bounds, { seed = 42, nParticles = 20, iterations = 50 } = {}) {
+  __rng = mulberry32(seed);
   if (!fn || !bounds || !bounds.length) return null;
   const d = bounds.length; const n = nParticles;
-  let positions = Array.from({ length: n }, () => bounds.map(([lo, hi]) => lo + Math.random() * (hi - lo)));
+  let positions = Array.from({ length: n }, () => bounds.map(([lo, hi]) => lo + __rng() * (hi - lo)));
   let velocities = Array.from({ length: n }, () => Array(d).fill(0));
   let personalBest = positions.map(p => ({ pos: [...p], val: fn(p) }));
   let globalBest = personalBest.reduce((b, p) => p.val < b.val ? p : b, personalBest[0]);
@@ -52,7 +58,7 @@ export function particleSwarm(fn, bounds, { nParticles = 20, iterations = 50 } =
   for (let iter = 0; iter < iterations; iter++) {
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < d; j++) {
-        velocities[i][j] = w * velocities[i][j] + c1 * Math.random() * (personalBest[i].pos[j] - positions[i][j]) + c2 * Math.random() * (globalBest.pos[j] - positions[i][j]);
+        velocities[i][j] = w * velocities[i][j] + c1 * __rng() * (personalBest[i].pos[j] - positions[i][j]) + c2 * __rng() * (globalBest.pos[j] - positions[i][j]);
         positions[i][j] = Math.max(bounds[j][0], Math.min(bounds[j][1], positions[i][j] + velocities[i][j]));
       }
       const val = fn(positions[i]);
@@ -64,19 +70,20 @@ export function particleSwarm(fn, bounds, { nParticles = 20, iterations = 50 } =
 }
 
 // ── Differential Evolution ────────────────────────────────────────
-export function differentialEvolution(fn, bounds, { popSize = 20, iterations = 50 } = {}) {
+export function differentialEvolution(fn, bounds, { seed = 42, popSize = 20, iterations = 50 } = {}) {
+  __rng = mulberry32(seed);
   if (!fn || !bounds || !bounds.length) return null;
   const d = bounds.length; const n = popSize; const F = 0.8; const CR = 0.9;
-  let pop = Array.from({ length: n }, () => bounds.map(([lo, hi]) => lo + Math.random() * (hi - lo)));
+  let pop = Array.from({ length: n }, () => bounds.map(([lo, hi]) => lo + __rng() * (hi - lo)));
   let best = pop.reduce((b, p) => fn(p) < fn(b) ? p : b, pop[0]);
   for (let iter = 0; iter < iterations; iter++) {
     for (let i = 0; i < n; i++) {
       let a, b2, c;
-      do { a = Math.floor(Math.random() * n); } while (a === i);
-      do { b2 = Math.floor(Math.random() * n); } while (b2 === i || b2 === a);
-      do { c = Math.floor(Math.random() * n); } while (c === i || c === a || c === b2);
+      do { a = Math.floor(__rng() * n); } while (a === i);
+      do { b2 = Math.floor(__rng() * n); } while (b2 === i || b2 === a);
+      do { c = Math.floor(__rng() * n); } while (c === i || c === a || c === b2);
       const trial = pop[a].map((v, j) => {
-        if (Math.random() < CR) return Math.max(bounds[j][0], Math.min(bounds[j][1], pop[a][j] + F * (pop[b2][j] - pop[c][j])));
+        if (__rng() < CR) return Math.max(bounds[j][0], Math.min(bounds[j][1], pop[a][j] + F * (pop[b2][j] - pop[c][j])));
         return pop[i][j];
       });
       if (fn(trial) < fn(pop[i])) pop[i] = trial;
@@ -92,7 +99,7 @@ export function gridSearch(fn, paramGrid) {
   if (!fn || !paramGrid || !paramGrid.length) return null;
   let bestVal = Infinity; let bestParams = null;
   function search(depth, params) {
-    if (depth === paramGrid.length) { const val = fn(params); if (val < bestVal) { bestVal = val; bestParams = [...params.map(p => p.val)]; } return; }
+    if (depth === paramGrid.length) { const val = fn(params.map(p => p.val)); if (val < bestVal) { bestVal = val; bestParams = [...params.map(p => p.val)]; } return; }
     paramGrid[depth].values.forEach(v => { search(depth + 1, [...params, { name: paramGrid[depth].name, val: v }]); });
   }
   search(0, []);

@@ -1,5 +1,8 @@
 import { avg, corr } from '../math/core.js';
 import { jacobiEigen } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── FPCA via B-spline expansion ───────────────────────────────────
 export function fpca(data, timePoints, { nBasis = 5 } = {}) {
@@ -85,14 +88,15 @@ export function functionalClustering(data, nClusters = 2) {
 }
 
 // ── FPCA Expanded (with smoothed eigenfunctions) ──────────────────
-export function fpcaExpanded(data, vars, timeVar, idVar, { nBasis = 10, nComponents = 3 } = {}) {
+export function fpcaExpanded(data, vars, timeVar, idVar, { seed = 42, nBasis = 10, nComponents = 3 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 10 || !vars || vars.length < 2 || !timeVar) return null;
   const ids = [...new Set(data.map(r => r[idVar] || r[timeVar]))];
   const n = ids.length;
   const p = nComponents;
   const times = [...new Set(data.map(r => +r[timeVar]))].sort((a, b) => a - b);
   const T = times.length;
-  const scores = Array.from({ length: n }, () => Array(p).fill(0).map(() => +(Math.random() * 2 - 1).toFixed(4)));
+  const scores = Array.from({ length: n }, () => Array(p).fill(0).map(() => +(__rng() * 2 - 1).toFixed(4)));
   const eigenvalues = Array(p).fill(0).map((_, i) => +(3 / (i + 1)).toFixed(4));
   const propVar = eigenvalues.map(e => e / eigenvalues.reduce((s, v) => s + v, 0));
   return { test: 'FPCA Expanded', eigenvalues, propVar: propVar.map(v => +v.toFixed(4)), nBasis, nSubjects: n, nTimePoints: T, apa: `FPCA: ${p} components, ${n} subjects` };

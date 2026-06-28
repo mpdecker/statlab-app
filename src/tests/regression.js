@@ -1,7 +1,20 @@
 import { avg, sampleSD, sampleVar, corr, rank, effR, effD, fmtP, sig } from '../math/core.js';
-import { tPVal, fPVal, normalCDF, tInv2, chiPVal } from '../math/distributions.js';
+import { tPVal, fPVal, normalCDF, tInv2, chiPVal, lngamma } from '../math/distributions.js';
 import { matTrans, matMul, matInv } from '../math/matrix.js';
+import { mleFit } from '../math/inference.js';
+
+/** Ordinary least squares β = (XᵀX)⁻¹Xᵀy for X given as an n×p row matrix. */
+function ols(X, y, p) {
+  const XtX = Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) =>
+    X.reduce((s, row) => s + row[a] * row[b], 0)));
+  const XtY = Array.from({ length: p }, (_, a) => X.reduce((s, row, i) => s + row[a] * y[i], 0));
+  const inv = matInv(XtX);
+  if (inv) return inv.map(r => r.reduce((s, v, j) => s + v * XtY[j], 0));
+  return XtX.map((r, i) => XtY[i] / (r[i] || 1)); // diagonal fallback
+}
 import { mulberry32, bootstrapIndices } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Pearson r ─────────────────────────────────────────────────────────────────
 export function pearsonTest(xs, ys) {
@@ -1464,44 +1477,31 @@ export function adjacentCategoryLogit(data, yVar, xVars, { maxIter = 50, toleran
   if (cats.length < 3) return null;
   const K = cats.length, n = y.length, p = xVars.length;
   const X = data.map(r => xVars.map(c => +r[c]));
+  const catIdx = y.map(v => cats.indexOf(v));
 
-  let beta = Array(p).fill(0);
-  let alphas = Array(K - 1).fill(0);
-
-  for (let iter = 0; iter < maxIter; iter++) {
-    let g = Array(p + K - 1).fill(0), h = Array.from({ length: p + K - 1 }, () => Array(p + K - 1).fill(0));
+  // Adjacent-category logit: log(π_{j+1}/π_j) = α_j + βᵀx.
+  // ⇒ linear predictor for category j is cumA_j + j·(βᵀx). Params: [α_0..α_{K-2}, β_0..β_{p-1}].
+  const negLogLik = theta => {
+    const alpha = theta.slice(0, K - 1), beta = theta.slice(K - 1);
+    let nll = 0;
     for (let i = 0; i < n; i++) {
+      if (catIdx[i] < 0) continue;
       const xb = beta.reduce((s, bj, j) => s + bj * X[i][j], 0);
-      const cat = cats.indexOf(y[i]);
-      if (cat < 0) continue;
-      // Probabilities for each adjacent pair
-      for (let k = 0; k < K - 1; k++) {
-        if (cat !== k && cat !== k + 1) continue;
-        const eta = alphas[k] + xb;
-        const pi = 1 / (1 + Math.exp(-eta));
-        const ind = cat === k ? 1 : 0;
-        g[k] += (ind - pi);
-        for (let j = 0; j < p; j++) g[K - 1 + j] += (ind - pi) * X[i][j];
-        for (let a = 0; a <= p; a++) {
-          for (let b = 0; b <= p; b++) {
-            const va = a < K - 1 ? (a === k ? 1 : 0) : (a < K - 1 + p ? X[i][a - K + 1] : 0);
-            const vb = b < K - 1 ? (b === k ? 1 : 0) : (b < K - 1 + p ? X[i][b - K + 1] : 0);
-            if (va && vb) h[a][b] -= pi * (1 - pi) * va * vb;
-          }
-        }
-      }
+      let cum = 0; const lp = [0];
+      for (let j = 0; j < K - 1; j++) { cum += alpha[j]; lp.push(cum + (j + 1) * xb); }
+      const mx = Math.max(...lp);
+      let den = 0; for (const v of lp) den += Math.exp(v - mx);
+      nll -= (lp[catIdx[i]] - mx) - Math.log(den);
     }
-    const total = p + K - 1;
-    const inv = matInv(h);
-    if (!inv) break;
-    const step = inv.map(row => row.reduce((s, v, j) => s + v * g[j], 0));
-    let maxDelta = 0;
-    for (let a = 0; a < K - 1; a++) { alphas[a] += step[a]; maxDelta = Math.max(maxDelta, Math.abs(step[a])); }
-    for (let j = 0; j < p; j++) { beta[j] += step[K - 1 + j]; maxDelta = Math.max(maxDelta, Math.abs(step[K - 1 + j])); }
-    if (maxDelta < tolerance) break;
-  }
-
-  const coeffs = xVars.map((name, j) => ({ name, b: +beta[j].toFixed(5), se: 0.1, z: 0, p: 0.5 }));
+    return nll;
+  };
+  const fit = mleFit(Array(K - 1 + p).fill(0), negLogLik, { maxIter });
+  const beta = fit.theta.slice(K - 1), alphas = fit.theta.slice(0, K - 1);
+  const seB = fit.se.slice(K - 1);
+  const coeffs = xVars.map((name, j) => {
+    const b = beta[j], se = seB[j], z = se > 0 ? b / se : 0;
+    return { name, b: +b.toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
   const intercepts = cats.slice(0, -1).map((c, k) => ({ category: `${c}|${cats[k + 1]}`, intercept: +alphas[k].toFixed(5) }));
 
   return {
@@ -1518,33 +1518,33 @@ export function continuationRatioLogit(data, yVar, xVars, { maxIter = 50, tolera
   if (cats.length < 3) return null;
   const K = cats.length, n = y.length, p = xVars.length;
   const X = data.map(r => xVars.map(c => +r[c]));
+  const catIdx = y.map(v => cats.indexOf(v));
 
-  let beta = Array(p).fill(0);
-  let alphas = Array(K - 1).fill(0);
-
-  for (let iter = 0; iter < maxIter; iter++) {
-    let g = Array(p + K - 1).fill(0), h = Array.from({ length: p + K - 1 }, () => Array(p + K - 1).fill(0));
+  // Continuation-ratio logit: logit P(Y=j | Y≥j) = α_j + βᵀx, j = 0..K-2.
+  // P(Y=j) = h_j ∏_{m<j}(1−h_m); P(Y=K−1) = ∏_{m<K−1}(1−h_m).
+  const negLogLik = theta => {
+    const alpha = theta.slice(0, K - 1), beta = theta.slice(K - 1);
+    let nll = 0;
     for (let i = 0; i < n; i++) {
+      const cat = catIdx[i]; if (cat < 0) continue;
       const xb = beta.reduce((s, bj, j) => s + bj * X[i][j], 0);
-      const cat = cats.indexOf(y[i]);
-      if (cat < 0) continue;
-      for (let k = 0; k < K - 1; k++) {
-        if (cat <= k) continue;
-        const eta = alphas[k] + xb;
-        const pi = 1 / (1 + Math.exp(-eta));
-        const ind = cat > k ? 1 : 0;
-        if (cat <= k) break;
-        g[k] += (ind - pi);
-        for (let j = 0; j < p; j++) g[K - 1 + j] += (ind - pi) * X[i][j];
+      let logp = 0;
+      for (let j = 0; j < K - 1; j++) {
+        const h = 1 / (1 + Math.exp(-(alpha[j] + xb)));
+        if (cat === j) { logp += Math.log(Math.max(h, 1e-300)); break; }
+        logp += Math.log(Math.max(1 - h, 1e-300)); // survived past cut j
       }
+      nll -= logp;
     }
-    const step = Array(p + K - 1).fill(0);
-    for (let a = 0; a < K - 1; a++) alphas[a] += g[a] / (n * 0.01);
-    for (let j = 0; j < p; j++) beta[j] += g[K - 1 + j] / (n * 0.01);
-    if (Math.sqrt(g.reduce((s, v) => s + v * v, 0)) < tolerance * n) break;
-  }
-
-  const coeffs = xVars.map((name, j) => ({ name, b: +beta[j].toFixed(5), se: 0, z: 0, p: 0.5 }));
+    return nll;
+  };
+  const fit = mleFit(Array(K - 1 + p).fill(0), negLogLik, { maxIter });
+  const beta = fit.theta.slice(K - 1), alphas = fit.theta.slice(0, K - 1);
+  const seB = fit.se.slice(K - 1);
+  const coeffs = xVars.map((name, j) => {
+    const b = beta[j], se = seB[j], z = se > 0 ? b / se : 0;
+    return { name, b: +b.toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
   const intercepts = cats.slice(0, -1).map((c, k) => ({ category: `>${c}`, intercept: +alphas[k].toFixed(5) }));
 
   return {
@@ -1567,25 +1567,29 @@ export function multinomialLogit(data, yVar, xVars, { refCategory = null, maxIte
   const catToDk = {};
   otherCats.forEach((c, i) => { catToDk[cats.indexOf(c)] = i; });
 
-  let beta = Array.from({ length: K - 1 }, () => Array(p).fill(0));
-
-  for (let iter = 0; iter < maxIter; iter++) {
-    let g = Array.from({ length: K - 1 }, () => Array(p).fill(0));
+  // Baseline-category multinomial logit. Params: β for each non-reference
+  // category, flattened as theta[dk*p + j].
+  const catIdxArr = y.map(v => cats.indexOf(v));
+  const negLogLik = theta => {
+    let nll = 0;
     for (let i = 0; i < n; i++) {
-      const idx = cats.indexOf(y[i]);
-      if (idx < 0 || idx === refIdx) continue;
-      const dk = catToDk[idx];
-      if (dk == null) continue;
-      const scores = cats.map((_, k) => k === refIdx ? 0 : beta[catToDk[k]]?.reduce((s, b, j) => s + b * X[i][j], 0) || 0);
+      const idx = catIdxArr[i];
+      if (idx < 0) continue;
+      const scores = cats.map((_, k) => {
+        if (k === refIdx) return 0;
+        const dk = catToDk[k];
+        let s = 0; for (let j = 0; j < p; j++) s += theta[dk * p + j] * X[i][j];
+        return s;
+      });
       const mx = Math.max(...scores);
-      let sumExp = 0;
-      for (const s of scores) sumExp += Math.exp(s - mx);
-      const probs = scores.map(s => Math.exp(s - mx) / sumExp);
-      const ind = 1;
-      for (let j = 0; j < p; j++) g[dk][j] += (ind - probs[idx]) * X[i][j];
+      let sumExp = 0; for (const s of scores) sumExp += Math.exp(s - mx);
+      nll -= (scores[idx] - mx) - Math.log(sumExp);
     }
-    for (let dk = 0; dk < K - 1; dk++) for (let j = 0; j < p; j++) beta[dk][j] += g[dk][j] / (n * 10);
-  }
+    return nll;
+  };
+  const fit = mleFit(Array((K - 1) * p).fill(0), negLogLik, { maxIter });
+  const beta = Array.from({ length: K - 1 }, (_, dk) => fit.theta.slice(dk * p, dk * p + p));
+  const se = Array.from({ length: K - 1 }, (_, dk) => fit.se.slice(dk * p, dk * p + p));
 
   const names = ['Intercept', ...xVars];
   const catResults = cats.map((c, k) => {
@@ -1594,7 +1598,10 @@ export function multinomialLogit(data, yVar, xVars, { refCategory = null, maxIte
     if (dk == null) return null;
     return {
       category: String(c),
-      coefficients: names.map((name, j) => ({ name, b: +beta[dk][j].toFixed(5), se: 0, z: 0, p: 0.5 })),
+      coefficients: names.map((name, j) => {
+        const b = beta[dk][j], s = se[dk][j], z = s > 0 ? b / s : 0;
+        return { name, b: +b.toFixed(5), se: +s.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+      }),
     };
   }).filter(Boolean);
 
@@ -1615,31 +1622,37 @@ export function stereotypeLogit(data, yVar, xVars, { refCategory = null, maxIter
   const ref = refCategory || cats[0];
   const refIdx = cats.indexOf(ref);
 
-  const alphas = Array(K).fill(0);
   const phi = cats.map((_, k) => k === refIdx ? 0 : k === K - 1 ? 1 : (k - refIdx) / (K - 1));
-  let beta = Array(p).fill(0);
-
-  for (let iter = 0; iter < maxIter; iter++) {
+  const catIdxArr = y.map(v => cats.indexOf(v));
+  // Stereotype logit with fixed ordered scores φ: η_k = α_k + φ_k·(βᵀx).
+  // Params: non-reference α's (K−1) followed by β (p). α_ref ≡ 0.
+  const nonRef = cats.map((_, k) => k).filter(k => k !== refIdx);
+  const negLogLik = theta => {
+    const alphaNon = theta.slice(0, K - 1), beta = theta.slice(K - 1);
+    const alpha = Array(K).fill(0);
+    nonRef.forEach((k, m) => { alpha[k] = alphaNon[m]; });
+    let nll = 0;
     for (let i = 0; i < n; i++) {
-      const idx = cats.indexOf(y[i]);
-      if (idx < 0) continue;
+      const idx = catIdxArr[i]; if (idx < 0) continue;
       const xb = beta.reduce((s, b, j) => s + b * X[i][j], 0);
-      const scores = cats.map((_, k) => k === refIdx ? 0 : alphas[k] + phi[k] * xb);
+      const scores = cats.map((_, k) => k === refIdx ? 0 : alpha[k] + phi[k] * xb);
       const mx = Math.max(...scores);
-      let sumExp = 0;
-      for (const s of scores) sumExp += Math.exp(s - mx);
-      const probs = scores.map(s => Math.exp(s - mx) / sumExp);
-      for (let k = 0; k < K; k++) {
-        if (k === refIdx) continue;
-        const diff = (idx === k ? 1 : 0) - probs[k];
-        alphas[k] += diff * 0.01;
-        for (let j = 0; j < p; j++) beta[j] += phi[k] * diff * X[i][j] * 0.001;
-      }
+      let sumExp = 0; for (const s of scores) sumExp += Math.exp(s - mx);
+      nll -= (scores[idx] - mx) - Math.log(sumExp);
     }
-  }
+    return nll;
+  };
+  const fit = mleFit(Array(K - 1 + p).fill(0), negLogLik, { maxIter });
+  const alphaNon = fit.theta.slice(0, K - 1), beta = fit.theta.slice(K - 1);
+  const seB = fit.se.slice(K - 1);
+  const alphas = Array(K).fill(0);
+  nonRef.forEach((k, m) => { alphas[k] = alphaNon[m]; });
 
   const names = ['Intercept', ...xVars];
-  const coeffs = names.map((name, j) => ({ name, b: +beta[j].toFixed(5), se: 0, z: 0, p: 0.5 }));
+  const coeffs = names.map((name, j) => {
+    const b = beta[j], se = seB[j], z = se > 0 ? b / se : 0;
+    return { name, b: +b.toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
   const scoreList = cats.map((c, k) => ({ category: String(c), phi: +phi[k].toFixed(4), alpha: +alphas[k].toFixed(4) }));
 
   return {
@@ -1749,15 +1762,34 @@ export function betaRegression(data, yVar, xVars) {
   if (!data || data.length < 15 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length;
   const y = data.map(r => { const v = +r[yVar]; return Math.min(0.999, Math.max(0.001, v)); });
-  const X = data.map(r => xVars.map(c => +r[c]));
+  const X = data.map(r => [1, ...xVars.map(c => +r[c])]);
+  const p = xVars.length + 1;
+  // Beta regression MLE: y ~ Beta(μφ, (1−μ)φ), logit(μ) = Xβ, precision φ>0.
+  // Params: [β_0..β_{p-1}, logφ].
+  const negLogLik = theta => {
+    const beta = theta.slice(0, p), phi = Math.exp(theta[p]);
+    let nll = 0;
+    for (let i = 0; i < n; i++) {
+      const eta = beta.reduce((s, b, j) => s + b * X[i][j], 0);
+      const mu = 1 / (1 + Math.exp(-eta));
+      const a = mu * phi, b = (1 - mu) * phi;
+      const yi = y[i];
+      const ll = lngamma(phi) - lngamma(a) - lngamma(b) + (a - 1) * Math.log(yi) + (b - 1) * Math.log(1 - yi);
+      nll -= ll;
+    }
+    return nll;
+  };
+  // Initialise β from OLS on logit(y); logφ from a moment estimate.
   const logitY = y.map(v => Math.log(v / (1 - v)));
-  const Xt = X[0].map((_, j) => X.map(r => r[j]));
-  const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + X[k][j] * r1[k], 0)));
-  const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * logitY[k], 0));
-  const diag = XtX.map((r, i) => r[i] || 1);
-  const beta = XtY.map((v, i) => v / diag[i]);
-  const coeffs = xVars.map((name, j) => ({ name, b: +beta[j].toFixed(5), se: 0, z: 0, p: 0.5 }));
-  return { test: 'Beta Regression', coefficients: coeffs, n, apa: `Beta reg: ${xVars.length} predictors, n = ${n}` };
+  const initBeta = ols(X, logitY, p);
+  const fit = mleFit([...initBeta, Math.log(10)], negLogLik, { maxIter: 60 });
+  const names = ['Intercept', ...xVars];
+  const coeffs = names.map((name, j) => {
+    const b = fit.theta[j], se = fit.se[j], z = se > 0 ? b / se : 0;
+    return { name, b: +b.toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
+  const phi = Math.exp(fit.theta[p]);
+  return { test: 'Beta Regression', coefficients: coeffs, phi: +phi.toFixed(4), n, apa: `Beta reg: ${xVars.length} predictors, φ = ${phi.toFixed(2)}, n = ${n}` };
 }
 
 // ── Zero-Inflated Beta ────────────────────────────────────────────
@@ -1785,16 +1817,37 @@ export function tobitTypeI(data, yVar, xVars, { lower = 0, upper = null } = {}) 
   const n = data.length;
   const X = data.map(r => xVars.map(c => +r[c]));
   const y = data.map(r => +r[yVar]);
-  const Xt = X[0].map((_, j) => X.map(r => r[j]));
-  const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + X[k][j] * r1[k], 0)));
-  const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * y[k], 0));
-  const diag = XtX.map((r, i) => r[i] || 1);
-  const beta = XtY.map((v, i) => v / diag[i]);
-  const resid = y.map((yi, i) => yi - X[i].reduce((s, v, j) => s + v * beta[j], 0));
-  const sigma = Math.sqrt(resid.reduce((s, e) => s + e * e, 0) / (n - 1)) || 1;
+  const p = xVars.length;
+  // OLS start values (biased under censoring but a reasonable initial point).
+  const beta0 = ols(X, y, p);
+  const resid0 = y.map((yi, i) => yi - X[i].reduce((s, v, j) => s + v * beta0[j], 0));
+  const sigma0 = Math.sqrt(resid0.reduce((s, e) => s + e * e, 0) / Math.max(1, n - p)) || 1;
+  const logPdf = z => -0.5 * Math.log(2 * Math.PI) - 0.5 * z * z;
+  // Tobit Type I MLE. Params: [β_0..β_{p-1}, logσ].
+  const negLogLik = theta => {
+    const beta = theta.slice(0, p), sigma = Math.exp(theta[p]);
+    let nll = 0;
+    for (let i = 0; i < n; i++) {
+      const xb = X[i].reduce((s, v, j) => s + v * beta[j], 0);
+      if (y[i] <= lower) {
+        nll -= Math.log(Math.max(normalCDF((lower - xb) / sigma), 1e-300));
+      } else if (upper != null && y[i] >= upper) {
+        nll -= Math.log(Math.max(normalCDF((xb - upper) / sigma), 1e-300));
+      } else {
+        nll -= logPdf((y[i] - xb) / sigma) - Math.log(sigma);
+      }
+    }
+    return nll;
+  };
+  const fit = mleFit([...beta0, Math.log(sigma0)], negLogLik, { maxIter: 60 });
+  const beta = fit.theta.slice(0, p), sigma = Math.exp(fit.theta[p]);
+  const coeffs = xVars.map((name, j) => {
+    const b = beta[j], se = fit.se[j], z = se > 0 ? b / se : 0;
+    return { name, b: +b.toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
   const cLeft = y.filter(v => v <= lower).length;
   const cRight = upper ? y.filter(v => v >= upper).length : 0;
-  return { test: 'Tobit Type I', coefficients: xVars.map((n, j) => ({ name: n, b: +beta[j].toFixed(5), se: 0, z: 0, p: 0.5 })), sigma: +sigma.toFixed(4), n, nCensored: cLeft + cRight, apa: `Tobit I: ${cLeft + cRight} censored, n = ${n}` };
+  return { test: 'Tobit Type I', coefficients: coeffs, sigma: +sigma.toFixed(4), n, nCensored: cLeft + cRight, apa: `Tobit I: ${cLeft + cRight} censored, n = ${n}` };
 }
 
 // ── Heckman Two-Step ──────────────────────────────────────────────
@@ -1879,10 +1932,11 @@ export function aicWeights(aicValues) {
 }
 
 // ── Model Confidence Set ──────────────────────────────────────────
-export function modelConfidenceSet(models, { alpha = 0.1 } = {}) {
+export function modelConfidenceSet(models, { seed = 42, alpha = 0.1 } = {}) {
+  __rng = mulberry32(seed);
   if (!models || !models.length) return null;
   const n = models.length;
-  const mse = models.map((m, i) => ({ model: i + 1, mse: +(m.mse || Math.random()).toFixed(4) }));
+  const mse = models.map((m, i) => ({ model: i + 1, mse: +(m.mse || __rng()).toFixed(4) }));
   const bestMSE = Math.min(...mse.map(m => m.mse));
   mse.forEach(m => { m.inMCS = m.mse <= bestMSE * 1.2; });
   return { test: 'Model Confidence Set', mcs: mse.filter(m => m.inMCS).length, models: mse, n, alpha, apa: `MCS: ${mse.filter(m => m.inMCS).length}/${n} in set` };

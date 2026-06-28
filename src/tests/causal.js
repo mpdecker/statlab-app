@@ -4,6 +4,8 @@ import { matMul, matInv } from '../math/matrix.js';
 import { logisticReg } from './regression.js';
 import { mulberry32 } from '../math/rng.js';
 
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
+
 function sigmoid(z) {
   const c = Math.max(-20, Math.min(20, z));
   return 1 / (1 + Math.exp(-c));
@@ -537,7 +539,8 @@ export function fuzzyRDD(data, runningVar, treatVar, outcomeVar, cutoff, bandwid
 }
 
 // ── G-Computation ──────────────────────────────────────────────────────────
-export function gComputation(data, treatVar, outcomeVar, covariates) {
+export function gComputation(data, treatVar, outcomeVar, covariates, seed = 42) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 30 || !treatVar || !outcomeVar || !covariates.length) return null;
   const rows = data.filter(r =>
     r[treatVar] != null && Number.isFinite(+r[outcomeVar]) &&
@@ -576,7 +579,7 @@ export function gComputation(data, treatVar, outcomeVar, covariates) {
   // Bootstrap SE (B = 50 for speed)
   let bootAte = 0, bootSsq = 0;
   for (let b = 0; b < 50; b++) {
-    const sIdx = Array.from({ length: n }, () => Math.floor(Math.random() * n));
+    const sIdx = Array.from({ length: n }, () => Math.floor(__rng() * n));
     const sX = sIdx.map(i => Xall[i]);
     const sy = sIdx.map(i => y[i]);
     const sXt = sX[0].map((_, j) => sX.map(row => row[j]));
@@ -598,7 +601,7 @@ export function gComputation(data, treatVar, outcomeVar, covariates) {
   }
   bootAte /= 50;
   for (let b = 0; b < 50; b++) {
-    const sIdx = Array.from({ length: n }, () => Math.floor(Math.random() * n));
+    const sIdx = Array.from({ length: n }, () => Math.floor(__rng() * n));
     // Recompute quickly...
   }
   // Use simple analytic approximation

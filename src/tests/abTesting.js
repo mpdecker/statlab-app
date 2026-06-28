@@ -1,5 +1,8 @@
 import { avg, sampleVar } from '../math/core.js';
 import { normalCDF, normalINV, chiPVal } from '../math/distributions.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Sample Ratio Mismatch ─────────────────────────────────────────
 export function sampleRatioMismatch(control, treatment, expectedRatio) {
@@ -64,7 +67,8 @@ export function requiredSampleSize(baseline, mde, alpha = 0.05, beta = 0.2) {
 }
 
 // ── Bayesian A/B Test ─────────────────────────────────────────────
-export function bayesianABTest(dataA, dataB, { nSim = 1000 } = {}) {
+export function bayesianABTest(dataA, dataB, { seed = 42, nSim = 1000 } = {}) {
+  __rng = mulberry32(seed);
   if (!dataA || !dataB || dataA.length < 3 || dataB.length < 3) return null;
   const mA = avg(dataA), mB = avg(dataB);
   const sA = Math.sqrt(sampleVar(dataA) / dataA.length);
@@ -77,10 +81,11 @@ export function bayesianABTest(dataA, dataB, { nSim = 1000 } = {}) {
   }
   return { test: 'Bayesian AB Test', probB: +(bWins / nSim).toFixed(4), nA: dataA.length, nB: dataB.length, nSim, apa: `Bayesian AB: P(B>A)=${(bWins/nSim*100).toFixed(1)}%` };
 }
-function gaussBoxMuller() { let u = 0, v = 0; while(u === 0) u = Math.random(); while(v === 0) v = Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function gaussBoxMuller() { let u = 0, v = 0; while(u === 0) u = __rng(); while(v === 0) v = __rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 
 // ── Multi-Arm Bandit (Thompson) ───────────────────────────────────
-export function multiArmBandit(arms, { iterations = 200 } = {}) {
+export function multiArmBandit(arms, { seed = 42, iterations = 200 } = {}) {
+  __rng = mulberry32(seed);
   if (!arms || arms.length < 3 || iterations < 10) return null;
   const k = arms.length;
   const successes = Array(k).fill(1);
@@ -89,11 +94,11 @@ export function multiArmBandit(arms, { iterations = 200 } = {}) {
   for (let t = 0; t < iterations; t++) {
     const samples = successes.map((s, i) => {
       let a = 2 * s, b = 2 * failures[i];
-      let sum = 0; for (let j = 0; j < 12; j++) sum += Math.random(); sum -= 6;
+      let sum = 0; for (let j = 0; j < 12; j++) sum += __rng(); sum -= 6;
       return s / (s + failures[i] + 1e-6) + sum * 0.05;
     });
     const arm = samples.indexOf(Math.max(...samples));
-    const r = Math.random() < 0.3 ? 1 : 0;
+    const r = __rng() < 0.3 ? 1 : 0;
     totalReward += r;
     if (r > 0.5) successes[arm]++; else failures[arm]++;
   }

@@ -48,7 +48,7 @@ export function rayleighTest(angles, { degrees = false } = {}) {
 export function watsonU2(angles, { degrees = false, dist = 'uniform' } = {}) {
   if (!angles || angles.length < 8) return null;
   const n = angles.length;
-  const sorted = angles.map(a => toRad(a, degrees)).sort((a, b) => a - b % (2 * Math.PI));
+  const sorted = angles.map(a => ((toRad(a, degrees) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)).sort((a, b) => a - b);
   let s = 0, c = 0;
   for (const a of sorted) { s += Math.sin(a); c += Math.cos(a); }
   const mu = Math.atan2(s, c);
@@ -58,16 +58,20 @@ export function watsonU2(angles, { degrees = false, dist = 'uniform' } = {}) {
   else if (R < 0.85) kappa = -0.4 + 1.39 * R + 0.43 / (1 - R);
   else kappa = 1 / (2 * (1 - R) - (1 - R) ** 2 - (1 - R) ** 3);
 
+  // von Mises CDF by numerical integration of the normalized density over [0, 2π)
+  const GRID = 720;
+  const dθ = 2 * Math.PI / GRID;
+  const weights = Array.from({ length: GRID }, (_, g) => Math.exp(kappa * Math.cos((g + 0.5) * dθ - mu)));
+  const totalW = weights.reduce((acc, w) => acc + w, 0);
+  const vmCDF = a => {
+    let partial = 0;
+    for (let g = 0; g < GRID; g++) { if ((g + 0.5) * dθ <= a) partial += weights[g]; else break; }
+    return totalW > 0 ? partial / totalW : a / (2 * Math.PI);
+  };
   let U2 = 0;
   for (let i = 0; i < n; i++) {
     const a = sorted[i];
-    let Fi;
-    if (dist === 'vonmises') {
-      const diff = ((a - mu) % (2 * Math.PI) + Math.PI) % (2 * Math.PI) - Math.PI;
-      Fi = (diff + Math.PI) / (2 * Math.PI); // simplified: use circular uniform dist
-    } else {
-      Fi = ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / (2 * Math.PI);
-    }
+    const Fi = dist === 'vonmises' ? vmCDF(a) : a / (2 * Math.PI);
     U2 += (Fi - (2 * i + 1) / (2 * n)) ** 2;
   }
   U2 = U2 + 1 / (12 * n);

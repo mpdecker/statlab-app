@@ -1,5 +1,8 @@
 import { avg } from '../math/core.js';
 import { jacobiEigen } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 /** Build symmetric adjacency from edge list or correlation threshold */
 export function adjacencyFromEdges(nodes, edges, undirected = true) {
@@ -374,7 +377,8 @@ export function graphMetrics(A) {
 }
 
 // ── Louvain Communities ──────────────────────────────────────────────────────
-export function louvainCommunities(A) {
+export function louvainCommunities(A, seed = 42) {
+  __rng = mulberry32(seed);
   if (!A || !A.length || A.length < 2) return null;
   const n = A.length;
   const m2 = A.reduce((s, row, i) => s + row.reduce((a, v, j) => a + (i !== j ? v : 0), 0), 0);
@@ -391,7 +395,7 @@ export function louvainCommunities(A) {
       improved = false;
       // Shuffle node order
       const order = Array.from({ length: n }, (_, i) => i);
-      for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+      for (let i = n - 1; i > 0; i--) { const j = Math.floor(__rng() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
 
       for (const i of order) {
         const curr = communities[i];
@@ -550,11 +554,12 @@ export function networkDiffusion(A, seeds, { steps = 10, alpha = 0.85 } = {}) {
 }
 
 // ── SIR Model ─────────────────────────────────────────────────────
-export function SIRModel(A, { beta = 0.3, gamma = 0.1, steps = 20, initialInfected = null } = {}) {
+export function SIRModel(A, { seed = 42, beta = 0.3, gamma = 0.1, steps = 20, initialInfected = null } = {}) {
+  __rng = mulberry32(seed);
   if (!A || !A.length) return null;
   const n = A.length;
   let S = Array(n).fill(1), I = Array(n).fill(0), R = Array(n).fill(0);
-  const init = initialInfected || [Math.floor(Math.random() * n)];
+  const init = initialInfected || [Math.floor(__rng() * n)];
   init.forEach(i => { if (i < n) { S[i] = 0; I[i] = 1; } });
   const curve = [{ step: 0, S: n - init.length, I: init.length, R: 0 }];
   for (let t = 1; t <= steps; t++) {
@@ -564,12 +569,12 @@ export function SIRModel(A, { beta = 0.3, gamma = 0.1, steps = 20, initialInfect
       if (S[i] > 0) {
         let infected = false;
         for (let j = 0; j < n; j++) {
-          if (A[i][j] && I[j] > 0 && Math.random() < beta) { infected = true; break; }
+          if (A[i][j] && I[j] > 0 && __rng() < beta) { infected = true; break; }
         }
         if (infected) { S[i] = 0; newI[i] = 1; iCount++; rCount += (R[i] > 0 ? 1 : 0); }
         else { S[i] = 1; sCount++; }
       } else if (I[i] > 0 || newI[i] > 0) {
-        if (Math.random() < gamma) { I[i] = 0; R[i] = 1; rCount++; }
+        if (__rng() < gamma) { I[i] = 0; R[i] = 1; rCount++; }
         else { I[i] = 1; iCount++; }
       } else { R[i] = 1; rCount++; }
     }
@@ -580,14 +585,15 @@ export function SIRModel(A, { beta = 0.3, gamma = 0.1, steps = 20, initialInfect
 }
 
 // ── QAP Test ──────────────────────────────────────────────────────
-export function qapTest(A, B, { permutations = 199 } = {}) {
+export function qapTest(A, B, { seed = 42, permutations = 199 } = {}) {
+  __rng = mulberry32(seed);
   if (!A || !B || A.length < 3 || A.length !== B.length) return null;
   const n = A.length;
   let obs = 0;
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) obs += A[i][j] * B[i][j];
   let count = 0;
   for (let p = 0; p < permutations; p++) {
-    const permB = [...B].sort(() => Math.random() - 0.5);
+    const permB = [...B].sort(() => __rng() - 0.5);
     let permStat = 0;
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) permStat += A[i][j] * permB[i][j];
     if (permStat >= obs) count++;
@@ -596,7 +602,8 @@ export function qapTest(A, B, { permutations = 199 } = {}) {
 }
 
 // ── CUG Test ──────────────────────────────────────────────────────
-export function cugTest(A, statFn, { permutations = 199 } = {}) {
+export function cugTest(A, statFn, { seed = 42, permutations = 199 } = {}) {
+  __rng = mulberry32(seed);
   if (!A || !A.length || !statFn) return null;
   const n = A.length;
   const obs = statFn(A);
@@ -605,8 +612,8 @@ export function cugTest(A, statFn, { permutations = 199 } = {}) {
   for (let p = 0; p < permutations; p++) {
     const randomA = Array.from({ length: n }, () => Array(n).fill(0));
     for (let e = 0; e < edges; e++) {
-      const i = Math.floor(Math.random() * n);
-      const j = Math.floor(Math.random() * n);
+      const i = Math.floor(__rng() * n);
+      const j = Math.floor(__rng() * n);
       if (i !== j) randomA[i][j] = randomA[j][i] = 1;
     }
     if (statFn(randomA) >= obs) count++;

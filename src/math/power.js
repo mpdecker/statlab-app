@@ -105,7 +105,7 @@ export function powerMediation(aHat, bHat, seA, seB, B = 2000, alpha = .05, seed
   if (!Number.isFinite(aHat) || !Number.isFinite(bHat)) return null;
   if (!(seA > 0) || !(seB > 0) || B < 100) return null;
   const rand = mulberry32(seed ?? 42);
-  const zCrit = Math.min(40, binaryInvNormalCDF(1 - alpha / 2));
+  const zCrit = Math.min(40, normalINV(1 - alpha / 2));
   /** Product normal approx Sobel denominator */
   const sobelSe = Math.sqrt(bHat ** 2 * seA ** 2 + aHat ** 2 * seB ** 2) || Math.sqrt(seA ** 2 * seB ** 2);
   const zObs = (aHat * bHat) / sobelSe;
@@ -229,11 +229,14 @@ export function powerRMANOVA(k, n, epsilon, f, alpha = .05) {
   const df2 = (k - 1) * (n - 1) * epsilon;
   const ncp = n * k * f * f;
   const crit = fCritUpper(alpha, Math.max(1, Math.round(df1)), Math.max(1, Math.round(df2)));
+  const vn = Math.sqrt(Math.max(1e-9, df1 + 2 * ncp));
+  const mn = df1 + ncp;
+  const hiX = Math.max(crit + 20, mn + 10 * vn);
   let power = 0;
-  for (let x = crit; x < crit + 20; x += 0.2) {
-    power += Math.exp(-0.5 * (x - ncp) ** 2 / (2 * (df1 + 2 * ncp))) * 0.2;
+  for (let x = crit; x < hiX; x += 0.2) {
+    power += Math.exp(-0.5 * (x - mn) ** 2 / (vn * vn)) * 0.2;
   }
-  power = Math.min(0.9999, Math.max(0, power / Math.sqrt(2 * Math.PI * (df1 + 2 * ncp))));
+  power = Math.min(0.9999, Math.max(0, power / (Math.sqrt(2 * Math.PI) * vn)));
   return { power: +power.toFixed(4), k, n, epsilon, f, alpha, apa: `Power = ${power.toFixed(3)} (RM ANOVA, k = ${k}, n = ${n}, f = ${f})` };
 }
 

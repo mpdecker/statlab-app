@@ -1,13 +1,17 @@
 import { avg, sampleSD } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Laplace Mechanism (Differential Privacy) ───────────────────────────────
-export function laplaceMechanism(data, epsilon = 1, { sensitivity = null } = {}) {
+export function laplaceMechanism(data, epsilon = 1, { seed = 42, sensitivity = null } = {}) {
+  __rng = mulberry32(seed);
   if (!data || !data.length) return null;
   const n = data.length;
   const delta = sensitivity || (Math.max(...data) - Math.min(...data)) / n;
   const scale = delta / Math.max(epsilon, 0.01);
   const noisy = data.map((v, i) => {
-    const u = Math.random() - 0.5;
+    const u = __rng() - 0.5;
     const lap = -scale * Math.sign(u) * Math.log(1 - 2 * Math.abs(u));
     return +(v + lap).toFixed(6);
   });
@@ -53,18 +57,19 @@ export function differentialPrivacy(queries, epsilon, delta = 0) {
 }
 
 // ── Data Masking ───────────────────────────────────────────────────────────
-export function dataMasking(data, column, { method = 'swap', pct = 10 } = {}) {
+export function dataMasking(data, column, { seed = 42, method = 'swap', pct = 10 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || !data.length || !column) return null;
   const n = data.length;
   const masked = data.map(r => ({ ...r }));
   const nMask = Math.max(1, Math.floor(n * pct / 100));
   if (method === 'swap') {
-    const indices = Array.from({ length: n }, (_, i) => i).sort(() => Math.random() - 0.5).slice(0, nMask * 2);
+    const indices = Array.from({ length: n }, (_, i) => i).sort(() => __rng() - 0.5).slice(0, nMask * 2);
     for (let i = 0; i < indices.length - 1; i += 2) {
       [masked[indices[i]][column], masked[indices[i + 1]][column]] = [masked[indices[i + 1]][column], masked[indices[i]][column]];
     }
   } else if (method === 'suppress') {
-    const indices = Array.from({ length: n }, (_, i) => i).sort(() => Math.random() - 0.5).slice(0, nMask);
+    const indices = Array.from({ length: n }, (_, i) => i).sort(() => __rng() - 0.5).slice(0, nMask);
     indices.forEach(i => { masked[i][column] = null; });
   }
   return { test: 'Data Masking', nMasked: nMask, method, column, pct, n, apa: `${method}: ${nMask} masked (${pct}%)` };

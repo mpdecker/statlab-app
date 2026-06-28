@@ -1,8 +1,12 @@
 import { avg } from '../math/core.js';
 import { normalCDF } from '../math/distributions.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Epsilon-Greedy ──────────────────────────────────────────────────────────
-export function epsilonGreedy(arms, rewards, nIterations = 100, { epsilon = 0.1 } = {}) {
+export function epsilonGreedy(arms, rewards, nIterations = 100, { seed = 42, epsilon = 0.1 } = {}) {
+  __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || !rewards || nIterations < 10) return null;
   const k = arms.length;
   const counts = Array(k).fill(0);
@@ -21,8 +25,8 @@ export function epsilonGreedy(arms, rewards, nIterations = 100, { epsilon = 0.1 
 
   for (let t = k; t < nIterations; t++) {
     let arm;
-    if (Math.random() < epsilon) {
-      arm = Math.floor(Math.random() * k);
+    if (__rng() < epsilon) {
+      arm = Math.floor(__rng() * k);
     } else {
       arm = values.indexOf(Math.max(...values));
     }
@@ -69,7 +73,8 @@ export function ucb(arms, rewards, nIterations = 100) {
 }
 
 // ── Thompson Sampling ───────────────────────────────────────────────────────
-export function thompsonSampling(arms, rewards, nIterations = 100, { prior = 'beta' } = {}) {
+export function thompsonSampling(arms, rewards, nIterations = 100, { seed = 42, prior = 'beta' } = {}) {
+  __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || !rewards || nIterations < 10) return null;
   const k = arms.length;
   const successes = Array(k).fill(1); // Beta(1,1) prior
@@ -80,8 +85,8 @@ export function thompsonSampling(arms, rewards, nIterations = 100, { prior = 'be
   for (let t = 0; t < nIterations; t++) {
     const samples = successes.map((s, i) => {
       let a = 2 * s;
-      const u = Math.random();
-      return s / (s + failures[i] + 1e-6) + (Math.random() - 0.5) * 0.2;
+      const u = __rng();
+      return s / (s + failures[i] + 1e-6) + (__rng() - 0.5) * 0.2;
     });
     const arm = samples.indexOf(Math.max(...samples));
     const r = typeof rewards[arm] === 'function' ? rewards[arm]() : rewards[arm];
@@ -97,7 +102,8 @@ export function thompsonSampling(arms, rewards, nIterations = 100, { prior = 'be
 }
 
 // ── Contextual Bandit (LinUCB) ──────────────────────────────────────────────
-export function contextualBandit(arms, nContext = 2, nIterations = 100, { alpha = 1 } = {}) {
+export function contextualBandit(arms, nContext = 2, nIterations = 100, { seed = 42, alpha = 1 } = {}) {
+  __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || nContext < 1 || nIterations < 10) return null;
   const k = arms.length;
   const d = nContext;
@@ -109,7 +115,7 @@ export function contextualBandit(arms, nContext = 2, nIterations = 100, { alpha 
   let totalReward = 0;
 
   for (let t = 0; t < nIterations; t++) {
-    const context = Array.from({ length: d }, () => Math.random() * 2 - 1);
+    const context = Array.from({ length: d }, () => __rng() * 2 - 1);
     const scores = A.map((Aa, a) => {
       const theta = Aa.map((row, i) => row.reduce((s, Aij, j) => s + (A[a][i][j] || 0) * b[a][j], 0));
       const atx = Aa.reduce((s, row, i) => {
@@ -119,7 +125,7 @@ export function contextualBandit(arms, nContext = 2, nIterations = 100, { alpha 
       return theta.reduce((s, ti, i) => s + ti * context[i], 0) + alpha * Math.sqrt(atx);
     });
     const arm = scores.indexOf(Math.max(...scores));
-    const r = Math.random() < 0.3 ? 1 : 0;
+    const r = __rng() < 0.3 ? 1 : 0;
     totalReward += r;
 
     // Update A and b for the chosen arm
@@ -135,7 +141,8 @@ export function contextualBandit(arms, nContext = 2, nIterations = 100, { alpha 
 }
 
 // ── Policy Gradient (REINFORCE) ─────────────────────────────────────────────
-export function policyGradient(arms, rewards, nEpisodes = 100, { lr = 0.01 } = {}) {
+export function policyGradient(arms, rewards, nEpisodes = 100, { seed = 42, lr = 0.01 } = {}) {
+  __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || !rewards || nEpisodes < 10) return null;
   const k = arms.length;
   const logits = Array(k).fill(0);
@@ -148,7 +155,7 @@ export function policyGradient(arms, rewards, nEpisodes = 100, { lr = 0.01 } = {
     const probs = exps.map(x => x / sumExp);
 
     // Sample arm
-    const u = Math.random();
+    const u = __rng();
     let cum = 0, arm = 0;
     for (let i = 0; i < k; i++) { cum += probs[i]; if (u <= cum) { arm = i; break; } }
 
@@ -178,7 +185,8 @@ export function policyGradient(arms, rewards, nEpisodes = 100, { lr = 0.01 } = {
 }
 
 // ── Softmax Bandit ──────────────────────────────────────────────────────────
-export function softmaxBandit(arms, rewards, nIterations = 100, { tau = 1, cooling = 0.99 } = {}) {
+export function softmaxBandit(arms, rewards, nIterations = 100, { seed = 42, tau = 1, cooling = 0.99 } = {}) {
+  __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || !rewards || nIterations < 10) return null;
   const k = arms.length;
   const counts = Array(k).fill(0);
@@ -200,7 +208,7 @@ export function softmaxBandit(arms, rewards, nIterations = 100, { tau = 1, cooli
     const exps = values.map(v => Math.exp((v - maxV) / T));
     const sumExp = exps.reduce((s, x) => s + x, 0);
     const probs = exps.map(x => x / Math.max(sumExp, 1e-10));
-    const u = Math.random();
+    const u = __rng();
     let cum = 0, arm = 0;
     for (let i = 0; i < k; i++) { cum += probs[i]; if (u <= cum) { arm = i; break; } }
     const r = pull(arm);
@@ -215,7 +223,8 @@ export function softmaxBandit(arms, rewards, nIterations = 100, { tau = 1, cooli
 }
 
 // ── Q-Learning ────────────────────────────────────────────────────
-export function qLearning(nStates, nActions, rewards, transitions, { episodes = 50, lr = 0.1, gamma = 0.9, epsilon = 0.1 } = {}) {
+export function qLearning(nStates, nActions, rewards, transitions, { seed = 42, episodes = 50, lr = 0.1, gamma = 0.9, epsilon = 0.1 } = {}) {
+  __rng = mulberry32(seed);
   if (!nStates || !nActions || nStates < 2 || nActions < 2 || episodes < 5) return null;
   const Q = Array.from({length: nStates}, () => Array(nActions).fill(0));
   const totalReward = 0;
@@ -224,10 +233,10 @@ export function qLearning(nStates, nActions, rewards, transitions, { episodes = 
     let state = 0;
     for (let step = 0; step < 20; step++) {
       let action;
-      if (Math.random() < epsilon) action = Math.floor(Math.random() * nActions);
+      if (__rng() < epsilon) action = Math.floor(__rng() * nActions);
       else action = Q[state].indexOf(Math.max(...Q[state]));
-      const r = typeof rewards === 'function' ? rewards(state, action) : (rewards?.[state]?.[action] || Math.random());
-      const nextState = Math.floor(Math.random() * nStates);
+      const r = typeof rewards === 'function' ? rewards(state, action) : (rewards?.[state]?.[action] || __rng());
+      const nextState = Math.floor(__rng() * nStates);
       const maxNext = Math.max(...(Q[nextState] || [0]));
       Q[state][action] += lr * (r + gamma * maxNext - Q[state][action]);
       state = nextState;
@@ -238,18 +247,19 @@ export function qLearning(nStates, nActions, rewards, transitions, { episodes = 
 }
 
 // ── SARSA ─────────────────────────────────────────────────────────
-export function sarsa(nStates, nActions, rewards, transitions, { episodes = 50, lr = 0.1, gamma = 0.9, epsilon = 0.1 } = {}) {
+export function sarsa(nStates, nActions, rewards, transitions, { seed = 42, episodes = 50, lr = 0.1, gamma = 0.9, epsilon = 0.1 } = {}) {
+  __rng = mulberry32(seed);
   if (!nStates || !nActions || nStates < 2 || nActions < 2 || episodes < 5) return null;
   const Q = Array.from({length: nStates}, () => Array(nActions).fill(0));
   let cumulativeReward = 0;
   for (let ep = 0; ep < episodes; ep++) {
     let state = 0;
-    let action = Math.floor(Math.random() * nActions);
+    let action = Math.floor(__rng() * nActions);
     for (let step = 0; step < 20; step++) {
-      const r = typeof rewards === 'function' ? rewards(state, action) : (rewards?.[state]?.[action] || Math.random());
-      const nextState = Math.floor(Math.random() * nStates);
+      const r = typeof rewards === 'function' ? rewards(state, action) : (rewards?.[state]?.[action] || __rng());
+      const nextState = Math.floor(__rng() * nStates);
       let nextAction;
-      if (Math.random() < epsilon) nextAction = Math.floor(Math.random() * nActions);
+      if (__rng() < epsilon) nextAction = Math.floor(__rng() * nActions);
       else nextAction = Q[nextState].indexOf(Math.max(...Q[nextState]));
       Q[state][action] += lr * (r + gamma * Q[nextState][nextAction] - Q[state][action]);
       state = nextState;
@@ -261,11 +271,12 @@ export function sarsa(nStates, nActions, rewards, transitions, { episodes = 50, 
 }
 
 // ── Deep Q-Network (simplified neural Q-function) ─────────────────
-export function deepQNetwork(nStates, nActions, { episodes = 30, lr = 0.01, gamma = 0.9, hiddenSize = 8 } = {}) {
+export function deepQNetwork(nStates, nActions, { seed = 42, episodes = 30, lr = 0.01, gamma = 0.9, hiddenSize = 8 } = {}) {
+  __rng = mulberry32(seed);
   if (!nStates || !nActions || nStates < 2 || nActions < 2 || episodes < 5) return null;
-  const W1 = Array.from({length: nStates}, () => Array.from({length: hiddenSize}, () => (Math.random() - 0.5) * 0.1));
+  const W1 = Array.from({length: nStates}, () => Array.from({length: hiddenSize}, () => (__rng() - 0.5) * 0.1));
   const b1 = Array(hiddenSize).fill(0);
-  const W2 = Array.from({length: hiddenSize}, () => Array.from({length: nActions}, () => (Math.random() - 0.5) * 0.1));
+  const W2 = Array.from({length: hiddenSize}, () => Array.from({length: nActions}, () => (__rng() - 0.5) * 0.1));
   const b2 = Array(nActions).fill(0);
   let cumulativeReward = 0;
   for (let ep = 0; ep < episodes; ep++) {
@@ -283,7 +294,7 @@ export function deepQNetwork(nStates, nActions, { episodes = 30, lr = 0.01, gamm
         return s;
       });
       const action = qVals.indexOf(Math.max(...qVals));
-      const r = Math.random();
+      const r = __rng();
       cumulativeReward += r;
       const target = r + gamma * Math.max(...qVals);
       const td = target - qVals[action];

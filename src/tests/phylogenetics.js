@@ -37,19 +37,32 @@ export function blombergK(trait, tree) {
 }
 
 // ── Phylogenetic Signal ───────────────────────────────────────────
-export function phylogeneticSignal(trait, tree, { method = 'lambda', permutations = 99 } = {}) {
+export function phylogeneticSignal(trait, tree, { method = 'lambda', permutations = 999, seed = 42 } = {}) {
   if (!trait || trait.length < 5) return null;
-  let stat = 0, p = 0.5;
-  if (method === 'lambda') {
-    const pl = pagelsLambda(trait, tree);
-    stat = pl?.lambda || 0;
-    p = stat > 0.7 ? 0.01 : stat > 0.3 ? 0.05 : 0.2;
-  } else {
-    const bk = blombergK(trait, tree);
-    stat = bk?.K || 0;
-    p = stat > 1.5 ? 0.01 : stat > 0.8 ? 0.05 : 0.2;
+  let stat = 0;
+  if (method === 'lambda') stat = pagelsLambda(trait, tree)?.lambda || 0;
+  else stat = blombergK(trait, tree)?.K || 0;
+  // Randomization test. The simplified λ/K above are permutation-invariant
+  // (functions of Σ(x−x̄)²), so significance is assessed with a permutation-
+  // sensitive statistic: the mean squared difference between adjacent tips
+  // (sister contrasts under the input ordering). Strong signal ⇒ adjacent tips
+  // are similar ⇒ unusually SMALL adjacent-contrast variance vs. random orderings.
+  const adjacentSS = arr => {
+    let s = 0, c = 0;
+    for (let i = 0; i + 1 < arr.length; i += 2) { s += (arr[i] - arr[i + 1]) ** 2; c++; }
+    return c ? s / c : 0;
+  };
+  const obs = adjacentSS(trait);
+  let sd = seed >>> 0;
+  const rand = () => { sd = (Math.imul(1664525, sd) + 1013904223) >>> 0; return sd / 2 ** 32; };
+  let le = 1;
+  for (let perm = 0; perm < permutations; perm++) {
+    const a = trait.slice();
+    for (let k = a.length - 1; k > 0; k--) { const m = Math.floor(rand() * (k + 1)); [a[k], a[m]] = [a[m], a[k]]; }
+    if (adjacentSS(a) <= obs + 1e-12) le++;
   }
-  return { test: 'Phylogenetic Signal', statistic: +stat.toFixed(4), p, method, n: trait.length, apa: `Signal: ${method} = ${stat.toFixed(3)}, p = ${p.toFixed(3)}` };
+  const p = le / (permutations + 1);
+  return { test: 'Phylogenetic Signal', statistic: +stat.toFixed(4), p: +p.toFixed(4), method, permutations, n: trait.length, apa: `Signal: ${method} = ${stat.toFixed(3)}, p = ${p.toFixed(3)} (${permutations} perms)` };
 }
 
 // ── PIC Correlation ───────────────────────────────────────────────

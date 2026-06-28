@@ -1,8 +1,12 @@
 import { avg, corr } from '../math/core.js';
 import { jacobiEigen } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── t-SNE (Barnes-Hut style simplified) ───────────────────────────
-export function tsne(X, { perplexity = 30, nComponents = 2, maxIter = 300, lr = 200 } = {}) {
+export function tsne(X, { seed = 42, perplexity = 30, nComponents = 2, maxIter = 300, lr = 200 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length, d = nComponents;
   const sigma = Array(n).fill(1);
@@ -19,9 +23,9 @@ export function tsne(X, { perplexity = 30, nComponents = 2, maxIter = 300, lr = 
     const sum = di.reduce((s, v) => s + v, 0);
     return di.map(v => sum > 0 ? v / sum : 0);
   });
-  const Pjoint = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => +(P[i][j] + P[j][i]) / (2 * n)).toFixed(6)));
+  const Pjoint = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => +((P[i][j] + P[j][i]) / (2 * n)).toFixed(6)));
   // Initialize embedding randomly
-  let Y = Array.from({length: n}, () => Array.from({length: d}, () => (Math.random() - 0.5) * 0.01));
+  let Y = Array.from({length: n}, () => Array.from({length: d}, () => (__rng() - 0.5) * 0.01));
   for (let iter = 0; iter < maxIter; iter++) {
     const Qdists = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => {
       if (i === j) return 0;
@@ -108,7 +112,7 @@ export function lle(X, { nNeighbors = 5, nComponents = 2 } = {}) {
   // Eigenvalue problem on (I-W)'(I-W)
   const M = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => {
     let s = 0;
-    for (let t = 0; t < n; t++) s += (i === t ? 1 : 0) - W[i][t]) * ((j === t ? 1 : 0) - W[j][t]) || 0;
+    for (let t = 0; t < n; t++) s += ((i === t ? 1 : 0) - W[i][t]) * ((j === t ? 1 : 0) - W[j][t]) || 0;
     return s;
   }));
   const eig = jacobiEigen(M);

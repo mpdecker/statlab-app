@@ -84,11 +84,11 @@ export function bootstrapTest(data, statistic, nullValue, { B = 2000, alternativ
   } else if (alternative === 'less') {
     p = reps.filter(r => r <= thetaHat).length / B;
   } else {
-    const propAbove = reps.filter(r => r >= thetaHat).length / B;
-    const propBelow = reps.filter(r => r <= nullValue + (nullValue - thetaHat)).length / B; // symmetric around null
-    // Simpler: p = 2 * min(prop > nullValue, prop < nullValue)
-    const propGt = reps.filter(r => r > nullValue).length / B;
-    p = 2 * Math.min(propGt, 1 - propGt);
+    // Shift replicates to be centred at nullValue, then count extremes
+    const shifted = reps.map(r => r - thetaHat + nullValue);
+    const obs = Math.abs(thetaHat - nullValue);
+    const extreme = shifted.filter(r => Math.abs(r - nullValue) >= obs).length;
+    p = Math.max(1 / B, extreme / B);
   }
   p = Math.max(0.0001, Math.min(1, p));
 
@@ -179,7 +179,8 @@ export function bootstrapMediation(data, treatVar, mediator, outcomeVar, { B = 5
     let sx = 0, sm = 0, sy = 0, sxx = 0, sxm = 0, smy = 0;
     for (let i = 0; i < n; i++) { sx += x[i]; sm += m[i]; sy += y[i]; sxx += x[i] * x[i]; sxm += x[i] * m[i]; smy += m[i] * y[i]; }
     const a = (n * sxm - sx * sm) / Math.max(n * sxx - sx * sx, 1);
-    const b = (n * smy - sm * sy) / Math.max(n * sm.reduce((s, v) => s + v * v, 0) - sm * sm, 1);
+    const smm = m.reduce((s, v) => s + v * v, 0);
+    const b = (n * smy - sm * sy) / Math.max(n * smm - sm * sm, 1);
     indirects.push(a * b);
   }
   indirects.sort((a, b) => a - b);

@@ -1,5 +1,8 @@
 import { avg } from '../math/core.js';
 import { matInv, matMul, matTrans } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // Mode-n unfold / matricization
 function unfoldTensor(X, mode) {
@@ -22,39 +25,80 @@ function unfoldTensor(X, mode) {
   return result;
 }
 
-// ── PARAFAC ───────────────────────────────────────────────────────
-export function parafac(X, nFactors = 2, { maxIter = 50, seed = 42 } = {}) {
+// ── PARAFAC (CP decomposition via Alternating Least Squares) ──────
+export function parafac(X, nFactors = 2, { maxIter = 50, seed = 42, tol = 1e-8 } = {}) {
   if (!X || !X.length || !X[0]?.length) return null;
   const I = X.length, J = X[0].length, K = X[0]?.[0]?.length || 1;
   if (I < 2 || J < 2) return null;
-  // Initialize random factors
-  let A = Array.from({ length: I }, () => Array.from({ length: nFactors }, () => Math.random()));
-  let B = Array.from({ length: J }, () => Array.from({ length: nFactors }, () => Math.random()));
-  let C = nFactors === 1 ? null : Array.from({ length: Math.max(K, 1) }, () => Array.from({ length: nFactors }, () => Math.random()));
+  const F = Math.max(1, nFactors);
+  let s = seed >>> 0;
+  const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+  const randMat = rows => Array.from({ length: rows }, () => Array.from({ length: F }, () => rand() - 0.5));
+  const get = (i, j, k) => (K > 1 ? (X[i]?.[j]?.[k] ?? 0) : (X[i]?.[j] ?? 0));
 
-  for (let iter = 0; iter < maxIter; iter++) {
-    // Update A
-    if (C && K > 1) {
-      const X1 = unfoldTensor(X, 0);
-      const kr = Array.from({ length: J * K }, (_, r) =>
-        Array.from({ length: nFactors }, (_, f) => (B[Math.floor(r / K)]?.[f] || 0) * (C[r % K]?.[f] || 0))
-      );
-      const Xt = X1[0].map((_, j) => X1.map(row => row[j]));
-      const XtKr = Xt.map(r1 => kr[0].map((_, j) => r1.reduce((s, _, k) => s + X1[k][j] * kr[k][j], 0)));
-      const KrTKr = kr[0].map((_, j) => kr.map(row => row[j]));
-      const KK = KrTKr.map(r1 => kr[0].map((_, j) => r1.reduce((s, _, k) => s + kr[k][j] * r1[k], 0)));
-      const invKK = matInv(KK);
-      if (invKK) A = Array.from({ length: I }, (_, i) => invKK.map(row => row.reduce((s, v, j) => s + v * XtKr[j][i], 0)));
+  let A = randMat(I), B = randMat(J), C = randMat(K);
+
+  const gram = M => {                       // Mᵀ M  (F×F)
+    const g = Array.from({ length: F }, () => Array(F).fill(0));
+    for (let a = 0; a < F; a++) for (let b = 0; b < F; b++) {
+      let acc = 0; for (let r = 0; r < M.length; r++) acc += M[r][a] * M[r][b];
+      g[a][b] = acc;
     }
-    // Update B similarly
-    break; // Simplified: just one ALS iteration
+    return g;
+  };
+  const hadamard = (P, Q) => P.map((row, a) => row.map((v, b) => v * Q[a][b]));
+
+  // Mode-n least-squares update: factor = MTTKRP · pinv(gram∘gram)
+  const update = (rows, accum, inv) => {
+    const M = Array.from({ length: rows }, () => Array(F).fill(0));
+    accum(M);
+    if (!inv) return null;
+    return M.map(row => inv.map(ir => ir.reduce((acc, v, f) => acc + v * row[f], 0)));
+  };
+
+  const reconErr = () => {
+    let err = 0;
+    for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+      let rec = 0; for (let f = 0; f < F; f++) rec += A[i][f] * B[j][f] * C[k][f];
+      err += (get(i, j, k) - rec) ** 2;
+    }
+    return err;
+  };
+
+  let prev = Infinity;
+  for (let iter = 0; iter < maxIter; iter++) {
+    const nA = update(I, M => {
+      for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+        const x = get(i, j, k); if (!x) continue;
+        for (let f = 0; f < F; f++) M[i][f] += x * B[j][f] * C[k][f];
+      }
+    }, matInv(hadamard(gram(B), gram(C))));
+    if (nA) A = nA;
+    const nB = update(J, M => {
+      for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+        const x = get(i, j, k); if (!x) continue;
+        for (let f = 0; f < F; f++) M[j][f] += x * A[i][f] * C[k][f];
+      }
+    }, matInv(hadamard(gram(A), gram(C))));
+    if (nB) B = nB;
+    const nC = update(K, M => {
+      for (let i = 0; i < I; i++) for (let j = 0; j < J; j++) for (let k = 0; k < K; k++) {
+        const x = get(i, j, k); if (!x) continue;
+        for (let f = 0; f < F; f++) M[k][f] += x * A[i][f] * B[j][f];
+      }
+    }, matInv(hadamard(gram(A), gram(B))));
+    if (nC) C = nC;
+    const err = reconErr();
+    if (Math.abs(prev - err) < tol * Math.max(1, prev)) { prev = err; break; }
+    prev = err;
   }
 
-  return { test: 'PARAFAC', factors: { A: A.map(r => r.map(v => +v.toFixed(4))).slice(0, 5), B: B.map(r => r.map(v => +v.toFixed(4))).slice(0, 5) }, nFactors, dims: [I, J, K], apa: `PARAFAC: ${nFactors} factors, ${I}×${J}×${K}` };
+  return { test: 'PARAFAC', factors: { A: A.map(r => r.map(v => +v.toFixed(4))).slice(0, 5), B: B.map(r => r.map(v => +v.toFixed(4))).slice(0, 5) }, nFactors: F, dims: [I, J, K], reconError: +prev.toFixed(6), n: I, apa: `PARAFAC: ${F} factors, ${I}×${J}×${K}, err=${prev.toFixed(4)}` };
 }
 
 // ── Tucker Decomposition ──────────────────────────────────────────
-export function tuckerDecomp(X, ranks = [2, 2, 2], { maxIter = 30 } = {}) {
+export function tuckerDecomp(X, ranks = [2, 2, 2], { seed = 42, maxIter = 30 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || !X.length) return null;
   const I = X.length, J = X[0]?.length || 1, K = X[0]?.[0]?.length || 1;
   // SVD per mode unfolding
@@ -65,7 +109,7 @@ export function tuckerDecomp(X, ranks = [2, 2, 2], { maxIter = 30 } = {}) {
     // Truncated SVD via power iteration for top r eigenvectors
     const U = Array.from({ length: M.length }, () => Array(r).fill(0));
     for (let d = 0; d < r; d++) {
-      let v = Array.from({ length: M[0].length }, () => Math.random());
+      let v = Array.from({ length: M[0].length }, () => __rng());
       for (let iter = 0; iter < 10; iter++) {
         const u = M.map(row => row.reduce((s, val, j) => s + val * v[j], 0));
         const nu = Math.sqrt(u.reduce((s, x) => s + x * x, 0)) || 1;
@@ -86,7 +130,8 @@ export function unfold(X, mode = 1) {
 }
 
 // ── Multiway PCA ──────────────────────────────────────────────────
-export function multiwayPCA(X, nComp = 2) {
+export function multiwayPCA(X, nComp = 2, seed = 42) {
+  __rng = mulberry32(seed);
   if (!X || !X.length) return null;
   const I = X.length, J = X[0]?.length || 1, K = X[0]?.[0]?.length || 1;
   const M = unfoldTensor(X, 0);
@@ -95,7 +140,7 @@ export function multiwayPCA(X, nComp = 2) {
   const scores = Array.from({ length: I }, () => Array(r).fill(0));
   const loadings = Array.from({ length: J * K }, () => Array(r).fill(0));
   for (let d = 0; d < r; d++) {
-    let v = Array.from({ length: M[0]?.length || 1 }, () => Math.random());
+    let v = Array.from({ length: M[0]?.length || 1 }, () => __rng());
     for (let iter = 0; iter < 10; iter++) {
       const u = M.map(row => row.reduce((s, val, j) => s + val * v[j], 0));
       const nu = Math.sqrt(u.reduce((s, x) => s + x * x, 0)) || 1;
@@ -134,13 +179,14 @@ export function tensorRegression(X, y, ranks = [2]) {
 }
 
 // ── CP Decomposition (CANDECOMP/PARAFAC) ──────────────────────────
-export function cpDecomposition(tensor, rank = 2, { maxIter = 10 } = {}) {
+export function cpDecomposition(tensor, rank = 2, { seed = 42, maxIter = 10 } = {}) {
+  __rng = mulberry32(seed);
   if (!tensor || !tensor.length || rank < 1) return null;
   const d1 = tensor.length, d2 = tensor[0]?.length || 0, d3 = tensor[0]?.[0]?.length || 0;
   if (d2 < 2 || d3 < 2) return null;
-  const A = Array.from({length: d1}, () => Array.from({length: rank}, () => Math.random()));
-  const B = Array.from({length: d2}, () => Array.from({length: rank}, () => Math.random()));
-  const C = Array.from({length: d3}, () => Array.from({length: rank}, () => Math.random()));
+  const A = Array.from({length: d1}, () => Array.from({length: rank}, () => __rng()));
+  const B = Array.from({length: d2}, () => Array.from({length: rank}, () => __rng()));
+  const C = Array.from({length: d3}, () => Array.from({length: rank}, () => __rng()));
   let fit = 0;
   for (let iter = 0; iter < maxIter; iter++) {
     fit = 0;
@@ -154,11 +200,12 @@ export function cpDecomposition(tensor, rank = 2, { maxIter = 10 } = {}) {
 }
 
 // ── Tucker Regression ─────────────────────────────────────────────
-export function tuckerRegression(X, y, { rank = [2, 2], maxIter = 10 } = {}) {
+export function tuckerRegression(X, y, { seed = 42, rank = [2, 2], maxIter = 10 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || !y || X.length < 5 || y.length < 5) return null;
   const n = X.length, d1 = X[0]?.length || 0, d2 = X[0]?.[0]?.length || 0;
   if (d1 < 2 || d2 < 2) return null;
-  const beta = Array.from({length: rank[0]}, () => Array.from({length: rank[1]}, () => (Math.random() - 0.5) * 0.1));
+  const beta = Array.from({length: rank[0]}, () => Array.from({length: rank[1]}, () => (__rng() - 0.5) * 0.1));
   let mse = 0;
   for (let i = 0; i < n; i++) {
     let pred = 0;

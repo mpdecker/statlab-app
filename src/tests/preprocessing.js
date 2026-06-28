@@ -1,4 +1,7 @@
 import { avg } from '../math/core.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 function quantile(arr, q) {
   const sorted = [...arr].sort((a, b) => a - b);
@@ -155,7 +158,8 @@ export function frequencyEncode(data, column) {
 }
 
 // ── SMOTE (Synthetic Minority Oversampling) ───────────────────────
-export function smote(X, y, { k = 5, multiplier = 1 } = {}) {
+export function smote(X, y, { seed = 42, k = 5, multiplier = 1 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || !y || X.length < 5 || y.length !== X.length) return null;
   const n = X.length, p = X[0].length;
   const minority = y.map((v, i) => v === 1 ? i : -1).filter(i => i >= 0);
@@ -170,8 +174,8 @@ export function smote(X, y, { k = 5, multiplier = 1 } = {}) {
         return { j, d: Math.sqrt(d) };
       }).sort((a, b) => a.d - b.d).slice(0, Math.min(k, minority.length - 1));
       if (neighbors.length > 0) {
-        const nn = neighbors[Math.floor(Math.random() * neighbors.length)];
-        const synth = X[idx].map((v, f) => v + Math.random() * (X[nn.j][f] - v));
+        const nn = neighbors[Math.floor(__rng() * neighbors.length)];
+        const synth = X[idx].map((v, f) => v + __rng() * (X[nn.j][f] - v));
         synthetic.push(synth);
       }
     }
@@ -182,7 +186,8 @@ export function smote(X, y, { k = 5, multiplier = 1 } = {}) {
 }
 
 // ── ADASYN ────────────────────────────────────────────────────────
-export function adasyn(X, y, { k = 5, beta = 0.5 } = {}) {
+export function adasyn(X, y, { seed = 42, k = 5, beta = 0.5 } = {}) {
+  __rng = mulberry32(seed);
   if (!X || !y || X.length < 5) return null;
   const minority = y.map((v, i) => v === 1 ? i : -1).filter(i => i >= 0);
   const majority = y.map((v, i) => v === 0 ? i : -1).filter(i => i >= 0);
@@ -191,10 +196,10 @@ export function adasyn(X, y, { k = 5, beta = 0.5 } = {}) {
   const synthetic = [];
   for (let g = 0; g < Math.min(imbalance, minority.length * 2); g++) {
     const i = minority[g % minority.length];
-    const neighbors = minority.filter(j => j !== i).sort(() => Math.random() - 0.5).slice(0, Math.min(k, minority.length - 1));
+    const neighbors = minority.filter(j => j !== i).sort(() => __rng() - 0.5).slice(0, Math.min(k, minority.length - 1));
     if (neighbors.length > 0) {
       const nn = neighbors[0];
-      const synth = X[i].map((v, f) => v + Math.random() * (X[nn][f] - v));
+      const synth = X[i].map((v, f) => v + __rng() * (X[nn][f] - v));
       synthetic.push(synth);
     }
   }
@@ -204,12 +209,13 @@ export function adasyn(X, y, { k = 5, beta = 0.5 } = {}) {
 }
 
 // ── Random Undersampling ──────────────────────────────────────────
-export function randomUnderSample(X, y) {
+export function randomUnderSample(X, y, seed = 42) {
+  __rng = mulberry32(seed);
   if (!X || !y || X.length < 3) return null;
   const minority = y.map((v, i) => v === 1 ? i : -1).filter(i => i >= 0);
   const majority = y.map((v, i) => v === 0 ? i : -1).filter(i => i >= 0);
   if (!minority.length || !majority.length) return null;
-  const shuffled = [...majority].sort(() => Math.random() - 0.5);
+  const shuffled = [...majority].sort(() => __rng() - 0.5);
   const selected = shuffled.slice(0, minority.length);
   const indices = [...minority, ...selected];
   const newX = indices.map(i => X[i]);

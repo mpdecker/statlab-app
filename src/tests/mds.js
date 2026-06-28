@@ -1,5 +1,8 @@
 import { avg } from '../math/core.js';
 import { matInv, jacobiEigen } from '../math/matrix.js';
+import { mulberry32 } from '../math/rng.js';
+
+let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Classical MDS (Torgerson) ─────────────────────────────────────
 export function classicalMDS(data, vars, { nDimensions = 2 } = {}) {
@@ -55,7 +58,8 @@ export function classicalMDS(data, vars, { nDimensions = 2 } = {}) {
 }
 
 // ── Sammon Mapping ────────────────────────────────────────────────
-export function sammonMapping(data, vars, { nDimensions = 2, maxIter = 50 } = {}) {
+export function sammonMapping(data, vars, { seed = 42, nDimensions = 2, maxIter = 50 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const n = data.length, m = vars.length;
   const X = data.map(r => vars.map(v => +r[v]));
@@ -71,7 +75,7 @@ export function sammonMapping(data, vars, { nDimensions = 2, maxIter = 50 } = {}
 
   // Initialize from classical MDS
   const init = classicalMDS(data, vars, { nDimensions });
-  let points = init ? init.points : Array.from({ length: n }, () => Array(nDimensions).fill(0).map(() => (Math.random() - 0.5)));
+  let points = init ? init.points : Array.from({ length: n }, () => Array(nDimensions).fill(0).map(() => (__rng() - 0.5)));
 
   for (let iter = 0; iter < maxIter; iter++) {
     const grad = points.map(() => Array(nDimensions).fill(0));
@@ -107,7 +111,8 @@ export function sammonMapping(data, vars, { nDimensions = 2, maxIter = 50 } = {}
 }
 
 // ── Non-Metric MDS (Shepard-Kruskal) ──────────────────────────────
-export function nonMetricMDS(data, vars, { nDimensions = 2, maxIter = 50 } = {}) {
+export function nonMetricMDS(data, vars, { seed = 42, nDimensions = 2, maxIter = 50 } = {}) {
+  __rng = mulberry32(seed);
   if (!data || data.length < 6 || !vars || vars.length < 2) return null;
   const n = data.length, m = vars.length;
   const X = data.map(r => vars.map(v => +r[v]));
@@ -121,7 +126,7 @@ export function nonMetricMDS(data, vars, { nDimensions = 2, maxIter = 50 } = {})
   }));
 
   const init = classicalMDS(data, vars, { nDimensions });
-  let points = init ? init.points : Array.from({ length: n }, () => Array(nDimensions).fill(0).map(() => (Math.random() - 0.5)));
+  let points = init ? init.points : Array.from({ length: n }, () => Array(nDimensions).fill(0).map(() => (__rng() - 0.5)));
 
   let stress = 1;
   for (let iter = 0; iter < maxIter; iter++) {
@@ -168,10 +173,11 @@ export function nonMetricMDS(data, vars, { nDimensions = 2, maxIter = 50 } = {})
 }
 
 // ── Sammon Mapping (distance matrix input) ────────────────────────
-export function sammonMappingDM(D, { nDim = 2, maxIter = 50, lr = 0.1 } = {}) {
+export function sammonMappingDM(D, { seed = 42, nDim = 2, maxIter = 50, lr = 0.1 } = {}) {
+  __rng = mulberry32(seed);
   if (!D || D.length < 3 || !D[0]) return null;
   const n = D.length;
-  let Y = Array.from({length: n}, () => Array.from({length: nDim}, () => (Math.random() - 0.5) * 0.1));
+  let Y = Array.from({length: n}, () => Array.from({length: nDim}, () => (__rng() - 0.5) * 0.1));
   let stress = 0;
   for (let iter = 0; iter < maxIter; iter++) {
     stress = 0;
@@ -196,11 +202,12 @@ export function sammonMappingDM(D, { nDim = 2, maxIter = 50, lr = 0.1 } = {}) {
 }
 
 // ── Landmark MDS ──────────────────────────────────────────────────
-export function landmarkMDS(D, { nLandmarks = 10, nDim = 2 } = {}) {
+export function landmarkMDS(D, { seed = 42, nLandmarks = 10, nDim = 2 } = {}) {
+  __rng = mulberry32(seed);
   if (!D || D.length < nLandmarks + 2) return null;
   const n = D.length;
   const L = Math.min(nLandmarks, n);
-  const landmarks = [...Array(n).keys()].sort(() => Math.random() - 0.5).slice(0, L);
+  const landmarks = [...Array(n).keys()].sort(() => __rng() - 0.5).slice(0, L);
   const dLand = landmarks.map(li => landmarks.map(lj => D[li][lj]));
   const G = dLand.map((row, i) => row.map((v, j) => -0.5 * (v * v - dLand[i][0] * dLand[i][0] / L - dLand[0][j] * dLand[0][j] / L + dLand[0][0] * dLand[0][0] / (L * L))));
   const points = Array.from({length: n}, (_, i) => Array.from({length: nDim}, (_, k) => +(landmarks.indexOf(i) >= 0 ? 0.5 - k * 0.1 : 0).toFixed(4)));

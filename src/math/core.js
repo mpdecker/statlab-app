@@ -24,6 +24,7 @@ export const corr = (xs, ys) => {
   return den ? num / den : 0;
 };
 export const median = a => {
+  if (!a.length) return NaN;
   const s = [...a].sort((x, y) => x - y), n = s.length;
   return n % 2 ? s[Math.floor(n / 2)] : (s[n / 2 - 1] + s[n / 2]) / 2;
 };
@@ -36,6 +37,7 @@ export const winsorize = (a, p = 0.1) => {
 export const trimmedMean = (a, p = 0.2) => {
   const s = [...a].sort((x, y) => x - y);
   const k = Math.floor(p * a.length);
+  if (k >= a.length - k) return NaN;
   return avg(s.slice(k, s.length - k));
 };
 

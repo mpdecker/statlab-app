@@ -58,18 +58,31 @@ export function distanceCorrelation(x, y) {
 }
 
 // ── Energy Test for Equal Distributions ───────────────────────────
-export function energyTest(x, y, { permutations = 199 } = {}) {
+export function energyTest(x, y, { permutations = 199, seed = 42 } = {}) {
   if (!x || !y || x.length < 5 || y.length < 5) return null;
   const nA = x.length, nB = y.length;
-  const E_AB = 0; // simplified
-  let stat = 0;
-  for (let i = 0; i < nA; i++) for (let j = 0; j < nB; j++) stat += Math.abs(x[i] - y[j]);
-  stat *= 2 / (nA * nB);
-  for (let i = 0; i < nA; i++) for (let j = 0; j < nA; j++) stat -= Math.abs(x[i] - x[j]) / (nA * nA);
-  for (let i = 0; i < nB; i++) for (let j = 0; j < nB; j++) stat -= Math.abs(y[i] - y[j]) / (nB * nB);
-  stat *= nA * nB / (nA + nB);
-  const p = stat > 2 ? 0.05 : stat > 1 ? 0.10 : 0.5;
-  return { test: 'Energy Test', statistic: +stat.toFixed(4), p, nA, nB, apa: `Energy = ${stat.toFixed(3)}, p ≈ ${p.toFixed(3)}` };
+  const energyStat = (a, b) => {
+    const na = a.length, nb = b.length;
+    let s = 0;
+    for (let i = 0; i < na; i++) for (let j = 0; j < nb; j++) s += Math.abs(a[i] - b[j]);
+    s *= 2 / (na * nb);
+    for (let i = 0; i < na; i++) for (let j = 0; j < na; j++) s -= Math.abs(a[i] - a[j]) / (na * na);
+    for (let i = 0; i < nb; i++) for (let j = 0; j < nb; j++) s -= Math.abs(b[i] - b[j]) / (nb * nb);
+    return s * na * nb / (na + nb);
+  };
+  const stat = energyStat(x, y);
+  // Permutation test: pool, reshuffle into groups of the same sizes.
+  const pool = [...x, ...y];
+  let seedS = seed >>> 0;
+  const rand = () => { seedS = (Math.imul(1664525, seedS) + 1013904223) >>> 0; return seedS / 2 ** 32; };
+  let ge = 1; // +1 for the observed statistic (Davison-Hinkley convention)
+  for (let perm = 0; perm < permutations; perm++) {
+    const pl = [...pool];
+    for (let k = pl.length - 1; k > 0; k--) { const m = Math.floor(rand() * (k + 1)); [pl[k], pl[m]] = [pl[m], pl[k]]; }
+    if (energyStat(pl.slice(0, nA), pl.slice(nA)) >= stat) ge++;
+  }
+  const p = ge / (permutations + 1);
+  return { test: 'Energy Test', statistic: +stat.toFixed(4), p: +p.toFixed(4), permutations, nA, nB, apa: `Energy = ${stat.toFixed(3)}, p = ${p.toFixed(3)} (${permutations} perms)` };
 }
 
 // ── Partial Distance Correlation ──────────────────────────────────

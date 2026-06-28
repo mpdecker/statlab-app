@@ -396,9 +396,11 @@ export function dunnTest(groups, { alpha = 0.05 } = {}) {
   if (valid.length < 2) return null;
   const allVals = valid.flatMap(g => g.vals);
   const N = allVals.length;
-  const ranks = {};
-  [...allVals].sort((a, b) => a - b).forEach((v, i) => { ranks[v] = i + 1; });
-  const Rbar = valid.map(g => avg(g.vals.map(v => ranks[v])));
+  const rankedAll = rank(allVals);
+  const Rbar = valid.map((g, gi) => {
+    const offset = valid.slice(0, gi).reduce((s, gg) => s + gg.vals.length, 0);
+    return avg(g.vals.map((_, li) => rankedAll[offset + li]));
+  });
   const k = valid.length;
   const pairs = [];
   for (let i = 0; i < k; i++) {
@@ -451,8 +453,8 @@ export function cochranQPost(data, vars, { alpha = 0.05 } = {}) {
   for (let i = 0; i < k; i++) {
     for (let j = i + 1; j < k; j++) {
       const diff = colSums[i] - colSums[j];
-      const b = vars.map((_, ri) => {
-        const xi = +data[ri]?.[vars[i]] || 0, xj = +data[ri]?.[vars[j]] || 0;
+      const b = data.map(row => {
+        const xi = +row?.[vars[i]] || 0, xj = +row?.[vars[j]] || 0;
         return xi - xj;
       });
       const se = sampleSDp(b) / Math.sqrt(nSubjects);
