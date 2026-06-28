@@ -198,37 +198,70 @@ export function arellanoBond(data, yVar, xVars, { idVar, timeVar, maxLags = 2 } 
 // ── Seemingly Unrelated Regression ──────────────────────────────────────────
 export function sur(data, yVars, xVars, { maxIter = 10 } = {}) {
   if (!data || data.length < 15 || !yVars || yVars.length < 2 || !xVars || !xVars.length) return null;
-  const eqns = yVars.map(yVar => ({
-    yVar,
-    y: data.map(r => +r[yVar]),
-    X: data.map(r => xVars.map(v => +r[v])),
-  }));
-  const eqBeta = eqns.map((eq, ei) => {
-    const n = eq.y.length;
-    let num = 0, den = 0;
-    for (let i = 0; i < n; i++) {
-      const xSum = eq.X[i].reduce((s, v) => s + v, 0);
-      num += (eq.y[i] - avg(eq.y)) * (xSum - avg(eq.X.map(r => r.reduce((s, v) => s + v, 0))));
-      den += (xSum - avg(eq.X.map(r => r.reduce((s, v) => s + v, 0)))) ** 2;
-    }
-    return den > 0 ? num / den : 0;
+  const n = data.length;
+  const X = data.map(r => [1, ...xVars.map(v => +r[v])]);
+  const p = xVars.length + 1;
+  // When every equation shares the same regressors, the SUR (FGLS) estimator is
+  // identical to equation-by-equation OLS, so we fit OLS per equation with full
+  // coefficient vectors, standard errors, and R².
+  const XtX = Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) => X.reduce((s, row) => s + row[a] * row[b], 0)));
+  const inv = matInv(XtX);
+  if (!inv) return null;
+  const names = ['Intercept', ...xVars];
+  const equations = yVars.map(yVar => {
+    const y = data.map(r => +r[yVar]);
+    const XtY = Array.from({ length: p }, (_, a) => X.reduce((s, row, i) => s + row[a] * y[i], 0));
+    const beta = inv.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0));
+    const ybar = avg(y);
+    let ssr = 0, sst = 0;
+    for (let i = 0; i < n; i++) { const fit = X[i].reduce((s, v, j) => s + v * beta[j], 0); ssr += (y[i] - fit) ** 2; sst += (y[i] - ybar) ** 2; }
+    const sigma2 = ssr / Math.max(1, n - p);
+    const r2 = sst > 0 ? 1 - ssr / sst : 0;
+    const coefficients = names.map((nm, j) => {
+      const se = Math.sqrt(Math.max(0, sigma2 * inv[j][j])), z = se > 0 ? beta[j] / se : 0;
+      return { name: nm, b: +beta[j].toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+    });
+    return { equation: yVar, coefficients, r2: +r2.toFixed(4) };
   });
-  const equations = yVars.map((name, i) => ({ equation: name, beta: +eqBeta[i].toFixed(5), r2: +(0.3 + 0.1 * i).toFixed(4) }));
-  return { test: 'Seemingly Unrelated Regression', equations, nEq: yVars.length, n: data.length, apa: `SUR: ${yVars.length} equations, n = ${data.length}` };
+  return { test: 'Seemingly Unrelated Regression', equations, nEq: yVars.length, n, apa: `SUR: ${yVars.length} equations, n = ${n}` };
 }
 
 // ── Three-Stage Least Squares ───────────────────────────────────────────────
-export function threeSLS(data, yVars, xVars, zVars, { seed = 42, maxIter = 5 } = {}) {
-  __rng = mulberry32(seed);
-  if (!data || data.length < 15 || !yVars || yVars.length < 2 || !zVars || !zVars.length) return null;
-  const betas = yVars.map(() => 0.1);
+export function threeSLS(data, yVars, xVars, zVars, { maxIter = 5 } = {}) {
+  if (!data || data.length < 15 || !yVars || yVars.length < 2 || !xVars?.length || !zVars || !zVars.length) return null;
   const n = data.length;
-  const eqns = yVars.map(yVar => ({
-    name: yVar,
-    b: +(0.1 + __rng() * 0.2).toFixed(5),
-    se: +(0.05 + __rng() * 0.02).toFixed(5),
-  }));
-  return { test: '3SLS', equations: eqns, n: data.length, nInstruments: zVars.length, apa: `3SLS: ${yVars.length} equations, ${zVars.length} instruments` };
+  const X = data.map(r => [1, ...xVars.map(c => +r[c])]);
+  const Z = data.map(r => [1, ...zVars.map(c => +r[c])]);
+  const p = xVars.length + 1, q = zVars.length + 1;
+  if (q < p) return null; // under-identified
+  // 2SLS per equation. With identical instruments/regressors across equations,
+  // 3SLS coincides with equation-by-equation 2SLS.
+  // β = (X'Pz X)⁻¹ X'Pz y, with X'Pz X = (X'Z)(Z'Z)⁻¹(Z'X), Pz = Z(Z'Z)⁻¹Z'.
+  const ZtZ = Array.from({ length: q }, (_, a) => Array.from({ length: q }, (_, b) => Z.reduce((s, row) => s + row[a] * row[b], 0)));
+  const ZtZi = matInv(ZtZ);
+  if (!ZtZi) return null;
+  const XtZ = Array.from({ length: p }, (_, a) => Array.from({ length: q }, (_, b) => data.reduce((s, _, i) => s + X[i][a] * Z[i][b], 0)));
+  // A = X'Z (Z'Z)⁻¹  (p×q)
+  const A = XtZ.map(row => ZtZi[0].map((_, b) => row.reduce((s, v, k) => s + v * ZtZi[k][b], 0)));
+  // XtPzX = A (Z'X) = A (XtZ)ᵀ  (p×p)
+  const XtPzX = A.map(rowA => XtZ.map(rowX => rowA.reduce((s, v, k) => s + v * rowX[k], 0)));
+  const XtPzXi = matInv(XtPzX);
+  if (!XtPzXi) return null;
+  const names = ['Intercept', ...xVars];
+  const equations = yVars.map(yVar => {
+    const y = data.map(r => +r[yVar]);
+    const Zty = Array.from({ length: q }, (_, b) => Z.reduce((s, row, i) => s + row[b] * y[i], 0));
+    const XtPzy = A.map(rowA => rowA.reduce((s, v, k) => s + v * Zty[k], 0)); // (X'Z)(Z'Z)⁻¹ Z'y
+    const beta = XtPzXi.map(row => row.reduce((s, v, j) => s + v * XtPzy[j], 0));
+    let ssr = 0; for (let i = 0; i < n; i++) { const fit = X[i].reduce((s, v, j) => s + v * beta[j], 0); ssr += (y[i] - fit) ** 2; }
+    const sigma2 = ssr / Math.max(1, n - p);
+    const coefficients = names.map((nm, j) => {
+      const se = Math.sqrt(Math.max(0, sigma2 * XtPzXi[j][j])), z = se > 0 ? beta[j] / se : 0;
+      return { name: nm, b: +beta[j].toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+    });
+    return { name: yVar, coefficients };
+  });
+  return { test: '3SLS', equations, n, nInstruments: zVars.length, apa: `3SLS (2SLS per eq.): ${yVars.length} equations, ${zVars.length} instruments` };
 }
 
 // ── Generalized Method of Moments ───────────────────────────────────────────
