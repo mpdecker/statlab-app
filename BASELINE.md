@@ -51,8 +51,8 @@ implementations can be fixed. Status legend:
 | 26 | `panelFixedEffects` | econometric.js:131 | ✅ FIXED | reimplemented as the within (LSDV) estimator: demean by unit, multivariate OLS via matInv, analytic SE `√(σ̂²·(XᵀX)⁻¹_jj)` with df=N−nUnits−p. TDD: recovers [2,−1] exactly from constructed panel. |
 | 27 | `heckmanSelection` | econometric.js:29 | BROKEN | LPM selection not probit; `indexOf(array)` bug; no outcome eq output | probit selection + IMR-augmented OLS |
 | 28 | `bicScore` | pgm.js:53 | ✅ FIXED | `n·log(1-avgR)+k·log(n)`, not a graph BIC | per-node local BIC |
-| 29 | `beliefPropagation` | pgm.js:18 | BROKEN | messages init to 1, never updated; maxIter unused | sum-product message passing |
-| 30 | `variableElimination` | pgm.js:68 | FABRICATED | eliminates nothing; counts factors | actual factor elimination |
+| 29 | `beliefPropagation` | pgm.js:18 | ✅ FIXED | messages init to 1, never updated; maxIter unused | sum-product message passing |
+| 30 | `variableElimination` | pgm.js:68 | ✅ FIXED | eliminates nothing; counts factors | actual factor elimination |
 | 31 | `treeWidth` | pgm.js:81 | ✅ FIXED | returns maxDegree−1, not treewidth | min-fill/elimination ordering |
 | 32 | `hillClimbing` | pgm.js:109 | ✅ FIXED | score monotone in edge count → never adds edges; data unused | real local score deltas |
 | 33 | `scoringBDeu` | pgm.js:141 | ✅ FIXED | `-(E+k)log n·0.5-n·0.1`; data unused | BDeu marginal likelihood |

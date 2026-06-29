@@ -128,3 +128,26 @@ describe('dseparation (ancestral moral graph)', () => {
     expect(dseparation(e, 0, 1, [2]).dSeparated).toBe(false);
   });
 });
+
+// Chain A->B: P(A)={0.7,0.3}, P(B|A) gives exact P(B=0)=0.7*0.8+0.3*0.4=0.68
+const fA = { vars: [0], table: { '0': 0.7, '1': 0.3 } };
+const fBA = { vars: [0, 1], table: { '0,0': 0.8, '0,1': 0.2, '1,0': 0.4, '1,1': 0.6 } };
+
+describe('variableElimination (real bucket elimination)', () => {
+  it('computes the exact marginal of B in a chain', () => {
+    const r = variableElimination([fA, fBA], [1]);
+    expect(r.nEliminated).toBe(1);
+    expect(r.marginal['0']).toBeCloseTo(0.68, 6);
+    expect(r.marginal['1']).toBeCloseTo(0.32, 6);
+  });
+});
+
+describe('beliefPropagation (real sum-product)', () => {
+  it('matches the exact marginal of B in a chain', () => {
+    const r = beliefPropagation([fA, fBA], [0, 1], {}, { maxIter: 20 });
+    const mB = r.marginals.find(m => m.variable === 1);
+    expect(mB.probs[mB.states.indexOf('0')]).toBeCloseTo(0.68, 5);
+    const mA = r.marginals.find(m => m.variable === 0);
+    expect(mA.probs[mA.states.indexOf('0')]).toBeCloseTo(0.7, 5);
+  });
+});

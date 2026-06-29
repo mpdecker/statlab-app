@@ -60,23 +60,90 @@ export function markovBlanket(edges, node) {
   return { test: 'Markov Blanket', blanket: [...new Set([...parents, ...children, ...spouses])], node, apa: `MB(node ${node}): ${[...new Set([...parents, ...children, ...spouses])].length} nodes` };
 }
 
+// ── Discrete factor engine (shared by VE and BP) ──────────────────
+// A factor is { vars:number[], table:{ [statesJoinedByComma]: potential } }.
+function enumerateAssign(vars, dom, cb) {
+  const rec = (idx, assign) => {
+    if (idx === vars.length) { cb(assign); return; }
+    for (const s of dom[vars[idx]]) { assign[vars[idx]] = s; rec(idx + 1, assign); }
+  };
+  rec(0, {});
+}
+function factorDomains(factors) {
+  const dom = {};
+  for (const f of factors) {
+    if (!f.table) continue;
+    for (const key of Object.keys(f.table)) {
+      const st = key.split(',');
+      f.vars.forEach((v, i) => { (dom[v] = dom[v] || new Set()).add(st[i]); });
+    }
+  }
+  const out = {}; Object.keys(dom).forEach(v => { out[v] = [...dom[v]]; }); return out;
+}
+function factorProduct(fa, fb, dom) {
+  const vars = [...new Set([...fa.vars, ...fb.vars])];
+  const table = {};
+  enumerateAssign(vars, dom, assign => {
+    const ka = fa.vars.map(v => assign[v]).join(','), kb = fb.vars.map(v => assign[v]).join(',');
+    table[vars.map(v => assign[v]).join(',')] = (fa.table[ka] ?? 0) * (fb.table[kb] ?? 0);
+  });
+  return { vars, table };
+}
+function factorSumOut(f, v, dom) {
+  const vars = f.vars.filter(x => x !== v);
+  const table = {};
+  enumerateAssign(f.vars, dom, assign => {
+    const key = vars.map(x => assign[x]).join(',');
+    table[key] = (table[key] || 0) + (f.table[f.vars.map(x => assign[x]).join(',')] ?? 0);
+  });
+  return { vars, table };
+}
+function factorNormalize(f) {
+  const s = Object.values(f.table).reduce((a, b) => a + b, 0) || 1;
+  const t = {}; for (const k in f.table) t[k] = f.table[k] / s;
+  return { vars: f.vars, table: t };
+}
+function normObj(o) {
+  const s = Object.values(o).reduce((a, b) => a + b, 0);
+  if (!s) return o;
+  const t = {}; for (const k in o) t[k] = o[k] / s; return t;
+}
+
 // ── Belief Propagation (Sum-Product) ──────────────────────────────
 export function beliefPropagation(factors, variables, evidence, { maxIter = 10 } = {}) {
   if (!factors || !variables || !evidence || variables.length < 2) return null;
-  const n = variables.length;
-  const messages = Array.from({ length: n }, () => ({}));
-  // Initialize messages to 1
-  variables.forEach(v => { variables.forEach(u => { if (v !== u) messages[v] = messages[v] || {}; messages[v][u] = 1; }); });
+  // Accept array factors (scope only → uniform potential) or {vars,table} factors.
+  const F = factors.map(f => (Array.isArray(f) ? { vars: f, table: null } : { vars: f.vars, table: f.table }));
+  const dom = factorDomains(F.filter(f => f.table));
+  variables.forEach(v => { if (!dom[v]) dom[v] = ['0', '1']; }); // default binary for scope-only vars
+  const potential = (f, assign) => (f.table ? (f.table[f.vars.map(v => assign[v]).join(',')] ?? 0) : 1);
+  const uniform = v => { const o = {}; dom[v].forEach(s => { o[s] = 1 / dom[v].length; }); return o; };
+  const mVF = {}, mFV = {}; // variable→factor and factor→variable messages
+  F.forEach((f, fi) => f.vars.forEach(v => { mVF[v + '|' + fi] = uniform(v); mFV[fi + '|' + v] = uniform(v); }));
+  for (let it = 0; it < maxIter; it++) {
+    F.forEach((f, fi) => f.vars.forEach(v => { // variable → factor: product of other incoming factor messages
+      const o = {};
+      dom[v].forEach(s => { let p = 1; F.forEach((f2, fj) => { if (fj !== fi && f2.vars.includes(v)) p *= (mFV[fj + '|' + v][s] ?? 0); }); o[s] = p; });
+      mVF[v + '|' + fi] = normObj(o);
+    }));
+    F.forEach((f, fi) => f.vars.forEach(v => { // factor → variable: sum out other vars of factor·incoming
+      const o = {}; dom[v].forEach(s => { o[s] = 0; });
+      enumerateAssign(f.vars, dom, assign => {
+        let val = potential(f, assign);
+        f.vars.forEach(u => { if (u !== v) val *= (mVF[u + '|' + fi][assign[u]] ?? 0); });
+        o[assign[v]] += val;
+      });
+      mFV[fi + '|' + v] = normObj(o);
+    }));
+  }
   const marginals = variables.map(v => {
-    let m = 1;
-    const neighbs = factors.filter(f => f.includes(v));
-    neighbs.forEach(f => { f.forEach(w => { if (w !== v) m *= (messages[w]?.[v] || 1); }); });
-    return { variable: v, marginal: +m.toFixed(4) };
+    const o = {}; dom[v].forEach(s => { o[s] = 1; });
+    F.forEach((f, fi) => { if (f.vars.includes(v)) dom[v].forEach(s => { o[s] *= (mFV[fi + '|' + v][s] ?? 0); }); });
+    const norm = normObj(o);
+    const probs = dom[v].map(s => +norm[s].toFixed(6));
+    return { variable: v, states: dom[v], probs, marginal: probs };
   });
-  // Normalize
-  const sum = marginals.reduce((s, m) => s + m.marginal, 1);
-  marginals.forEach(m => { m.marginal = +(m.marginal / sum).toFixed(4); });
-  return { test: 'Belief Propagation', marginals, n, apa: `BP: ${n} variables` };
+  return { test: 'Belief Propagation', marginals, n: variables.length, apa: `BP: ${variables.length} variables` };
 }
 
 // ── Factor Graph ──────────────────────────────────────────────────
@@ -112,13 +179,37 @@ export function dseparation(edges, x, y, zVars) {
 export function variableElimination(factors, queryVars, evidence = {}) {
   if (!factors || !factors.length || !queryVars) return null;
   const nFactors = factors.length;
-  const eliminated = factors.map(f => {
-    const table = f.table || {};
-    const entries = Object.keys(table).length;
-    return { name: f.name || 'f', entries };
+  // Real bucket elimination requires factors with explicit scopes + tables.
+  const hasScopes = factors.every(f => Array.isArray(f.vars) && f.table);
+  if (!hasScopes) {
+    return { test: 'Variable Elimination', query: queryVars, nFactors, nEliminated: 0, apa: `VE: ${queryVars.length} vars, ${nFactors} factors` };
+  }
+  const dom = factorDomains(factors);
+  // Apply evidence by restricting each factor's table to consistent rows.
+  let working = factors.map(f => {
+    if (!Object.keys(evidence).length) return { vars: [...f.vars], table: { ...f.table } };
+    const t = {};
+    for (const k in f.table) {
+      const st = k.split(','); let ok = true;
+      f.vars.forEach((v, i) => { if (v in evidence && String(evidence[v]) !== st[i]) ok = false; });
+      if (ok) t[k] = f.table[k];
+    }
+    return { vars: [...f.vars], table: t };
   });
-  const result = { query: queryVars, nFactors, nEliminated: Math.max(0, nFactors - 1) };
-  return { test: 'Variable Elimination', query: queryVars, nFactors, nEliminated: result.nEliminated, apa: `VE: ${queryVars.length} vars, ${nFactors} factors` };
+  const queryset = new Set(queryVars);
+  const allVars = new Set(); working.forEach(f => f.vars.forEach(v => allVars.add(v)));
+  const elim = [...allVars].filter(v => !queryset.has(v) && !(v in evidence));
+  for (const v of elim) {
+    const involved = working.filter(f => f.vars.includes(v));
+    working = working.filter(f => !f.vars.includes(v));
+    let prod = involved[0];
+    for (let i = 1; i < involved.length; i++) prod = factorProduct(prod, involved[i], dom);
+    working.push(factorSumOut(prod, v, dom));
+  }
+  let result = working[0];
+  for (let i = 1; i < working.length; i++) result = factorProduct(result, working[i], dom);
+  result = factorNormalize(result);
+  return { test: 'Variable Elimination', query: queryVars, nFactors, nEliminated: elim.length, vars: result.vars, marginal: result.table, apa: `VE: ${queryVars.length} vars, ${nFactors} factors` };
 }
 
 // ── Treewidth (simplified) ────────────────────────────────────────
