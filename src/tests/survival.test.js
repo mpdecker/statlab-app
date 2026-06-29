@@ -770,3 +770,16 @@ describe('pseudoValues', () => {
   it('avgPseudo finite', () => { const r = pseudoValues(d, 'time', 'event', 40, 5); if (r) expect(Number.isFinite(r.avgPseudo)).toBe(true); });
   it('null for <10', () => expect(pseudoValues(d.slice(0, 5), 'time', 'event', 40)).toBeNull());
 });
+
+describe('coxPH sign convention', () => {
+  it('recovers a positive coefficient when higher x raises the hazard', () => {
+    // Exponential survival, rate = exp(0.8*x): higher x => shorter time => β = +0.8.
+    let s = 42;
+    const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+    const obs = [];
+    for (let i = 0; i < 200; i++) { const x = (i % 10) / 5 - 1; obs.push({ time: -Math.log(rand() + 1e-9) / Math.exp(0.8 * x), event: 1, x }); }
+    const r = coxPH(obs, ['x']);
+    expect(r.coefficients[0].beta).toBeGreaterThan(0.4);
+    expect(r.coefficients[0].beta).toBeLessThan(1.2);
+  });
+});

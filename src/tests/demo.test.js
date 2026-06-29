@@ -30,3 +30,19 @@ describe('ageStandardization', () => {
   it('null mismatched', () => expect(ageStandardization([0.01], [1000, 2000])).toBeNull());
   it('adjustedRate between min and max', () => { const r = ageStandardization(rates, pop); if (r) { expect(r.adjustedRate).toBeGreaterThanOrEqual(Math.min(...rates)); expect(r.adjustedRate).toBeLessThanOrEqual(Math.max(...rates)); } }); it('adjustedRate positive', () => { const r = ageStandardization(rates, pop); if (r) { expect(r.adjustedRate).toBeGreaterThan(0); } });
 });
+
+describe('coxRegressionDemo is a real Cox fit', () => {
+  // Exponential survival with hazard ∝ exp(1·x); real Cox recovers β_x≈1.
+  let s = 777;
+  const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+  const data = [];
+  for (let i = 0; i < 60; i++) {
+    const x = (i % 12) / 6 - 1;
+    data.push({ t: -Math.log(rand() + 1e-9) / Math.exp(1.0 * x), dead: 1, x });
+  }
+  it('estimates a real, significant coefficient (not the hardcoded 0.1 / p=0.05)', () => {
+    const r = coxRegressionDemo(data, 't', 'dead', ['x']);
+    expect(r.coefficients[0].b).toBeGreaterThan(0.5);
+    expect(r.coefficients[0].p).toBeLessThan(0.05);
+  });
+});
