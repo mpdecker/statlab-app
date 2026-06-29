@@ -26,13 +26,14 @@ implementations can be fixed. Status legend:
 | 3 | `panelFixedEffects` coeffs | econometric.js:162 | ✅ FIXED | see #26 — real within estimator + analytic SE. |
 | 4 | `hausmanTest` | econometric.js:177 | BROKEN | `p = 1 - chiPVal(H,k)` → wrong tail, ~never rejects | `p = chiPVal(H,k)` |
 | 5 | `spatialDurbin` | spatialEconometric.js:13 | ✅ FIXED | full Gaussian MLE of `y=ρWy+Xβ+WXθ+ε`: concentrated log-lik `−n/2·ln σ²(ρ)+ln|I−ρW|` (added `logAbsDet` helper) maximised over ρ by grid+golden-section; returns ρ, β (on X), θ (on WX) with conditional SEs. TDD: recovers ρ=0.65, β=2.00, θ=−1.11 from a ring-lattice SDM DGP (true 0.6, 2, −1). Also makes `directIndirectEffects` meaningful (was fed fabricated coefs). |
-| 6 | `spatialPanel` | spatialEconometric.js:27 | FABRICATED | β=`0.3+j*0.15`, rho=0.25, se=0.1 | spatial panel estimator |
+| 6 | `spatialPanel` | spatialEconometric.js:27 | ✅ FIXED | fixed-effects spatial-lag panel (FE-SAR) MLE: within-demean (y−ρWy) by unit, OLS on X̃, concentrated log-lik `−n/2·ln σ²(ρ)+ln\|I−ρW\|` maximised over ρ; real β/SE. TDD: recovers ρ≈0.4, β≈1.5 from a block-diagonal FE-SAR DGP (was ρ=0.25, β=0.3 hardcoded). |
 | 7 | `spatialHausman` | spatialEconometric.js:41 | BROKEN | `p=exp(-H/2)` not χ² survival | `chiPVal(H,k)` |
 | 8 | `gan` | deepLearning.js:46 | FABRICATED | no discriminator training; `gLoss=dLoss*1.5` | adversarial train loop or remove/relabel |
 | 9 | `variationalAutoencoder` | deepLearning.js:35 | FABRICATED | trains nothing; KL of random params | encoder/decoder + reparam + ELBO |
 | 10 | `autoencoder` | deepLearning.js:7 | BROKEN | encoder weights `W1/b1` never updated | full backprop |
 | 11 | `transformerBlock` | deepLearning.js:82 | MISLABELED | "projections" = fixed `v*0.8+0.1`; no learned weights/FFN/LN | real QKV projections + FFN, or relabel |
-| 12 | Cox coeffs | demo.js:76 | FABRICATED | `se:0.1`, `p:0.05` hardcoded | SE from Cox partial-likelihood Hessian |
+| 12 | Cox coeffs | demo.js:76 | ✅ FIXED | β/se/p were hardcoded (0.1/0.1/0.05); now delegates to the real `survival.coxPH`. TDD: recovers a positive significant β from a hazard-∝-exp(x) DGP. |
+| 12b | **`coxPH` (+ fineGray, frailtyCox, timeVaryingCox, cureModel) — CRITICAL SIGN BUG** | survival.js:137,313,467,572,782,824 | ✅ FIXED | Newton update used `β + hess⁻¹·grad`, but `hess` is the **negative-definite** Hessian, so the ascent step is `β − hess⁻¹·grad`. Every Cox/logistic coefficient in the survival module was **sign-flipped** (β̂ ≈ −β_true). Shape-only tests (HR>0, p∈[0,1]) never caught it. **Not in the original audit — found while fixing demo (#12); survival had been marked REAL from reading.** TDD: coxPH now recovers β=+0.78 (was −0.91) on a known DGP; timeVaryingCox HR 1.74. Affects all dependents (Fine-Gray, frailty, time-varying, cure). |
 | 13 | ILR regression coeffs | compositional.js:82 | ✅ FIXED | `se:0.1` → analytic OLS SE `√(σ̂²·(XᵀX)⁻¹_jj)` + z + p. **Also fixed a worse latent bug:** `compRegression` consumed the *display-truncated* `ilrTransform().transformed` (first 5 rows), so it had been regressing on only 5 observations regardless of n — now uses full `_ilrCoords(data)`. TDD-driven. |
 | 14 | `tsne` | dimReduction.js:8 | BROKEN | perplexity ignored (σ=1); gradient omits `-Q` repulsion → collapse | perplexity binary search + full KL gradient |
 | 15 | `lle` | dimReduction.js:88 | BROKEN | reconstruction weights hardcoded uniform `1/k` | solve constrained least squares per neighborhood |
@@ -114,10 +115,10 @@ implementations can be fixed. Status legend:
 | 83 | `transitionModel` | multilevel.js:1035 | BROKEN | regresses y on `(yLag+Σx)` as a single predictor; `se=1/√n` | proper transition/Markov regression |
 | 84 | `remlEstimate` | multilevel.js:999 | MISLABELED | plain OLS + residual var, no REML variance-component estimation | actual REML |
 | 85 | `repeatedMeasuresMANOVA` | multilevel.js:1017 | INCOMPLETE | returns SS only, no F/Wilks/p | RM-MANOVA test statistic |
-| 86 | `egarch` | finance.js:195 | FABRICATED | omega/alpha/beta/gamma hardcoded; never estimated | MLE of EGARCH params |
-| 87 | `tgarch` | finance.js:211 | FABRICATED | omega/alpha/beta/gamma hardcoded; never estimated | MLE of TGARCH params |
+| 86 | `egarch` | finance.js:195 | ✅ FIXED | Gaussian MLE of EGARCH(1,1): ln σ²_t = ω+β ln σ²_{t-1}+α(\|z\|−E\|z\|)+γz, β=tanh; gradient-descent + Newton (`_garchFit` helper). TDD: estimates β=0.70/α=0.29 (was all hardcoded). |
+| 87 | `tgarch` | finance.js:211 | ✅ FIXED | Gaussian MLE of GJR-GARCH(1,1) with feasibility transforms (ω>0, α,β≥0, α+γ≥0). TDD: recovers ω/α/γ/β ≈ .093/.128/.069/.530 from GJR(.1/.08/.06/.6) (was hardcoded 0.9). |
 | 88 | `blackScholes`/`optionGreeks`/`greeks` | finance.js:236 | ✅ FIXED | swapped `tanh`-for-Φ → real `normalCDF`; optionGreeks theta/rho now use Φ(d2). TDD: BS call now 10.4506 (was 9.54), put 5.5735, delta=N(d1). |
-| 89 | `gpdMLE` | extreme.js:57 | BROKEN | "MLE" loop does `xi+=0.0001`/`sigma→m`; no estimation | true GPD MLE/PWM |
+| 89 | `gpdMLE` | extreme.js:57 | ✅ FIXED | real GPD maximum likelihood via `mleFit` over [logσ, ξ] with support guard `1+ξy/σ>0`; MoM start values; delta-method SE for σ. TDD: recovers σ=2.32, ξ=0.26 from GPD(2, 0.3) exceedances (was σ→7.4, ξ→0.102). |
 | 90 | `gevMLE` | extreme.js:4 | APPROX | fixed-step gradient on questionable (CDF-derived) gradients | Newton on GEV log-likelihood |
 | 91 | `peaksOverThreshold` | extreme.js:129 | APPROX | xi hardcoded 0.1; scale=mean(exceed); no GPD fit | fit GPD to exceedances |
 | 92 | `rarefaction` | ecology.js:52 | BROKEN | nonsense expected-species formula (Hurlbert commented out, unused) | hypergeometric rarefaction |

@@ -140,3 +140,30 @@ describe('blackScholes / greeks accuracy (vs exact normal CDF)', () => {
     expect(optionGreeks(100, 100, 1, 0.05, 0.2).delta).toBeCloseTo(0.6368, 3);
   });
 });
+
+describe('GARCH-family models are estimated, not hardcoded', () => {
+  // GJR-GARCH(1,1) DGP: omega=0.1, alpha=0.08, gamma=0.06, beta=0.6 (persistence ~0.71).
+  let s = 2468;
+  const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+  const randn = () => Math.sqrt(-2 * Math.log(rand() + 1e-12)) * Math.cos(2 * Math.PI * rand());
+  const w = 0.1, a = 0.08, g = 0.06, b = 0.6;
+  let s2 = w / (1 - a - g / 2 - b);
+  const returns = [];
+  for (let t = 0; t < 1000; t++) {
+    const e = Math.sqrt(s2) * randn();
+    returns.push(e);
+    s2 = w + a * e * e + (e < 0 ? g * e * e : 0) + b * s2;
+  }
+  it('tgarch estimates parameters from data (beta != hardcoded 0.9)', () => {
+    const r = tgarch(returns);
+    expect(r.beta).not.toBe(0.9);
+    expect(r.beta).toBeGreaterThan(0.2);
+    expect(r.beta).toBeLessThan(0.88);
+    expect(r.omega).toBeGreaterThan(0);
+  });
+  it('egarch estimates parameters from data (not the hardcoded defaults)', () => {
+    const r = egarch(returns);
+    expect(r.beta).not.toBe(0.9);
+    expect(Number.isFinite(r.alpha)).toBe(true);
+  });
+});

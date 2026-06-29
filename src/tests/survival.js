@@ -134,7 +134,9 @@ export function coxPH(obs, covNames, { maxIter = 50, tolerance = 1e-6, strata = 
     const step = Array.from({ length: k }, (_, j) => { let s = 0; for (let i = 0; i < k; i++) s += hInv[j][i] * grad[i]; return s; });
     let lambda = 1, newBeta, newLL;
     for (let halve = 0; halve <= 10; halve++) {
-      newBeta = beta.map((b, j) => b + lambda * step[j]); newLL = 0;
+      // Newton ascent: hess is the (negative-definite) Hessian, so the ascent
+      // direction is −hess⁻¹·grad = −step.
+      newBeta = beta.map((b, j) => b - lambda * step[j]); newLL = 0;
       for (let s_s = 0; s_s < strataLevels.length; s_s++) {
         for (const t of eventTimes) {
           const atRisk = [], events = [];
@@ -308,7 +310,7 @@ export function fineGray(obs, covNames, causeOfInterest, { maxIter = 30, toleran
     const step = Array.from({ length: k }, (_, j) => { let s = 0; for (let i = 0; i < k; i++) s += hInv[j][i] * grad[i]; return s; });
     const delta = Math.sqrt(step.reduce((s, v) => s + v * v, 0));
     const scale = Math.min(1, 1 / Math.max(delta, 1));
-    beta = beta.map((b, j) => b + scale * step[j]);
+    beta = beta.map((b, j) => b - scale * step[j]); // Newton ascent: −hess⁻¹·grad
     if (delta < tolerance && iter > 3) break;
   }
 
@@ -462,7 +464,7 @@ export function frailtyCox(obs, covNames, clusterVar, { distribution = 'gamma', 
     const hInv = matInv(newHess);
     if (!hInv) break;
     const step = Array.from({ length: k }, (_, j) => { let s = 0; for (let i = 0; i < k; i++) s += hInv[j][i] * newGrad[i]; return s; });
-    beta = beta.map((b, j) => b + step[j]);
+    beta = beta.map((b, j) => b - step[j]); // Newton ascent: −hess⁻¹·grad
     const delta = Math.sqrt(beta.reduce((s, b, j) => s + (b - prevBeta[j]) ** 2, 0));
     logLik = ll;
     if (delta < tolerance && iter > 3) break;
@@ -567,7 +569,7 @@ export function timeVaryingCox(data, idVar, startVar, stopVar, eventVar, covName
     const step = Array.from({ length: k }, (_, j) => { let s = 0; for (let i = 0; i < k; i++) s += hInv[j][i] * grad[i]; return s; });
     const stepNorm = Math.sqrt(step.reduce((s, v) => s + v * v, 0));
     const scale = Math.min(1, 1 / Math.max(stepNorm, 1));
-    beta = beta.map((b, j) => b + scale * step[j]);
+    beta = beta.map((b, j) => b - scale * step[j]); // Newton ascent: −hess⁻¹·grad
     if (stepNorm < tolerance) break;
   }
 
@@ -777,7 +779,7 @@ export function cureModel(obs, covNames, { maxIter = 50, tolerance = 1e-5 } = {}
       const inv = matInv(h);
       if (!inv) break;
       const step = inv.map(row => row.reduce((s, v, j) => s + v * g[j], 0));
-      cureBeta = cureBeta.map((b, j) => b + step[j]);
+      cureBeta = cureBeta.map((b, j) => b - step[j]); // Newton ascent: −h⁻¹·grad
       if (Math.sqrt(step.reduce((s, v) => s + v * v, 0)) < 1e-6) break;
     }
 
@@ -819,7 +821,7 @@ export function cureModel(obs, covNames, { maxIter = 50, tolerance = 1e-5 } = {}
       const inv = matInv(h);
       if (!inv) break;
       const step = inv.map(row => row.reduce((s, v, j) => s + v * g[j], 0));
-      survBeta = survBeta.map((b, j) => b + step[j]);
+      survBeta = survBeta.map((b, j) => b - step[j]); // Newton ascent: −h⁻¹·grad
       if (Math.sqrt(step.reduce((s, v) => s + v * v, 0)) < 1e-6) break;
     }
 

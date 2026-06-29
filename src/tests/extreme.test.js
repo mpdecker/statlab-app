@@ -45,3 +45,18 @@ describe('thresholdSelection', () => {
   it('contract keys', () => expectKeys(thresholdSelection(data), ['test','candidates','selected','n','apa']));
   it('null <20', () => expect(thresholdSelection([1,2,3])).toBeNull());
 });
+
+describe('gpdMLE is a real GPD maximum-likelihood fit', () => {
+  // Exceedances drawn from GPD(sigma=2, xi=0.3); inverse-CDF sampling.
+  let s = 13579;
+  const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+  const sigma = 2, xi = 0.3;
+  const data = Array.from({ length: 150 }, () => (sigma / xi) * (Math.pow(1 - (rand() * 0.998 + 0.001), -xi) - 1));
+  it('recovers the scale and shape parameters', () => {
+    const r = gpdMLE(data, 0);
+    expect(r.sigma).toBeGreaterThan(1.4);
+    expect(r.sigma).toBeLessThan(2.6);
+    expect(r.xi).toBeGreaterThan(0.05);
+    expect(r.xi).toBeLessThan(0.6);
+  });
+});

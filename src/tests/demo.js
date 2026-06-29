@@ -1,4 +1,5 @@
 import { avg } from '../math/core.js';
+import { coxPH } from './survival.js';
 
 // ── Current Life Table ────────────────────────────────────────────
 export function lifeTable(mx, { ax = null } = {}) {
@@ -67,15 +68,20 @@ export function populationGrowth(pop, { t = 1 } = {}) {
 // ── Cox Regression for Demography ─────────────────────────────────
 export function coxRegressionDemo(data, timeVar, eventVar, xVars) {
   if (!data || data.length < 10 || !timeVar || !eventVar || !xVars || !xVars.length) return null;
-  const n = data.length;
-  const time = data.map(r => +r[timeVar]);
-  const event = data.map(r => +r[eventVar]);
-  const X = data.map(r => xVars.map(v => +r[v]));
-  const betas = xVars.map(() => 0.1);
-  const coefficients = xVars.map((name, j) => ({
-    name, hr: +Math.exp(betas[j]).toFixed(4), b: +betas[j].toFixed(5), se: +(0.1).toFixed(5), p: 0.05
-  }));
-  return { test: 'Cox Regression (Demo)', coefficients, n, nEvents: event.filter(v => v === 1).length, apa: `Cox demo: ${coefficients.map(c => `${c.name}=${c.hr}`).join(', ')}` };
+  // Real Cox proportional-hazards fit (partial-likelihood MLE) via survival.coxPH.
+  const obs = data.map(r => {
+    const o = { time: +r[timeVar], event: +r[eventVar] === 1 ? 1 : 0 };
+    xVars.forEach(v => { o[v] = +r[v]; });
+    return o;
+  });
+  const fit = coxPH(obs, xVars);
+  if (!fit) return null;
+  const coefficients = fit.coefficients.map(c => ({ name: c.name, hr: c.hr, b: c.beta, se: c.se, z: c.z, p: c.p }));
+  return {
+    test: 'Cox Regression (Demo)', coefficients, logLikelihood: fit.logLikelihood,
+    n: data.length, nEvents: obs.filter(o => o.event === 1).length,
+    apa: `Cox: ${coefficients.map(c => `${c.name} HR=${c.hr.toFixed(2)} ${c.p < 0.05 ? '*' : ''}`).join(', ')}`,
+  };
 }
 
 // ── Kaplan-Meier for Demography ───────────────────────────────────

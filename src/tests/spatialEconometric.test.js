@@ -51,3 +51,27 @@ describe('spatialDurbin is a real ML estimator', () => {
     expect(r.coefficients.find(c => c.name === 'x').b).toBeLessThan(2.5);
   });
 });
+
+describe('spatialPanel is a real FE spatial-lag estimator', () => {
+  // FE-SAR panel: y_it = 0.4*(Wy)_it + 1.5*x_it + mu_i + e. N=6 units, T=4 periods.
+  const N = 6, T = 4, n = N * T;
+  const Wn = Array.from({ length: N }, (_, i) => Array.from({ length: N }, (_, j) =>
+    (j === (i + 1) % N || j === (i - 1 + N) % N) ? 0.5 : 0));
+  const W = Array.from({ length: n }, () => Array(n).fill(0));
+  for (let t = 0; t < T; t++) for (let u = 0; u < N; u++) for (let v = 0; v < N; v++) W[t * N + u][t * N + v] = Wn[u][v];
+  let s = 9090;
+  const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+  const mu = [0, 2, 4, 6, 8, 10];
+  const x = Array.from({ length: n }, (_, i) => (i % 5) - 2 + 0.3 * rand());
+  const bvec = Array.from({ length: n }, (_, i) => mu[i % N] + 1.5 * x[i] + 0.2 * (rand() - 0.5));
+  let y = Array(n).fill(0);
+  for (let it = 0; it < 500; it++) { const Wy = W.map(row => row.reduce((a, w, j) => a + w * y[j], 0)); y = bvec.map((bi, i) => bi + 0.4 * Wy[i]); }
+  const data = Array.from({ length: n }, (_, i) => ({ id: i % N, time: Math.floor(i / N), x: x[i], y: y[i] }));
+  it('recovers the spatial rho (~0.4) and slope (~1.5)', () => {
+    const r = spatialPanel(data, 'y', ['x'], W, { idVar: 'id', timeVar: 'time' });
+    expect(r.spatialRho).toBeGreaterThan(0.3);
+    expect(r.spatialRho).toBeLessThan(0.55);
+    expect(r.coefficients.find(c => c.name === 'x').b).toBeGreaterThan(1.0);
+    expect(r.coefficients.find(c => c.name === 'x').b).toBeLessThan(2.0);
+  });
+});
