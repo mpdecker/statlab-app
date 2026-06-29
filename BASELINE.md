@@ -42,8 +42,8 @@ implementations can be fixed. Status legend:
 | 18 | `limeImportance` | interpretability.js:29 | MISLABELED | perturbation heuristic, no local surrogate | weighted local linear surrogate |
 | 19 | `partialDependence` | interpretability.js:49 | MISLABELED | uses corr pseudo-model, not a trained model | require a model fn (cf. alePlot) |
 | 20 | `globalSurrogate` | interpretability.js:150 | FABRICATED | "surrogate" = `mean+Σ(x-x̄)*0.1`; params ignored | fit an actual surrogate tree/linear model |
-| 21 | `mixturePosterior` | mixture.js:221 | FABRICATED | returns uniform `1/k` for all points | responsibilities from gmmResult params |
-| 22 | `mixtureOfRegressions` | mixture.js:7 | BROKEN | EM dead after iter 1 (labels become arrays); random convergence check | proper soft-EM with responsibilities |
+| 21 | `mixturePosterior` | mixture.js:221 | ✅ FIXED | returns uniform `1/k` for all points | responsibilities from gmmResult params |
+| 22 | `mixtureOfRegressions` | mixture.js:7 | ✅ FIXED | EM dead after iter 1 (labels become arrays); random convergence check | proper soft-EM with responsibilities |
 | 23 | `moderatedMediation` | bootstrap.js:192 | BROKEN | `b_w` is an ad-hoc ratio, not the moderated path coef | fit Y~M*W, take index a·b_w |
 
 | 24 | `tobitModel` | econometric.js:24 | ✅ FIXED | reimplemented as Type-I censored-normal MLE via `mleFit` (censored obs → Φ((L−xβ)/σ); adds intercept; reports MLE β, Hessian-based SE, z, computed p, σ, logLik). TDD: recovers slope 2.000 & p≈0 with no censoring (was through-origin OLS giving 2.13, p≡1); handles left-censored data. |
