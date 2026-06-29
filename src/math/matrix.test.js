@@ -1,6 +1,23 @@
 // src/math/matrix.test.js
 import { describe, it, expect } from 'vitest';
-import { matMul, matTrans, matInv, jacobiEigen } from './matrix.js';
+import { matMul, matTrans, matInv, jacobiEigen, solveNormalEquations } from './matrix.js';
+
+describe('solveNormalEquations', () => {
+  it('solves correlated-predictor OLS exactly (not a diagonal approximation)', () => {
+    // y = 1*x1 + 2*x2 with correlated columns x1=[1,2,3,4], x2=[1,1,2,2].
+    // XtX=[[30,17],[17,10]], XtY=[64,37]; true beta=[1,2].
+    // A diagonal-only solve (XtY[i]/XtX[i][i]) gives [2.133, 3.7] — wrong.
+    const beta = solveNormalEquations([[30, 17], [17, 10]], [64, 37]);
+    expect(beta[0]).toBeCloseTo(1, 6);
+    expect(beta[1]).toBeCloseTo(2, 6);
+  });
+
+  it('falls back to the diagonal solve when XtX is singular', () => {
+    // Singular XtX (rank 1); helper must not throw and returns a finite vector.
+    const beta = solveNormalEquations([[4, 4], [4, 4]], [8, 8]);
+    expect(beta.every(Number.isFinite)).toBe(true);
+  });
+});
 
 describe('matMul', () => {
   it('2x2 identity × identity = identity', () => {

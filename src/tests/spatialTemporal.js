@@ -1,4 +1,5 @@
 import { avg } from '../math/core.js';
+import { solveNormalEquations } from '../math/matrix.js';
 
 // ── STAR Model ────────────────────────────────────────────────────
 export function starModel(data, yVar, xVars, W, { p = 1 } = {}) {
@@ -11,8 +12,7 @@ export function starModel(data, yVar, xVars, W, { p = 1 } = {}) {
   const Xt = Xall[0].map((_, j) => Xall.map(r => r[j]));
   const XtX = Xt.map(r1 => Xall[0].map((_, j) => r1.reduce((s, _, a) => s + Xall[a][j] * r1[a], 0)));
   const XtY = Xt.map(r1 => r1.reduce((s, v, a) => s + v * y[a], 0));
-  const diag = XtX.map((r, i) => r[i] || 1);
-  const beta = XtY.map((v, i) => v / diag[i]);
+  const beta = solveNormalEquations(XtX, XtY);
   const fitted = Xall.map(xi => xi.reduce((s, v, j) => s + v * beta[j], 0));
   let ssr = 0, sst = 0;
   const my = avg(y);
@@ -32,7 +32,7 @@ export function gstarModel(data, yVar, xVars, W, { p = 1, q = 1 } = {}) {
   const Xt = Xall[0].map((_, j) => Xall.map(r => r[j]));
   const XtX = Xt.map(r1 => Xall[0].map((_, j) => r1.reduce((s, _, a) => s + Xall[a][j] * r1[a], 0)));
   const XtY = Xt.map(r1 => r1.reduce((s, v, a) => s + v * y[a], 0));
-  let beta = XtY.map((v, i) => v / Math.max(XtX[i][i], 1));
+  let beta = solveNormalEquations(XtX, XtY);
   const fitted = Xall.map(xi => xi.reduce((s, v, j) => s + v * beta[j], 0));
   return { test: 'GSTAR Model', rho: +beta[0].toFixed(4), coefficients: (xVars || []).map((n, j) => ({ name: n, b: +beta[1 + j].toFixed(4) })), n, apa: `GSTAR: ρ = ${beta[0].toFixed(3)}, n = ${n}` };
 }
@@ -47,8 +47,7 @@ export function spaceTimeInteraction(data, yVar, xVars, timeVar) {
   const Xt = X[0].map((_, j) => X.map(r => r[j]));
   const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, a) => s + X[a][j] * r1[a], 0)));
   const XtY = Xt.map(r1 => r1.reduce((s, v, a) => s + v * y[a], 0));
-  const diag = XtX.map((r, i) => r[i] || 1);
-  const beta = XtY.map((v, i) => v / diag[i]);
+  const beta = solveNormalEquations(XtX, XtY);
   const resid = y.map((yi, i) => yi - X[i].reduce((s, v, j) => s + v * beta[j], 0));
   const tResid = t.map((ti, i) => ti * resid[i]);
   const inter = avg(tResid);

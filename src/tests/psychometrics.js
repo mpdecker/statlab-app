@@ -1,6 +1,6 @@
 import { avg, sampleVar, corr, fmtP } from '../math/core.js';
 import { chiPVal } from '../math/distributions.js';
-import { jacobiEigen } from '../math/matrix.js';
+import { jacobiEigen, solveNormalEquations } from '../math/matrix.js';
 import { mulberry32, boxMullerN } from '../math/rng.js';
 import { pca } from './multivariate.js';
 
@@ -789,8 +789,7 @@ export function difLogistic(data, groupVar, item, totalScore) {
   const Xt = X[0].map((_, j) => X.map(r => r[j]));
   const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + X[k][j] * r1[k], 0)));
   const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * resp[k], 0));
-  const diag = XtX.map((r, i) => r[i] || 1);
-  const beta = XtY.map((v, i) => v / diag[i]);
+  const beta = solveNormalEquations(XtX, XtY);
   return { test: 'DIF Logistic', uniform: +beta[2].toFixed(4), nonUniform: +beta[3].toFixed(4), n, apa: `DIF logit: uniform = ${beta[2].toFixed(3)}, non-uniform = ${beta[3].toFixed(3)}` };
 }
 

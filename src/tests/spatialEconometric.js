@@ -1,17 +1,76 @@
 import { avg, sampleVar } from '../math/core.js';
 import { jacobiEigen, matInv } from '../math/matrix.js';
+import { normalCDF } from '../math/distributions.js';
 
-// ── Spatial Durbin Model ──────────────────────────────────────────
-export function spatialDurbin(data, yVar, xVars, W, { maxIter = 10 } = {}) {
-  if (!data || data.length < 10 || !yVar || !xVars || !xVars.length || !W || !W.length) return null;
-  const n = data.length;
+// log|det(M)| via Gaussian elimination with partial pivoting (M real, n×n).
+function logAbsDet(M0) {
+  const n = M0.length;
+  const M = M0.map(r => [...r]);
+  let ld = 0;
+  for (let c = 0; c < n; c++) {
+    let piv = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+    if (Math.abs(M[piv][c]) < 1e-300) return -Infinity;
+    if (piv !== c) [M[c], M[piv]] = [M[piv], M[c]];
+    ld += Math.log(Math.abs(M[c][c]));
+    for (let r = c + 1; r < n; r++) { const f = M[r][c] / M[c][c]; for (let j = c; j < n; j++) M[r][j] -= f * M[c][j]; }
+  }
+  return ld;
+}
+
+// ── Spatial Durbin Model: y = ρWy + Xβ + WXθ + ε (Gaussian MLE) ──────────────
+export function spatialDurbin(data, yVar, xVars, W) {
+  if (!data || data.length < 10 || !yVar || !xVars || !xVars.length || !W || W.length !== data.length) return null;
+  const n = data.length, p = xVars.length;
   const y = data.map(r => +r[yVar]);
   const X = data.map(r => xVars.map(v => +r[v]));
   const Wy = W.map(row => row.reduce((s, w, j) => s + w * y[j], 0));
-  const WX = xVars.map((_, v) => W.map(row => row.reduce((s, w, j) => s + w * X[j][v], 0)));
-  const rho = 0.3;
-  const beta = xVars.map((name, j) => ({ name, b: +(0.5 + j * 0.2).toFixed(5), se: (0.1).toFixed(5) }));
-  return { test: 'Spatial Durbin Model', coefficients: beta, rho: +rho.toFixed(4), n, apa: `SDM: rho=${rho.toFixed(3)}, ${xVars.length} vars` };
+  const WX = data.map((_, i) => xVars.map((_, v) => W[i].reduce((s, w, j) => s + w * X[j][v], 0)));
+  // Design Z = [intercept, X, WX]; coefficients δ = [α, β, θ].
+  const Z = data.map((_, i) => [1, ...X[i], ...WX[i]]);
+  const kz = 1 + 2 * p;
+  const ZtZ = Array.from({ length: kz }, (_, a) => Array.from({ length: kz }, (_, b) => Z.reduce((s, row) => s + row[a] * row[b], 0)));
+  const ridge = 1e-7 * (ZtZ.reduce((s, r, i) => s + r[i], 0) / kz); // regularise near-collinear WX
+  for (let i = 0; i < kz; i++) ZtZ[i][i] += ridge;
+  const ZtZi = matInv(ZtZ);
+  if (!ZtZi) return null;
+  const I = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 1 : 0)));
+  const solveDelta = Ay => {
+    const ZtAy = Array.from({ length: kz }, (_, a) => Z.reduce((s, row, i) => s + row[a] * Ay[i], 0));
+    return ZtZi.map(row => row.reduce((s, v, j) => s + v * ZtAy[j], 0));
+  };
+  // Concentrated log-likelihood in ρ: −n/2·ln σ²(ρ) + ln|I − ρW|.
+  const concLL = rho => {
+    const Ay = y.map((yi, i) => yi - rho * Wy[i]);
+    const delta = solveDelta(Ay);
+    let e2 = 0;
+    for (let i = 0; i < n; i++) { const e = Ay[i] - Z[i].reduce((s, v, j) => s + v * delta[j], 0); e2 += e * e; }
+    const A = I.map((row, i) => row.map((v, j) => v - rho * W[i][j]));
+    return -0.5 * n * Math.log(Math.max(e2 / n, 1e-300)) + logAbsDet(A);
+  };
+  // Grid search then golden-section refine over ρ ∈ (−0.99, 0.99).
+  let rho = 0, best = -Infinity;
+  for (let g = 0; g <= 80; g++) { const r = -0.99 + 1.98 * g / 80; const ll = concLL(r); if (ll > best) { best = ll; rho = r; } }
+  let lo = Math.max(-0.99, rho - 0.025), hi = Math.min(0.99, rho + 0.025);
+  for (let it = 0; it < 50; it++) { const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3; if (concLL(m1) < concLL(m2)) lo = m1; else hi = m2; }
+  rho = (lo + hi) / 2;
+  // Coefficients and conditional-on-ρ SEs at ρ̂.
+  const Ay = y.map((yi, i) => yi - rho * Wy[i]);
+  const delta = solveDelta(Ay);
+  let rss = 0;
+  for (let i = 0; i < n; i++) { const e = Ay[i] - Z[i].reduce((s, v, j) => s + v * delta[j], 0); rss += e * e; }
+  const sigma2 = rss / Math.max(1, n - kz);
+  const mk = (name, idx) => {
+    const b = delta[idx], se = Math.sqrt(Math.max(0, sigma2 * ZtZi[idx][idx])), z = se > 0 ? b / se : 0;
+    return { name, b: +b.toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  };
+  const coefficients = xVars.map((nm, j) => mk(nm, 1 + j));              // β on X
+  const lagCoefficients = xVars.map((nm, j) => mk('W_' + nm, 1 + p + j)); // θ on WX
+  return {
+    test: 'Spatial Durbin Model', coefficients, lagCoefficients,
+    intercept: +delta[0].toFixed(5), rho: +rho.toFixed(4), sigma2: +sigma2.toFixed(5),
+    logLik: +concLL(rho).toFixed(4), n, apa: `SDM (ML): ρ = ${rho.toFixed(3)}, ${p} vars`,
+  };
 }
 
 // ── Spatial Panel Model ───────────────────────────────────────────

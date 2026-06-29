@@ -1,5 +1,6 @@
 import { avg, sampleVar } from '../math/core.js';
 import { mulberry32 } from '../math/rng.js';
+import { solveNormalEquations } from '../math/matrix.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
@@ -15,7 +16,7 @@ export function partWorthUtilities(ratings, profiles, attrs) {
   const Xt = X[0].map((_, j) => X.map(r => r[j]));
   const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + X[k][j] * r1[k], 0)));
   const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * ratings[k], 0));
-  const utilities = XtY.map((v, i) => +(v / Math.max(XtX[i][i], 1)).toFixed(4));
+  const utilities = solveNormalEquations(XtX, XtY).map(v => +v.toFixed(4));
   const result = attrs.map((a, ai) => ({
     attribute: a,
     utilities: utilities.slice(ai * 2, (ai + 1) * 2).map((u, l) => ({ level: l + 1, utility: u || 0 }))
