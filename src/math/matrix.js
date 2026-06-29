@@ -24,6 +24,19 @@ export function matInv(A) {
 }
 
 /**
+ * Solve the normal equations (XᵀX)β = XᵀY for β via a full matrix inverse.
+ * Falls back to the diagonal solve ONLY when XᵀX is singular (matInv === null),
+ * matching the degenerate-case guard in regression.js's ols(). Use this instead
+ * of the bare `XtY[i] / XtX[i][i]` diagonal approximation, which is correct only
+ * when predictors are orthogonal.
+ */
+export function solveNormalEquations(XtX, XtY) {
+  const inv = matInv(XtX);
+  if (inv) return inv.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0));
+  return XtX.map((r, i) => XtY[i] / (r[i] || 1)); // singular fallback
+}
+
+/**
  * Jacobi eigendecomposition for real symmetric matrices.
  * Returns { eigenvalues, eigenvectors } sorted descending.
  */

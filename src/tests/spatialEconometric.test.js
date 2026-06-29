@@ -26,3 +26,28 @@ describe('directIndirectEffects', () => {
   it('effects non-empty', () => { const r = directIndirectEffects(result); if (r && r.effects) expect(r.effects.length).toBeGreaterThan(0); });
   it('each effect has total', () => { const r = directIndirectEffects(result); if (r && r.effects) { r.effects.forEach(e => { expect(e).toHaveProperty('total'); }); } });
 });
+
+describe('spatialDurbin is a real ML estimator', () => {
+  // SDM DGP on a row-standardized ring lattice: y = 0.6*Wy + 2x - Wx + e.
+  const n = 24;
+  const W = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) =>
+    (j === (i + 1) % n || j === (i - 1 + n) % n) ? 0.5 : 0));
+  let s = 424242;
+  const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+  const x = Array.from({ length: n }, (_, i) => (i % 7) - 3 + 0.3 * rand());
+  const Wx = W.map(row => row.reduce((acc, w, j) => acc + w * x[j], 0));
+  const bvec = x.map((xi, i) => 2 * xi - Wx[i] + 0.2 * (rand() - 0.5));
+  let y = Array(n).fill(0);
+  for (let it = 0; it < 500; it++) {
+    const Wy = W.map(row => row.reduce((acc, w, j) => acc + w * y[j], 0));
+    y = bvec.map((bi, i) => bi + 0.6 * Wy[i]);
+  }
+  const data = x.map((xi, i) => ({ x: xi, y: y[i] }));
+  it('recovers the spatial autoregressive coefficient (~0.6) and X slope (~2)', () => {
+    const r = spatialDurbin(data, 'y', ['x'], W);
+    expect(r.rho).toBeGreaterThan(0.4);
+    expect(r.rho).toBeLessThan(0.8);
+    expect(r.coefficients.find(c => c.name === 'x').b).toBeGreaterThan(1.5);
+    expect(r.coefficients.find(c => c.name === 'x').b).toBeLessThan(2.5);
+  });
+});

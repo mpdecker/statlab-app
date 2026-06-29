@@ -466,8 +466,7 @@ export function nonresponseAdjustment(data, responseVar, covarVars) {
   const Xt = X[0].map((_, j) => X.map(r => r[j]));
   const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + X[k][j] * r1[k], 0)));
   const XtR = Xt.map(r1 => r1.reduce((s, v, k) => s + v * responded[k], 0));
-  const diag = XtX.map((r, i) => r[i] || 1);
-  const beta = XtR.map((v, i) => v / diag[i]);
+  const beta = solveNormalEquations(XtX, XtR);
   const weights = X.map(xi => 1 / Math.max(0.01, (beta.reduce((s, b, j) => s + b * xi[j], 0) / n)));
   const adjWt = weights.map((w, i) => +(w * (responded[i] ? 1 : 0)).toFixed(4));
   return { test: 'Non-Response Adjustment', adjustedWeights: adjWt.slice(0, 10), n, responseRate: +pct.toFixed(4), apa: `NR adjust: response rate = ${(pct * 100).toFixed(0)}%` };

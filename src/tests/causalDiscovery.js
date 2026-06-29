@@ -1,13 +1,15 @@
 import { avg, corr, sampleVar } from '../math/core.js';
 import { tPVal, chiPVal, normalCDF, normalINV, tInv2 } from '../math/distributions.js';
 import { mulberry32 } from '../math/rng.js';
+import { solveNormalEquations } from '../math/matrix.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // Partial correlation test (conditional independence)
 function partialCorr(x, y, z) {
   if (!z || !z.length) return corr(x, y);
-  const rz = z.map((_, i) => z.map(r => r[i]));
+  // z is [var][obs]; transpose to an n×p design matrix [obs][var].
+  const rz = z[0].map((_, i) => z.map(col => col[i]));
   // Compute residuals
   const xRes = residuals(x, rz);
   const yRes = residuals(y, rz);
@@ -19,9 +21,8 @@ function residuals(y, X) {
   const Xt = X[0].map((_, j) => X.map(r => r[j]));
   const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + X[k][j] * r1[k], 0)));
   const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * y[k], 0));
-  const diag = XtX.map((r, i) => r[i] || 1);
-  const beta = XtY.map((v, i) => v / diag[i]);
-  return y.map((yi, i) => yi - beta.reduce((s, b, j) => s + b * X[j][i], 0));
+  const beta = solveNormalEquations(XtX, XtY);
+  return y.map((yi, i) => yi - beta.reduce((s, b, j) => s + b * X[i][j], 0));
 }
 
 // ── Partial Correlation Test ──────────────────────────────────────

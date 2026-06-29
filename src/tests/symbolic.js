@@ -1,4 +1,5 @@
 import { avg } from '../math/core.js';
+import { solveNormalEquations } from '../math/matrix.js';
 
 // ── Interval Mean ─────────────────────────────────────────────────
 export function intervalMean(data, loVar, hiVar) {
@@ -97,7 +98,7 @@ export function symbolicRegression(data, yVar, xVars) {
   const Xt = Xaug[0].map((_, j) => Xaug.map(r => r[j]));
   const XtX = Xt.map(r1 => Xaug[0].map((_, j) => r1.reduce((s, _, k) => s + Xaug[k][j] * r1[k], 0)));
   const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * y[k], 0));
-  const beta = XtX.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0) / Math.max(row.reduce((s2, v2) => s2 + v2 * v2, 0), 1));
+  const beta = solveNormalEquations(XtX, XtY);
   const coeffs = xVars.map((name, j) => ({ name, b: +beta[1 + j].toFixed(5) }));
   return { test: 'Symbolic Regression', coefficients: coeffs, interc: +beta[0].toFixed(5), n, p: xVars.length, apa: `SymReg: ${xVars.length} vars, n=${n}` };
 }

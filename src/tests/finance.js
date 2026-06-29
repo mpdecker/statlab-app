@@ -237,8 +237,8 @@ export function blackScholes(spot, strike, time, rate, sigma, type = 'call') {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || spot <= 0 || strike <= 0 || sigma <= 0) return null;
   const d1 = (Math.log(spot / strike) + (rate + sigma * sigma / 2) * time) / (sigma * Math.sqrt(time));
   const d2 = d1 - sigma * Math.sqrt(time);
-  const phi = 0.5 * (1 + Math.tanh(d1 / Math.SQRT2));
-  const phi2 = 0.5 * (1 + Math.tanh(d2 / Math.SQRT2));
+  const phi = normalCDF(d1);
+  const phi2 = normalCDF(d2);
   const price = type === 'call' ? spot * phi - strike * Math.exp(-rate * time) * phi2 : strike * Math.exp(-rate * time) * (1 - phi2) - spot * (1 - phi);
   return { test: 'Black-Scholes', price: +price.toFixed(4), type, spot, strike, time, rate, sigma, apa: `BS ${type}: ${price.toFixed(2)}` };
 }
@@ -260,13 +260,14 @@ export function impliedVolatility(marketPrice, spot, strike, time, rate, type = 
 export function optionGreeks(spot, strike, time, rate, sigma) {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite)) return null;
   const d1 = (Math.log(spot / strike) + (rate + sigma * sigma / 2) * time) / (sigma * Math.sqrt(time));
-  const phi = 0.5 * (1 + Math.tanh(d1 / Math.SQRT2));
+  const d2 = d1 - sigma * Math.sqrt(time);
+  const phi = normalCDF(d1);
   const pdf = Math.exp(-0.5 * d1 * d1) / Math.sqrt(2 * Math.PI);
   const delta = phi;
   const gamma = pdf / (spot * sigma * Math.sqrt(time));
-  const theta = -spot * pdf * sigma / (2 * Math.sqrt(time)) - rate * strike * Math.exp(-rate * time) * 0.5;
+  const theta = -spot * pdf * sigma / (2 * Math.sqrt(time)) - rate * strike * Math.exp(-rate * time) * normalCDF(d2);
   const vega = spot * Math.sqrt(time) * pdf / 100;
-  const rho = strike * time * Math.exp(-rate * time) * 0.5 / 100;
+  const rho = strike * time * Math.exp(-rate * time) * normalCDF(d2) / 100;
   return { test: 'Option Greeks', delta: +delta.toFixed(4), gamma: +gamma.toFixed(4), theta: +theta.toFixed(4), vega: +vega.toFixed(4), rho: +rho.toFixed(4), apa: `Greeks: δ=${delta.toFixed(3)}, γ=${gamma.toFixed(4)}` };
 }
 
@@ -335,10 +336,10 @@ export function greeks(S, K, T, r, sigma) {
   const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));
   const d2 = d1 - sigma * Math.sqrt(T);
   const nd1 = Math.exp(-0.5 * d1 * d1) / Math.sqrt(2 * Math.PI);
-  const delta = 0.5 * (1 + Math.tanh(d1 / Math.SQRT2));
+  const delta = normalCDF(d1);
   const gamma = nd1 / (S * sigma * Math.sqrt(T));
-  const theta = -S * nd1 * sigma / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * 0.5 * (1 + Math.tanh(d2 / Math.SQRT2));
+  const theta = -S * nd1 * sigma / (2 * Math.sqrt(T)) - r * K * Math.exp(-r * T) * normalCDF(d2);
   const vega = S * Math.sqrt(T) * nd1 / 100;
-  const rho = K * T * Math.exp(-r * T) * 0.5 * (1 + Math.tanh(d2 / Math.SQRT2)) / 100;
+  const rho = K * T * Math.exp(-r * T) * normalCDF(d2) / 100;
   return { test: 'Option Greeks', delta: +delta.toFixed(4), gamma: +gamma.toFixed(4), theta: +theta.toFixed(4), vega: +vega.toFixed(4), rho: +rho.toFixed(4), apa: `Greeks: delta=${delta.toFixed(3)}, gamma=${gamma.toFixed(3)}` };
 }

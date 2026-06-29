@@ -125,3 +125,18 @@ describe('greeks', () => {
   it('null invalid', () => expect(greeks(-1, 100, 1, 0.05, 0.2)).toBeNull());
   it('delta is finite', () => { const r = greeks(100, 105, 1, 0.05, 0.2); if (r) expect(Number.isFinite(r.delta)).toBe(true); });
 });
+
+describe('blackScholes / greeks accuracy (vs exact normal CDF)', () => {
+  // Textbook BS: S=K=100, T=1, r=5%, sigma=20% → call=10.4506, put=5.5735.
+  // The tanh approximation to Phi gives ~9.53 for the call (~9% error).
+  it('call price matches the exact Black-Scholes value', () => {
+    expect(blackScholes(100, 100, 1, 0.05, 0.2, 'call').price).toBeCloseTo(10.4506, 2);
+  });
+  it('put price matches the exact Black-Scholes value', () => {
+    expect(blackScholes(100, 100, 1, 0.05, 0.2, 'put').price).toBeCloseTo(5.5735, 2);
+  });
+  it('call delta equals N(d1)', () => {
+    // d1 = 0.35 → N(0.35) = 0.63683
+    expect(optionGreeks(100, 100, 1, 0.05, 0.2).delta).toBeCloseTo(0.6368, 3);
+  });
+});

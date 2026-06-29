@@ -24,3 +24,19 @@ describe('symbolicRegression', () => {
   it('coefficients array present', () => { const r = symbolicRegression(d, 'y', ['x1','x2','x3']); if (r) { expect(Array.isArray(r.coefficients)).toBe(true); expect(r.coefficients.length).toBeGreaterThan(0); } });
   it('n matches rows', () => { const r = symbolicRegression(d, 'y', ['x1','x2','x3']); if (r) expect(r.n).toBe(d.length); }); it('coefficients non-empty', () => { const r = symbolicRegression(d, 'y', ['x1','x2','x3']); if (r) { expect(r.coefficients).toBeDefined(); } });
 });
+
+describe('symbolicRegression correctness', () => {
+  it('recovers true OLS coefficients with correlated predictors', () => {
+    // y = 1*x1 + 2*x2 exactly; x1 and x2 are correlated.
+    // A diagonal-only normal-equations solve returns ~[2.16, 3.68] — wrong.
+    const data = [
+      { x1: 1, x2: 1, y: 3 }, { x1: 2, x2: 1, y: 4 }, { x1: 3, x2: 2, y: 7 },
+      { x1: 4, x2: 2, y: 8 }, { x1: 5, x2: 3, y: 11 },
+    ];
+    const r = symbolicRegression(data, 'y', ['x1', 'x2']);
+    const bx1 = r.coefficients.find(c => c.name === 'x1').b;
+    const bx2 = r.coefficients.find(c => c.name === 'x2').b;
+    expect(bx1).toBeCloseTo(1, 4);
+    expect(bx2).toBeCloseTo(2, 4);
+  });
+});

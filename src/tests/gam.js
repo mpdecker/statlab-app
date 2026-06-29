@@ -1,4 +1,5 @@
 import { avg } from '../math/core.js';
+import { solveNormalEquations } from '../math/matrix.js';
 
 function cubicSpline(x, knots = 10) {
   const n = x.length;
@@ -20,8 +21,7 @@ function backfitOne(y, basis, beta, lambda = 0.1) {
   const XtX = Xt.map(r1 => basis[0].map((_, j) => r1.reduce((s, _, a) => s + basis[a][j] * r1[a], 0)));
   const XtY = Xt.map(r1 => r1.reduce((s, v, a) => s + v * y[a], 0));
   for (let i = 0; i < m; i++) XtX[i][i] += lambda;
-  // Simple diagonal solve
-  return XtY.map((v, i) => v / Math.max(XtX[i][i], 1e-8));
+  return solveNormalEquations(XtX, XtY);
 }
 
 // ── GAM Backfitting ───────────────────────────────────────────────
@@ -86,8 +86,7 @@ export function gamLocalScoring(y, X, { family = 'binomial', maxIter = 10 } = {}
     const Xt = X[0].map((_, j) => X.map(r => r[j]));
     const XtWX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + w[k] * X[k][j] * r1[k], 0)));
     const XtWz = Xt.map(r1 => r1.reduce((s, v, k) => s + v * z[k], 0));
-    const diag = XtWX.map((r, i) => r[i] || 1);
-    const beta = XtWz.map((v, i) => v / diag[i]);
+    const beta = solveNormalEquations(XtWX, XtWz);
     eta = X.map(xi => xi.reduce((s, v, j) => s + v * beta[j], 0));
   }
   const mu = eta.map(e => 1 / (1 + Math.exp(-e)));
