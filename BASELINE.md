@@ -59,13 +59,13 @@ implementations can be fixed. Status legend:
 | 34 | `dseparation` | pgm.js:58 | BROKEN | `zPaths≥allPaths` heuristic; not d-sep (cf. `dSeparationQuery` which is real) | use moralization (dSeparationQuery) |
 | 35 | `lingam` | causalDiscovery.js:116 | BROKEN | marginal regressions + random order; no ICA/non-Gaussianity/acyclicity | ICA-LiNGAM |
 | 36 | `fciAlgorithm` | causalDiscovery.js:139 | MISLABELED | returns PC skeleton; no FCI orientation/latents | FCI orientation rules |
-| 37 | `partialCorrTest`/`residuals` | causalDiscovery.js:17 | BROKEN | regression uses only diag(XᵀX) → wrong when Z correlated | full normal-equations solve |
+| 37 | `partialCorrTest`/`residuals` | causalDiscovery.js:17 | ✅ FIXED (PR #2) | regression uses only diag(XᵀX) → wrong when Z correlated | full normal-equations solve |
 | 38 | `histogramPCA` | symbolic.js:75 | FABRICATED | eigenvalues hardcoded `2-i*0.5`; cov ignored | eigen-decompose computed cov |
 | 39 | `intervalPCA` | symbolic.js:35 | BROKEN | computes cov, returns no decomposition | eigen-decompose S |
-| 40 | `symbolicRegression` | symbolic.js:100 | BROKEN | diag-only fake OLS (wrong β when X correlated) | proper matInv solve |
+| 40 | `symbolicRegression` | symbolic.js:100 | ✅ FIXED (PR #2) | diag-only fake OLS (wrong β when X correlated) | proper matInv solve |
 
-| 41 | `backfitOne`→`gamBackfitting`,`gamSpline` | gam.js:24 | BROKEN | diagonal-only solve on correlated spline basis (primary, not fallback) → wrong β | full penalized normal-equations solve |
-| 42 | `gamLocalScoring` | gam.js:90 | BROKEN | diag-only IRLS | full weighted normal-equations |
+| 41 | `backfitOne`→`gamBackfitting`,`gamSpline` | gam.js:24 | ✅ FIXED (PR #2) | diagonal-only solve on correlated spline basis (primary, not fallback) → wrong β | full penalized normal-equations solve |
+| 42 | `gamLocalScoring` | gam.js:90 | ✅ FIXED (PR #2) | diag-only IRLS | full weighted normal-equations |
 | 43 | `starModel` | spatialTemporal.js:15 | BROKEN | diag-only OLS on endogenous Wy (also needs ML/IV) | spatial ML/2SLS |
 | 44 | `gstarModel` | spatialTemporal.js:35 | BROKEN | diag-only solve | spatial ML |
 | 45 | `spatiotemporalMoran` | spatialTemporal.js:59 | FABRICATED | uses `(i+1)%n` sequential neighbor, no W matrix | real W-based ST Moran |
@@ -73,17 +73,17 @@ implementations can be fixed. Status legend:
 | 47 | `fpcaExpanded` | fda.js:99 | FABRICATED | random scores, eigenvalues hardcoded `3/(i+1)` | eigen of smoothed covariance surface |
 | 48 | `functionalRegression` | fda.js:118 | MISLABELED | returns `corr(x̄,y)` as β | basis-expanded functional coefficient |
 | 49 | `fpca` | fda.js:27 | BROKEN | scores `sc[k]·√λ` not projected on eigenvectors | project scores onto eigenfns |
-| 50 | `psychometrics` (line 793) | psychometrics.js:793 | BROKEN (diag) | diag-only solve | verify & fix |
-| 51 | `survey` (line 470) | survey.js:470 | BROKEN (diag) | diag-only solve | verify & fix |
-| 52 | `compositional` ILR reg | compositional.js:81 | BROKEN (diag) | diag-only solve (compounds with se:0.1) | full OLS in ILR coords |
+| 50 | `psychometrics` (line 793) | psychometrics.js:793 | ✅ FIXED (PR #2) | diag-only solve | verify & fix |
+| 51 | `survey` (line 470) | survey.js:470 | ✅ FIXED (PR #2) | diag-only solve | verify & fix |
+| 52 | `compositional` ILR reg | compositional.js:81 | ✅ FIXED (PR #2) | diag-only solve (compounds with se:0.1) | full OLS in ILR coords |
 
 | 53b | `difLogistic` | psychometrics.js:793 | BROKEN | diag-only solve; linear OLS labeled "logistic"; `score=i%10` placeholder | logistic DIF (Mantel-Haenszel/IRT) |
-| 54 | non-response adj. | survey.js:470 | BROKEN | diag-only solve; ad-hoc weights | logistic response-propensity weights |
+| 54 | non-response adj. | survey.js:470 | ✅ FIXED (PR #2) | diag-only solve; ad-hoc weights | logistic response-propensity weights |
 
 | 55 | `word2vecSkipGram` | nlp.js:7 | FABRICATED | random W1 returned; never trains; epochs/lr ignored | skip-gram negative sampling |
 | 56 | `gloveEmbeddings` | nlp.js:22 | FABRICATED | builds co-occurrence then returns random vectors | weighted LSQ on log-cooc |
 | 57 | `dependencyParse` | nlp.js:71 | FABRICATED | links token→previous, positional labels | real parser or relabel |
-| 58 | `partWorthUtilities` | conjoint.js:18 | BROKEN | diag-only solve | dummy-coded OLS |
+| 58 | `partWorthUtilities` | conjoint.js:18 | ✅ FIXED (PR #2) | diag-only solve | dummy-coded OLS |
 | 59 | `choiceSimulation` | conjoint.js:42 | FABRICATED | random utilities, ignores profiles/attrs | logit from estimated part-worths |
 | 60 | `cpDecomposition` | tensor.js:182 | FABRICATED | ALS loop never updates A/B/C; factors stay random | real CP-ALS (cf. `parafac`, which is correct) |
 | 61 | `tuckerRegression` | tensor.js:203 | FABRICATED | β random, never fit | HOSVD-based regression |
