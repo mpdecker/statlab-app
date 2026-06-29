@@ -75,3 +75,56 @@ describe('dSeparationQuery', () => {
   it('null invalid', () => expect(dSeparationQuery([], 3, null, 2)).toBeNull());
   it('separated is boolean', () => { const r = dSeparationQuery(edges, 3, 0, 2, [1]); if (r) expect(typeof r.separated).toBe('boolean'); });
 });
+
+// ── Correctness tests for the real implementations ──────────────────
+describe('treeWidth (min-degree elimination upper bound)', () => {
+  it('tree (path) has treewidth 1', () => {
+    expect(treeWidth([[0,1],[1,2],[2,3]], 4).treewidth).toBe(1);
+  });
+  it('triangle has treewidth 2', () => {
+    expect(treeWidth([[0,1],[1,2],[0,2]], 3).treewidth).toBe(2);
+  });
+  it('K4 has treewidth 3', () => {
+    expect(treeWidth([[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]], 4).treewidth).toBe(3);
+  });
+});
+
+describe('bicScore (Gaussian BN, higher = better)', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ a: i, b: 2 * i + ((i * 7) % 5 - 2) * 0.1, c: (i % 4) });
+  it('scores the true edge a->b higher than the empty graph', () => {
+    const withEdge = bicScore(d, ['a','b'], [{ from: 'a', to: 'b' }]).bic;
+    const noEdge = bicScore(d, ['a','b'], []).bic;
+    expect(withEdge).toBeGreaterThan(noEdge);
+  });
+});
+
+describe('hillClimbing (score-based structure search)', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ x1: i, x2: 2 * i + ((i * 3) % 5 - 2) * 0.1, x3: (i % 4) });
+  it('connects the dependent pair x1,x2', () => {
+    const r = hillClimbing(d, ['x1','x2','x3'], { maxIter: 20 });
+    const has01 = r.edges.some(e => (e.from === 0 && e.to === 1) || (e.from === 1 && e.to === 0));
+    expect(has01).toBe(true);
+  });
+});
+
+describe('scoringBDeu (rewards real dependency)', () => {
+  const d = []; for (let i = 0; i < 30; i++) d.push({ x1: i % 3, x2: i % 3 }); // x2 determined by x1
+  it('scores x1->x2 higher than no edge', () => {
+    const withEdge = scoringBDeu(d, ['x1','x2'], [{ from: 0, to: 1 }]).score;
+    const noEdge = scoringBDeu(d, ['x1','x2'], []).score;
+    expect(withEdge).toBeGreaterThan(noEdge);
+  });
+});
+
+describe('dseparation (ancestral moral graph)', () => {
+  it('chain 0->1->2: separated given 1, dependent given nothing', () => {
+    const e = [{ from: 0, to: 1 }, { from: 1, to: 2 }];
+    expect(dseparation(e, 0, 2, [1]).dSeparated).toBe(true);
+    expect(dseparation(e, 0, 2, []).dSeparated).toBe(false);
+  });
+  it('collider 0->2<-1: separated given nothing, dependent given 2', () => {
+    const e = [{ from: 0, to: 2 }, { from: 1, to: 2 }];
+    expect(dseparation(e, 0, 1, []).dSeparated).toBe(true);
+    expect(dseparation(e, 0, 1, [2]).dSeparated).toBe(false);
+  });
+});
