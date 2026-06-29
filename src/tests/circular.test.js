@@ -46,3 +46,21 @@ describe('circularLinearRegression', () => {
   it('contract keys', () => expectKeys(circularLinearRegression(angles, angles.map((_, i) => i)), ['test', 'coefficients', 'rSquared', 'n', 'apa']));
   it('rSquared between 0 and 1', () => { const r = circularLinearRegression(angles, angles.map((_, i) => i)); if (r) { expect(r.rSquared).toBeGreaterThanOrEqual(0); expect(r.rSquared).toBeLessThanOrEqual(1); } });
 });
+
+describe('circularLinearRegression computes a real p-value', () => {
+  it('returns a small p-value for a strong circular-linear relationship', () => {
+    const x = Array.from({ length: 12 }, (_, i) => i + 1);
+    const theta = x.map(xi => 0.12 * xi); // angle increases with x
+    const r = circularLinearRegression(theta, x);
+    const slope = r.coefficients.find(c => c.name === 'x');
+    expect(slope.p).toBeLessThan(0.05);
+  });
+
+  it('returns a large p-value when angle is unrelated to x (not hardcoded)', () => {
+    const x = Array.from({ length: 12 }, (_, i) => i + 1);
+    const theta = x.map((_, i) => (i % 2 === 0 ? 0.3 : 0.5)); // alternating, no trend in x
+    const r = circularLinearRegression(theta, x);
+    const slope = r.coefficients.find(c => c.name === 'x');
+    expect(slope.p).toBeGreaterThan(0.1);
+  });
+});

@@ -75,3 +75,12 @@ describe('spatialPanel is a real FE spatial-lag estimator', () => {
     expect(r.coefficients.find(c => c.name === 'x').b).toBeLessThan(2.0);
   });
 });
+
+describe('spatialHausman uses the chi-square distribution (not exp(-H/2))', () => {
+  it('matches the chi-square tail for df=1', () => {
+    // H=1, df=1 => chi-square tail = 0.317; the old exp(-H/2) gives 0.607.
+    const r = spatialHausman([1], [1.005], [0], [0.1]);
+    expect(r.p).toBeLessThan(0.45);
+    expect(r.p).toBeGreaterThan(0.2);
+  });
+});

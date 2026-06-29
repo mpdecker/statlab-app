@@ -24,10 +24,10 @@ implementations can be fixed. Status legend:
 | 1 | `gmm` | econometric.js:279 | ✅ FIXED | real two-step efficient linear GMM: β=(X'Z W Z'X)⁻¹X'Z W Z'y, step-1 W=(Z'Z)⁻¹ (2SLS), step-2 W=Ŝ⁻¹ (robust); Avar=(X'Z Ŝ⁻¹ Z'X)⁻¹; **Hansen J=ḡ'Ŝ⁻¹ḡ ~ χ²(q−k)**. TDD: recovers β=2.002 (se 0.0095), J=0.39 (computed, was the literal 3.14), J=0 exactly when just-identified. |
 | 2 | `panelRandomEffects` | econometric.js:160 | ✅ FIXED | reimplemented as Swamy-Arora FGLS (σ²_e from within, σ²_u from between, θ quasi-demean, GLS); real β/se/z/p. TDD: recovers signs [+,−] from `y=αᵢ+2x₁−x₂`. |
 | 3 | `panelFixedEffects` coeffs | econometric.js:162 | ✅ FIXED | see #26 — real within estimator + analytic SE. |
-| 4 | `hausmanTest` | econometric.js:177 | BROKEN | `p = 1 - chiPVal(H,k)` → wrong tail, ~never rejects | `p = chiPVal(H,k)` |
+| 4 | `hausmanTest` | econometric.js:177 | ✅ FIXED | `p = 1 - chiPVal(H,k)` → wrong tail, ~never rejects | `p = chiPVal(H,k)` |
 | 5 | `spatialDurbin` | spatialEconometric.js:13 | ✅ FIXED | full Gaussian MLE of `y=ρWy+Xβ+WXθ+ε`: concentrated log-lik `−n/2·ln σ²(ρ)+ln|I−ρW|` (added `logAbsDet` helper) maximised over ρ by grid+golden-section; returns ρ, β (on X), θ (on WX) with conditional SEs. TDD: recovers ρ=0.65, β=2.00, θ=−1.11 from a ring-lattice SDM DGP (true 0.6, 2, −1). Also makes `directIndirectEffects` meaningful (was fed fabricated coefs). |
 | 6 | `spatialPanel` | spatialEconometric.js:27 | ✅ FIXED | fixed-effects spatial-lag panel (FE-SAR) MLE: within-demean (y−ρWy) by unit, OLS on X̃, concentrated log-lik `−n/2·ln σ²(ρ)+ln\|I−ρW\|` maximised over ρ; real β/SE. TDD: recovers ρ≈0.4, β≈1.5 from a block-diagonal FE-SAR DGP (was ρ=0.25, β=0.3 hardcoded). |
-| 7 | `spatialHausman` | spatialEconometric.js:41 | BROKEN | `p=exp(-H/2)` not χ² survival | `chiPVal(H,k)` |
+| 7 | `spatialHausman` | spatialEconometric.js:41 | ✅ FIXED | `p=exp(-H/2)` not χ² survival | `chiPVal(H,k)` |
 | 8 | `gan` | deepLearning.js:46 | FABRICATED | no discriminator training; `gLoss=dLoss*1.5` | adversarial train loop or remove/relabel |
 | 9 | `variationalAutoencoder` | deepLearning.js:35 | FABRICATED | trains nothing; KL of random params | encoder/decoder + reparam + ELBO |
 | 10 | `autoencoder` | deepLearning.js:7 | BROKEN | encoder weights `W1/b1` never updated | full backprop |
@@ -97,9 +97,9 @@ implementations can be fixed. Status legend:
 | 68 | `svdEmbeddings` | text.js:221 | FABRICATED | no SVD — returns normalized co-occ rows; `sameness=vec[0]+0.5` | truncated SVD of PPMI matrix |
 
 | 69 | `procrustes` | ordination.js:145 | BROKEN | "SVD" faked — rotation=identity; m² is raw SS, no optimal rotation/scaling | real Procrustes SVD rotation |
-| 70 | `distanceMatrix` | distance.js:11 | BROKEN | operator precedence: computes `a - b**2`, not `(a-b)**2` → wrong distances | `(x[i][k]-x[j][k])**2` |
+| 70 | `distanceMatrix` | distance.js:11 | ✅ FIXED | operator precedence: computes `a - b**2`, not `(a-b)**2` → wrong distances | `(x[i][k]-x[j][k])**2` |
 | 71 | `partialDistanceCorr` | distance.js:89 | BROKEN | "residuals" `v - z·x̄/z̄` are not regression residuals | residualize via distance proj |
-| 72 | `circularLinearRegression` p | circular.js:159 | BROKEN(p) | `p = 1` hardcoded (coefs real) | F/t test on the regression |
+| 72 | `circularLinearRegression` p | circular.js:159 | ✅ FIXED | `p = 1` hardcoded (coefs real) | F/t test on the regression |
 | 73 | `envfit` p | ordination.js:186 | BROKEN(p) | `p = exp(-r²n/2)` ad-hoc, not permutation | permutation p-value |
 
 | 74 | `ec50` CI | doseResponse.js:89 | FABRICATED(CI) | CI hardcoded `logEC50 ± 0.5` (point est real) | delta-method / profile-likelihood CI |
@@ -141,7 +141,7 @@ implementations can be fixed. Status legend:
 | 109 | `dccGarch`/`bekkGarch`/`cccGarch`/`mgarchForecast`/`mgarchDiagnostics` | timeseries.js:1501–1543 | STUB/FABRICATED | identity/0.01/0.3/0.02 hardcoded; no estimation | real multivariate GARCH |
 | 110 | `egarch` | timeseries.js:1546 | FABRICATED | omega/alpha/beta/gamma hardcoded; never estimated (same as finance.js #86) | EGARCH MLE |
 | 111 | `multiArmBandit` | abTesting.js:87 | APPROX | fake Beta draw + random reward (cf. bandit #94) | sample Beta; real reward |
-| 112 | `modelComparison` p | sensitivity.js:61 | FABRICATED(p) | local `fPVal = exp(-0.5·f²/(df1+df2))`, not F dist | real F-distribution p |
+| 112 | `modelComparison` p | sensitivity.js:61 | ✅ FIXED | local `fPVal = exp(-0.5·f²/(df1+df2))`, not F dist | real F-distribution p |
 | 113 | `pagelsLambda` | phylogenetics.js:18 | FABRICATED | ad-hoc `obsSS/(n·meanSq)`; **tree ignored** | ML λ on tree covariance |
 | 114 | `blombergK` | phylogenetics.js:28 | FABRICATED | `K = obsMean/(obsMean/2)` ≈ 2 always; tree ignored | K from tree-expected vs observed variance |
 | 115 | `independentContrasts`/`picCorrelation` | phylogenetics.js:4/69 | MISLABELED | adjacent-pair diffs, not Felsenstein PIC (tree ignored) | real PIC using tree+branch lengths |
