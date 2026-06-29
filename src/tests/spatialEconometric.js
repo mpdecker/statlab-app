@@ -73,18 +73,67 @@ export function spatialDurbin(data, yVar, xVars, W) {
   };
 }
 
-// ── Spatial Panel Model ───────────────────────────────────────────
+// ── Spatial Panel Model: y = ρWy + Xβ + μ_i + ε (fixed-effects SAR, MLE) ──────
 export function spatialPanel(data, yVar, xVars, W, { idVar, timeVar } = {}) {
-  if (!data || data.length < 15 || !yVar || !xVars || !idVar || !timeVar || !W) return null;
-  const n = data.length;
+  if (!data || data.length < 15 || !yVar || !xVars || !xVars.length || !idVar || !W || W.length !== data.length) return null;
+  const n = data.length, p = xVars.length;
   const ids = [...new Set(data.map(r => r[idVar]))];
-  const T = Math.round(n / Math.max(ids.length, 1));
+  const nUnits = ids.length;
+  if (nUnits < 2) return null;
+  const T = Math.round(n / nUnits);
   const y = data.map(r => +r[yVar]);
   const X = data.map(r => xVars.map(v => +r[v]));
   const Wy = W.map(row => row.reduce((s, w, j) => s + w * y[j], 0));
-  const spatialRho = 0.25;
-  const beta = xVars.map((name, j) => ({ name, b: +(0.3 + j * 0.15).toFixed(5), se: +(0.1).toFixed(5) }));
-  return { test: 'Spatial Panel', coefficients: beta, spatialRho: +spatialRho.toFixed(4), nUnits: ids.length, nPeriods: T, apa: `Spatial panel: ${ids.length} units, ${T} periods` };
+  // Per-unit means for the within (fixed-effects) transform.
+  const ix = {}; ids.forEach(id => { ix[id] = []; });
+  data.forEach((r, i) => ix[r[idVar]].push(i));
+  const mY = {}, mWy = {}, mX = {};
+  ids.forEach(id => {
+    mY[id] = avg(ix[id].map(i => y[i]));
+    mWy[id] = avg(ix[id].map(i => Wy[i]));
+    mX[id] = xVars.map((_, v) => avg(ix[id].map(i => X[i][v])));
+  });
+  // Within-demeaned regressors (constant across ρ); FE absorbs the intercept.
+  const Xd = data.map((r, i) => xVars.map((_, v) => X[i][v] - mX[r[idVar]][v]));
+  const XtX = Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) => Xd.reduce((s, row) => s + row[a] * row[b], 0)));
+  const ridge = 1e-7 * (XtX.reduce((s, r, i) => s + r[i], 0) / p);
+  for (let i = 0; i < p; i++) XtX[i][i] += ridge;
+  const XtXi = matInv(XtX);
+  if (!XtXi) return null;
+  const I = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 1 : 0)));
+  const solveBeta = yd => {
+    const XtY = Array.from({ length: p }, (_, a) => Xd.reduce((s, row, i) => s + row[a] * yd[i], 0));
+    return XtXi.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0));
+  };
+  // Concentrated log-lik over ρ: within-demean (y − ρWy), OLS on X̃, + ln|I − ρW|.
+  const demean = rho => data.map((r, i) => (y[i] - rho * Wy[i]) - (mY[r[idVar]] - rho * mWy[r[idVar]]));
+  const concLL = rho => {
+    const yd = demean(rho);
+    const beta = solveBeta(yd);
+    let e2 = 0;
+    for (let i = 0; i < n; i++) { const e = yd[i] - Xd[i].reduce((s, v, j) => s + v * beta[j], 0); e2 += e * e; }
+    const A = I.map((row, i) => row.map((v, j) => v - rho * W[i][j]));
+    return -0.5 * n * Math.log(Math.max(e2 / n, 1e-300)) + logAbsDet(A);
+  };
+  let rho = 0, best = -Infinity;
+  for (let g = 0; g <= 80; g++) { const r = -0.99 + 1.98 * g / 80; const ll = concLL(r); if (ll > best) { best = ll; rho = r; } }
+  let lo = Math.max(-0.99, rho - 0.025), hi = Math.min(0.99, rho + 0.025);
+  for (let it = 0; it < 50; it++) { const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3; if (concLL(m1) < concLL(m2)) lo = m1; else hi = m2; }
+  rho = (lo + hi) / 2;
+  const yd = demean(rho);
+  const beta = solveBeta(yd);
+  let rss = 0;
+  for (let i = 0; i < n; i++) { const e = yd[i] - Xd[i].reduce((s, v, j) => s + v * beta[j], 0); rss += e * e; }
+  const sigma2 = rss / Math.max(1, n - nUnits - p);
+  const coefficients = xVars.map((nm, j) => {
+    const se = Math.sqrt(Math.max(0, sigma2 * XtXi[j][j])), z = se > 0 ? beta[j] / se : 0;
+    return { name: nm, b: +beta[j].toFixed(5), se: +se.toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
+  return {
+    test: 'Spatial Panel', coefficients, spatialRho: +rho.toFixed(4), sigma2: +sigma2.toFixed(5),
+    logLik: +concLL(rho).toFixed(4), nUnits, nPeriods: T, n,
+    apa: `Spatial panel (FE-SAR ML): ρ = ${rho.toFixed(3)}, ${nUnits} units × ${T} periods`,
+  };
 }
 
 // ── Spatial Hausman Test ──────────────────────────────────────────

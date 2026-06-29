@@ -1,4 +1,5 @@
 import { avg, sampleSD, sampleVar } from '../math/core.js';
+import { mleFit } from '../math/inference.js';
 
 // ── GEV MLE ────────────────────────────────────────────────────────────────
 export function gevMLE(data) {
@@ -63,16 +64,34 @@ export function gpdMLE(data, threshold = null) {
   const exceedances = data.filter(v => v > thresh).map(v => v - thresh);
   if (exceedances.length < 5) return null;
   const m = exceedances.length;
-  let sigma = Math.sqrt(exceedances.reduce((s, v) => s + (v - avg(exceedances)) ** 2, 0) / m) || 1;
-  let xi = 0.1;
-  for (let iter = 0; iter < 20; iter++) {
-    sigma = Math.max(0.01, sigma + 0.001 * (m - sigma));
-    xi = xi + 0.0001;
-    if (xi > 2) break;
-  }
+  // GPD negative log-likelihood in [logσ, ξ]; support 1 + ξy/σ > 0 ∀ y.
+  const negLogLik = theta => {
+    const sigma = Math.exp(theta[0]), xi = theta[1];
+    if (Math.abs(xi) < 1e-6) return m * Math.log(sigma) + exceedances.reduce((s, y) => s + y, 0) / sigma;
+    let nll = m * Math.log(sigma);
+    for (const y of exceedances) {
+      const t = 1 + xi * y / sigma;
+      if (t <= 1e-12) return 1e10;
+      nll += (1 / xi + 1) * Math.log(t);
+    }
+    return nll;
+  };
+  // Method-of-moments start values: mean = σ/(1−ξ), var = σ²/((1−ξ)²(1−2ξ)).
+  const mean = avg(exceedances);
+  const variance = exceedances.reduce((s, v) => s + (v - mean) ** 2, 0) / Math.max(1, m - 1) || 1;
+  let xi0 = 0.5 * (1 - (mean * mean) / variance);
+  xi0 = Math.max(-0.45, Math.min(0.45, xi0));
+  const sigma0 = Math.max(0.01, 0.5 * mean * ((mean * mean) / variance + 1));
+  const fit = mleFit([Math.log(sigma0), xi0], negLogLik, { maxIter: 100 });
+  const sigma = Math.exp(fit.theta[0]), xi = fit.theta[1];
+  const seSigma = Number.isFinite(fit.se[0]) ? sigma * fit.se[0] : null; // delta method for σ=exp(logσ)
+  const seXi = Number.isFinite(fit.se[1]) ? fit.se[1] : null;
   return {
-    test: 'GPD MLE', sigma: +sigma.toFixed(4), xi: +xi.toFixed(4), threshold: +thresh.toFixed(4), nExceedances: m, n,
-    apa: `GPD: sigma = ${sigma.toFixed(3)}, xi = ${xi.toFixed(3)}, threshold = ${thresh.toFixed(2)}, ${m} exceedances`,
+    test: 'GPD MLE',
+    sigma: +sigma.toFixed(4), xi: +xi.toFixed(4),
+    seSigma: seSigma != null ? +seSigma.toFixed(4) : null, seXi: seXi != null ? +seXi.toFixed(4) : null,
+    threshold: +thresh.toFixed(4), logLik: +(-negLogLik(fit.theta)).toFixed(4), nExceedances: m, n,
+    apa: `GPD MLE: sigma = ${sigma.toFixed(3)}, xi = ${xi.toFixed(3)}, threshold = ${thresh.toFixed(2)}, ${m} exceedances`,
   };
 }
 

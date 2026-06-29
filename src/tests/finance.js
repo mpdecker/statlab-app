@@ -1,6 +1,7 @@
 import { avg, sampleSD } from '../math/core.js';
 import { normalCDF, normalINV } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
+import { mleFit, numericGradient } from '../math/inference.js';
 import { mulberry32 } from '../math/rng.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
@@ -191,36 +192,102 @@ export function carhart4F(returns, market, smb, hml, mom) {
   return { test: 'Carhart 4F', coefficients: [{ name: 'Market', b: +beta[0].toFixed(4) }, { name: 'SMB', b: +beta[1].toFixed(4) }, { name: 'HML', b: +beta[2].toFixed(4) }, { name: 'MOM', b: +beta[3].toFixed(4) }], rSquared: +rsq.toFixed(4), n, apa: `C4F: R² = ${rsq.toFixed(3)}, n = ${n}` };
 }
 
-// ── EGARCH ────────────────────────────────────────────────────────
+const _logistic = x => 1 / (1 + Math.exp(-x));
+
+// Gaussian conditional log-likelihood Σ −½[ln 2π + ln σ²_t + ε²_t/σ²_t].
+function _gaussianLL(eps, s2) {
+  let ll = 0;
+  for (let t = 0; t < eps.length; t++) ll -= 0.5 * (Math.log(2 * Math.PI) + Math.log(s2[t]) + eps[t] * eps[t] / s2[t]);
+  return ll;
+}
+// MLE for a GARCH-family variance recursion (returns null on an invalid path).
+// Gradient descent (robust on the often ill-conditioned GARCH surface) gets into
+// a good region, then a Newton polish via mleFit yields the Hessian-based SEs.
+function _garchFit(eps, sigma2From, init) {
+  const n = eps.length;
+  const negLogLik = theta => {
+    const s2 = sigma2From(theta, eps);
+    if (!s2) return 1e10;
+    let nll = 0;
+    for (let t = 0; t < n; t++) { if (!(s2[t] > 1e-12) || !Number.isFinite(s2[t])) return 1e10; nll += 0.5 * (Math.log(2 * Math.PI) + Math.log(s2[t]) + eps[t] * eps[t] / s2[t]); }
+    return Number.isFinite(nll) ? nll : 1e10;
+  };
+  let theta = init.slice(), f = negLogLik(theta), lr = 1e-3;
+  for (let iter = 0; iter < 500; iter++) {
+    const g = numericGradient(theta, negLogLik);
+    if (Math.sqrt(g.reduce((s, v) => s + v * v, 0)) < 1e-7) break;
+    let stepped = false;
+    for (let ls = 0; ls < 15; ls++) {
+      const cand = theta.map((t, j) => t - lr * g[j]);
+      const fc = negLogLik(cand);
+      if (Number.isFinite(fc) && fc < f - 1e-12) { theta = cand; f = fc; lr *= 1.2; stepped = true; break; }
+      lr *= 0.5;
+    }
+    if (!stepped) break;
+  }
+  const fit = mleFit(theta, negLogLik, { maxIter: 80 });
+  return negLogLik(fit.theta) <= f + 1e-9 ? fit : { ...fit, theta, se: fit.se };
+}
+
+// ── EGARCH(1,1) — Gaussian MLE ──────────────────────────────────────────────
 export function egarch(returns) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
-  const mu = avg(returns);
-  const res = returns.map(v => v - mu);
-  let omega = -1, alpha = 0.1, beta = 0.9, gamma = 0.05;
-  const sigma2 = Array(n).fill(0);
-  sigma2[0] = res.reduce((s, v) => s + v * v, 0) / n;
-  for (let t = 1; t < n; t++) {
-    const z = Math.abs(res[t - 1]) / Math.sqrt(Math.max(sigma2[t - 1], 1e-6));
-    sigma2[t] = Math.exp(omega + beta * Math.log(Math.max(sigma2[t - 1], 1e-6)) + alpha * z + gamma * (Math.abs(z) - Math.SQRT2));
-  }
-  return { test: 'EGARCH', omega, alpha, beta, gamma, conditionalVar: sigma2.slice(-10).map(v => +v.toFixed(6)), n, apa: `EGARCH: γ = ${gamma.toFixed(3)}, n = ${n}` };
+  const eps = returns.map(v => v - avg(returns));
+  const v0 = eps.reduce((s, v) => s + v * v, 0) / n;
+  const Eabs = Math.sqrt(2 / Math.PI);
+  // ln σ²_t = ω + β ln σ²_{t-1} + α(|z|−E|z|) + γ z;  β = tanh(θ2) ∈ (−1,1).
+  const recur = theta => {
+    const omega = theta[0], alpha = theta[1], beta = Math.tanh(theta[2]), gamma = theta[3];
+    const logS2 = Array(n); logS2[0] = Math.log(Math.max(v0, 1e-8));
+    for (let t = 1; t < n; t++) {
+      const sPrev = Math.sqrt(Math.exp(logS2[t - 1]));
+      const z = sPrev > 0 ? eps[t - 1] / sPrev : 0;
+      logS2[t] = omega + beta * logS2[t - 1] + alpha * (Math.abs(z) - Eabs) + gamma * z;
+      if (!Number.isFinite(logS2[t]) || logS2[t] > 50) return null;
+    }
+    return logS2.map(l => Math.exp(l));
+  };
+  const fit = _garchFit(eps, recur, [Math.log(Math.max(v0, 1e-8)) * 0.1, 0.1, 1.5, -0.05]);
+  const omega = fit.theta[0], alpha = fit.theta[1], beta = Math.tanh(fit.theta[2]), gamma = fit.theta[3];
+  const s2 = recur(fit.theta) || Array(n).fill(v0);
+  return {
+    test: 'EGARCH', omega: +omega.toFixed(5), alpha: +alpha.toFixed(5), beta: +beta.toFixed(5), gamma: +gamma.toFixed(5),
+    persistence: +beta.toFixed(5), logLik: +_gaussianLL(eps, s2).toFixed(4),
+    conditionalVar: s2.slice(-10).map(v => +v.toFixed(6)), n, apa: `EGARCH (MLE): β = ${beta.toFixed(3)}, γ = ${gamma.toFixed(3)}, n = ${n}`,
+  };
 }
 
-// ── TGARCH ────────────────────────────────────────────────────────
+// ── TGARCH / GJR-GARCH(1,1) — Gaussian MLE ──────────────────────────────────
 export function tgarch(returns) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
-  const mu = avg(returns);
-  const res = returns.map(v => v - mu);
-  let omega = 0.01, alpha = 0.05, beta = 0.9, gamma = 0.05;
-  const sigma2 = Array(n).fill(0);
-  sigma2[0] = res.reduce((s, v) => s + v * v, 0) / n;
-  for (let t = 1; t < n; t++) {
-    const neg = res[t - 1] < 0 ? 1 : 0;
-    sigma2[t] = omega + alpha * res[t - 1] * res[t - 1] + gamma * neg * res[t - 1] * res[t - 1] + beta * sigma2[t - 1];
-  }
-  return { test: 'TGARCH', omega, alpha, beta, gamma, conditionalVar: sigma2.slice(-10).map(v => +v.toFixed(6)), n, apa: `TGARCH: γ = ${gamma.toFixed(3)}, n = ${n}` };
+  const eps = returns.map(v => v - avg(returns));
+  const v0 = eps.reduce((s, v) => s + v * v, 0) / n;
+  // σ²_t = ω + α ε² + γ·1(ε<0)·ε² + β σ²_{t-1}; transforms keep ω>0, α,β≥0, α+γ≥0.
+  const recur = theta => {
+    const omega = Math.exp(theta[0]);
+    const alpha = 0.5 * _logistic(theta[1]);
+    const beta = 0.98 * _logistic(theta[2]);
+    const gamma = alpha * (2 * _logistic(theta[3]) - 1);
+    const s2 = Array(n); s2[0] = v0;
+    for (let t = 1; t < n; t++) {
+      s2[t] = omega + alpha * eps[t - 1] * eps[t - 1] + (eps[t - 1] < 0 ? gamma * eps[t - 1] * eps[t - 1] : 0) + beta * s2[t - 1];
+      if (!(s2[t] > 0) || !Number.isFinite(s2[t])) return null;
+    }
+    return s2;
+  };
+  const fit = _garchFit(eps, recur, [Math.log(0.1 * v0 + 1e-8), -1.4, 0.5, 0]);
+  const omega = Math.exp(fit.theta[0]);
+  const alpha = 0.5 * _logistic(fit.theta[1]);
+  const beta = 0.98 * _logistic(fit.theta[2]);
+  const gamma = alpha * (2 * _logistic(fit.theta[3]) - 1);
+  const s2 = recur(fit.theta) || Array(n).fill(v0);
+  return {
+    test: 'TGARCH', omega: +omega.toFixed(5), alpha: +alpha.toFixed(5), beta: +beta.toFixed(5), gamma: +gamma.toFixed(5),
+    persistence: +(alpha + gamma / 2 + beta).toFixed(5), logLik: +_gaussianLL(eps, s2).toFixed(4),
+    conditionalVar: s2.slice(-10).map(v => +v.toFixed(6)), n, apa: `TGARCH (GJR-MLE): α=${alpha.toFixed(3)}, γ=${gamma.toFixed(3)}, β=${beta.toFixed(3)}, n = ${n}`,
+  };
 }
 
 // ── Treynor Ratio ─────────────────────────────────────────────────
