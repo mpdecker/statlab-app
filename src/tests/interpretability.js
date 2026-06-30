@@ -1,65 +1,111 @@
-import { avg, corr } from '../math/core.js';
+import { avg } from '../math/core.js';
 import { mulberry32 } from '../math/rng.js';
+import { solveNormalEquations } from '../math/matrix.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
+// Fit an interpretable linear model y ≈ b0 + Σ bⱼxⱼ via normal equations.
+// Returns the coefficients and a predict() closure; used as the surrogate that
+// the model-agnostic explainers (SHAP, LIME, PDP) explain when no model is given.
+function fitLinear(X, y) {
+  const p = X[0].length;
+  const Z = X.map(r => [1, ...r]);
+  const kz = p + 1;
+  const ZtZ = Array.from({ length: kz }, (_, a) => Array.from({ length: kz }, (_, b) => Z.reduce((s, row) => s + row[a] * row[b], 0)));
+  const ZtY = Array.from({ length: kz }, (_, a) => Z.reduce((s, row, i) => s + row[a] * y[i], 0));
+  const beta = solveNormalEquations(ZtZ, ZtY);
+  return { intercept: beta[0], coef: beta.slice(1), predict: row => beta[0] + row.reduce((s, v, j) => s + v * beta[1 + j], 0) };
+}
+
 // ── SHAP Values (simplified feature importance) ───────────────────
-export function shapValues(X, y, { seed = 42, nSamples = 50 } = {}) {
+export function shapValues(X, y, { seed = 42, nSamples = 50, model = null } = {}) {
   __rng = mulberry32(seed);
   if (!X || !y || X.length < 5 || y.length < 5 || X.length !== y.length) return null;
   const n = X.length, p = X[0].length;
-  const baseline = y.reduce((s, v) => s + v, 0) / n;
-  const shap = Array(p).fill(0);
-  for (let i = 0; i < nSamples; i++) {
-    const perm = [...Array(p).keys()].sort(() => __rng() - 0.5);
-    let predWith = baseline;
-    for (const j of perm) {
-      const contrib = corr(X.map(r => r[j]), y) * sampleVar(X.map(r => r[j])) / Math.max(sampleVar(y), 1);
-      shap[j] += contrib / nSamples;
+  // Explain a supplied model, or a linear surrogate fit to (X, y).
+  const f = model || fitLinear(X, y).predict;
+  // Štrumbelj–Kononenko permutation-sampling SHAP (interventional, background = X).
+  // For each permutation, walk features in order, flipping each from the background
+  // instance z to the explained instance x_i; the prediction change is feature j's
+  // marginal contribution for that ordering. Global importance = mean_i |φ_ij|.
+  const globalPhi = Array(p).fill(0);
+  for (let i = 0; i < n; i++) {
+    const phi = Array(p).fill(0);
+    for (let m = 0; m < nSamples; m++) {
+      const perm = [...Array(p).keys()];
+      for (let a = p - 1; a > 0; a--) { const b = Math.floor(__rng() * (a + 1)); [perm[a], perm[b]] = [perm[b], perm[a]]; }
+      const z = X[Math.floor(__rng() * n)];
+      const cur = [...z];
+      let prev = f(cur);
+      for (const j of perm) {
+        cur[j] = X[i][j];
+        const now = f(cur);
+        phi[j] += now - prev;
+        prev = now;
+      }
     }
+    for (let j = 0; j < p; j++) globalPhi[j] += Math.abs(phi[j] / nSamples);
   }
+  const shap = globalPhi.map(v => v / n);
   const absTotal = shap.reduce((s, v) => s + Math.abs(v), 0);
-  const normalized = absTotal > 0 ? shap.map(v => +(v / absTotal).toFixed(4)) : shap.map(() => 0);
+  const normalized = absTotal > 0 ? shap.map(v => +(Math.abs(v) / absTotal).toFixed(4)) : shap.map(() => 0);
   return { test: 'SHAP Values', shap: shap.map(v => +v.toFixed(4)), normalized, n, p, nSamples, apa: `SHAP: ${p} features, n=${n}` };
 }
 
-function sampleVar(arr) { const m = avg(arr); return arr.reduce((s, v) => s + (v - m) ** 2, 0) / Math.max(arr.length - 1, 1); }
 
 // ── LIME Importance ───────────────────────────────────────────────
-export function limeImportance(X, y, queryPoint, { seed = 42, nSamples = 50 } = {}) {
+export function limeImportance(X, y, queryPoint, { seed = 42, nSamples = 50, model = null, kernelWidth = null } = {}) {
   __rng = mulberry32(seed);
   if (!X || !y || !queryPoint || X.length < 5) return null;
   const n = X.length, p = X[0].length;
-  const importance = Array(p).fill(0);
-  for (let i = 0; i < nSamples; i++) {
-    const permuted = [...X[Math.floor(__rng() * n)]];
-    const perturb = queryPoint.map((v, j) => __rng() < 0.5 ? v : permuted[j]);
-    const pred = perturb.reduce((s, v) => s + v, 0) / p;
-    const actual = queryPoint.reduce((s, v) => s + v, 0) / p;
-    for (let j = 0; j < p; j++) {
-      if (perturb[j] !== queryPoint[j]) importance[j] += Math.abs(pred - actual);
-    }
+  // Explain a supplied model, or a linear surrogate fit to (X, y).
+  const f = model || fitLinear(X, y).predict;
+  // Per-feature scale for sampling + the proximity kernel.
+  const std = Array.from({ length: p }, (_, j) => {
+    const c = X.map(r => +r[j]); const m = avg(c);
+    return Math.sqrt(avg(c.map(v => (v - m) ** 2))) || 1;
+  });
+  const sigma = kernelWidth || Math.sqrt(p);
+  // Sample perturbations near the query, label with the model, weight by proximity,
+  // then fit a weighted local linear surrogate; |coefficients| = local importance.
+  const N = Math.max(nSamples, 30);
+  const Zaug = [], preds = [], weights = [];
+  for (let s = 0; s < N; s++) {
+    const z = queryPoint.map((q, j) => q + (__rng() * 2 - 1) * std[j]);
+    Zaug.push([1, ...z]);
+    preds.push(f(z));
+    let d2 = 0; for (let j = 0; j < p; j++) { const dz = (z[j] - queryPoint[j]) / std[j]; d2 += dz * dz; }
+    weights.push(Math.exp(-d2 / (2 * sigma * sigma)));
   }
+  const kz = p + 1;
+  const ZtWZ = Array.from({ length: kz }, (_, a) => Array.from({ length: kz }, (_, b) => Zaug.reduce((s, row, i) => s + weights[i] * row[a] * row[b], 0)));
+  const ZtWy = Array.from({ length: kz }, (_, a) => Zaug.reduce((s, row, i) => s + weights[i] * row[a] * preds[i], 0));
+  const beta = solveNormalEquations(ZtWZ, ZtWy);
+  const coef = beta.slice(1);
+  const importance = coef.map(Math.abs);
   const total = importance.reduce((s, v) => s + v, 0);
   const normalized = total > 0 ? importance.map(v => +(v / total).toFixed(4)) : importance.map(() => 0);
-  return { test: 'LIME Importance', importance: importance.map(v => +v.toFixed(4)), normalized, p, nSamples, apa: `LIME: ${p} features` };
+  return { test: 'LIME Importance', importance: importance.map(v => +v.toFixed(4)), coefficients: coef.map(v => +v.toFixed(4)), normalized, p, nSamples, apa: `LIME: ${p} features` };
 }
 
 // ── Partial Dependence Plot ───────────────────────────────────────
-export function partialDependence(X, y, featureIndex, { nGrid = 20 } = {}) {
+export function partialDependence(X, y, featureIndex, { nGrid = 20, model = null } = {}) {
   if (!X || !y || X.length < 5 || featureIndex == null || featureIndex >= X[0].length) return null;
   const n = X.length;
+  // Explain a supplied model, or a linear surrogate fit to (X, y).
+  const f = model || fitLinear(X, y).predict;
   const featVals = X.map(r => r[featureIndex]);
   const minVal = Math.min(...featVals), maxVal = Math.max(...featVals);
-  const grid = Array.from({length: nGrid}, (_, i) => minVal + (maxVal - minVal) * i / (nGrid - 1));
+  const grid = Array.from({ length: nGrid }, (_, i) => minVal + (maxVal - minVal) * i / (nGrid - 1));
+  // PDP(g) = (1/n) Σ_i f(x_i with feature := g)  — Friedman partial dependence.
   const pdp = grid.map(g => {
     let accum = 0;
     for (let i = 0; i < n; i++) {
       const row = [...X[i]];
       row[featureIndex] = g;
-      accum += row.reduce((s, v, j) => s + v * corr(X.map(r => r[j]), y), 0) / n;
+      accum += f(row);
     }
-    return +accum.toFixed(4);
+    return +(accum / n).toFixed(4);
   });
   return { test: 'Partial Dependence', grid: grid.map(v => +v.toFixed(4)), pdp, featureIndex, n, apa: `PDP: feature ${featureIndex}, ${nGrid} grid points` };
 }
@@ -147,17 +193,22 @@ export function featureInteraction(X, model, i, j) {
 }
 
 // ── Global Surrogate Model ────────────────────────────────────────
-export function globalSurrogate(X, y, { modelType = 'tree', maxDepth = 3 } = {}) {
+export function globalSurrogate(X, y, { model = null } = {}) {
   if (!X || !y || X.length < 5 || y.length < 5) return null;
   const n = X.length;
-  const predictions = X.map((_, i) => {
-    let pred = y.reduce((s, v, j) => s + v, 0) / n;
-    for (let j = 0; j < Math.min(maxDepth, X[0].length); j++) {
-      pred += (X[i][j] - avg(X.map(r => r[j]))) * 0.1;
-    }
-    return +pred.toFixed(4);
-  });
-  const rmse = Math.sqrt(predictions.reduce((s, p, i) => s + (p - y[i]) ** 2, 0) / n);
-  const r2 = 1 - (rmse * rmse / Math.max(sampleVar(y) || 1, 1));
-  return { test: 'Global Surrogate', r2: +r2.toFixed(4), rmse: +rmse.toFixed(4), n, apa: `Surrogate: R2=${r2.toFixed(3)}, RMSE=${rmse.toFixed(2)}` };
+  // Fit an interpretable linear surrogate to the target (or to a supplied
+  // model's predictions), then report its fidelity to y.
+  const target = model ? X.map(r => model(r)) : y;
+  const lin = fitLinear(X, target);
+  const predictions = X.map(r => +lin.predict(r).toFixed(4));
+  const sse = predictions.reduce((s, p, i) => s + (p - y[i]) ** 2, 0);
+  const rmse = Math.sqrt(sse / n);
+  const ybar = avg(y);
+  const sst = y.reduce((s, v) => s + (v - ybar) ** 2, 0) || 1e-12;
+  const r2 = Math.max(0, Math.min(1, 1 - sse / sst));
+  return {
+    test: 'Global Surrogate', r2: +r2.toFixed(4), rmse: +rmse.toFixed(4),
+    coefficients: lin.coef.map(v => +v.toFixed(4)), intercept: +lin.intercept.toFixed(4), n,
+    apa: `Surrogate (linear): R2=${r2.toFixed(3)}, RMSE=${rmse.toFixed(2)}`,
+  };
 }

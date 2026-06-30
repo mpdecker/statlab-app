@@ -38,10 +38,10 @@ implementations can be fixed. Status legend:
 | 14 | `tsne` | dimReduction.js:8 | BROKEN | perplexity ignored (σ=1); gradient omits `-Q` repulsion → collapse | perplexity binary search + full KL gradient |
 | 15 | `lle` | dimReduction.js:88 | BROKEN | reconstruction weights hardcoded uniform `1/k` | solve constrained least squares per neighborhood |
 | 16 | `umapApprox` | dimReduction.js:124 | MISLABELED | is just PCA | real UMAP or rename to PCA |
-| 17 | `shapValues` | interpretability.js:7 | MISLABELED | corr×var heuristic; perm loop is a no-op | Shapley sampling over a real model |
-| 18 | `limeImportance` | interpretability.js:29 | MISLABELED | perturbation heuristic, no local surrogate | weighted local linear surrogate |
-| 19 | `partialDependence` | interpretability.js:49 | MISLABELED | uses corr pseudo-model, not a trained model | require a model fn (cf. alePlot) |
-| 20 | `globalSurrogate` | interpretability.js:150 | FABRICATED | "surrogate" = `mean+Σ(x-x̄)*0.1`; params ignored | fit an actual surrogate tree/linear model |
+| 17 | `shapValues` | interpretability.js:7 | ✅ FIXED | corr×var heuristic; perm loop is a no-op | Shapley sampling over a real model |
+| 18 | `limeImportance` | interpretability.js:29 | ✅ FIXED | perturbation heuristic, no local surrogate | weighted local linear surrogate |
+| 19 | `partialDependence` | interpretability.js:49 | ✅ FIXED | uses corr pseudo-model, not a trained model | require a model fn (cf. alePlot) |
+| 20 | `globalSurrogate` | interpretability.js:150 | ✅ FIXED | "surrogate" = `mean+Σ(x-x̄)*0.1`; params ignored | fit an actual surrogate tree/linear model |
 | 21 | `mixturePosterior` | mixture.js:221 | ✅ FIXED | returns uniform `1/k` for all points | responsibilities from gmmResult params |
 | 22 | `mixtureOfRegressions` | mixture.js:7 | ✅ FIXED | EM dead after iter 1 (labels become arrays); random convergence check | proper soft-EM with responsibilities |
 | 23 | `moderatedMediation` | bootstrap.js:192 | BROKEN | `b_w` is an ad-hoc ratio, not the moderated path coef | fit Y~M*W, take index a·b_w |
