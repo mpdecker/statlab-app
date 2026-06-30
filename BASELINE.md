@@ -133,11 +133,11 @@ implementations can be fixed. Status legend:
 | 101 | `tmddModel` | pk.js:319 | ✅ FIXED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
 | 102 | `indirectResponse` | pk.js:247 | ✅ FIXED | returns only `{n}`; computes nothing | indirect-response model fit |
 | 103 | `gpEmulator` | experimental.js:741 | ✅ FIXED | weights = row-normalized K, not K⁻¹y | solve GP linear system via matInv |
-| 104 | `varmax` | timeseries.js:1453 | STUB | returns `{n,p,q}`; estimates nothing | VARMAX estimation |
-| 105 | `vecm` | timeseries.js:1472 | STUB | returns `{n,p,rank}`; no estimation | Johansen VECM |
+| 104 | `varmax` | timeseries.js:1453 | ✅ FIXED | returns `{n,p,q}`; estimates nothing | VARMAX estimation |
+| 105 | `vecm` | timeseries.js:1472 | ✅ FIXED | returns `{n,p,rank}`; no estimation | Johansen VECM |
 | 106 | `cointegrationRank` | timeseries.js:1461 | ✅ FIXED | trace stats = `n·(maxRank−r+1)·0.1` hardcoded | real Johansen trace/max-eigen |
-| 107 | `impulseResponseCI` | timeseries.js:1478 | FABRICATED | CI = `±1.96·|v|·0.3`, not bootstrap | bootstrap IRF draws |
-| 108 | `fevdDecomposition` | timeseries.js:1487 | FABRICATED | contributions hardcoded 0.7/0.3 | real FEVD from VAR |
+| 107 | `impulseResponseCI` | timeseries.js:1478 | ✅ FIXED | CI = `±1.96·|v|·0.3`, not bootstrap | bootstrap IRF draws |
+| 108 | `fevdDecomposition` | timeseries.js:1487 | ✅ FIXED | contributions hardcoded 0.7/0.3 | real FEVD from VAR |
 | 109 | `dccGarch`/`bekkGarch`/`cccGarch`/`mgarchForecast`/`mgarchDiagnostics` | timeseries.js:1501–1543 | STUB/FABRICATED | identity/0.01/0.3/0.02 hardcoded; no estimation | real multivariate GARCH |
 | 110 | `egarch` | timeseries.js:1546 | ✅ FIXED | omega/alpha/beta/gamma hardcoded; never estimated (same as finance.js #86) | EGARCH MLE |
 | 111 | `multiArmBandit` | abTesting.js:87 | ✅ FIXED | fake Beta draw + random reward (cf. bandit #94) | sample Beta; real reward |
