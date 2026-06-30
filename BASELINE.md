@@ -104,11 +104,11 @@ implementations can be fixed. Status legend:
 
 | 74 | `ec50` CI | doseResponse.js:89 | FABRICATED(CI) | CI hardcoded `logEC50 ± 0.5` (point est real) | delta-method / profile-likelihood CI |
 
-| 75 | `landmarkMDS` | mds.js:213 | FABRICATED | points hardcoded `0.5−k*0.1`; Gram matrix computed but unused | real landmark MDS embedding |
+| 75 | `landmarkMDS` | mds.js:213 | ✅ FIXED | points hardcoded `0.5−k*0.1`; Gram matrix computed but unused | real landmark MDS embedding |
 | 76 | `annealedImportance` | smc.js:116 | BROKEN | x never moves between temps; weight algebra degenerate | AIS with MCMC transitions |
 | 77 | `sobolSensitivity` | abm.js:42 | MISLABELED | returns corr², not Sobol variance indices | Saltelli variance decomposition |
 | 78 | `particleMCMC` | smc.js:104 | MISLABELED | plain IS, no MH moves; nIter unused | PMMH sampler |
-| 79 | `nonMetricMDS` | mds.js:114 | APPROX/MISLABELED | no isotonic regression (comment only) → metric, not non-metric | PAVA on disparities |
+| 79 | `nonMetricMDS` | mds.js:114 | ✅ FIXED | no isotonic regression (comment only) → metric, not non-metric | PAVA on disparities |
 | 80 | `doubleML` | causal.js:343 | APPROX/MISLABELED | nuisance `yHat/dHat` = training means; **X never used** → not debiased ML | cross-fitted ML nuisance models |
 | 81 | `ordinalSEM` | sem.js:593 | STUB | returns `loadings:[]`, `fit:{chisq:NaN,rmsea:NaN,cfi:NaN}` — never fits | WLSMV ordinal SEM |
 | 82 | `measurementInvariance` | sem.js:339 | APPROX/MISLABELED | pass/fail from ad-hoc thresholds, not nested χ² model comparison | fit constrained configural/metric/scalar models |
