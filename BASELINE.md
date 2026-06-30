@@ -71,8 +71,8 @@ implementations can be fixed. Status legend:
 | 45 | `spatiotemporalMoran` | spatialTemporal.js:59 | FABRICATED | uses `(i+1)%n` sequential neighbor, no W matrix | real W-based ST Moran |
 | 46 | `spaceTimeForecast` | spatialTemporal.js:79 | FABRICATED | returns `rho*2` for every step | iterate the fitted model |
 | 47 | `fpcaExpanded` | fda.js:99 | FABRICATED | random scores, eigenvalues hardcoded `3/(i+1)` | eigen of smoothed covariance surface |
-| 48 | `functionalRegression` | fda.js:118 | MISLABELED | returns `corr(x̄,y)` as β | basis-expanded functional coefficient |
-| 49 | `fpca` | fda.js:27 | BROKEN | scores `sc[k]·√λ` not projected on eigenvectors | project scores onto eigenfns |
+| 48 | `functionalRegression` | fda.js:118 | ✅ FIXED | returns `corr(x̄,y)` as β | basis-expanded functional coefficient |
+| 49 | `fpca` | fda.js:27 | ✅ FIXED | scores `sc[k]·√λ` not projected on eigenvectors | project scores onto eigenfns |
 | 50 | `psychometrics` (line 793) | psychometrics.js:793 | ✅ FIXED (PR #2) | diag-only solve | verify & fix |
 | 51 | `survey` (line 470) | survey.js:470 | ✅ FIXED (PR #2) | diag-only solve | verify & fix |
 | 52 | `compositional` ILR reg | compositional.js:81 | ✅ FIXED (PR #2) | diag-only solve (compounds with se:0.1) | full OLS in ILR coords |

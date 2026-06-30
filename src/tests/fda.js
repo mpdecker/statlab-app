@@ -1,5 +1,5 @@
-import { avg, corr } from '../math/core.js';
-import { jacobiEigen } from '../math/matrix.js';
+import { avg } from '../math/core.js';
+import { jacobiEigen, solveNormalEquations } from '../math/matrix.js';
 import { mulberry32 } from '../math/rng.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
@@ -24,8 +24,16 @@ export function fpca(data, timePoints, { nBasis = 5 } = {}) {
     return scores.reduce((s, sc) => s + (sc[i] - mi) * (sc[j] - mj), 0) / n;
   }));
   const eigs = jacobiEigen(cov);
-  const fpcScores = scores.map(sc => eigs.eigenvalues.slice(0, 2).map((v, k) => +(sc[k] * Math.sqrt(Math.max(v, 0))).toFixed(4)));
-  return { test: 'FPCA', fpcScores: fpcScores.slice(0, 5), eigenvalues: eigs.eigenvalues.slice(0, 2).map(v => +v.toFixed(4)), n, nBasis, apa: `FPCA: ${nBasis} basis functions, n = ${n}` };
+  // FPC scores = projection of each centred coefficient vector onto the leading
+  // eigenfunctions: ξ_ik = Σ_b (c_ib − c̄_b)·v_k[b]  (var(ξ_·k) = λ_k).
+  const meanCoef = scores[0].map((_, b) => avg(scores.map(s => s[b])));
+  const nc = Math.min(2, nBasis);
+  const fpcScores = scores.map(sc =>
+    eigs.eigenvectors.slice(0, nc).map(vec => +sc.reduce((acc, cv, b) => acc + (cv - meanCoef[b]) * vec[b], 0).toFixed(4)));
+  const evals = eigs.eigenvalues.slice(0, nc).map(v => +v.toFixed(4));
+  const totalVar = eigs.eigenvalues.reduce((s, v) => s + Math.max(v, 0), 0) || 1;
+  const propVar = evals.map(v => +(Math.max(v, 0) / totalVar).toFixed(4));
+  return { test: 'FPCA', fpcScores, eigenvalues: evals, propVar, n, nBasis, apa: `FPCA: ${nBasis} basis functions, n = ${n}` };
 }
 
 // ── Functional Mean ───────────────────────────────────────────────
@@ -103,18 +111,25 @@ export function fpcaExpanded(data, vars, timeVar, idVar, { seed = 42, nBasis = 1
 }
 
 // ── Functional Regression ─────────────────────────────────────────
-export function functionalRegression(data, yVar, xVar, timeVar, idVar, { nBasis = 5 } = {}) {
+export function functionalRegression(data, yVar, xVar, timeVar, idVar, { ridge = 1e-6 } = {}) {
   if (!data || data.length < 10 || !yVar || !xVar || !timeVar) return null;
   const ids = [...new Set(data.map(r => r[idVar] || r[timeVar]))];
-  const n = ids.length;
-  const y = ids.map(id => {
-    const rows = data.filter(r => (r[idVar] || r[timeVar]) === id);
-    return rows.length > 0 ? avg(rows.map(r => +r[yVar])) : 0;
-  });
-  const xMean = ids.map(id => {
-    const rows = data.filter(r => (r[idVar] || r[timeVar]) === id);
-    return rows.length > 0 ? avg(rows.map(r => +r[xVar])) : 0;
-  });
-  const beta = corr(xMean, y);
-  return { test: 'Functional Regression', beta: +beta.toFixed(4), nSubjects: n, apa: `FuncReg: beta = ${beta.toFixed(3)}, n=${n}` };
+  const times = [...new Set(data.map(r => +r[timeVar]))].sort((a, b) => a - b);
+  const n = ids.length, T = times.length;
+  // Build the functional predictor matrix x_i(t) and scalar response y_i.
+  const y = ids.map(id => { const rows = data.filter(r => (r[idVar] || r[timeVar]) === id); return rows.length ? avg(rows.map(r => +r[yVar])) : 0; });
+  const Xfun = ids.map(id => times.map(t => {
+    const row = data.find(r => (r[idVar] || r[timeVar]) === id && +r[timeVar] === t);
+    return row ? +row[xVar] : 0;
+  }));
+  // Functional linear model y_i = α + Σ_t β(t) x_i(t): OLS on [1, x_i(·)] (ridge-stabilised).
+  const Z = Xfun.map(row => [1, ...row]);
+  const kz = T + 1;
+  const ZtZ = Array.from({ length: kz }, (_, a) => Array.from({ length: kz }, (_, b) => Z.reduce((s, r) => s + r[a] * r[b], 0)));
+  for (let i = 1; i < kz; i++) ZtZ[i][i] += ridge;
+  const ZtY = Array.from({ length: kz }, (_, a) => Z.reduce((s, r, i) => s + r[a] * y[i], 0));
+  const coef = solveNormalEquations(ZtZ, ZtY);
+  const betaCurve = coef.slice(1).map(v => +v.toFixed(4));
+  const beta = +betaCurve.reduce((s, v) => s + v, 0).toFixed(4); // integrated effect ∫β(t)dt (unit spacing)
+  return { test: 'Functional Regression', beta, betaCurve, intercept: +coef[0].toFixed(4), nSubjects: n, nTimePoints: T, apa: `FuncReg: ∫β = ${beta.toFixed(3)}, n=${n}` };
 }
