@@ -117,10 +117,50 @@ export function dependencyParse(text) {
   if (!text || typeof text !== 'string') return null;
   const tokens = text.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(w => w.length > 0);
   const n = tokens.length;
+  if (!n) return { test: 'Dependency Parse', deps: [], root: null, nTokens: 0, apa: 'Dep parse: 0 dependencies' };
+  // Lexicon-based POS tagging (small closed-class lists + light morphology).
+  const DT = new Set(['the', 'a', 'an', 'this', 'that', 'these', 'those', 'my', 'your', 'his', 'her', 'its', 'our', 'their']);
+  const IN = new Set(['in', 'on', 'at', 'by', 'for', 'with', 'from', 'of', 'over', 'under', 'into', 'to', 'about']);
+  const PRP = new Set(['i', 'you', 'he', 'she', 'it', 'we', 'they', 'him', 'them', 'us', 'me']);
+  const COP = new Set(['is', 'am', 'are', 'was', 'were', 'be', 'been', 'being', 'do', 'does', 'did', 'has', 'have', 'had', 'will', 'can', 'could', 'would', 'should', 'may', 'might']);
+  const VERBS = new Set(['chase', 'chased', 'chases', 'run', 'ran', 'runs', 'sit', 'sat', 'sits', 'eat', 'ate', 'eats', 'see', 'saw', 'sees', 'like', 'likes', 'liked', 'love', 'loves', 'loved', 'make', 'made', 'go', 'goes', 'went', 'come', 'came', 'play', 'plays', 'played', 'jump', 'jumps', 'jumped', 'walk', 'walks', 'walked', 'drive', 'drives', 'drove', 'read', 'reads', 'write', 'wrote', 'give', 'gave', 'take', 'took', 'find', 'found', 'know', 'knew', 'think', 'thought', 'say', 'said', 'tell', 'told']);
+  const JJ = new Set(['big', 'small', 'red', 'blue', 'green', 'fast', 'slow', 'good', 'bad', 'happy', 'sad', 'old', 'new', 'tall', 'short', 'hot', 'cold', 'quick', 'lazy', 'brown', 'black', 'white']);
+  const tag = t => {
+    if (DT.has(t)) return 'DT';
+    if (IN.has(t)) return 'IN';
+    if (PRP.has(t)) return 'PRP';
+    if (COP.has(t)) return 'VB';
+    if (VERBS.has(t)) return 'VB';
+    if (JJ.has(t)) return 'JJ';
+    if (t.endsWith('ing')) return 'VBG';
+    if (t.endsWith('ly')) return 'RB';
+    if (t.endsWith('ed')) return 'VBD';
+    return 'NN';
+  };
+  const pos = tokens.map(tag);
+  const isVerb = p => p === 'VB' || p === 'VBD' || p === 'VBG';
+  const isNoun = p => p === 'NN' || p === 'PRP';
+  // Root = first finite verb (fallback: last token).
+  let root = pos.findIndex(isVerb);
+  if (root < 0) root = n - 1;
+  const nextNoun = i => { for (let j = i + 1; j < n; j++) if (isNoun(pos[j])) return j; for (let j = i - 1; j >= 0; j--) if (isNoun(pos[j])) return j; return root; };
   const deps = [];
-  for (let i = 1; i < n; i++) {
-    const head = i - 1;
-    deps.push({ dep: tokens[i], head: tokens[head], relation: i < 3 ? 'nsubj' : 'dobj' });
+  for (let i = 0; i < n; i++) {
+    if (i === root) { deps.push({ dep: tokens[i], head: 'ROOT', relation: 'root', headIdx: -1, idx: i }); continue; }
+    let headIdx, relation;
+    const p = pos[i];
+    if (p === 'DT') { headIdx = nextNoun(i); relation = 'det'; }
+    else if (p === 'JJ') { headIdx = nextNoun(i); relation = 'amod'; }
+    else if (p === 'RB') { headIdx = root; relation = 'advmod'; }
+    else if (p === 'IN') { headIdx = root; relation = 'prep'; }
+    else if (isNoun(p)) {
+      // noun governed by a preceding preposition (skipping DT/JJ) → object of preposition
+      let prep = -1; for (let j = i - 1; j >= 0; j--) { if (pos[j] === 'DT' || pos[j] === 'JJ') continue; if (pos[j] === 'IN') prep = j; break; }
+      if (prep >= 0) { headIdx = prep; relation = 'pobj'; }
+      else if (i < root) { headIdx = root; relation = 'nsubj'; }
+      else { headIdx = root; relation = 'dobj'; }
+    } else { headIdx = root; relation = isVerb(p) ? 'conj' : 'dep'; }
+    deps.push({ dep: tokens[i], head: tokens[headIdx], relation, headIdx, idx: i });
   }
-  return { test: 'Dependency Parse', deps, nTokens: n, apa: `Dep parse: ${deps.length} dependencies` };
+  return { test: 'Dependency Parse', deps, root: tokens[root], nTokens: n, apa: `Dep parse: ${deps.length} dependencies, root="${tokens[root]}"` };
 }

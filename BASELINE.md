@@ -82,7 +82,7 @@ implementations can be fixed. Status legend:
 
 | 55 | `word2vecSkipGram` | nlp.js:7 | ✅ FIXED | random W1 returned; never trains; epochs/lr ignored | skip-gram negative sampling |
 | 56 | `gloveEmbeddings` | nlp.js:22 | ✅ FIXED | builds co-occurrence then returns random vectors | weighted LSQ on log-cooc |
-| 57 | `dependencyParse` | nlp.js:71 | FABRICATED | links token→previous, positional labels | real parser or relabel |
+| 57 | `dependencyParse` | nlp.js:71 | ✅ FIXED | links token→previous, positional labels | real parser or relabel |
 | 58 | `partWorthUtilities` | conjoint.js:18 | ✅ FIXED (PR #2) | diag-only solve | dummy-coded OLS |
 | 59 | `choiceSimulation` | conjoint.js:42 | FABRICATED | random utilities, ignores profiles/attrs | logit from estimated part-worths |
 | 60 | `cpDecomposition` | tensor.js:182 | ✅ FIXED | ALS loop never updates A/B/C; factors stay random | real CP-ALS (cf. `parafac`, which is correct) |

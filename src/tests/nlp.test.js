@@ -56,3 +56,16 @@ describe('gloveEmbeddings factorizes co-occurrence (real GloVe)', () => {
     expect(cos(embOf(r, 'cat'), embOf(r, 'dog'))).toBeGreaterThan(cos(embOf(r, 'cat'), embOf(r, 'car')));
   });
 });
+
+describe('dependencyParse is a real rule-based parser (heads from grammar)', () => {
+  it('parses "the dog chased the cat" with correct heads and relations', () => {
+    const r = dependencyParse('the dog chased the cat');
+    const find = w => r.deps.find(d => d.dep === w);
+    expect(find('dog').head).toBe('chased');
+    expect(find('dog').relation).toBe('nsubj');
+    expect(find('cat').head).toBe('chased');
+    expect(find('cat').relation).toBe('dobj');
+    expect(find('the').relation).toBe('det'); // first determiner attaches to its noun
+    expect(r.root).toBe('chased');
+  });
+});
