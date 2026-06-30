@@ -347,3 +347,30 @@ describe('transitionModel', () => {
   it('null <3 ids', () => expect(transitionModel(d.slice(0,5), 'y', ['x1'], { idVar: 'id' })).toBeNull());
   it('nSubjects positive', () => { const r = transitionModel(d, 'y', ['x1','x2'], { idVar: 'id' }); if (r) expect(r.nSubjects).toBeGreaterThan(0); });
 });
+
+describe('transitionModel fits a real multiple (lag + covariates) regression', () => {
+  it('recovers separate lag and covariate coefficients', () => {
+    const d = [];
+    let s = 19; const z = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return (s / 2 ** 32) * 2 - 1; };
+    for (let id = 0; id < 12; id++) {
+      let prev = z();
+      for (let t = 0; t < 8; t++) { const x1 = z(); const y = 0.5 * prev + 2 * x1 + z() * 0.1; d.push({ id, y, x1, t }); prev = y; }
+    }
+    const r = transitionModel(d, 'y', ['x1'], { idVar: 'id' });
+    const xc = r.coefficients.find(c => c.name === 'x1');
+    expect(Math.abs(xc.b - 2)).toBeLessThan(0.2);
+    expect(Math.abs(r.lagCoefficient - 0.5)).toBeLessThan(0.2);
+  });
+});
+
+describe('remlEstimate estimates variance components with clusters', () => {
+  it('recovers between- and within-cluster variances', () => {
+    let s = 23; const z = () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+    const X = [], y = [], cluster = [];
+    const su = 2, se = 0.5; // between sd=2, within sd=0.5
+    for (let c = 0; c < 25; c++) { const uc = z() * su; for (let t = 0; t < 8; t++) { X.push([1]); y.push(5 + uc + z() * se); cluster.push(c); } }
+    const r = remlEstimate(X, y, cluster);
+    expect(r.sigma2u).toBeGreaterThan(2);  // ~ su^2 = 4
+    expect(r.sigma2).toBeLessThan(0.6);     // ~ se^2 = 0.25
+  });
+});

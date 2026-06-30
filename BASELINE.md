@@ -112,8 +112,8 @@ implementations can be fixed. Status legend:
 | 80 | `doubleML` | causal.js:343 | APPROX/MISLABELED | nuisance `yHat/dHat` = training means; **X never used** → not debiased ML | cross-fitted ML nuisance models |
 | 81 | `ordinalSEM` | sem.js:593 | STUB | returns `loadings:[]`, `fit:{chisq:NaN,rmsea:NaN,cfi:NaN}` — never fits | WLSMV ordinal SEM |
 | 82 | `measurementInvariance` | sem.js:339 | APPROX/MISLABELED | pass/fail from ad-hoc thresholds, not nested χ² model comparison | fit constrained configural/metric/scalar models |
-| 83 | `transitionModel` | multilevel.js:1035 | BROKEN | regresses y on `(yLag+Σx)` as a single predictor; `se=1/√n` | proper transition/Markov regression |
-| 84 | `remlEstimate` | multilevel.js:999 | MISLABELED | plain OLS + residual var, no REML variance-component estimation | actual REML |
+| 83 | `transitionModel` | multilevel.js:1035 | ✅ FIXED | regresses y on `(yLag+Σx)` as a single predictor; `se=1/√n` | proper transition/Markov regression |
+| 84 | `remlEstimate` | multilevel.js:999 | ✅ FIXED | plain OLS + residual var, no REML variance-component estimation | actual REML |
 | 85 | `repeatedMeasuresMANOVA` | multilevel.js:1017 | INCOMPLETE | returns SS only, no F/Wilks/p | RM-MANOVA test statistic |
 | 86 | `egarch` | finance.js:195 | ✅ FIXED | Gaussian MLE of EGARCH(1,1): ln σ²_t = ω+β ln σ²_{t-1}+α(\|z\|−E\|z\|)+γz, β=tanh; gradient-descent + Newton (`_garchFit` helper). TDD: estimates β=0.70/α=0.29 (was all hardcoded). |
 | 87 | `tgarch` | finance.js:211 | ✅ FIXED | Gaussian MLE of GJR-GARCH(1,1) with feasibility transforms (ω>0, α,β≥0, α+γ≥0). TDD: recovers ω/α/γ/β ≈ .093/.128/.069/.530 from GJR(.1/.08/.06/.6) (was hardcoded 0.9). |
