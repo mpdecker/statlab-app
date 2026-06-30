@@ -80,8 +80,8 @@ implementations can be fixed. Status legend:
 | 53b | `difLogistic` | psychometrics.js:793 | BROKEN | diag-only solve; linear OLS labeled "logistic"; `score=i%10` placeholder | logistic DIF (Mantel-Haenszel/IRT) |
 | 54 | non-response adj. | survey.js:470 | ✅ FIXED (PR #2) | diag-only solve; ad-hoc weights | logistic response-propensity weights |
 
-| 55 | `word2vecSkipGram` | nlp.js:7 | FABRICATED | random W1 returned; never trains; epochs/lr ignored | skip-gram negative sampling |
-| 56 | `gloveEmbeddings` | nlp.js:22 | FABRICATED | builds co-occurrence then returns random vectors | weighted LSQ on log-cooc |
+| 55 | `word2vecSkipGram` | nlp.js:7 | ✅ FIXED | random W1 returned; never trains; epochs/lr ignored | skip-gram negative sampling |
+| 56 | `gloveEmbeddings` | nlp.js:22 | ✅ FIXED | builds co-occurrence then returns random vectors | weighted LSQ on log-cooc |
 | 57 | `dependencyParse` | nlp.js:71 | FABRICATED | links token→previous, positional labels | real parser or relabel |
 | 58 | `partWorthUtilities` | conjoint.js:18 | ✅ FIXED (PR #2) | diag-only solve | dummy-coded OLS |
 | 59 | `choiceSimulation` | conjoint.js:42 | FABRICATED | random utilities, ignores profiles/attrs | logit from estimated part-worths |

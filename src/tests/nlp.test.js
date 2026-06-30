@@ -31,3 +31,28 @@ describe('dependencyParse', () => {
   it('null invalid', () => expect(dependencyParse(123)).toBeNull());
   it('deps non-empty for multi-word text', () => { const r = dependencyParse('the cat sat on the mat'); if (r) expect(r.deps.length).toBeGreaterThan(0) });
 });
+
+// Two-topic corpus: {cat,dog,pet} vs {car,road,drive} co-occur within topic only.
+const topicCorpus = [];
+for (let i = 0; i < 12; i++) {
+  topicCorpus.push('the cat and dog are pet cat dog pet');
+  topicCorpus.push('dog pet cat play cat dog pet together');
+  topicCorpus.push('drive the car road car drive road trip');
+  topicCorpus.push('car road drive fast road car drive far');
+}
+function cos(a, b) { let d = 0, na = 0, nb = 0; for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] ** 2; nb += b[i] ** 2; } return d / (Math.sqrt(na * nb) + 1e-12); }
+function embOf(r, w) { const i = r.vocab.indexOf(w); return r.embeddings[i]; }
+
+describe('word2vecSkipGram learns context (real SGNS)', () => {
+  it('within-topic words are more similar than cross-topic', () => {
+    const r = word2vecSkipGram(topicCorpus, { vecSize: 12, epochs: 40, seed: 1 });
+    expect(cos(embOf(r, 'cat'), embOf(r, 'dog'))).toBeGreaterThan(cos(embOf(r, 'cat'), embOf(r, 'car')));
+  });
+});
+
+describe('gloveEmbeddings factorizes co-occurrence (real GloVe)', () => {
+  it('within-topic words are more similar than cross-topic', () => {
+    const r = gloveEmbeddings(topicCorpus, { vecSize: 12, epochs: 80, seed: 1 });
+    expect(cos(embOf(r, 'cat'), embOf(r, 'dog'))).toBeGreaterThan(cos(embOf(r, 'cat'), embOf(r, 'car')));
+  });
+});

@@ -12,10 +12,37 @@ export function word2vecSkipGram(corpus, { seed = 42, vecSize = 10, windowSize =
   if (vocab.length < 5) return null;
   const V = vocab.length;
   const word2idx = {}; vocab.forEach((w, i) => { word2idx[w] = i; });
-  const W1 = Array.from({length: V}, () => Array.from({length: vecSize}, () => (__rng() - 0.5) * 0.1));
-  const W2 = Array.from({length: vecSize}, () => Array.from({length: V}, () => (__rng() - 0.5) * 0.1));
-  const embeddings = vocab.map((w, i) => W1[i].map(v => +v.toFixed(4)));
-  return { test: 'Word2Vec', embeddings: embeddings.slice(0, 15), vecSize, vocabSize: V, apa: `Word2Vec: ${V} words, ${vecSize}-dim` };
+  const tokens = words.map(w => word2idx[w]);
+  // Skip-gram with negative sampling: input (W1) and output (W2) embeddings,
+  // trained so observed (centre, context) pairs score high and sampled
+  // negatives score low (binary logistic objective).
+  const W1 = Array.from({ length: V }, () => Array.from({ length: vecSize }, () => (__rng() - 0.5) / vecSize));
+  const W2 = Array.from({ length: V }, () => Array(vecSize).fill(0));
+  const freq = Array(V).fill(0); tokens.forEach(t => { freq[t]++; });
+  const negTable = []; for (let i = 0; i < V; i++) { const c = Math.max(1, Math.round(Math.pow(freq[i], 0.75) * 10)); for (let r = 0; r < c; r++) negTable.push(i); }
+  const sigmoid = z => 1 / (1 + Math.exp(-Math.max(-30, Math.min(30, z))));
+  const nNeg = 5;
+  for (let e = 0; e < epochs; e++) {
+    for (let i = 0; i < tokens.length; i++) {
+      const c = tokens[i];
+      const lo = Math.max(0, i - windowSize), hi = Math.min(tokens.length - 1, i + windowSize);
+      for (let j = lo; j <= hi; j++) {
+        if (j === i) continue;
+        const o = tokens[j];
+        const targets = [[o, 1]];
+        for (let s = 0; s < nNeg; s++) { const neg = negTable[Math.floor(__rng() * negTable.length)]; if (neg !== o) targets.push([neg, 0]); }
+        const grad1 = Array(vecSize).fill(0);
+        for (const [t, label] of targets) {
+          let dot = 0; for (let k = 0; k < vecSize; k++) dot += W1[c][k] * W2[t][k];
+          const g = lr * (label - sigmoid(dot));
+          for (let k = 0; k < vecSize; k++) { grad1[k] += g * W2[t][k]; W2[t][k] += g * W1[c][k]; }
+        }
+        for (let k = 0; k < vecSize; k++) W1[c][k] += grad1[k];
+      }
+    }
+  }
+  const embeddings = W1.map(row => row.map(v => +v.toFixed(4)));
+  return { test: 'Word2Vec', embeddings, vocab, vecSize, vocabSize: V, apa: `Word2Vec: ${V} words, ${vecSize}-dim` };
 }
 
 // ── GloVe Embeddings (simplified co-occurrence) ───────────────────
@@ -34,8 +61,26 @@ export function gloveEmbeddings(corpus, { seed = 42, vecSize = 10, windowSize = 
       if (i !== j) cooc[tokens[i]][tokens[j]]++;
     }
   }
-  const embeddings = vocab.map(() => Array.from({length: vecSize}, () => +(__rng() * 0.1).toFixed(4)));
-  return { test: 'GloVe', embeddings: embeddings.slice(0, 15), vecSize, vocabSize: V, apa: `GloVe: ${V} words, ${vecSize}-dim` };
+  // GloVe: factorise the log co-occurrence with the weighting f(X_ij)=min(1,(X/xmax)^0.75),
+  // fitting w_iᵀw̃_j + b_i + b̃_j ≈ log X_ij by SGD.
+  const lr = 0.05, xmax = 10;
+  const W = Array.from({ length: V }, () => Array.from({ length: vecSize }, () => (__rng() - 0.5) / vecSize));
+  const Wc = Array.from({ length: V }, () => Array.from({ length: vecSize }, () => (__rng() - 0.5) / vecSize));
+  const b = Array(V).fill(0), bc = Array(V).fill(0);
+  const pairs = [];
+  for (let i = 0; i < V; i++) for (let j = 0; j < V; j++) if (cooc[i][j] > 0) pairs.push([i, j, cooc[i][j]]);
+  for (let e = 0; e < epochs; e++) {
+    for (const [i, j, x] of pairs) {
+      const fw = x < xmax ? Math.pow(x / xmax, 0.75) : 1;
+      let dot = b[i] + bc[j]; for (let k = 0; k < vecSize; k++) dot += W[i][k] * Wc[j][k];
+      const diff = dot - Math.log(x);
+      const g = fw * diff * lr;
+      for (let k = 0; k < vecSize; k++) { const wi = W[i][k]; W[i][k] -= g * Wc[j][k]; Wc[j][k] -= g * wi; }
+      b[i] -= g; bc[j] -= g;
+    }
+  }
+  const embeddings = W.map((row, i) => row.map((v, k) => +(v + Wc[i][k]).toFixed(4))); // GloVe uses W + W̃
+  return { test: 'GloVe', embeddings, vocab, vecSize, vocabSize: V, apa: `GloVe: ${V} words, ${vecSize}-dim` };
 }
 
 // ── Named Entity Recognition (regex-based) ────────────────────────
