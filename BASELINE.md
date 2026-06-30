@@ -88,11 +88,11 @@ implementations can be fixed. Status legend:
 | 60 | `cpDecomposition` | tensor.js:182 | ✅ FIXED | ALS loop never updates A/B/C; factors stay random | real CP-ALS (cf. `parafac`, which is correct) |
 | 61 | `tuckerRegression` | tensor.js:203 | ✅ FIXED | β random, never fit | HOSVD-based regression |
 | 62 | `tensorCompletion` | tensor.js:219 | ✅ FIXED | fills missing with `i+j+k` | low-rank tensor completion |
-| 63 | `vipScores` | pls.js:47 | FABRICATED | `√(i+1)/nc`, not from weights/loadings | VIP from PLS weights & SS |
-| 64 | `sparsePLS` | pls.js:135 | FABRICATED | hardcoded `0.5` loadings (selection is real) | sparse loadings from sPLS |
-| 65 | `rda` | pls.js:57 | BROKEN | diag-only constrained SS | full RDA (constrained eigen) |
-| 66 | `sPLSRegression` | pls.js:129 | BROKEN | deflation `Xres-=pt*(Xres/pt)` zeroes X | correct NIPALS deflation |
-| 67 | `pls2` | pls.js:30 | BROKEN | no proper NIPALS iteration/deflation | real PLS2 |
+| 63 | `vipScores` | pls.js:47 | ✅ FIXED | `√(i+1)/nc`, not from weights/loadings | VIP from PLS weights & SS |
+| 64 | `sparsePLS` | pls.js:135 | ✅ FIXED | hardcoded `0.5` loadings (selection is real) | sparse loadings from sPLS |
+| 65 | `rda` | pls.js:57 | ✅ FIXED | diag-only constrained SS | full RDA (constrained eigen) |
+| 66 | `sPLSRegression` | pls.js:129 | ✅ FIXED | deflation `Xres-=pt*(Xres/pt)` zeroes X | correct NIPALS deflation |
+| 67 | `pls2` | pls.js:30 | ✅ FIXED | no proper NIPALS iteration/deflation | real PLS2 |
 
 | 68 | `svdEmbeddings` | text.js:221 | FABRICATED | no SVD — returns normalized co-occ rows; `sameness=vec[0]+0.5` | truncated SVD of PPMI matrix |
 
