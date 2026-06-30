@@ -99,3 +99,13 @@ describe('nonCompartmentalExpanded', () => {
   it('null <4', () => expect(nonCompartmentalExpanded([0,1], [1,2])).toBeNull());
   it('auc positive', () => { const r = nonCompartmentalExpanded(t, c); expect(r.auc).toBeGreaterThan(0); });
 });
+
+describe('tmddModel fits the model to the data (not hardcoded constants)', () => {
+  it('achieves a good fit (low RMSE), unlike the hardcoded mono-exponential', () => {
+    const t = [0, 1, 2, 3, 4, 6, 8, 12, 24];
+    const c = [100, 80, 65, 50, 40, 25, 15, 8, 2];
+    const r = tmddModel(t, c);
+    expect(r.rmse).toBeLessThan(5); // old hardcoded pred=exp(-0.1t) gives RMSE ~50
+    expect(r.kel).toBeGreaterThan(0);
+  });
+});

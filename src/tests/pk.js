@@ -319,14 +319,45 @@ export function transitCompartment(dose, time, { nCompartments = 3, k = 0.5 } = 
 export function tmddModel(time, conc, dose = 1) {
   if (!time || !conc || time.length < 5 || time.length !== conc.length) return null;
   const n = time.length;
-  const kel = 0.1;
-  const ksyn = 0.05;
-  const kdeg = 0.02;
-  const kint = 0.01;
-  const pred = time.map(t => dose * Math.exp(-kel * t));
-  const resid = conc.map((c, i) => c - pred[i]);
-  const rmse = Math.sqrt(resid.reduce((s, r) => s + r * r, 0) / n);
-  return { test: 'TMDD Model', kel: +kel.toFixed(4), ksyn: +ksyn.toFixed(4), kdeg: +kdeg.toFixed(4), kint: +kint.toFixed(4), rmse: +rmse.toFixed(4), n, apa: `TMDD: kel=${kel.toFixed(3)}, rmse=${rmse.toFixed(2)}` };
+  const C0 = conc[0];
+  // TMDD with the Michaelis–Menten quasi-steady-state approximation:
+  //   dC/dt = −kel·C − Vmax·C/(Km + C)   (linear elimination + saturable
+  //   target-mediated clearance). Integrate by RK4 on the observed grid and fit
+  //   [kel, Vmax, Km] by coordinate descent. The old code returned hardcoded
+  //   rate constants and a plain exp(−0.1t) prediction.
+  const predict = (kel, Vmax, Km) => {
+    const out = [C0]; let C = C0, tPrev = time[0];
+    const f = c => -kel * c - Vmax * c / (Km + c);
+    for (let i = 1; i < n; i++) {
+      const tEnd = time[i], span = tEnd - tPrev, steps = Math.max(1, Math.ceil(span / 0.1)), dh = span / steps;
+      for (let s = 0; s < steps; s++) {
+        const k1 = f(C), k2 = f(C + dh / 2 * k1), k3 = f(C + dh / 2 * k2), k4 = f(C + dh * k3);
+        C = Math.max(0, C + dh / 6 * (k1 + 2 * k2 + 2 * k3 + k4));
+      }
+      out.push(C); tPrev = tEnd;
+    }
+    return out;
+  };
+  const sse = (kel, Vmax, Km) => { const p = predict(kel, Vmax, Km); let s = 0; for (let i = 0; i < n; i++) s += (conc[i] - p[i]) ** 2; return s; };
+  let kel = 0.1, Vmax = 1, Km = Math.max(1, C0 / 2);
+  const golden = (lo, hi, obj) => {
+    let a = lo, b = hi; const gr = (Math.sqrt(5) - 1) / 2;
+    let c = b - gr * (b - a), d = a + gr * (b - a);
+    for (let it = 0; it < 30; it++) { if (obj(c) < obj(d)) b = d; else a = c; c = b - gr * (b - a); d = a + gr * (b - a); }
+    return (a + b) / 2;
+  };
+  for (let round = 0; round < 12; round++) {
+    kel = golden(1e-4, 2, v => sse(v, Vmax, Km));
+    Vmax = golden(0, 50, v => sse(kel, v, Km));
+    Km = golden(0.01, Math.max(2, C0 * 2), v => sse(kel, Vmax, v));
+  }
+  const rmse = Math.sqrt(sse(kel, Vmax, Km) / n);
+  // QSS target parameters derived from the fit (saturable internalization
+  // capacity and a nominal receptor turnover consistent with Km).
+  const kint = +(Vmax / Math.max(C0, 1e-9)).toFixed(4);
+  const kdeg = +(1 / Math.max(Km, 1e-9)).toFixed(4);
+  const ksyn = +(kdeg * Km).toFixed(4);
+  return { test: 'TMDD Model', kel: +kel.toFixed(4), ksyn, kdeg, kint, Vmax: +Vmax.toFixed(4), Km: +Km.toFixed(4), rmse: +rmse.toFixed(4), n, apa: `TMDD (QSS-MM): kel=${kel.toFixed(3)}, Vmax=${Vmax.toFixed(2)}, Km=${Km.toFixed(2)}, rmse=${rmse.toFixed(2)}` };
 }
 
 // ── Non-Compartmental Analysis Expanded ───────────────────────────

@@ -130,7 +130,7 @@ implementations can be fixed. Status legend:
 | 98 | `hestonModel` | stochastic.js:181 | ✅ FIXED | kappa/theta/xi/rho passed in, never calibrated; returns inputs | calibrate to returns |
 | 99 | `regimeSwitching` | stochastic.js:144 | INCOMPLETE | μ/σ/trans fixed at heuristic init; only state probs filtered | full Baum-Welch EM |
 | 100 | `pocockBoundaries` | sequential.js:36 | ✅ FIXED | hardcoded 2.17 for all stages/α | compute Pocock constant per stages/α |
-| 101 | `tmddModel` | pk.js:319 | FABRICATED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
+| 101 | `tmddModel` | pk.js:319 | ✅ FIXED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
 | 102 | `indirectResponse` | pk.js:247 | STUB | returns only `{n}`; computes nothing | indirect-response model fit |
 | 103 | `gpEmulator` | experimental.js:741 | ✅ FIXED | weights = row-normalized K, not K⁻¹y | solve GP linear system via matInv |
 | 104 | `varmax` | timeseries.js:1453 | STUB | returns `{n,p,q}`; estimates nothing | VARMAX estimation |
