@@ -89,3 +89,12 @@ describe('contextualBandit (LinUCB) inverts A and uses a contextual reward', () 
     expect(r.totalReward / 400).toBeGreaterThan(0.6); // random policy ~0.5
   });
 });
+
+describe('deepQNetwork learns Q-values with real backprop on an MDP', () => {
+  const transitions = [[0, 1], [0, 2], [2, 2]];
+  const rewards = [[0, 0], [0, 1], [1, 1]];
+  it('recovers the optimal greedy action at the start state', () => {
+    const r = deepQNetwork(3, 2, { rewards, transitions, episodes: 400, lr: 0.05, gamma: 0.9, seed: 2, epsilon: 0.2 });
+    expect(r.optimalPolicy[0]).toBe(1);
+  });
+});

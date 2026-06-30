@@ -283,39 +283,42 @@ export function sarsa(nStates, nActions, rewards, transitions, { seed = 42, epis
 }
 
 // ── Deep Q-Network (simplified neural Q-function) ─────────────────
-export function deepQNetwork(nStates, nActions, { seed = 42, episodes = 30, lr = 0.01, gamma = 0.9, hiddenSize = 8 } = {}) {
+export function deepQNetwork(nStates, nActions, { seed = 42, episodes = 30, lr = 0.01, gamma = 0.9, hiddenSize = 8, rewards = null, transitions = null, epsilon = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!nStates || !nActions || nStates < 2 || nActions < 2 || episodes < 5) return null;
-  const W1 = Array.from({length: nStates}, () => Array.from({length: hiddenSize}, () => (__rng() - 0.5) * 0.1));
+  // One-hot-state MLP Q-network: input → tanh hidden → linear Q(s,·).
+  const W1 = Array.from({ length: nStates }, () => Array.from({ length: hiddenSize }, () => (__rng() - 0.5) * 0.3));
   const b1 = Array(hiddenSize).fill(0);
-  const W2 = Array.from({length: hiddenSize}, () => Array.from({length: nActions}, () => (__rng() - 0.5) * 0.1));
+  const W2 = Array.from({ length: hiddenSize }, () => Array.from({ length: nActions }, () => (__rng() - 0.5) * 0.3));
   const b2 = Array(nActions).fill(0);
+  const forward = state => {
+    const h = Array.from({ length: hiddenSize }, (_, j) => Math.tanh(b1[j] + W1[state][j])); // input is e_state
+    const q = b2.map((v, a) => { let s = v; for (let j = 0; j < hiddenSize; j++) s += h[j] * W2[j][a]; return s; });
+    return { h, q };
+  };
   let cumulativeReward = 0;
   for (let ep = 0; ep < episodes; ep++) {
     let state = 0;
-    for (let step = 0; step < 15; step++) {
-      // Forward
-      const h = W1[state].map((w, j) => {
-        let s = b1[j];
-        for (let i = 0; i < nStates; i++) s += (i === state ? 1 : 0) * (W1[i]?.[j] || 0);
-        return Math.tanh(s);
-      });
-      const qVals = b2.map((v, j) => {
-        let s = v;
-        for (let i = 0; i < hiddenSize; i++) s += h[i] * W2[i][j];
-        return s;
-      });
-      const action = qVals.indexOf(Math.max(...qVals));
-      const r = __rng();
+    for (let step = 0; step < 20; step++) {
+      const { h, q } = forward(state);
+      const action = __rng() < epsilon ? Math.floor(__rng() * nActions) : q.indexOf(Math.max(...q));
+      const r = typeof rewards === 'function' ? rewards(state, action) : (rewards?.[state]?.[action] ?? __rng());
+      const nextState = nextStateFrom(transitions, state, action, nStates, __rng);
+      const qNext = forward(nextState).q;
+      const target = r + gamma * Math.max(...qNext);
+      const td = target - q[action];
       cumulativeReward += r;
-      const target = r + gamma * Math.max(...qVals);
-      const td = target - qVals[action];
+      // Backprop the TD error through the (action-th) output and the tanh hidden layer.
       for (let j = 0; j < hiddenSize; j++) {
+        const dh = td * W2[j][action] * (1 - h[j] * h[j]);
         W2[j][action] += lr * td * h[j];
-        W1[state][j] += lr * td * Math.tanh(W1[state][j]) || lr * 0.01;
+        W1[state][j] += lr * dh; // d/dW1[state][j] since input one-hot at `state`
+        b1[j] += lr * dh;
       }
       b2[action] += lr * td;
+      state = nextState;
     }
   }
-  return { test: 'Deep Q-Network', nStates, nActions, episodes, hiddenSize, totalReward: +cumulativeReward.toFixed(2), apa: `DQN: ${nStates} states, ${nActions} actions` };
+  const optimalPolicy = Array.from({ length: nStates }, (_, s) => { const q = forward(s).q; return q.indexOf(Math.max(...q)); });
+  return { test: 'Deep Q-Network', nStates, nActions, episodes, hiddenSize, optimalPolicy, totalReward: +cumulativeReward.toFixed(2), apa: `DQN: ${nStates} states, ${nActions} actions` };
 }
