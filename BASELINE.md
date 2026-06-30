@@ -44,7 +44,7 @@ implementations can be fixed. Status legend:
 | 20 | `globalSurrogate` | interpretability.js:150 | ✅ FIXED | "surrogate" = `mean+Σ(x-x̄)*0.1`; params ignored | fit an actual surrogate tree/linear model |
 | 21 | `mixturePosterior` | mixture.js:221 | ✅ FIXED | returns uniform `1/k` for all points | responsibilities from gmmResult params |
 | 22 | `mixtureOfRegressions` | mixture.js:7 | ✅ FIXED | EM dead after iter 1 (labels become arrays); random convergence check | proper soft-EM with responsibilities |
-| 23 | `moderatedMediation` | bootstrap.js:192 | BROKEN | `b_w` is an ad-hoc ratio, not the moderated path coef | fit Y~M*W, take index a·b_w |
+| 23 | `moderatedMediation` | bootstrap.js:192 | ✅ FIXED | `b_w` is an ad-hoc ratio, not the moderated path coef | fit Y~M*W, take index a·b_w |
 
 | 24 | `tobitModel` | econometric.js:24 | ✅ FIXED | reimplemented as Type-I censored-normal MLE via `mleFit` (censored obs → Φ((L−xβ)/σ); adds intercept; reports MLE β, Hessian-based SE, z, computed p, σ, logLik). TDD: recovers slope 2.000 & p≈0 with no censoring (was through-origin OLS giving 2.13, p≡1); handles left-censored data. |
 | 25 | `bivariateProbit` | econometric.js:53 | ✅ FIXED | full-information ML biprobit: implemented Φ₂ (bivariate-normal CDF via Simpson on the standard integral identity), likelihood Φ₂(q₁·xβ₁, q₂·xβ₂, q₁q₂ρ), `mleFit` over [β₁,β₂,atanh ρ]; returns both equations' coefficients + Hessian SEs + ρ. TDD: recovers β₁ₓ=1.17, β₂ₓ=−1.03, ρ=0.64 from a DGP with true (1.2, −0.9, 0.5). Was just raw corr(y1,y2). |
@@ -57,8 +57,8 @@ implementations can be fixed. Status legend:
 | 32 | `hillClimbing` | pgm.js:109 | ✅ FIXED | score monotone in edge count → never adds edges; data unused | real local score deltas |
 | 33 | `scoringBDeu` | pgm.js:141 | ✅ FIXED | `-(E+k)log n·0.5-n·0.1`; data unused | BDeu marginal likelihood |
 | 34 | `dseparation` | pgm.js:58 | ✅ FIXED | `zPaths≥allPaths` heuristic; not d-sep (cf. `dSeparationQuery` which is real) | use moralization (dSeparationQuery) |
-| 35 | `lingam` | causalDiscovery.js:116 | BROKEN | marginal regressions + random order; no ICA/non-Gaussianity/acyclicity | ICA-LiNGAM |
-| 36 | `fciAlgorithm` | causalDiscovery.js:139 | MISLABELED | returns PC skeleton; no FCI orientation/latents | FCI orientation rules |
+| 35 | `lingam` | causalDiscovery.js:116 | ✅ FIXED | marginal regressions + random order; no ICA/non-Gaussianity/acyclicity | ICA-LiNGAM |
+| 36 | `fciAlgorithm` | causalDiscovery.js:139 | ✅ FIXED | returns PC skeleton; no FCI orientation/latents | FCI orientation rules |
 | 37 | `partialCorrTest`/`residuals` | causalDiscovery.js:17 | ✅ FIXED (PR #2) | regression uses only diag(XᵀX) → wrong when Z correlated | full normal-equations solve |
 | 38 | `histogramPCA` | symbolic.js:75 | ✅ FIXED | eigenvalues hardcoded `2-i*0.5`; cov ignored | eigen-decompose computed cov |
 | 39 | `intervalPCA` | symbolic.js:35 | ✅ FIXED | computes cov, returns no decomposition | eigen-decompose S |
@@ -70,7 +70,7 @@ implementations can be fixed. Status legend:
 | 44 | `gstarModel` | spatialTemporal.js:35 | ✅ FIXED | diag-only solve | spatial ML |
 | 45 | `spatiotemporalMoran` | spatialTemporal.js:59 | ✅ FIXED | uses `(i+1)%n` sequential neighbor, no W matrix | real W-based ST Moran |
 | 46 | `spaceTimeForecast` | spatialTemporal.js:79 | FABRICATED | returns `rho*2` for every step | iterate the fitted model |
-| 47 | `fpcaExpanded` | fda.js:99 | FABRICATED | random scores, eigenvalues hardcoded `3/(i+1)` | eigen of smoothed covariance surface |
+| 47 | `fpcaExpanded` | fda.js:99 | ✅ FIXED | random scores, eigenvalues hardcoded `3/(i+1)` | eigen of smoothed covariance surface |
 | 48 | `functionalRegression` | fda.js:118 | ✅ FIXED | returns `corr(x̄,y)` as β | basis-expanded functional coefficient |
 | 49 | `fpca` | fda.js:27 | ✅ FIXED | scores `sc[k]·√λ` not projected on eigenvectors | project scores onto eigenfns |
 | 50 | `psychometrics` (line 793) | psychometrics.js:793 | ✅ FIXED (PR #2) | diag-only solve | verify & fix |
@@ -82,9 +82,9 @@ implementations can be fixed. Status legend:
 
 | 55 | `word2vecSkipGram` | nlp.js:7 | ✅ FIXED | random W1 returned; never trains; epochs/lr ignored | skip-gram negative sampling |
 | 56 | `gloveEmbeddings` | nlp.js:22 | ✅ FIXED | builds co-occurrence then returns random vectors | weighted LSQ on log-cooc |
-| 57 | `dependencyParse` | nlp.js:71 | FABRICATED | links token→previous, positional labels | real parser or relabel |
+| 57 | `dependencyParse` | nlp.js:71 | ✅ FIXED | links token→previous, positional labels | real parser or relabel |
 | 58 | `partWorthUtilities` | conjoint.js:18 | ✅ FIXED (PR #2) | diag-only solve | dummy-coded OLS |
-| 59 | `choiceSimulation` | conjoint.js:42 | FABRICATED | random utilities, ignores profiles/attrs | logit from estimated part-worths |
+| 59 | `choiceSimulation` | conjoint.js:42 | ✅ FIXED | random utilities, ignores profiles/attrs | logit from estimated part-worths |
 | 60 | `cpDecomposition` | tensor.js:182 | ✅ FIXED | ALS loop never updates A/B/C; factors stay random | real CP-ALS (cf. `parafac`, which is correct) |
 | 61 | `tuckerRegression` | tensor.js:203 | ✅ FIXED | β random, never fit | HOSVD-based regression |
 | 62 | `tensorCompletion` | tensor.js:219 | ✅ FIXED | fills missing with `i+j+k` | low-rank tensor completion |
@@ -94,22 +94,22 @@ implementations can be fixed. Status legend:
 | 66 | `sPLSRegression` | pls.js:129 | ✅ FIXED | deflation `Xres-=pt*(Xres/pt)` zeroes X | correct NIPALS deflation |
 | 67 | `pls2` | pls.js:30 | ✅ FIXED | no proper NIPALS iteration/deflation | real PLS2 |
 
-| 68 | `svdEmbeddings` | text.js:221 | FABRICATED | no SVD — returns normalized co-occ rows; `sameness=vec[0]+0.5` | truncated SVD of PPMI matrix |
+| 68 | `svdEmbeddings` | text.js:221 | ✅ FIXED | no SVD — returns normalized co-occ rows; `sameness=vec[0]+0.5` | truncated SVD of PPMI matrix |
 
 | 69 | `procrustes` | ordination.js:145 | ✅ FIXED | "SVD" faked — rotation=identity; m² is raw SS, no optimal rotation/scaling | real Procrustes SVD rotation |
 | 70 | `distanceMatrix` | distance.js:11 | ✅ FIXED | operator precedence: computes `a - b**2`, not `(a-b)**2` → wrong distances | `(x[i][k]-x[j][k])**2` |
-| 71 | `partialDistanceCorr` | distance.js:89 | BROKEN | "residuals" `v - z·x̄/z̄` are not regression residuals | residualize via distance proj |
+| 71 | `partialDistanceCorr` | distance.js:89 | ✅ FIXED | "residuals" `v - z·x̄/z̄` are not regression residuals | residualize via distance proj |
 | 72 | `circularLinearRegression` p | circular.js:159 | ✅ FIXED | `p = 1` hardcoded (coefs real) | F/t test on the regression |
-| 73 | `envfit` p | ordination.js:186 | BROKEN(p) | `p = exp(-r²n/2)` ad-hoc, not permutation | permutation p-value |
+| 73 | `envfit` p | ordination.js:186 | ✅ FIXED | `p = exp(-r²n/2)` ad-hoc, not permutation | permutation p-value |
 
-| 74 | `ec50` CI | doseResponse.js:89 | FABRICATED(CI) | CI hardcoded `logEC50 ± 0.5` (point est real) | delta-method / profile-likelihood CI |
+| 74 | `ec50` CI | doseResponse.js:89 | ✅ FIXED | CI hardcoded `logEC50 ± 0.5` (point est real) | delta-method / profile-likelihood CI |
 
 | 75 | `landmarkMDS` | mds.js:213 | ✅ FIXED | points hardcoded `0.5−k*0.1`; Gram matrix computed but unused | real landmark MDS embedding |
-| 76 | `annealedImportance` | smc.js:116 | BROKEN | x never moves between temps; weight algebra degenerate | AIS with MCMC transitions |
-| 77 | `sobolSensitivity` | abm.js:42 | MISLABELED | returns corr², not Sobol variance indices | Saltelli variance decomposition |
-| 78 | `particleMCMC` | smc.js:104 | MISLABELED | plain IS, no MH moves; nIter unused | PMMH sampler |
+| 76 | `annealedImportance` | smc.js:116 | ✅ FIXED | x never moves between temps; weight algebra degenerate | AIS with MCMC transitions |
+| 77 | `sobolSensitivity` | abm.js:42 | ✅ FIXED | returns corr², not Sobol variance indices | Saltelli variance decomposition |
+| 78 | `particleMCMC` | smc.js:104 | ✅ FIXED | plain IS, no MH moves; nIter unused | PMMH sampler |
 | 79 | `nonMetricMDS` | mds.js:114 | ✅ FIXED | no isotonic regression (comment only) → metric, not non-metric | PAVA on disparities |
-| 80 | `doubleML` | causal.js:343 | APPROX/MISLABELED | nuisance `yHat/dHat` = training means; **X never used** → not debiased ML | cross-fitted ML nuisance models |
+| 80 | `doubleML` | causal.js:343 | ✅ FIXED | nuisance `yHat/dHat` = training means; **X never used** → not debiased ML | cross-fitted ML nuisance models |
 | 81 | `ordinalSEM` | sem.js:593 | STUB | returns `loadings:[]`, `fit:{chisq:NaN,rmsea:NaN,cfi:NaN}` — never fits | WLSMV ordinal SEM |
 | 82 | `measurementInvariance` | sem.js:339 | APPROX/MISLABELED | pass/fail from ad-hoc thresholds, not nested χ² model comparison | fit constrained configural/metric/scalar models |
 | 83 | `transitionModel` | multilevel.js:1035 | ✅ FIXED | regresses y on `(yLag+Σx)` as a single predictor; `se=1/√n` | proper transition/Markov regression |
@@ -127,11 +127,11 @@ implementations can be fixed. Status legend:
 | 95 | `contextualBandit` (LinUCB) | bandit.js:105 | ✅ FIXED | never inverts A; reward random `rng<0.3` (no env) | A⁻¹ ridge solution; real reward |
 | 96 | `deepQNetwork` | bandit.js:273 | ✅ FIXED | W1 update uses `tanh(weight)` not gradient; forward double-counts | correct backprop |
 | 97 | `qLearning`/`sarsa` | bandit.js:226/250 | ✅ FIXED | `transitions` arg ignored; nextState random | use supplied transition model |
-| 98 | `hestonModel` | stochastic.js:181 | FABRICATED | kappa/theta/xi/rho passed in, never calibrated; returns inputs | calibrate to returns |
+| 98 | `hestonModel` | stochastic.js:181 | ✅ FIXED | kappa/theta/xi/rho passed in, never calibrated; returns inputs | calibrate to returns |
 | 99 | `regimeSwitching` | stochastic.js:144 | INCOMPLETE | μ/σ/trans fixed at heuristic init; only state probs filtered | full Baum-Welch EM |
-| 100 | `pocockBoundaries` | sequential.js:36 | APPROX | hardcoded 2.17 for all stages/α | compute Pocock constant per stages/α |
-| 101 | `tmddModel` | pk.js:319 | FABRICATED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
-| 102 | `indirectResponse` | pk.js:247 | STUB | returns only `{n}`; computes nothing | indirect-response model fit |
+| 100 | `pocockBoundaries` | sequential.js:36 | ✅ FIXED | hardcoded 2.17 for all stages/α | compute Pocock constant per stages/α |
+| 101 | `tmddModel` | pk.js:319 | ✅ FIXED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
+| 102 | `indirectResponse` | pk.js:247 | ✅ FIXED | returns only `{n}`; computes nothing | indirect-response model fit |
 | 103 | `gpEmulator` | experimental.js:741 | ✅ FIXED | weights = row-normalized K, not K⁻¹y | solve GP linear system via matInv |
 | 104 | `varmax` | timeseries.js:1453 | STUB | returns `{n,p,q}`; estimates nothing | VARMAX estimation |
 | 105 | `vecm` | timeseries.js:1472 | STUB | returns `{n,p,rank}`; no estimation | Johansen VECM |
@@ -152,7 +152,7 @@ implementations can be fixed. Status legend:
 > ordering alone. The module is non-functional as phylogenetic comparative methods. Only `diversificationRate`
 > (Yule λ = n/totalTime) and the permutation `phylogeneticSignal` are defensible.
 
-| 118 | `gamInteraction` | gam.js:113 | STUB | returns `{n}`; computes nothing | tensor-product smooth interaction |
+| 118 | `gamInteraction` | gam.js:113 | ✅ FIXED | returns `{n}`; computes nothing | tensor-product smooth interaction |
 
 ---
 

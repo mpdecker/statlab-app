@@ -178,19 +178,39 @@ export function regimeSwitching(data, { nStates = 2, maxIter = 20 } = {}) {
 }
 
 // ── Heston Stochastic Volatility Model ────────────────────────────
-export function hestonModel(returns, dt = 1/252, { seed = 42, kappa = 2, theta = 0.04, xi = 0.3, rho = -0.7, v0 = 0.04 } = {}) {
-  __rng = mulberry32(seed);
+export function hestonModel(returns, dt = 1 / 252) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
-  const v = Array(n).fill(v0);
-  for (let t = 1; t < n; t++) {
-    const dw1 = Math.sqrt(dt) * gauss();
-    const dw2 = rho * dw1 + Math.sqrt(1 - rho * rho) * Math.sqrt(dt) * gauss();
-    v[t] = Math.max(0.001, v[t-1] + kappa * (theta - v[t-1]) * dt + xi * Math.sqrt(v[t-1]) * dw2);
-  }
   const mu = avg(returns);
-  const sigma = Math.sqrt(avg(v));
-  return { test: 'Heston Model', mu: +mu.toFixed(6), sigma: +sigma.toFixed(6), kappa, theta, xi, rho, n, apa: `Heston: vol=${sigma.toFixed(3)}, kappa=${kappa}` };
+  // Calibrate by method of moments on the realized-variance proxy v_t≈(r_t−μ)²/dt
+  // (the old code returned the input default parameters unchanged).
+  const v = returns.map(r => (r - mu) ** 2 / dt);
+  const theta = avg(v);               // long-run variance E[v]
+  const v0 = v[0];
+  // AR(1) of v: v_t = a + b·v_{t-1} + e ⇒ mean-reversion κ = (1−b)/dt.
+  const m = n - 1;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (let t = 1; t < n; t++) { sx += v[t - 1]; sy += v[t]; sxx += v[t - 1] ** 2; sxy += v[t - 1] * v[t]; }
+  const b = (m * sxy - sx * sy) / Math.max(m * sxx - sx * sx, 1e-12);
+  const a = (sy - b * sx) / m;
+  const kappa = Math.max(1e-3, (1 - b) / dt);
+  // Residual variance of the AR(1) ⇒ vol-of-vol: Var(e) ≈ ξ²·θ·dt.
+  let rss = 0; for (let t = 1; t < n; t++) { const e = v[t] - (a + b * v[t - 1]); rss += e * e; }
+  const residVar = rss / Math.max(m - 2, 1);
+  const xi = Math.sqrt(Math.max(residVar / Math.max(theta * dt, 1e-12), 0));
+  // Leverage ρ = corr(r_{t−1}−μ, Δv_t).
+  const dr = [], dv = [];
+  for (let t = 1; t < n; t++) { dr.push(returns[t - 1] - mu); dv.push(v[t] - v[t - 1]); }
+  const mdr = avg(dr), mdv = avg(dv);
+  let c = 0, sdr = 0, sdv = 0;
+  for (let i = 0; i < dr.length; i++) { c += (dr[i] - mdr) * (dv[i] - mdv); sdr += (dr[i] - mdr) ** 2; sdv += (dv[i] - mdv) ** 2; }
+  const rho = sdr * sdv > 0 ? Math.max(-0.999, Math.min(0.999, c / Math.sqrt(sdr * sdv))) : 0;
+  const sigma = Math.sqrt(theta);
+  return {
+    test: 'Heston Model', mu: +mu.toFixed(6), sigma: +sigma.toFixed(6),
+    kappa: +kappa.toFixed(4), theta: +theta.toFixed(6), xi: +xi.toFixed(4), rho: +rho.toFixed(4), v0: +v0.toFixed(6), n,
+    apa: `Heston (MoM): θ=${theta.toFixed(4)}, κ=${kappa.toFixed(2)}, ξ=${xi.toFixed(2)}, ρ=${rho.toFixed(2)}`,
+  };
 }
 
 function gauss() {

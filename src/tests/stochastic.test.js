@@ -77,3 +77,14 @@ describe('vasicekModel', () => {
   it('null <10', () => expect(vasicekModel([0.01,0.02])).toBeNull());
   it('theta finite', () => { const r = vasicekModel(rates); if (r) expect(r).toHaveProperty('theta'); });
 });
+
+describe('hestonModel calibrates to the return series (not the input params)', () => {
+  it('recovers the long-run variance theta from the data', () => {
+    let s = 13; const N = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; const u1 = Math.max(s / 2 ** 32, 1e-9); s = (Math.imul(1664525, s) + 1013904223) >>> 0; const u2 = s / 2 ** 32; return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+    const dt = 1 / 252, vTrue = 0.09; // variance level 0.09 (vol 0.3), not the default 0.04
+    const rets = Array.from({ length: 500 }, () => N() * Math.sqrt(vTrue * dt));
+    const r = hestonModel(rets, dt);
+    expect(r.theta).toBeGreaterThan(0.06);  // calibrated to vTrue=0.09, not the hardcoded default 0.04
+    expect(r.theta).toBeLessThan(0.12);
+  });
+});

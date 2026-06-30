@@ -117,8 +117,23 @@ export function gamInteraction(data, yVar, var1, var2, { df = 5 } = {}) {
   const basis1 = cubicSpline(x1, Math.floor(df / 2));
   const basis2 = cubicSpline(x2, Math.floor(df / 2));
   const n = y.length;
-  const interaction = basis1.flatMap((b1, i) => basis2.map(b2 => b1.map((v, j) => v * b2[j])));
-  return { test: 'GAM Interaction', n, apa: `GAM interaction: ${var1} × ${var2}, n = ${n}` };
+  // Tensor-product interaction smooth: design = main-effect bases for x1 and x2
+  // plus all pairwise products (the interaction columns). Fit by penalised OLS.
+  const inter = [];
+  for (let a = 1; a < basis1.length; a++) for (let b = 1; b < basis2.length; b++) inter.push(basis1[a].map((v, j) => v * basis2[b][j]));
+  const cols = [Array(n).fill(1), ...basis1.slice(1), ...basis2.slice(1), ...inter];
+  const p = cols.length;
+  const Z = Array.from({ length: n }, (_, i) => cols.map(c => c[i]));
+  const XtX = Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) => Z.reduce((s, r) => s + r[a] * r[b], 0)));
+  const ridge = 1e-6 * (XtX.reduce((s, r, i) => s + r[i], 0) / p);
+  for (let i = 0; i < p; i++) XtX[i][i] += ridge;
+  const XtY = Array.from({ length: p }, (_, a) => Z.reduce((s, r, i) => s + r[a] * y[i], 0));
+  const beta = solveNormalEquations(XtX, XtY);
+  const fitted = Z.map(r => r.reduce((s, v, j) => s + v * beta[j], 0));
+  const ybar = avg(y);
+  let ssr = 0, sst = 0; for (let i = 0; i < n; i++) { ssr += (y[i] - fitted[i]) ** 2; sst += (y[i] - ybar) ** 2; }
+  const rSquared = sst > 0 ? 1 - ssr / sst : 0;
+  return { test: 'GAM Interaction', rSquared: +rSquared.toFixed(4), nInteractionTerms: inter.length, fitted: fitted.slice(0, 10).map(v => +v.toFixed(4)), n, apa: `GAM interaction: ${var1} × ${var2}, R² = ${rSquared.toFixed(3)}, n = ${n}` };
 }
 
 // ── Thin Plate Spline ─────────────────────────────────────────────

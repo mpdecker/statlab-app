@@ -33,3 +33,14 @@ describe('marketSimulator', () => {
   it('null <2 profiles', () => { if (pw) expect(marketSimulator(pw, [scenario[0]])).toBeNull(); });
   it('shares have correct profile count', () => { if (pw) { const r = marketSimulator(pw, scenario); if (r) expect(r.shares.length).toBe(scenario.length) } });
 });
+
+describe('choiceSimulation derives shares from utilities (not random)', () => {
+  it('higher-utility profiles get larger market share', () => {
+    const profs = []; for (let i = 0; i < 12; i++) profs.push({ brand: (i % 3) + 1, price: (i % 2) + 1 });
+    const partWorths = { brand: { 1: 0, 2: 1, 3: 5 }, price: { 1: 0, 2: -2 } };
+    const r = choiceSimulation(profs, ['brand', 'price'], { partWorths, scale: 1 });
+    const shareBrand3 = r.marketShares.filter((_, i) => profs[i].brand === 3).reduce((s, m) => s + m.share, 0);
+    const shareBrand1 = r.marketShares.filter((_, i) => profs[i].brand === 1).reduce((s, m) => s + m.share, 0);
+    expect(shareBrand3).toBeGreaterThan(shareBrand1 * 3); // brand 3 (high part-worth) dominates
+  });
+});

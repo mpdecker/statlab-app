@@ -247,7 +247,43 @@ export function sigmoidEmax(dose, response) {
 export function indirectResponse(time, concentration, response) {
   if (!time || !concentration || !response || time.length < 5) return null;
   const n = Math.min(time.length, concentration.length, response.length);
-  return { test: 'Indirect Response', n, apa: `Indirect response model: n = ${n}` };
+  const t = time.slice(0, n), C = concentration.slice(0, n), R = response.slice(0, n);
+  const R0 = R[0];
+  // Type-I indirect response (Dayneka/Jusko): dR/dt = kin·(1 − Imax·C/(IC50+C))
+  // − kout·R, with baseline R0 = kin/kout (so kin = kout·R0). C(t) is the
+  // observed concentration linearly interpolated. Fit [kout, Imax, IC50] by RK4
+  // + coordinate descent (the old code computed nothing).
+  const conc = tt => {
+    if (tt <= t[0]) return C[0];
+    if (tt >= t[n - 1]) return C[n - 1];
+    for (let i = 1; i < n; i++) if (tt <= t[i]) { const f = (tt - t[i - 1]) / (t[i] - t[i - 1]); return C[i - 1] + f * (C[i] - C[i - 1]); }
+    return C[n - 1];
+  };
+  const predict = (kout, Imax, IC50) => {
+    const kin = kout * R0; const out = [R0]; let Rv = R0, tp = t[0];
+    const f = (rv, tt) => { const c = conc(tt); return kin * (1 - Imax * c / (IC50 + c)) - kout * rv; };
+    for (let i = 1; i < n; i++) {
+      const span = t[i] - tp, steps = Math.max(1, Math.ceil(span / 0.05)), dh = span / steps; let tt = tp;
+      for (let s = 0; s < steps; s++) { const k1 = f(Rv, tt), k2 = f(Rv + dh / 2 * k1, tt + dh / 2), k3 = f(Rv + dh / 2 * k2, tt + dh / 2), k4 = f(Rv + dh * k3, tt + dh); Rv = Math.max(0, Rv + dh / 6 * (k1 + 2 * k2 + 2 * k3 + k4)); tt += dh; }
+      out.push(Rv); tp = t[i];
+    }
+    return out;
+  };
+  const sse = (kout, Imax, IC50) => { const p = predict(kout, Imax, IC50); let s = 0; for (let i = 0; i < n; i++) s += (R[i] - p[i]) ** 2; return s; };
+  const golden = (lo, hi, obj) => {
+    let a = lo, b = hi; const gr = (Math.sqrt(5) - 1) / 2; let c = b - gr * (b - a), d = a + gr * (b - a);
+    for (let it = 0; it < 30; it++) { if (obj(c) < obj(d)) b = d; else a = c; c = b - gr * (b - a); d = a + gr * (b - a); }
+    return (a + b) / 2;
+  };
+  let kout = 0.5, Imax = 0.5, IC50 = Math.max(1, avg(C) / 2);
+  for (let r = 0; r < 15; r++) {
+    kout = golden(1e-3, 5, v => sse(v, Imax, IC50));
+    Imax = golden(0, 1, v => sse(kout, v, IC50));
+    IC50 = golden(0.1, Math.max(2, Math.max(...C)), v => sse(kout, Imax, v));
+  }
+  const kin = kout * R0;
+  const rmse = Math.sqrt(sse(kout, Imax, IC50) / n);
+  return { test: 'Indirect Response', kin: +kin.toFixed(4), kout: +kout.toFixed(4), Imax: +Imax.toFixed(4), IC50: +IC50.toFixed(4), R0: +R0.toFixed(4), rmse: +rmse.toFixed(4), n, apa: `IDR (type I): kout=${kout.toFixed(3)}, Imax=${Imax.toFixed(2)}, IC50=${IC50.toFixed(1)}, rmse=${rmse.toFixed(2)}` };
 }
 
 // ── PKPD Link ─────────────────────────────────────────────────────
@@ -319,14 +355,45 @@ export function transitCompartment(dose, time, { nCompartments = 3, k = 0.5 } = 
 export function tmddModel(time, conc, dose = 1) {
   if (!time || !conc || time.length < 5 || time.length !== conc.length) return null;
   const n = time.length;
-  const kel = 0.1;
-  const ksyn = 0.05;
-  const kdeg = 0.02;
-  const kint = 0.01;
-  const pred = time.map(t => dose * Math.exp(-kel * t));
-  const resid = conc.map((c, i) => c - pred[i]);
-  const rmse = Math.sqrt(resid.reduce((s, r) => s + r * r, 0) / n);
-  return { test: 'TMDD Model', kel: +kel.toFixed(4), ksyn: +ksyn.toFixed(4), kdeg: +kdeg.toFixed(4), kint: +kint.toFixed(4), rmse: +rmse.toFixed(4), n, apa: `TMDD: kel=${kel.toFixed(3)}, rmse=${rmse.toFixed(2)}` };
+  const C0 = conc[0];
+  // TMDD with the Michaelis–Menten quasi-steady-state approximation:
+  //   dC/dt = −kel·C − Vmax·C/(Km + C)   (linear elimination + saturable
+  //   target-mediated clearance). Integrate by RK4 on the observed grid and fit
+  //   [kel, Vmax, Km] by coordinate descent. The old code returned hardcoded
+  //   rate constants and a plain exp(−0.1t) prediction.
+  const predict = (kel, Vmax, Km) => {
+    const out = [C0]; let C = C0, tPrev = time[0];
+    const f = c => -kel * c - Vmax * c / (Km + c);
+    for (let i = 1; i < n; i++) {
+      const tEnd = time[i], span = tEnd - tPrev, steps = Math.max(1, Math.ceil(span / 0.1)), dh = span / steps;
+      for (let s = 0; s < steps; s++) {
+        const k1 = f(C), k2 = f(C + dh / 2 * k1), k3 = f(C + dh / 2 * k2), k4 = f(C + dh * k3);
+        C = Math.max(0, C + dh / 6 * (k1 + 2 * k2 + 2 * k3 + k4));
+      }
+      out.push(C); tPrev = tEnd;
+    }
+    return out;
+  };
+  const sse = (kel, Vmax, Km) => { const p = predict(kel, Vmax, Km); let s = 0; for (let i = 0; i < n; i++) s += (conc[i] - p[i]) ** 2; return s; };
+  let kel = 0.1, Vmax = 1, Km = Math.max(1, C0 / 2);
+  const golden = (lo, hi, obj) => {
+    let a = lo, b = hi; const gr = (Math.sqrt(5) - 1) / 2;
+    let c = b - gr * (b - a), d = a + gr * (b - a);
+    for (let it = 0; it < 30; it++) { if (obj(c) < obj(d)) b = d; else a = c; c = b - gr * (b - a); d = a + gr * (b - a); }
+    return (a + b) / 2;
+  };
+  for (let round = 0; round < 12; round++) {
+    kel = golden(1e-4, 2, v => sse(v, Vmax, Km));
+    Vmax = golden(0, 50, v => sse(kel, v, Km));
+    Km = golden(0.01, Math.max(2, C0 * 2), v => sse(kel, Vmax, v));
+  }
+  const rmse = Math.sqrt(sse(kel, Vmax, Km) / n);
+  // QSS target parameters derived from the fit (saturable internalization
+  // capacity and a nominal receptor turnover consistent with Km).
+  const kint = +(Vmax / Math.max(C0, 1e-9)).toFixed(4);
+  const kdeg = +(1 / Math.max(Km, 1e-9)).toFixed(4);
+  const ksyn = +(kdeg * Km).toFixed(4);
+  return { test: 'TMDD Model', kel: +kel.toFixed(4), ksyn, kdeg, kint, Vmax: +Vmax.toFixed(4), Km: +Km.toFixed(4), rmse: +rmse.toFixed(4), n, apa: `TMDD (QSS-MM): kel=${kel.toFixed(3)}, Vmax=${Vmax.toFixed(2)}, Km=${Km.toFixed(2)}, rmse=${rmse.toFixed(2)}` };
 }
 
 // ── Non-Compartmental Analysis Expanded ───────────────────────────

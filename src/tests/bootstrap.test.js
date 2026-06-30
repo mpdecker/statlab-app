@@ -74,3 +74,14 @@ describe('jackknifePlus', () => {
   it('null mismatch', () => expect(jackknifePlus([1,2,3],[4,5,6,7])).toBeNull());
   it('radius positive', () => { const r = jackknifePlus([1,2,3,4,5,6,7,8,9,10],[2,4,6,8,10,12,14,16,18,20]); if (r && r.radius) expect(r.radius).toBeGreaterThan(0); });
 });
+
+describe('moderatedMediation computes the real index a*b_MW', () => {
+  it('recovers the index from data with a known moderated M->Y path', () => {
+    let s = 13; const z = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return (s / 2 ** 32) * 2 - 1; };
+    const data = [];
+    const aTrue = 1.5, b3 = 2; // M = 1.5X; Y = M + W + b3*(M*W)
+    for (let i = 0; i < 200; i++) { const x = z(), w = z(); const m = aTrue * x + 0.2 * z(); const y = m + w + b3 * m * w + 0.2 * z(); data.push({ x, m, w, y }); }
+    const r = moderatedMediation(data, 'x', 'm', 'w', 'y');
+    expect(Math.abs(r.index - aTrue * b3)).toBeLessThan(0.5); // index = a * b_MW = 3
+  });
+});

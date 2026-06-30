@@ -40,22 +40,25 @@ export function attributeImportance(pwResult) {
 }
 
 // ── Choice Simulation ─────────────────────────────────────────────
-export function choiceSimulation(profiles, attrs, { seed = 42, nRespondents = 50, nChoices = 3 } = {}) {
-  __rng = mulberry32(seed);
+export function choiceSimulation(profiles, attrs, { seed = 42, nRespondents = 50, partWorths = null, scale = 1 } = {}) {
   if (!profiles || profiles.length < 3 || !attrs || attrs.length < 2) return null;
   const k = profiles.length;
-  const shares = Array(k).fill(0);
-  for (let r = 0; r < nRespondents; r++) {
-    const utils = profiles.map(() => __rng() * 10 - 5);
-    const maxU = Math.max(...utils);
-    const exps = utils.map(u => Math.exp(u - maxU));
-    const sumExp = exps.reduce((s, e) => s + e, 0);
-    const probs = exps.map(e => e / sumExp);
-    let cum = 0, u = __rng();
-    for (let j = 0; j < k; j++) { cum += probs[j]; if (u <= cum) { shares[j]++; break; } }
-  }
-  const marketShares = shares.map((s, i) => ({ profile: i + 1, share: +(100 * s / nRespondents).toFixed(2) }));
-  return { test: 'Choice Simulation', marketShares, nRespondents, nProfiles: k, apa: `Choice sim: ${k} profiles, ${nRespondents} respondents` };
+  // Multinomial-logit (BTL) market shares from each profile's total utility.
+  // Utility = Σ_attr part-worth(level); if no part-worths are supplied, use an
+  // additive utility in the (mean-centred) numeric attribute levels. The old
+  // version drew random utilities, ignoring the profiles and attributes.
+  const means = {};
+  if (!partWorths) attrs.forEach(a => { means[a] = avg(profiles.map(p => +p[a] || 0)); });
+  const utility = p => attrs.reduce((s, a) => {
+    if (partWorths) return s + ((partWorths[a] && partWorths[a][p[a]]) || 0);
+    return s + ((+p[a] || 0) - means[a]);
+  }, 0);
+  const V = profiles.map(utility);
+  const mx = Math.max(...V);
+  const exps = V.map(v => Math.exp(scale * (v - mx)));
+  const sumE = exps.reduce((s, e) => s + e, 0) || 1;
+  const marketShares = exps.map((e, i) => ({ profile: i + 1, utility: +V[i].toFixed(4), share: +(100 * e / sumE).toFixed(2) }));
+  return { test: 'Choice Simulation', marketShares, nRespondents, nProfiles: k, apa: `Choice sim (logit): ${k} profiles` };
 }
 
 // ── Orthogonal Design ─────────────────────────────────────────────

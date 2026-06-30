@@ -92,15 +92,28 @@ export function energyTest(x, y, { permutations = 199, seed = 42 } = {}) {
 export function partialDistanceCorr(x, y, z) {
   if (!x || !y || !z || x.length < 5) return null;
   const n = x.length;
-  const rx = Array.isArray(x) ? x.map(v => v[0]) : x;
-  const ry = Array.isArray(y) ? y.map(v => v[0]) : y;
-  const rz = Array.isArray(z) ? z.map(v => v[0]) : z;
-  const rzMeans = [avg(rz)];
-  // Residuals from z
-  const resX = rx.map((v, i) => v - rz[i] * avg(rx) / avg(rz));
-  const resY = ry.map((v, i) => v - rz[i] * avg(ry) / avg(rz));
-  const dc = distanceCorrelation(resX, resY);
-  return { test: 'Partial Distance Correlation', pdCorr: dc?.dCorr || 0, n, apa: `pdCorr = ${(dc?.dCorr || 0).toFixed(3)}` };
+  const toNum = v => (Array.isArray(v) ? v[0] : +v);
+  const X = x.map(toNum), Y = y.map(toNum), Z = z.map(toNum);
+  // Bias-corrected (U-centered) distance correlation and the Székely–Rizzo
+  // partial distance correlation: R*(x,y;z) = (R*xy − R*xz·R*yz)/√((1−R*xz²)(1−R*yz²)).
+  const uCentered = v => {
+    const A = v.map(vi => v.map(vj => Math.abs(vi - vj)));
+    const rowSum = A.map(r => r.reduce((s, a) => s + a, 0));
+    const grand = rowSum.reduce((s, a) => s + a, 0);
+    const U = Array.from({ length: n }, () => Array(n).fill(0));
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      U[i][j] = A[i][j] - rowSum[i] / (n - 2) - rowSum[j] / (n - 2) + grand / ((n - 1) * (n - 2));
+    }
+    return U;
+  };
+  const inner = (A, B) => { let s = 0; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) s += A[i][j] * B[i][j]; return s / (n * (n - 3)); };
+  const Ax = uCentered(X), Ay = uCentered(Y), Az = uCentered(Z);
+  const Rstar = (A, B) => { const d = Math.sqrt(Math.max(inner(A, A), 0) * Math.max(inner(B, B), 0)); return d > 1e-12 ? inner(A, B) / d : 0; };
+  const Rxy = Rstar(Ax, Ay), Rxz = Rstar(Ax, Az), Ryz = Rstar(Ay, Az);
+  const denom = Math.sqrt(Math.max(1 - Rxz * Rxz, 0) * Math.max(1 - Ryz * Ryz, 0));
+  const pd = denom > 1e-9 ? (Rxy - Rxz * Ryz) / denom : 0;
+  return { test: 'Partial Distance Correlation', pdCorr: +pd.toFixed(4), n, apa: `pdCorr = ${pd.toFixed(3)}` };
 }
 
 // ── Mahalanobis Distance ──────────────────────────────────────────

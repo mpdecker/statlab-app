@@ -97,17 +97,33 @@ export function functionalClustering(data, nClusters = 2) {
 
 // ── FPCA Expanded (with smoothed eigenfunctions) ──────────────────
 export function fpcaExpanded(data, vars, timeVar, idVar, { seed = 42, nBasis = 10, nComponents = 3 } = {}) {
-  __rng = mulberry32(seed);
   if (!data || data.length < 10 || !vars || vars.length < 2 || !timeVar) return null;
   const ids = [...new Set(data.map(r => r[idVar] || r[timeVar]))];
   const n = ids.length;
-  const p = nComponents;
   const times = [...new Set(data.map(r => +r[timeVar]))].sort((a, b) => a - b);
   const T = times.length;
-  const scores = Array.from({ length: n }, () => Array(p).fill(0).map(() => +(__rng() * 2 - 1).toFixed(4)));
-  const eigenvalues = Array(p).fill(0).map((_, i) => +(3 / (i + 1)).toFixed(4));
-  const propVar = eigenvalues.map(e => e / eigenvalues.reduce((s, v) => s + v, 0));
-  return { test: 'FPCA Expanded', eigenvalues, propVar: propVar.map(v => +v.toFixed(4)), nBasis, nSubjects: n, nTimePoints: T, apa: `FPCA: ${p} components, ${n} subjects` };
+  if (n < 2 || T < 2) return null;
+  // Reshape to a subject × time matrix using the first functional variable;
+  // missing cells fall back to the subject's mean over its observed times.
+  const fvar = vars[0];
+  const Y = ids.map(id => {
+    const rows = data.filter(r => (r[idVar] || r[timeVar]) === id);
+    const subjMean = rows.length ? avg(rows.map(r => +r[fvar])) : 0;
+    return times.map(t => { const row = rows.find(r => +r[timeVar] === t); return row ? +row[fvar] : subjMean; });
+  });
+  // Mean curve, then the time × time covariance surface; eigen-decompose.
+  const meanCurve = times.map((_, t) => avg(Y.map(c => c[t])));
+  const Yc = Y.map(c => c.map((v, t) => v - meanCurve[t]));
+  const cov = Array.from({ length: T }, (_, i) => Array.from({ length: T }, (_, j) => Yc.reduce((s, c) => s + c[i] * c[j], 0) / (n - 1)));
+  const eig = jacobiEigen(cov);
+  const p = Math.min(nComponents, T);
+  const pairs = eig.eigenvalues.map((e, idx) => ({ e, vec: eig.eigenvectors[idx] })).sort((a, b) => b.e - a.e);
+  const eigenvalues = pairs.slice(0, p).map(pr => +pr.e.toFixed(4));
+  const totalVar = eig.eigenvalues.reduce((s, v) => s + Math.max(v, 0), 0) || 1;
+  const propVar = pairs.slice(0, p).map(pr => +(Math.max(pr.e, 0) / totalVar).toFixed(4));
+  // FPC scores = projection of each centred curve onto the eigenfunctions.
+  const scores = Yc.map(c => pairs.slice(0, p).map(pr => +c.reduce((s, cv, t) => s + cv * pr.vec[t], 0).toFixed(4)));
+  return { test: 'FPCA Expanded', eigenvalues, propVar, scores, nBasis, nSubjects: n, nTimePoints: T, apa: `FPCA: ${p} components, ${n} subjects` };
 }
 
 // ── Functional Regression ─────────────────────────────────────────

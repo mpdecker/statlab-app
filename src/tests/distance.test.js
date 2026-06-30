@@ -52,3 +52,15 @@ describe('distanceMatrix computes real Euclidean distances', () => {
     expect(D[0][1]).toBeCloseTo(5, 6); // sqrt(3^2 + 4^2)
   });
 });
+
+describe('partialDistanceCorr controls for z (Szekely-Rizzo)', () => {
+  it('~0 when x and y are conditionally independent given z', () => {
+    let s = 17; const N = () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+    const z = [], xi = [], yi = [], xd = [], yd = [];
+    for (let i = 0; i < 60; i++) { const zz = 2 + N() * 0.3; z.push(zz); xi.push(5 + zz + N()); yi.push(5 + zz + N()); const e = N(); xd.push(5 + zz + e); yd.push(5 + zz + e); }
+    // conditionally independent given z -> ~0
+    expect(Math.abs(partialDistanceCorr(xi, yi, z).pdCorr)).toBeLessThan(0.3);
+    // conditionally DEPENDENT beyond z (shared noise) -> high (old code returns 0 for 1-D input)
+    expect(partialDistanceCorr(xd, yd, z).pdCorr).toBeGreaterThan(0.4);
+  });
+});

@@ -56,3 +56,13 @@ describe('edge cases', () => {
   it('log2FoldChange null for zero control mean', () => expect(log2FoldChange([1, 2], [0, 0])).toBeNull());
   it('moderatedTStatistic null for <3 per group', () => expect(moderatedTStatistic([1, 2, 3, 4], ['A', 'A', 'B', 'B'])).toBeNull());
 });
+
+describe('ec50 reports a data-driven confidence interval (not hardcoded ±0.5)', () => {
+  it('gives a narrow CI for low-noise data', () => {
+    const dose = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100, 300];
+    const logd = dose.map(d => Math.log10(d));
+    const resp = logd.map(x => 100 / (1 + Math.pow(10, (1 - x) * 1.2)) + ((x * 7) % 2 - 1) * 0.05); // EC50=10, tiny noise
+    const r = ec50(fourPL(dose, resp));
+    expect(r.ci[1] / r.ci[0]).toBeLessThan(5); // hardcoded ±0.5 log10 gives exactly 10x
+  });
+});

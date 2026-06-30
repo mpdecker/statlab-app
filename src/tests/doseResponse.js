@@ -1,5 +1,6 @@
 import { avg, sampleVar } from '../math/core.js';
-import { tPVal } from '../math/distributions.js';
+import { tPVal, normalINV } from '../math/distributions.js';
+import { matInv } from '../math/matrix.js';
 
 // ── 4-Parameter Logistic (4PL) ─────────────────────────────────────────────
 export function fourPL(dose, response, { maxIter = 100, tolerance = 1e-6 } = {}) {
@@ -71,9 +72,20 @@ export function fourPL(dose, response, { maxIter = 100, tolerance = 1e-6 } = {})
   let finalSSE = 0;
   for (let i = 0; i < n; i++) finalSSE += (response[i] - fitted[i]) ** 2;
 
+  // Asymptotic SE of logEC50 from the Gauss-Newton covariance σ̂²·(JᵀJ)⁻¹.
+  const Jf = logDose.map((x) => {
+    const denom = 1 + Math.pow(10, (logEC50 - x) * hill);
+    const pp = (top - bottom) * Math.pow(10, (logEC50 - x) * hill) / (denom * denom);
+    return [1 - 1 / denom, 1 / denom, -pp * hill * Math.log(10), pp * (logEC50 - x) * Math.log(10)];
+  });
+  const JtJf = Array.from({ length: 4 }, (_, a) => Array.from({ length: 4 }, (_, b) => Jf.reduce((s, r) => s + r[a] * r[b], 0)));
+  const cov = matInv(JtJf);
+  const sigma2 = finalSSE / Math.max(1, n - 4);
+  const seLogEC50 = cov ? Math.sqrt(Math.max(0, sigma2 * cov[2][2])) : null;
+
   return {
     test: '4PL Dose-Response',
-    parameters: { bottom: +bottom.toFixed(4), top: +top.toFixed(4), logEC50: +logEC50.toFixed(4), hill: +hill.toFixed(4) },
+    parameters: { bottom: +bottom.toFixed(4), top: +top.toFixed(4), logEC50: +logEC50.toFixed(4), hill: +hill.toFixed(4), seLogEC50: seLogEC50 == null ? null : +seLogEC50.toFixed(5) },
     fitted: fitted.map(v => +v.toFixed(4)),
     sse: +finalSSE.toFixed(6),
     n,
@@ -86,7 +98,10 @@ export function ec50(model, { alpha = 0.05 } = {}) {
   if (!model || !model.parameters) return null;
   const p = model.parameters;
   const ec50Val = Math.pow(10, p.logEC50);
-  const ci = [Math.pow(10, p.logEC50 - 0.5), Math.pow(10, p.logEC50 + 0.5)];
+  // Delta-method CI on the log10 scale: logEC50 ± z·SE(logEC50), then 10^(·).
+  const z = normalINV(1 - alpha / 2);
+  const se = (p.seLogEC50 != null && Number.isFinite(p.seLogEC50)) ? p.seLogEC50 : 0.5;
+  const ci = [Math.pow(10, p.logEC50 - z * se), Math.pow(10, p.logEC50 + z * se)];
 
   return {
     test: 'EC50',

@@ -184,16 +184,25 @@ export function ccaPrep(data, envVars, speciesVars) {
 }
 
 // ── envfit (Environmental Vector Fitting) ─────────────────────────
-export function envfit(ordination, envData, envVar) {
+export function envfit(ordination, envData, envVar, { permutations = 999, seed = 42 } = {}) {
   if (!ordination || !ordination.points || !envData || !envVar || envData.length < ordination.points.length) return null;
   const n = Math.min(ordination.points.length, envData.length);
   const env = envData.slice(0, n).map(r => +r[envVar]);
   const x = ordination.points.slice(0, n).map(p => p[0]);
   const y = ordination.points.slice(0, n).map(p => p[1]);
-  const rX = corr(x, env), rY = corr(y, env);
-  const r = Math.sqrt(rX * rX + rY * rY);
-  const pVal = Math.exp(-r * r * n / 2);
-  return { test: 'envfit', r2: +Math.min(1, r * r).toFixed(4), r, p: +pVal.toFixed(4), var: envVar, n, apa: `envfit: ${envVar} r2=${(r*r).toFixed(3)}, p=${pVal.toFixed(3)}` };
+  // r² = squared multiple correlation of the env vector with the ordination axes.
+  const r2of = e => { const rX = corr(x, e), rY = corr(y, e); return Math.min(1, rX * rX + rY * rY); };
+  const obs = r2of(env);
+  // Permutation test: shuffle env labels across sites and count r² ≥ observed.
+  let s = seed >>> 0; const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+  let ge = 0;
+  for (let perm = 0; perm < permutations; perm++) {
+    const e = env.slice();
+    for (let k = n - 1; k > 0; k--) { const m = Math.floor(rand() * (k + 1)); [e[k], e[m]] = [e[m], e[k]]; }
+    if (r2of(e) >= obs - 1e-12) ge++;
+  }
+  const p = (ge + 1) / (permutations + 1);
+  return { test: 'envfit', r2: +obs.toFixed(4), r: +Math.sqrt(obs).toFixed(4), p: +p.toFixed(4), permutations, var: envVar, n, apa: `envfit: ${envVar} r²=${obs.toFixed(3)}, p=${p.toFixed(3)} (${permutations} perms)` };
 }
 function corr(a, b) { const m = avg(a); const m2 = avg(b); return a.reduce((s, v, i) => s + (v - m) * (b[i] - m2), 0) / Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) * b.reduce((s, v) => s + (v - m2) ** 2, 0) + 1e-10); }
 

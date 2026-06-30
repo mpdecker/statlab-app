@@ -1,5 +1,6 @@
 import { avg } from '../math/core.js';
 import { mulberry32 } from '../math/rng.js';
+import { jacobiEigen } from '../math/matrix.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
@@ -233,15 +234,22 @@ export function svdEmbeddings(documents, { nDims = 50, windowSize = 3, stopwords
       }
     }
   });
-  const embeddings = vocab.map((word, i) => {
-    const vec = Array(nDims).fill(0);
-    const row = cooc[i];
-    const total = Math.max(row.reduce((s, v) => s + v, 0), 1);
-    for (let j = 0; j < Math.min(nDims, V); j++) vec[j] = +(row[j] / total).toFixed(4);
-    return { word, vector: vec.slice(0, nDims) };
-  });
-  const sameness = embeddings.map(e => ({ word: e.word, similarity: +((e.vector[0] || 0) + 0.5).toFixed(4) }));
-  return { test: 'SVD Word Embeddings', embeddings: sameness.slice(0, 20), nDims, nVocab: V, nDocs: documents.length, apa: `SVD embeddings: ${V} words, ${nDims}-dim` };
+  // Positive PMI matrix: PPMI_ij = max(0, log( X_ij·X_·· / (X_i·X_j) )).
+  const total = cooc.reduce((s, row) => s + row.reduce((a, v) => a + v, 0), 0) || 1;
+  const rowSum = cooc.map(row => row.reduce((s, v) => s + v, 0));
+  const ppmi = Array.from({ length: V }, (_, i) => Array.from({ length: V }, (_, j) => {
+    if (cooc[i][j] === 0 || rowSum[i] === 0 || rowSum[j] === 0) return 0;
+    return Math.max(0, Math.log((cooc[i][j] * total) / (rowSum[i] * rowSum[j])));
+  }));
+  // Truncated SVD of the (symmetric) PPMI matrix = eigendecomposition; word
+  // vector = top-d eigenvectors scaled by √λ.
+  const eig = jacobiEigen(ppmi);
+  const pairs = eig.eigenvalues.map((e, idx) => ({ e, vec: eig.eigenvectors[idx] })).sort((a, b) => b.e - a.e).slice(0, Math.min(nDims, V));
+  const embeddings = vocab.map((word, i) => ({
+    word,
+    vector: pairs.map(p => +(p.vec[i] * Math.sqrt(Math.max(p.e, 0))).toFixed(4)),
+  }));
+  return { test: 'SVD Word Embeddings', embeddings, vocab, nDims, nVocab: V, nDocs: documents.length, apa: `SVD embeddings: ${V} words, ${nDims}-dim` };
 }
 
 // ── BM25 ─────────────────────────────────────────────────────────────────────

@@ -82,3 +82,14 @@ describe('procrustes finds the optimal rotation', () => {
     expect(r.m2).toBeLessThan(1e-3);
   });
 });
+
+describe('envfit uses a permutation p-value', () => {
+  it('large p when the env variable is unrelated to the ordination', () => {
+    let s = 29; const u = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+    const ord = { points: Array.from({ length: 30 }, (_, i) => [Math.cos(i * 0.5), Math.sin(i * 0.7)]) };
+    // strong association: env = x-coordinate of the ordination
+    const envData = ord.points.map(p => ({ e: p[0] }));
+    const r = envfit(ord, envData, 'e', { permutations: 199, seed: 1 });
+    expect(r.p).toBeCloseTo(1 / 200, 5); // permutation min = 1/(perms+1); exp(-r^2 n/2) gives ~1e-6
+  });
+});

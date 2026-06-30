@@ -35,13 +35,36 @@ export function obrienFleming(stages, alpha = 0.05) {
 // ── Pocock Boundaries ─────────────────────────────────────────────
 export function pocockBoundaries(stages, alpha = 0.05) {
   if (!stages || stages < 2) return null;
-  const cp = normalINV(1 - alpha / 2);
-  const pock = 2.17;
-  const boundaries = [];
-  for (let k = 1; k <= stages; k++) {
-    boundaries.push({ stage: k, boundary: +pock.toFixed(4) });
-  }
-  return { test: 'Pocock Boundaries', boundaries, stages, alpha, apa: `Pocock: ${stages} stages, boundary = ${pock.toFixed(2)}` };
+  // Pocock's constant boundary c on the standardized statistic Z_k, equal at
+  // every look. Z_k = W_k/√k with W_k a standard random walk, so the looks have
+  // the canonical group-sequential covariance Cov(Z_j,Z_k)=√(j/k). Find c so the
+  // overall two-sided crossing probability equals α, via the Armitage–McPherson
+  // recursion on the sub-density of W_k restricted to the continuation region.
+  const phi = z => Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+  const K = stages;
+  const L = 4 * Math.sqrt(K) + 6, h = 0.05;
+  const grid = []; for (let w = -L; w <= L; w += h) grid.push(w);
+  const m = grid.length;
+  const crossProb = c => {
+    let f = grid.map(w => phi(w)); // density of W_1
+    let total = 0;
+    for (let k = 1; k <= K; k++) {
+      const bound = c * Math.sqrt(k);
+      for (let gi = 0; gi < m; gi++) if (Math.abs(grid[gi]) >= bound) total += f[gi] * h;
+      if (k === K) break;
+      const fc = grid.map((w, gi) => (Math.abs(w) < bound ? f[gi] : 0)); // continuation region
+      const fn = new Array(m).fill(0);
+      for (let a = 0; a < m; a++) { if (fc[a] === 0) continue; const fa = fc[a] * h; for (let b = 0; b < m; b++) fn[b] += fa * phi(grid[b] - grid[a]); }
+      f = fn;
+    }
+    return total;
+  };
+  // Bisection: crossProb is decreasing in c.
+  let lo = 1.5, hi = 4.5;
+  for (let it = 0; it < 40; it++) { const mid = (lo + hi) / 2; if (crossProb(mid) > alpha) lo = mid; else hi = mid; }
+  const c = (lo + hi) / 2;
+  const boundaries = []; for (let k = 1; k <= K; k++) boundaries.push({ stage: k, boundary: +c.toFixed(4) });
+  return { test: 'Pocock Boundaries', boundaries, stages, alpha, apa: `Pocock: ${K} stages, boundary = ${c.toFixed(3)}` };
 }
 
 // ── Group Sequential ──────────────────────────────────────────────

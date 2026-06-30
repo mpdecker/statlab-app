@@ -48,3 +48,28 @@ describe('annealedImportance', () => {
   it('null <5 samples', () => expect(annealedImportance(target, proposal, { nSamples: 3 })).toBeNull());
   it('logZ finite', () => { const r = annealedImportance(target, proposal, { nSamples: 10 }); if (r) expect(Number.isFinite(r.logZ)).toBe(true); });
 });
+
+describe('annealedImportance moves the state and estimates logZ (real AIS)', () => {
+  it('recovers the log normalizing constant of a Gaussian target', () => {
+    let s = 7; const N = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; const u1 = Math.max(s / 2 ** 32, 1e-9); s = (Math.imul(1664525, s) + 1013904223) >>> 0; const u2 = s / 2 ** 32; return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+    const sigma1 = 2;
+    const target = x => -0.5 * x * x / (sigma1 * sigma1);              // log unnormalized N(0, sigma1^2)
+    const logBase = x => -0.5 * x * x - 0.5 * Math.log(2 * Math.PI);   // log standard normal density
+    const proposal = () => N();                                       // ~ N(0,1)
+    const r = annealedImportance(target, proposal, { nSamples: 300, nTemps: 25, logBase, stepSize: 1.5, seed: 3 });
+    const trueLogZ = Math.log(Math.sqrt(2 * Math.PI) * sigma1);        // log of int exp(target) = log(sqrt(8pi))
+    expect(Math.abs(r.logZ - trueLogZ)).toBeLessThan(0.3);
+  });
+});
+
+describe('particleMCMC runs a real Metropolis chain (PMMH-style)', () => {
+  it('estimates the posterior mean under prior*likelihood', () => {
+    let s = 11; const u = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+    const prior = () => [u(), u()];                       // uniform[0,1]^2
+    const likelihood = x => -(x[0] * x[0] + x[1] * x[1]); // posterior pulled toward 0
+    const r = particleMCMC(prior, likelihood, { nParticles: 40, nIter: 60, seed: 2 });
+    // E[x|posterior] = ∫₀¹ x e^{-x²} / ∫₀¹ e^{-x²} ≈ 0.423 per coordinate
+    expect(r.posteriorMean[0]).toBeCloseTo(0.423, 1);
+    expect(r.posteriorMean[1]).toBeCloseTo(0.423, 1);
+  });
+});
