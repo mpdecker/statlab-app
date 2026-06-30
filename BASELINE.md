@@ -127,7 +127,7 @@ implementations can be fixed. Status legend:
 | 95 | `contextualBandit` (LinUCB) | bandit.js:105 | ✅ FIXED | never inverts A; reward random `rng<0.3` (no env) | A⁻¹ ridge solution; real reward |
 | 96 | `deepQNetwork` | bandit.js:273 | ✅ FIXED | W1 update uses `tanh(weight)` not gradient; forward double-counts | correct backprop |
 | 97 | `qLearning`/`sarsa` | bandit.js:226/250 | ✅ FIXED | `transitions` arg ignored; nextState random | use supplied transition model |
-| 98 | `hestonModel` | stochastic.js:181 | FABRICATED | kappa/theta/xi/rho passed in, never calibrated; returns inputs | calibrate to returns |
+| 98 | `hestonModel` | stochastic.js:181 | ✅ FIXED | kappa/theta/xi/rho passed in, never calibrated; returns inputs | calibrate to returns |
 | 99 | `regimeSwitching` | stochastic.js:144 | INCOMPLETE | μ/σ/trans fixed at heuristic init; only state probs filtered | full Baum-Welch EM |
 | 100 | `pocockBoundaries` | sequential.js:36 | ✅ FIXED | hardcoded 2.17 for all stages/α | compute Pocock constant per stages/α |
 | 101 | `tmddModel` | pk.js:319 | FABRICATED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
