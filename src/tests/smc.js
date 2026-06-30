@@ -101,31 +101,56 @@ export function multinomialResampleExport(particles, weights, seed = 42) {
 }
 
 // ── Particle MCMC ─────────────────────────────────────────────────
-export function particleMCMC(prior, likelihood, { nParticles = 100, nIter = 50 } = {}) {
+export function particleMCMC(prior, likelihood, { nParticles = 100, nIter = 50, seed = 42 } = {}) {
   if (!prior || !likelihood || nParticles < 10) return null;
-  const particles = Array.from({length: nParticles}, () => prior());
-  const weights = particles.map(p => Math.exp(likelihood(p)));
-  const sumW = weights.reduce((s, w) => s + w, 0);
-  const normW = sumW > 0 ? weights.map(w => w / sumW) : weights.map(() => 1 / nParticles);
-  const ess = 1 / normW.reduce((s, w) => s + w * w, 0);
-  const best = particles[normW.indexOf(Math.max(...normW))];
-  return { test: 'Particle MCMC', ess: +ess.toFixed(2), nParticles, nIter, best: best?.map ? best.map(v => +v.toFixed(4)) : best, apa: `pMCMC: ESS=${ess.toFixed(1)}, ${nParticles} particles` };
+  const rand = mulberry32(seed);
+  // Independence Metropolis–Hastings: propose θ′ from the prior and accept with
+  // probability min(1, exp(ℓ(θ′)−ℓ(θ))) — the prior densities cancel, so the
+  // stationary distribution is the posterior ∝ prior·likelihood. (The old code
+  // was plain importance sampling: it drew particles once and never iterated.)
+  let x = prior(); let lx = likelihood(x);
+  let best = x, lbest = lx, nAcc = 0;
+  const total = Math.max(nIter * nParticles, 500), burn = Math.floor(total * 0.2);
+  const kept = [];
+  for (let it = 0; it < total; it++) {
+    const xp = prior(); const lp = likelihood(xp);
+    if (Math.log(rand() + 1e-300) < lp - lx) { x = xp; lx = lp; nAcc++; if (lp > lbest) { best = xp; lbest = lp; } }
+    if (it >= burn) kept.push(Array.isArray(x) ? [...x] : x);
+  }
+  const vec = Array.isArray(kept[0]);
+  const d = vec ? kept[0].length : 1;
+  const posteriorMean = vec ? Array.from({ length: d }, (_, j) => +avg(kept.map(s => s[j])).toFixed(4)) : +avg(kept).toFixed(4);
+  const acceptRate = nAcc / total;
+  const ess = +(kept.length * acceptRate).toFixed(2); // rough effective sample size
+  return { test: 'Particle MCMC', ess, acceptRate: +acceptRate.toFixed(4), posteriorMean, nParticles, nIter, best: best?.map ? best.map(v => +v.toFixed(4)) : best, apa: `pMCMC: ESS=${ess.toFixed(1)}, accept=${(acceptRate * 100).toFixed(0)}%` };
 }
 
 // ── Annealed Importance Sampling ──────────────────────────────────
-export function annealedImportance(target, proposal, { nSamples = 50, nTemps = 5 } = {}) {
+export function annealedImportance(target, proposal, { nSamples = 50, nTemps = 5, logBase = null, stepSize = 1, seed = 42, nMH = 5 } = {}) {
   if (!target || !proposal || nSamples < 5) return null;
-  const temps = Array.from({length: nTemps}, (_, i) => i / (nTemps - 1));
-  let logZ = 0;
+  const rand = mulberry32(seed);
+  const lb = typeof logBase === 'function' ? logBase : () => 0; // flat base if none given
+  const temps = Array.from({ length: nTemps }, (_, i) => i / (nTemps - 1));
+  // Intermediate (unnormalized) log-density π_β ∝ f_0^{1-β}·f_n^{β}.
+  const logPi = (x, b) => (1 - b) * lb(x) + b * target(x);
+  const logW = [];
   for (let s = 0; s < nSamples; s++) {
-    let x = proposal();
-    let logW = 0;
-    for (let t = 0; t < nTemps - 1; t++) {
-      const betaNext = temps[t + 1];
-      logW += betaNext * target(x) - (betaNext - temps[t]) * target(x);
+    let x = proposal();          // x ~ π_0 = base
+    let w = 0;
+    for (let t = 1; t < nTemps; t++) {
+      const b0 = temps[t - 1], b1 = temps[t];
+      // AIS weight increment log[π_{β_t}(x)/π_{β_{t-1}}(x)] = (β_t−β_{t-1})(log f_n − log f_0).
+      w += (b1 - b0) * (target(x) - lb(x));
+      // Random-walk Metropolis step(s) leaving π_{β_t} invariant — the state MOVES.
+      for (let m = 0; m < nMH; m++) {
+        const xp = x + (rand() * 2 - 1) * stepSize;
+        if (Math.log(rand() + 1e-300) < logPi(xp, b1) - logPi(x, b1)) x = xp;
+      }
     }
-    logZ += logW;
+    logW.push(w);
   }
-  logZ /= nSamples;
+  // logZ = log mean exp(logW) (log-sum-exp); estimates log(Z_n/Z_0).
+  const mx = Math.max(...logW);
+  const logZ = mx + Math.log(logW.reduce((s, v) => s + Math.exp(v - mx), 0) / nSamples);
   return { test: 'Annealed Importance', logZ: +logZ.toFixed(4), nSamples, nTemps, apa: `AIS: logZ=${logZ.toFixed(2)}` };
 }
