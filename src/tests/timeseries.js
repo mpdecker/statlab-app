@@ -1,6 +1,7 @@
 import { avg, sampleVar, corr, fmtP } from '../math/core.js';
 import { tPVal, fPVal, normalCDF } from '../math/distributions.js';
 import { matInv, matMul, matTrans, jacobiEigen } from '../math/matrix.js';
+import { mleFit } from '../math/inference.js';
 
 const ADF_CRITICAL = {
   noConstant:  { "1%": -2.58, "5%": -1.95, "10%": -1.62 },
@@ -1010,18 +1011,21 @@ export function johansenTest(series, p, { deterministic = 'const' } = {}) {
 
   const invS00 = matInv(S00);
   if (!invS00) return null;
-  const P = Array.from({ length: k }, () => Array(k).fill(0));
-  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) for (let a = 0; a < k; a++) P[i][j] += invS00[i][a] * S01[a][j];
-  const Q = Array.from({ length: k }, () => Array(k).fill(0));
-  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) Q[i][j] = S11[i][j];
-  const invQ = matInv(Q);
-  if (!invQ) return null;
-  const M = Array.from({ length: k }, () => Array(k).fill(0));
-  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) for (let a = 0; a < k; a++) M[i][j] += P[i][a] * Q[a][j];
-  const final = Array.from({ length: k }, () => Array(k).fill(0));
-  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) for (let a = 0; a < k; a++) final[i][j] += invQ[i][a] * M[a][j];
-
-  const eigs = jacobiEigen(final).eigenvalues.filter(e => e > 1e-8).sort((a, b) => b - a);
+  // Johansen eigenvalues solve det(λ·S11 − S10·S00⁻¹·S01)=0, i.e. the eigenvalues
+  // of S11⁻¹·A with A = S10·S00⁻¹·S01 (symmetric). Reduce to the symmetric matrix
+  // S11^{−1/2}·A·S11^{−1/2} (same eigenvalues) so the symmetric Jacobi solver applies.
+  const S10 = matTrans(S01);
+  const A = matMul(S10, matMul(invS00, S01)); // k×k symmetric
+  const e11 = jacobiEigen(S11);
+  const Sinvhalf = Array.from({ length: k }, () => Array(k).fill(0));
+  for (let c = 0; c < k; c++) {
+    const l = e11.eigenvalues[c];
+    if (l <= 1e-12) continue;
+    const inv = 1 / Math.sqrt(l), v = e11.eigenvectors[c];
+    for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) Sinvhalf[i][j] += inv * v[i] * v[j];
+  }
+  const Msym = matMul(matMul(Sinvhalf, A), Sinvhalf);
+  const eigs = jacobiEigen(Msym).eigenvalues.filter(e => e > 1e-8 && e < 1 - 1e-12).sort((a, b) => b - a);
   const traceStats = [];
   const maxEigenStats = [];
   for (let r = 0; r < k; r++) {
@@ -1459,13 +1463,29 @@ export function varmax(data, yVar, xVars, { p = 1, q = 1 } = {}) {
 
 // ── Cointegration Rank Selection ──────────────────────────────────
 export function cointegrationRank(data, { maxRank = 3 } = {}) {
-  if (!data || !data.length) return null;
-  const n = Array.isArray(data) ? data.length : Object.keys(data).length;
-  const ranks = Array.from({ length: maxRank + 1 }, (_, r) => ({
-    rank: r, trace: +(n * (maxRank - r + 1) * 0.1).toFixed(4), maxEigen: +(n * 0.05 * (r + 1)).toFixed(4),
-  }));
-  const best = ranks.reduce((best, r) => r.trace > (ranks[best]?.trace || 0) ? r.rank : best, 0);
-  return { test: 'Cointegration Rank', bestRank: best, testStats: ranks, maxRank, n, apa: `Cointegration: best rank = ${best}` };
+  if (!data || (Array.isArray(data) && data.length === 0)) return null;
+  // Build a multivariate series object for Johansen: rows×k matrix or column object.
+  let series, k;
+  if (Array.isArray(data) && Array.isArray(data[0])) {
+    k = data[0].length; series = {}; for (let j = 0; j < k; j++) series['v' + j] = data.map(r => r[j]);
+  } else if (!Array.isArray(data) && typeof data === 'object') {
+    series = data; k = Object.keys(data).length;
+  } else { return null; } // a single 1-D series cannot be tested for cointegration
+  if (k < 2) return null;
+  const jt = johansenTest(series, 1);
+  if (!jt) return null;
+  // Johansen trace-test 5% critical values (Osterwald-Lenum, with constant), keyed by (k−r).
+  const CV = { 1: 9.16, 2: 20.26, 3: 35.19, 4: 53.12, 5: 69.98, 6: 90.39 };
+  let bestRank = 0;
+  const testStats = [];
+  for (let r = 0; r <= Math.min(maxRank, k - 1); r++) {
+    const trace = jt.traceStats[r] || 0;
+    const crit = CV[k - r] || CV[6];
+    testStats.push({ rank: r, trace: +trace.toFixed(4), maxEigen: +(jt.maxEigenStats[r] || 0).toFixed(4), crit });
+    if (trace > crit) bestRank = r + 1; // reject H0: rank ≤ r
+  }
+  bestRank = Math.min(bestRank, k);
+  return { test: 'Cointegration Rank', bestRank, testStats, maxRank, n: jt.n, apa: `Cointegration: best rank = ${bestRank} (Johansen trace)` };
 }
 
 // ── VECM ──────────────────────────────────────────────────────────
@@ -1548,13 +1568,31 @@ export function egarch(data, { p = 1, q = 1 } = {}) {
   const n = data.length;
   const mean = data.reduce((s, v) => s + v, 0) / n;
   const resid = data.map(v => v - mean);
-  let omega = 0.001, alpha = 0.1, beta = 0.8, gamma = 0.05;
-  const logH = Array(n).fill(Math.log(sampleVar(data) || 1));
+  const v0 = sampleVar(data) || 1e-6;
+  const c = Math.sqrt(2 / Math.PI);
+  // EGARCH(1,1): ln h_t = ω + β·ln h_{t−1} + α(|z|−√(2/π)) + γ·z, z=ε/√h.
+  // Gaussian negative log-likelihood over the unconstrained parameters.
+  const nll = ([omega, alpha, beta, gamma]) => {
+    if (!Number.isFinite(omega + alpha + beta + gamma) || Math.abs(beta) > 1.2) return 1e10;
+    let lh = Math.log(v0), s = 0;
+    for (let t = 0; t < n; t++) {
+      const h = Math.exp(Math.max(-30, Math.min(30, lh)));
+      s += 0.5 * (Math.log(2 * Math.PI) + lh + resid[t] * resid[t] / Math.max(h, 1e-12));
+      const z = resid[t] / Math.sqrt(Math.max(h, 1e-12));
+      lh = omega + beta * lh + alpha * (Math.abs(z) - c) + gamma * z;
+    }
+    return Number.isFinite(s) ? s : 1e10;
+  };
+  const init = [Math.log(v0) * 0.1, 0.1, 0.9, 0];
+  const fit = mleFit(init, nll, { maxIter: 100 });
+  let [omega, alpha, beta, gamma] = fit.theta || init;
+  // Recompute conditional variances at the estimated parameters.
+  const logH = Array(n).fill(Math.log(v0));
   for (let t = 1; t < n; t++) {
-    const z = logH[t-1] > -20 ? resid[t-1] / Math.sqrt(Math.exp(logH[t-1])) : 0;
-    logH[t] = omega + beta * logH[t-1] + alpha * (Math.abs(z) - Math.sqrt(2 / Math.PI)) + gamma * z;
+    const z = resid[t - 1] / Math.sqrt(Math.exp(Math.max(-30, Math.min(30, logH[t - 1]))));
+    logH[t] = omega + beta * logH[t - 1] + alpha * (Math.abs(z) - c) + gamma * z;
   }
-  const condVar = logH.map(lh => Math.exp(lh));
+  const condVar = logH.map(lh => Math.exp(Math.max(-30, Math.min(30, lh))));
   const params = { omega: +omega.toFixed(6), alpha: +alpha.toFixed(4), beta: +beta.toFixed(4), gamma: +gamma.toFixed(4) };
   return { test: 'EGARCH', params, condVar: condVar.slice(-5).map(v => +v.toFixed(6)), n, apa: `EGARCH(1,1): ω=${omega.toFixed(4)}, α=${alpha.toFixed(3)}, β=${beta.toFixed(3)}, γ=${gamma.toFixed(3)}` };
 }
