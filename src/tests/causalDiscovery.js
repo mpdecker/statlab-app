@@ -170,11 +170,68 @@ export function lingam(data, vars, { seed = 42, threshold = 0.15 } = {}) {
 }
 
 // ── FCI Algorithm ─────────────────────────────────────────────────
-export function fciAlgorithm(data, vars, { alpha = 0.05 } = {}) {
+export function fciAlgorithm(data, vars, { alpha = 0.05, maxCond = 3 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 3) return null;
-  const skel = skeletonPhase(data, vars, { alpha });
-  if (!skel) return null;
-  const k = vars.length;
-  const activeEdges = skel.edges.filter(e => !e.removed);
-  return { test: 'FCI Algorithm', edges: activeEdges, nEdges: activeEdges.length, nVars: k, n: data.length, apa: `FCI: ${activeEdges.length} edges, alpha=${alpha}` };
+  const n = data.length, k = vars.length;
+  const cols = vars.map(v => data.map(r => +r[v]));
+  // Conditional-independence test via partial correlation (Fisher z).
+  const residSet = (yi, S) => {
+    if (!S.length) { const m = avg(cols[yi]); return cols[yi].map(v => v - m); }
+    const Z = data.map((_, t) => [1, ...S.map(s => cols[s][t])]);
+    const kz = S.length + 1;
+    const ZtZ = Array.from({ length: kz }, (_, a) => Array.from({ length: kz }, (_, b) => Z.reduce((s, r) => s + r[a] * r[b], 0)));
+    const ZtY = Array.from({ length: kz }, (_, a) => Z.reduce((s, r, t) => s + r[a] * cols[yi][t], 0));
+    const beta = solveNormalEquations(ZtZ, ZtY);
+    return cols[yi].map((v, t) => v - Z[t].reduce((s, zz, j) => s + zz * beta[j], 0));
+  };
+  const indep = (i, j, S) => {
+    const r = corr(residSet(i, S), residSet(j, S));
+    const rr = Math.max(-0.9999, Math.min(0.9999, r));
+    const z = 0.5 * Math.log((1 + rr) / (1 - rr)) * Math.sqrt(Math.max(n - S.length - 3, 1));
+    const p = 2 * (1 - normalCDF(Math.abs(z)));
+    return p > alpha;
+  };
+  // ── PC-style skeleton with separating sets ──
+  const adj = Array.from({ length: k }, (_, i) => new Set(Array.from({ length: k }, (_, j) => j).filter(j => j !== i)));
+  const sepset = {};
+  const subsets = (arr, m) => { const out = []; const rec = (start, cur) => { if (cur.length === m) { out.push([...cur]); return; } for (let i = start; i < arr.length; i++) { cur.push(arr[i]); rec(i + 1, cur); cur.pop(); } }; rec(0, []); return out; };
+  for (let d = 0; d <= maxCond; d++) {
+    let any = false;
+    for (let i = 0; i < k; i++) for (const j of [...adj[i]]) {
+      if (j < i) continue;
+      const cond = [...adj[i]].filter(x => x !== j);
+      if (cond.length < d) continue;
+      any = true;
+      for (const S of subsets(cond, d)) {
+        if (indep(i, j, S)) { adj[i].delete(j); adj[j].delete(i); sepset[i + ',' + j] = sepset[j + ',' + i] = S; break; }
+      }
+    }
+    if (!any) break;
+  }
+  // ── PAG edges (initial circles) + collider orientation ──
+  const edges = [];
+  for (let i = 0; i < k; i++) for (const j of adj[i]) if (j > i) edges.push({ from: i, to: j, markFrom: 'o', markTo: 'o' });
+  const mark = (a, b, m) => { const e = edges.find(x => (x.from === a && x.to === b) || (x.from === b && x.to === a)); if (e) { if (e.from === b) e.markFrom = m; else e.markTo = m; } };
+  const colliderSet = new Set();
+  for (let c = 0; c < k; c++) {
+    const nb = [...adj[c]];
+    for (let a = 0; a < nb.length; a++) for (let b = a + 1; b < nb.length; b++) {
+      const x = nb[a], y = nb[b];
+      if (adj[x].has(y)) continue;                       // unshielded triple x − c − y
+      const sep = sepset[x + ',' + y] || [];
+      if (!sep.includes(c)) { mark(x, c, '>'); mark(y, c, '>'); colliderSet.add(c); } // c is a collider
+    }
+  }
+  // ── FCI rule R1: a*→c o−* b, a,b nonadjacent ⇒ orient c→b ──
+  for (let it = 0; it < k; it++) {
+    for (const e of edges) {
+      const a = e.from, c = e.to;
+      const orientR1 = (X, Y) => { // X*→Y present; look for Y o−* W with X,W nonadjacent
+        for (const W of adj[Y]) { if (W === X || adj[X].has(W)) continue; const e2 = edges.find(z => (z.from === Y && z.to === W) || (z.from === W && z.to === Y)); if (!e2) continue; const yMark = e2.from === Y ? e2.markFrom : e2.markTo; if (yMark === 'o') { mark(Y, W, '>'); if (e2.from === Y) e2.markTo = '-'; else e2.markFrom = '-'; } }
+      };
+      if (e.markTo === '>') orientR1(a, c);
+      if (e.markFrom === '>') orientR1(c, a);
+    }
+  }
+  return { test: 'FCI Algorithm', edges, nEdges: edges.length, colliders: [...colliderSet], nVars: k, n, apa: `FCI: ${edges.length} edges, ${colliderSet.size} colliders, alpha=${alpha}` };
 }

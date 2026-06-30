@@ -73,3 +73,23 @@ describe('lingam recovers the causal order (DirectLiNGAM)', () => {
     expect(has(2, 1)).toBe(false);
   });
 });
+
+describe('fciAlgorithm orients colliders (real FCI, not a bare skeleton)', () => {
+  function gen(kind, seed) {
+    let s = seed; const z = () => { let u = 0; for (let i = 0; i < 12; i++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+    const d = [];
+    for (let i = 0; i < 300; i++) {
+      if (kind === 'collider') { const x = z(), y = z(); d.push({ x1: x, x2: y, x3: x + y + 0.3 * z() }); } // x1->x3<-x2
+      else { const x = z(); const y = x + 0.5 * z(); const w = y + 0.5 * z(); d.push({ x1: x, x2: y, x3: w }); } // chain x1->x2->x3
+    }
+    return d;
+  }
+  it('detects the collider x3 when x1,x2 are independent causes', () => {
+    const r = fciAlgorithm(gen('collider', 5), ['x1', 'x2', 'x3']);
+    expect(r.colliders).toContain(2); // x3 is a collider
+  });
+  it('does not mark a collider in a chain', () => {
+    const r = fciAlgorithm(gen('chain', 5), ['x1', 'x2', 'x3']);
+    expect(r.colliders).not.toContain(1); // x2 is a mediator, not a collider
+  });
+});
