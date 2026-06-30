@@ -49,7 +49,7 @@ implementations can be fixed. Status legend:
 | 24 | `tobitModel` | econometric.js:24 | ✅ FIXED | reimplemented as Type-I censored-normal MLE via `mleFit` (censored obs → Φ((L−xβ)/σ); adds intercept; reports MLE β, Hessian-based SE, z, computed p, σ, logLik). TDD: recovers slope 2.000 & p≈0 with no censoring (was through-origin OLS giving 2.13, p≡1); handles left-censored data. |
 | 25 | `bivariateProbit` | econometric.js:53 | ✅ FIXED | full-information ML biprobit: implemented Φ₂ (bivariate-normal CDF via Simpson on the standard integral identity), likelihood Φ₂(q₁·xβ₁, q₂·xβ₂, q₁q₂ρ), `mleFit` over [β₁,β₂,atanh ρ]; returns both equations' coefficients + Hessian SEs + ρ. TDD: recovers β₁ₓ=1.17, β₂ₓ=−1.03, ρ=0.64 from a DGP with true (1.2, −0.9, 0.5). Was just raw corr(y1,y2). |
 | 26 | `panelFixedEffects` | econometric.js:131 | ✅ FIXED | reimplemented as the within (LSDV) estimator: demean by unit, multivariate OLS via matInv, analytic SE `√(σ̂²·(XᵀX)⁻¹_jj)` with df=N−nUnits−p. TDD: recovers [2,−1] exactly from constructed panel. |
-| 27 | `heckmanSelection` | econometric.js:29 | BROKEN | LPM selection not probit; `indexOf(array)` bug; no outcome eq output | probit selection + IMR-augmented OLS |
+| 27 | `heckmanSelection` | econometric.js:29 | ✅ FIXED | LPM selection not probit; `indexOf(array)` bug; no outcome eq output | probit selection + IMR-augmented OLS |
 | 28 | `bicScore` | pgm.js:53 | ✅ FIXED | `n·log(1-avgR)+k·log(n)`, not a graph BIC | per-node local BIC |
 | 29 | `beliefPropagation` | pgm.js:18 | ✅ FIXED | messages init to 1, never updated; maxIter unused | sum-product message passing |
 | 30 | `variableElimination` | pgm.js:68 | ✅ FIXED | eliminates nothing; counts factors | actual factor elimination |

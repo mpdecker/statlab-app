@@ -184,3 +184,22 @@ describe('hausmanTest uses the correct chi-square tail', () => {
     expect(r.p).toBeLessThan(0.01);
   });
 });
+
+describe('heckmanSelection runs a real two-step (probit + IMR-augmented OLS)', () => {
+  it('recovers the outcome slope under selection on correlated errors', () => {
+    let s = 71; const N = () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+    const rows = [];
+    const betaTrue = 1.5, rho = 0.7;
+    for (let i = 0; i < 400; i++) {
+      const z = N(), x = N();
+      const us = N();
+      const eps = rho * us + Math.sqrt(1 - rho * rho) * N(); // outcome error correlated with selection
+      const sel = (0.8 * z + 0.5 * x + us > 0) ? 1 : 0;       // selection equation
+      const y = sel ? (betaTrue * x + 2 + eps) : null;        // observed only if selected
+      rows.push({ y: y == null ? 0 : y, x1: x, z1: z, sel });
+    }
+    const r = heckmanSelection(rows, 'y', ['x1'], 'sel', ['z1', 'x1']);
+    const xc = r.coefficients.find(c => c.name === 'x1');
+    expect(Math.abs(xc.b - 1.5)).toBeLessThan(0.4);
+  });
+});
