@@ -109,3 +109,17 @@ describe('tmddModel fits the model to the data (not hardcoded constants)', () =>
     expect(r.kel).toBeGreaterThan(0);
   });
 });
+
+describe('indirectResponse fits a real indirect-response ODE model', () => {
+  it('recovers kout from a simulated Type-I (inhibition of production) profile', () => {
+    const kin = 10, kout = 0.5, Imax = 0.8, IC50 = 50, R0 = kin / kout;
+    const time = [0, 1, 2, 4, 6, 8, 12, 16, 24];
+    const concentration = time.map(t => 100 * Math.exp(-0.2 * t));
+    // simulate the ODE (fine Euler) to generate the response
+    const conc = tt => 100 * Math.exp(-0.2 * tt);
+    let R = R0; const response = [R0]; let tp = 0;
+    for (let i = 1; i < time.length; i++) { const span = time[i] - tp, steps = Math.ceil(span / 0.01), dh = span / steps; let t = tp; for (let s = 0; s < steps; s++) { const c = conc(t); R += dh * (kin * (1 - Imax * c / (IC50 + c)) - kout * R); t += dh; } response.push(R); tp = time[i]; }
+    const r = indirectResponse(time, concentration, response);
+    expect(Math.abs(r.kout - 0.5)).toBeLessThan(0.2);
+  });
+});

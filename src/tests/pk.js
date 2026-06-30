@@ -247,7 +247,43 @@ export function sigmoidEmax(dose, response) {
 export function indirectResponse(time, concentration, response) {
   if (!time || !concentration || !response || time.length < 5) return null;
   const n = Math.min(time.length, concentration.length, response.length);
-  return { test: 'Indirect Response', n, apa: `Indirect response model: n = ${n}` };
+  const t = time.slice(0, n), C = concentration.slice(0, n), R = response.slice(0, n);
+  const R0 = R[0];
+  // Type-I indirect response (Dayneka/Jusko): dR/dt = kin·(1 − Imax·C/(IC50+C))
+  // − kout·R, with baseline R0 = kin/kout (so kin = kout·R0). C(t) is the
+  // observed concentration linearly interpolated. Fit [kout, Imax, IC50] by RK4
+  // + coordinate descent (the old code computed nothing).
+  const conc = tt => {
+    if (tt <= t[0]) return C[0];
+    if (tt >= t[n - 1]) return C[n - 1];
+    for (let i = 1; i < n; i++) if (tt <= t[i]) { const f = (tt - t[i - 1]) / (t[i] - t[i - 1]); return C[i - 1] + f * (C[i] - C[i - 1]); }
+    return C[n - 1];
+  };
+  const predict = (kout, Imax, IC50) => {
+    const kin = kout * R0; const out = [R0]; let Rv = R0, tp = t[0];
+    const f = (rv, tt) => { const c = conc(tt); return kin * (1 - Imax * c / (IC50 + c)) - kout * rv; };
+    for (let i = 1; i < n; i++) {
+      const span = t[i] - tp, steps = Math.max(1, Math.ceil(span / 0.05)), dh = span / steps; let tt = tp;
+      for (let s = 0; s < steps; s++) { const k1 = f(Rv, tt), k2 = f(Rv + dh / 2 * k1, tt + dh / 2), k3 = f(Rv + dh / 2 * k2, tt + dh / 2), k4 = f(Rv + dh * k3, tt + dh); Rv = Math.max(0, Rv + dh / 6 * (k1 + 2 * k2 + 2 * k3 + k4)); tt += dh; }
+      out.push(Rv); tp = t[i];
+    }
+    return out;
+  };
+  const sse = (kout, Imax, IC50) => { const p = predict(kout, Imax, IC50); let s = 0; for (let i = 0; i < n; i++) s += (R[i] - p[i]) ** 2; return s; };
+  const golden = (lo, hi, obj) => {
+    let a = lo, b = hi; const gr = (Math.sqrt(5) - 1) / 2; let c = b - gr * (b - a), d = a + gr * (b - a);
+    for (let it = 0; it < 30; it++) { if (obj(c) < obj(d)) b = d; else a = c; c = b - gr * (b - a); d = a + gr * (b - a); }
+    return (a + b) / 2;
+  };
+  let kout = 0.5, Imax = 0.5, IC50 = Math.max(1, avg(C) / 2);
+  for (let r = 0; r < 15; r++) {
+    kout = golden(1e-3, 5, v => sse(v, Imax, IC50));
+    Imax = golden(0, 1, v => sse(kout, v, IC50));
+    IC50 = golden(0.1, Math.max(2, Math.max(...C)), v => sse(kout, Imax, v));
+  }
+  const kin = kout * R0;
+  const rmse = Math.sqrt(sse(kout, Imax, IC50) / n);
+  return { test: 'Indirect Response', kin: +kin.toFixed(4), kout: +kout.toFixed(4), Imax: +Imax.toFixed(4), IC50: +IC50.toFixed(4), R0: +R0.toFixed(4), rmse: +rmse.toFixed(4), n, apa: `IDR (type I): kout=${kout.toFixed(3)}, Imax=${Imax.toFixed(2)}, IC50=${IC50.toFixed(1)}, rmse=${rmse.toFixed(2)}` };
 }
 
 // ── PKPD Link ─────────────────────────────────────────────────────
