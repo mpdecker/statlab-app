@@ -85,9 +85,9 @@ implementations can be fixed. Status legend:
 | 57 | `dependencyParse` | nlp.js:71 | FABRICATED | links token→previous, positional labels | real parser or relabel |
 | 58 | `partWorthUtilities` | conjoint.js:18 | ✅ FIXED (PR #2) | diag-only solve | dummy-coded OLS |
 | 59 | `choiceSimulation` | conjoint.js:42 | FABRICATED | random utilities, ignores profiles/attrs | logit from estimated part-worths |
-| 60 | `cpDecomposition` | tensor.js:182 | FABRICATED | ALS loop never updates A/B/C; factors stay random | real CP-ALS (cf. `parafac`, which is correct) |
-| 61 | `tuckerRegression` | tensor.js:203 | FABRICATED | β random, never fit | HOSVD-based regression |
-| 62 | `tensorCompletion` | tensor.js:219 | FABRICATED | fills missing with `i+j+k` | low-rank tensor completion |
+| 60 | `cpDecomposition` | tensor.js:182 | ✅ FIXED | ALS loop never updates A/B/C; factors stay random | real CP-ALS (cf. `parafac`, which is correct) |
+| 61 | `tuckerRegression` | tensor.js:203 | ✅ FIXED | β random, never fit | HOSVD-based regression |
+| 62 | `tensorCompletion` | tensor.js:219 | ✅ FIXED | fills missing with `i+j+k` | low-rank tensor completion |
 | 63 | `vipScores` | pls.js:47 | FABRICATED | `√(i+1)/nc`, not from weights/loadings | VIP from PLS weights & SS |
 | 64 | `sparsePLS` | pls.js:135 | FABRICATED | hardcoded `0.5` loadings (selection is real) | sparse loadings from sPLS |
 | 65 | `rda` | pls.js:57 | BROKEN | diag-only constrained SS | full RDA (constrained eigen) |

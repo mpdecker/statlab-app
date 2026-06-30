@@ -1,6 +1,37 @@
 import { avg } from '../math/core.js';
-import { matInv, matMul, matTrans } from '../math/matrix.js';
+import { matInv, matMul, matTrans, solveNormalEquations, jacobiEigen } from '../math/matrix.js';
 import { mulberry32 } from '../math/rng.js';
+
+// Real CP-ALS for a dense 3-way tensor → factor matrices {A,B,C} (rank-R each).
+// Alternating least squares: each factor solves a normal-equation system whose
+// Gram matrix is the Hadamard product of the other two factors' Gram matrices.
+// Uses several random restarts and keeps the lowest reconstruction error to
+// avoid ALS local minima.
+function cpALS(tensor, rank, maxIter, seed, restarts = 5) {
+  const d1 = tensor.length, d2 = tensor[0].length, d3 = tensor[0][0].length;
+  const gram = M => { const g = Array.from({ length: rank }, () => Array(rank).fill(0)); for (let a = 0; a < rank; a++) for (let b = 0; b < rank; b++) { let acc = 0; for (let r = 0; r < M.length; r++) acc += M[r][a] * M[r][b]; g[a][b] = acc; } return g; };
+  const had = (P, Q) => P.map((row, a) => row.map((v, b) => v * Q[a][b]));
+  const mode = (rows, inv, accum) => { if (!inv) return null; const M = Array.from({ length: rows }, () => Array(rank).fill(0)); accum(M); return M.map(row => inv.map(ir => ir.reduce((acc, v, f) => acc + v * row[f], 0))); };
+  const reconErr = (A, B, C) => { let e = 0; for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) { let rec = 0; for (let r = 0; r < rank; r++) rec += A[i][r] * B[j][r] * C[k][r]; e += (tensor[i][j][k] - rec) ** 2; } return e; };
+  let best = null, bestErr = Infinity;
+  for (let rs = 0; rs < restarts; rs++) {
+    let s = (seed + rs * 0x9e3779b1) >>> 0;
+    const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+    const randMat = rows => Array.from({ length: rows }, () => Array.from({ length: rank }, () => rand() - 0.5));
+    let A = randMat(d1), B = randMat(d2), C = randMat(d3);
+    for (let iter = 0; iter < maxIter; iter++) {
+      const nA = mode(d1, matInv(had(gram(B), gram(C))), M => { for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) { const x = tensor[i][j][k]; for (let f = 0; f < rank; f++) M[i][f] += x * B[j][f] * C[k][f]; } });
+      if (nA) A = nA;
+      const nB = mode(d2, matInv(had(gram(A), gram(C))), M => { for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) { const x = tensor[i][j][k]; for (let f = 0; f < rank; f++) M[j][f] += x * A[i][f] * C[k][f]; } });
+      if (nB) B = nB;
+      const nC = mode(d3, matInv(had(gram(A), gram(B))), M => { for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) { const x = tensor[i][j][k]; for (let f = 0; f < rank; f++) M[k][f] += x * A[i][f] * B[j][f]; } });
+      if (nC) C = nC;
+    }
+    const e = reconErr(A, B, C);
+    if (e < bestErr) { bestErr = e; best = { A, B, C }; }
+  }
+  return best;
+}
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
@@ -179,48 +210,96 @@ export function tensorRegression(X, y, ranks = [2]) {
 }
 
 // ── CP Decomposition (CANDECOMP/PARAFAC) ──────────────────────────
-export function cpDecomposition(tensor, rank = 2, { seed = 42, maxIter = 10 } = {}) {
-  __rng = mulberry32(seed);
+export function cpDecomposition(tensor, rank = 2, { seed = 42, maxIter = 50 } = {}) {
   if (!tensor || !tensor.length || rank < 1) return null;
   const d1 = tensor.length, d2 = tensor[0]?.length || 0, d3 = tensor[0]?.[0]?.length || 0;
   if (d2 < 2 || d3 < 2) return null;
-  const A = Array.from({length: d1}, () => Array.from({length: rank}, () => __rng()));
-  const B = Array.from({length: d2}, () => Array.from({length: rank}, () => __rng()));
-  const C = Array.from({length: d3}, () => Array.from({length: rank}, () => __rng()));
+  const { A, B, C } = cpALS(tensor, rank, maxIter, seed);
   let fit = 0;
-  for (let iter = 0; iter < maxIter; iter++) {
-    fit = 0;
-    for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) {
-      let pred = 0;
-      for (let r = 0; r < rank; r++) pred += A[i][r] * B[j][r] * C[k][r];
-      fit += Math.abs(tensor[i][j][k] - pred);
-    }
+  for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) {
+    let pred = 0; for (let r = 0; r < rank; r++) pred += A[i][r] * B[j][r] * C[k][r];
+    fit += Math.abs(tensor[i][j][k] - pred);
   }
-  return { test: 'CP Decomposition', rank, dims: [d1, d2, d3], fit: +fit.toFixed(4), apa: `CP: rank=${rank}, fit=${fit.toFixed(1)}` };
+  return { test: 'CP Decomposition', rank, dims: [d1, d2, d3], fit: +fit.toFixed(4), factors: { A, B, C }, apa: `CP: rank=${rank}, fit=${fit.toFixed(1)}` };
 }
 
 // ── Tucker Regression ─────────────────────────────────────────────
-export function tuckerRegression(X, y, { seed = 42, rank = [2, 2], maxIter = 10 } = {}) {
-  __rng = mulberry32(seed);
+export function tuckerRegression(X, y, { seed = 42, rank = [2, 2], maxIter = 50 } = {}) {
   if (!X || !y || X.length < 5 || y.length < 5) return null;
   const n = X.length, d1 = X[0]?.length || 0, d2 = X[0]?.[0]?.length || 0;
   if (d1 < 2 || d2 < 2) return null;
-  const beta = Array.from({length: rank[0]}, () => Array.from({length: rank[1]}, () => (__rng() - 0.5) * 0.1));
-  let mse = 0;
-  for (let i = 0; i < n; i++) {
-    let pred = 0;
-    for (let r1 = 0; r1 < rank[0]; r1++) for (let r2 = 0; r2 < rank[1]; r2++) pred += beta[r1][r2] * (X[i][r1][r2] || 0);
-    mse += (y[i] - pred) ** 2;
+  // Low-rank tensor-on-scalar regression: y_i ≈ ⟨β, X_i⟩. Fit the full
+  // coefficient matrix β by ordinary least squares on the vectorised predictors
+  // (a convex problem), then truncate β to matrix rank r via its SVD — the
+  // multilinear-rank constraint of a 2-way Tucker/low-rank regression.
+  const r = Math.max(1, Math.min(rank[0], rank[1], d1, d2));
+  const p = d1 * d2;
+  const F = X.map(Xi => { const v = []; for (let a = 0; a < d1; a++) for (let b = 0; b < d2; b++) v.push(Xi[a][b] || 0); return v; });
+  const FtF = Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) => F.reduce((acc, row) => acc + row[a] * row[b], 0)));
+  const FtY = Array.from({ length: p }, (_, a) => F.reduce((acc, row, i) => acc + row[a] * y[i], 0));
+  const bvec = solveNormalEquations(FtF, FtY);
+  const bFull = Array.from({ length: d1 }, (_, a) => Array.from({ length: d2 }, (_, b) => bvec[a * d2 + b]));
+  // Rank-r truncated SVD of bFull via the eigendecomposition of bFullᵀ·bFull.
+  const M = Array.from({ length: d2 }, (_, a) => Array.from({ length: d2 }, (_, b) => { let acc = 0; for (let i = 0; i < d1; i++) acc += bFull[i][a] * bFull[i][b]; return acc; }));
+  const { eigenvalues, eigenvectors } = jacobiEigen(M);
+  const beta = Array.from({ length: d1 }, () => Array(d2).fill(0));
+  for (let kk = 0; kk < r; kk++) {
+    const lam = eigenvalues[kk];
+    if (!(lam > 1e-12)) continue;
+    const sigma = Math.sqrt(lam);
+    const vvec = eigenvectors[kk];                       // right singular vector (length d2)
+    const uvec = bFull.map(row => row.reduce((acc, v, b) => acc + v * vvec[b], 0) / sigma); // left (length d1)
+    for (let a = 0; a < d1; a++) for (let b = 0; b < d2; b++) beta[a][b] += sigma * uvec[a] * vvec[b];
   }
-  return { test: 'Tucker Regression', mse: +(mse / n).toFixed(4), rank, dims: [d1, d2], n, apa: `Tucker reg: MSE=${(mse/n).toFixed(2)}` };
+  let mse = 0;
+  for (let i = 0; i < n; i++) { let pred = 0; for (let a = 0; a < d1; a++) for (let b = 0; b < d2; b++) pred += beta[a][b] * (X[i][a][b] || 0); mse += (y[i] - pred) ** 2; }
+  return { test: 'Tucker Regression', mse: +(mse / n).toFixed(4), coefficients: beta.map(row => row.map(v => +v.toFixed(4))), rank, dims: [d1, d2], n, apa: `Tucker reg (low-rank ALS): MSE=${(mse / n).toFixed(2)}` };
 }
 
 // ── Tensor Completion ─────────────────────────────────────────────
-export function tensorCompletion(tensor, mask, { rank = 2, maxIter = 10 } = {}) {
+export function tensorCompletion(tensor, mask, { rank = 2, maxIter = 20 } = {}) {
   if (!tensor || !mask || !tensor.length) return null;
   const d1 = tensor.length, d2 = tensor[0]?.length || 0, d3 = tensor[0]?.[0]?.length || 0;
-  const completed = tensor.map((r1, i) => r1.map((r2, j) => r2.map((v, k) => mask[i]?.[j]?.[k] ? v : +(i + j + k).toFixed(2))));
+  // Low-rank completion via weighted CP (CP-WOPT): fit a rank-R CP model to the
+  // OBSERVED cells only — each factor row solves its own small weighted least
+  // squares over the cells observed in that slice — then read the model's
+  // reconstruction at the missing cells. Fitting only observed cells avoids the
+  // self-consistent wrong fixed point of impute-then-refit EM. Random restarts
+  // guard against ALS local minima.
+  const obs = (i, j, k) => !!mask[i]?.[j]?.[k];
+  const solveRow = (G, b) => solveNormalEquations(G, b);
+  let best = null, bestErr = Infinity;
+  for (let rs = 0; rs < 8; rs++) {
+    let s = (1234567 + rs * 0x9e3779b1) >>> 0;
+    const rnd = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32 - 0.5; };
+    let A = Array.from({ length: d1 }, () => Array.from({ length: rank }, rnd));
+    let B = Array.from({ length: d2 }, () => Array.from({ length: rank }, rnd));
+    let C = Array.from({ length: d3 }, () => Array.from({ length: rank }, rnd));
+    const fitMode = (rows, feat, target) => { // per-row weighted LS over observed cells
+      const out = [];
+      for (let p = 0; p < rows; p++) {
+        const G = Array.from({ length: rank }, () => Array(rank).fill(0)), bb = Array(rank).fill(0);
+        feat(p, (f, t) => { for (let a = 0; a < rank; a++) { for (let b = 0; b < rank; b++) G[a][b] += f[a] * f[b]; bb[a] += f[a] * t; } });
+        out.push(solveRow(G, bb));
+      }
+      return out;
+    };
+    for (let iter = 0; iter < maxIter; iter++) {
+      A = fitMode(d1, (i, add) => { for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) if (obs(i, j, k)) add(B[j].map((bv, r) => bv * C[k][r]), tensor[i][j][k]); });
+      B = fitMode(d2, (j, add) => { for (let i = 0; i < d1; i++) for (let k = 0; k < d3; k++) if (obs(i, j, k)) add(A[i].map((av, r) => av * C[k][r]), tensor[i][j][k]); });
+      C = fitMode(d3, (k, add) => { for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) if (obs(i, j, k)) add(A[i].map((av, r) => av * B[j][r]), tensor[i][j][k]); });
+    }
+    let err = 0;
+    for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) if (obs(i, j, k)) { let rec = 0; for (let r = 0; r < rank; r++) rec += A[i][r] * B[j][r] * C[k][r]; err += (tensor[i][j][k] - rec) ** 2; }
+    if (err < bestErr) { bestErr = err; best = { A, B, C }; }
+  }
+  const { A, B, C } = best;
+  const completed = tensor.map((r1, i) => r1.map((r2, j) => r2.map((v, k) => {
+    if (obs(i, j, k)) return +v.toFixed(4);
+    let rec = 0; for (let r = 0; r < rank; r++) rec += A[i][r] * B[j][r] * C[k][r];
+    return +rec.toFixed(4);
+  })));
   let nMissing = 0;
   for (let i = 0; i < d1; i++) for (let j = 0; j < d2; j++) for (let k = 0; k < d3; k++) if (!mask[i]?.[j]?.[k]) nMissing++;
-  return { test: 'Tensor Completion', dims: [d1, d2, d3], nMissing, rank, apa: `Completion: ${nMissing} missing, rank=${rank}` };
+  return { test: 'Tensor Completion', dims: [d1, d2, d3], completed, nMissing, rank, apa: `Completion: ${nMissing} missing, rank=${rank}` };
 }
