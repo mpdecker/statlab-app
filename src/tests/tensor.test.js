@@ -63,3 +63,34 @@ describe('tensorCompletion', () => {
   it('nMissing positive', () => { const r = tensorCompletion(T, mask); if (r) expect(r.nMissing).toBeGreaterThan(0); });
   it('dims is array', () => { const r = tensorCompletion(T, mask); if (r) expect(Array.isArray(r.dims)).toBe(true); });
 });
+
+describe('cpDecomposition runs real CP-ALS', () => {
+  it('reconstructs a rank-1 tensor with near-zero error', () => {
+    const a = [1, 2, 3, 1.5], b = [1, 0.5, 2], c = [2, 1];
+    const T = a.map(ai => b.map(bj => c.map(ck => ai * bj * ck)));
+    const r = cpDecomposition(T, 1, { maxIter: 60, seed: 1 });
+    expect(r.fit).toBeLessThan(1e-3);
+  });
+});
+
+describe('tuckerRegression fits a real low-rank coefficient tensor', () => {
+  it('recovers a rank-1 coefficient on noiseless data (MSE ~ 0)', () => {
+    const u = [1, -1, 2], w = [1, 2]; // true rank-1 beta[a][b] = u[a]*w[b]
+    const beta = u.map(ua => w.map(wb => ua * wb));
+    let sd = 98765; const rnd = () => { sd = (Math.imul(1664525, sd) + 1013904223) >>> 0; return (sd / 2 ** 32) * 2 - 1; };
+    const X = Array.from({ length: 14 }, () => [0, 1, 2].map(() => [0, 1].map(() => +rnd().toFixed(3))));
+    const y = X.map(Xi => { let s = 0; for (let a = 0; a < 3; a++) for (let b = 0; b < 2; b++) s += beta[a][b] * Xi[a][b]; return s; });
+    const r = tuckerRegression(X, y, { rank: [1, 1], maxIter: 200, seed: 3 });
+    expect(r.mse).toBeLessThan(1e-2);
+  });
+});
+
+describe('tensorCompletion recovers low-rank structure', () => {
+  it('fills a masked entry of a rank-1 tensor close to its true value', () => {
+    const a = [1, 2], b = [1, 3], c = [2, 1];
+    const T = a.map(ai => b.map(bj => c.map(ck => ai * bj * ck)));
+    const mask = [[[true, true], [true, false]], [[true, true], [true, true]]]; // hide T[0][1][1]=a0*b1*c1=1*3*1=3
+    const r = tensorCompletion(T, mask, { rank: 1, maxIter: 25 });
+    expect(r.completed[0][1][1]).toBeCloseTo(3, 1);
+  });
+});

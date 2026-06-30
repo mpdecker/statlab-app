@@ -46,3 +46,35 @@ describe('sammonMappingDM', () => {
   it('points has n rows', () => { const r = sammonMappingDM(D, { maxIter: 5 }); if (r) expect(r.points.length).toBe(D.length); });
   it('null for small D', () => expect(sammonMappingDM([[0,1],[1,0]], { maxIter: 5 })).toBeNull());
 });
+
+describe('landmarkMDS produces a real distance-preserving embedding', () => {
+  it('reconstructs pairwise distances of a 2D configuration', () => {
+    const P = Array.from({ length: 14 }, (_, i) => [Math.cos(i), Math.sin(i * 1.3) + (i % 3)]);
+    const D = P.map(a => P.map(b => Math.hypot(a[0] - b[0], a[1] - b[1])));
+    const r = landmarkMDS(D, { nLandmarks: 7, nDim: 2, seed: 2 });
+    const dist = (u, v) => Math.hypot(u[0] - v[0], u[1] - v[1]);
+    // distances are rotation/reflection invariant, so embedded ≈ original
+    expect(dist(r.points[0], r.points[5])).toBeCloseTo(D[0][5], 1);
+    expect(dist(r.points[3], r.points[10])).toBeCloseTo(D[3][10], 1);
+  });
+});
+
+describe('nonMetricMDS does real isotonic (rank-based) scaling', () => {
+  it('recovers latent structure from monotonically-distorted dissimilarities', () => {
+    // true 2D config -> true distances -> monotone (nonlinear) distortion as dissimilarities
+    const P = Array.from({ length: 14 }, (_, i) => [Math.cos(i * 0.9), Math.sin(i * 0.7) + (i % 4) * 0.5]);
+    const trueD = P.map(a => P.map(b => Math.hypot(a[0] - b[0], a[1] - b[1])));
+    const diss = trueD.map(r => r.map(v => Math.pow(v, 1.6))); // monotone distortion
+    // data/vars are random noise: a metric MDS that ignores `dissimilarities` cannot recover trueD
+    const data = Array.from({ length: 14 }, () => ({ a: Math.random(), b: Math.random() }));
+    const r = nonMetricMDS(data, ['a', 'b'], { dissimilarities: diss, nDimensions: 2, maxIter: 200, seed: 1 });
+    const rd = (i, j) => Math.hypot(r.points[i][0] - r.points[j][0], r.points[i][1] - r.points[j][1]);
+    const xs = [], ys = [];
+    for (let i = 0; i < 14; i++) for (let j = i + 1; j < 14; j++) { xs.push(rd(i, j)); ys.push(trueD[i][j]); }
+    const mx = xs.reduce((s, v) => s + v, 0) / xs.length, my = ys.reduce((s, v) => s + v, 0) / ys.length;
+    let cov = 0, vx = 0, vy = 0;
+    for (let k = 0; k < xs.length; k++) { cov += (xs[k] - mx) * (ys[k] - my); vx += (xs[k] - mx) ** 2; vy += (ys[k] - my) ** 2; }
+    const corr = cov / Math.sqrt(vx * vy);
+    expect(corr).toBeGreaterThan(0.9); // embedded distances track the true latent distances
+  });
+});

@@ -46,3 +46,12 @@ describe('multiArmBandit', () => {
   it('null <3 arms', () => expect(multiArmBandit([0.3,0.5], { iterations: 10 })).toBeNull());
   it('values length equals arms', () => { const r = multiArmBandit([0.3,0.5,0.2,0.4], { iterations: 50 }); if (r) expect(r.values).toHaveLength(4); });
 });
+
+describe('multiArmBandit uses real Beta sampling and arm-specific rewards', () => {
+  it('concentrates on the highest-probability arm', () => {
+    const r = multiArmBandit([0.1, 0.9, 0.2, 0.15], { iterations: 400, seed: 5 });
+    const best = r.values.indexOf(Math.max(...r.values));
+    expect(best).toBe(1);
+    expect(r.values[1]).toBeGreaterThan(0.6);
+  });
+});

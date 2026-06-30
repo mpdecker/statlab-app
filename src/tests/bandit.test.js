@@ -56,3 +56,36 @@ describe('deepQNetwork', () => {
   it('null <2 states', () => expect(deepQNetwork(1, 3, { episodes: 3 })).toBeNull());
   it('totalReward finite', () => { const r = deepQNetwork(3, 3, { episodes: 5 }); if (r) expect(isFinite(r.totalReward)).toBe(true) });
 });
+
+describe('thompsonSampling uses real Beta sampling and finds the best arm', () => {
+  it('identifies the deterministically-best arm', () => {
+    const rewards = [() => 0, () => 1, () => 0, () => 0]; // arm 1 always rewards
+    const r = thompsonSampling([0, 1, 2, 3], rewards, 300, { seed: 5 });
+    expect(r.bestArm).toBe(1);
+    expect(r.valueEstimates[1]).toBeGreaterThan(0.8);
+  });
+});
+
+describe('qLearning/sarsa use the supplied transition model', () => {
+  // Deterministic MDP: reach state 2 (the goal) by taking action 1 from s0 then s1.
+  const transitions = [[0, 1], [0, 2], [2, 2]];
+  const rewards = [[0, 0], [0, 1], [1, 1]];
+  it('qLearning recovers the optimal policy', () => {
+    const r = qLearning(3, 2, rewards, transitions, { episodes: 100, seed: 1 });
+    expect(r.optimalPolicy[0]).toBe(1);
+    expect(r.optimalPolicy[1]).toBe(1);
+  });
+  it('sarsa recovers the optimal policy', () => {
+    const r = sarsa(3, 2, rewards, transitions, { episodes: 200, seed: 1, epsilon: 0.1 });
+    expect(r.optimalPolicy[0]).toBe(1);
+    expect(r.optimalPolicy[1]).toBe(1);
+  });
+});
+
+describe('contextualBandit (LinUCB) inverts A and uses a contextual reward', () => {
+  it('beats random by exploiting context', () => {
+    const armWeights = [[3, 0], [-3, 0], [0, 3], [0, -3]];
+    const r = contextualBandit(armWeights, 2, 400, { seed: 1, alpha: 1 });
+    expect(r.totalReward / 400).toBeGreaterThan(0.6); // random policy ~0.5
+  });
+});

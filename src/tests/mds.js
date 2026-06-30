@@ -2,6 +2,23 @@ import { avg } from '../math/core.js';
 import { matInv, jacobiEigen } from '../math/matrix.js';
 import { mulberry32 } from '../math/rng.js';
 
+// Pool-adjacent-violators isotonic regression: best monotone non-decreasing
+// least-squares fit to y (used to turn distances into MDS disparities).
+function pava(y) {
+  const blocks = [];
+  for (const v of y) {
+    let b = { sum: v, w: 1, val: v };
+    while (blocks.length && blocks[blocks.length - 1].val >= b.val) {
+      const last = blocks.pop();
+      b = { sum: b.sum + last.sum, w: b.w + last.w, val: (b.sum + last.sum) / (b.w + last.w) };
+    }
+    blocks.push(b);
+  }
+  const out = [];
+  for (const b of blocks) for (let k = 0; k < b.w; k++) out.push(b.val);
+  return out;
+}
+
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Classical MDS (Torgerson) ─────────────────────────────────────
@@ -27,15 +44,18 @@ export function classicalMDS(data, vars, { nDimensions = 2 } = {}) {
     -0.5 * (D2[i][j] - rowMeans[i] - rowMeans[j] + grandMean)
   ));
 
-  // Eigendecomposition
+  // Eigendecomposition: pair eigenvalues with their eigenvectors and sort
+  // descending. The embedding coordinate is eᵢⱼ = vⱼ(i)·√λⱼ; dimensions beyond
+  // the number of positive eigenvalues (degenerate/low-rank data) are zero.
   const eigs = jacobiEigen(B);
-  const evals = eigs.eigenvalues.filter(e => e > 1e-8).sort((a, b) => b - a);
-  const evecs = eigs.eigenvectors.slice(0, Math.min(nDimensions, evals.length));
+  const pairs = eigs.eigenvalues.map((e, idx) => ({ e, vec: eigs.eigenvectors[idx] })).sort((a, b) => b.e - a.e);
+  const usedDims = Math.min(nDimensions, pairs.filter(p => p.e > 1e-8).length);
 
   const points = Array.from({ length: n }, (_, i) =>
-    Array.from({ length: Math.min(nDimensions, evals.length) }, (_, d) => {
-      const vec = evecs[d] || [];
-      return +(vec[i] || 0) * Math.sqrt(Math.max(evals[d] || 0, 0)).toFixed(4);
+    Array.from({ length: nDimensions }, (_, d) => {
+      const pr = pairs[d];
+      if (!pr || pr.e <= 1e-8) return 0;
+      return +(pr.vec[i] * Math.sqrt(pr.e)).toFixed(4);
     })
   );
 
@@ -52,8 +72,8 @@ export function classicalMDS(data, vars, { nDimensions = 2 } = {}) {
   stress = stress / Math.max(dTotal, 1e-10);
 
   return {
-    test: 'Classical MDS', points, nDimensions: Math.min(nDimensions, evals.length), stress: +stress.toFixed(4), n,
-    apa: `Classical MDS: ${Math.min(nDimensions, evals.length)}D, stress = ${stress.toFixed(3)}, n = ${n}`,
+    test: 'Classical MDS', points, nDimensions: usedDims, stress: +stress.toFixed(4), n,
+    apa: `Classical MDS: ${usedDims}D, stress = ${stress.toFixed(3)}, n = ${n}`,
   };
 }
 
@@ -111,59 +131,62 @@ export function sammonMapping(data, vars, { seed = 42, nDimensions = 2, maxIter 
 }
 
 // ── Non-Metric MDS (Shepard-Kruskal) ──────────────────────────────
-export function nonMetricMDS(data, vars, { seed = 42, nDimensions = 2, maxIter = 50 } = {}) {
+export function nonMetricMDS(data, vars, { seed = 42, nDimensions = 2, maxIter = 100, dissimilarities = null } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 6 || !vars || vars.length < 2) return null;
   const n = data.length, m = vars.length;
-  const X = data.map(r => vars.map(v => +r[v]));
-  if (X.some(r => r.some(v => !Number.isFinite(v)))) return null;
+  // Dissimilarity matrix: a supplied matrix, else Euclidean distances of the vars.
+  let D;
+  if (dissimilarities) {
+    D = dissimilarities;
+  } else {
+    const X = data.map(r => vars.map(v => +r[v]));
+    if (X.some(r => r.some(v => !Number.isFinite(v)))) return null;
+    D = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => {
+      if (i === j) return 0;
+      let s = 0; for (let k = 0; k < m; k++) s += (X[i][k] - X[j][k]) ** 2;
+      return Math.sqrt(Math.max(s, 1e-10));
+    }));
+  }
 
-  const D = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => {
-    if (i === j) return 0;
-    let s = 0;
-    for (let k = 0; k < m; k++) s += (X[i][k] - X[j][k]) ** 2;
-    return Math.sqrt(Math.max(s, 1e-10));
+  // Classical-MDS initial configuration from D (double-centre D², eigendecompose).
+  const D2 = D.map(r => r.map(v => v * v));
+  const rm = D2.map(r => avg(r)); const gm = avg(rm);
+  const Binit = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => -0.5 * (D2[i][j] - rm[i] - rm[j] + gm)));
+  const eig = jacobiEigen(Binit);
+  const epairs = eig.eigenvalues.map((e, idx) => ({ e, vec: eig.eigenvectors[idx] })).sort((a, b) => b.e - a.e);
+  let points = Array.from({ length: n }, (_, i) => Array.from({ length: nDimensions }, (_, d) => {
+    const pr = epairs[d]; return pr && pr.e > 1e-8 ? pr.vec[i] * Math.sqrt(pr.e) : (__rng() - 0.5);
   }));
 
-  const init = classicalMDS(data, vars, { nDimensions });
-  let points = init ? init.points : Array.from({ length: n }, () => Array(nDimensions).fill(0).map(() => (__rng() - 0.5)));
+  // Ordered off-diagonal pairs (ascending dissimilarity) for the isotonic step.
+  const pairsList = [];
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) pairsList.push({ i, j });
+  pairsList.sort((a, b) => D[a.i][a.j] - D[b.i][b.j]);
 
   let stress = 1;
+  const dist = (i, j) => { let s = 0; for (let d = 0; d < nDimensions; d++) s += (points[i][d] - points[j][d]) ** 2; return Math.sqrt(Math.max(s, 1e-12)); };
   for (let iter = 0; iter < maxIter; iter++) {
-    const dHat = [];
-    for (let i = 0; i < n; i++) {
-      dHat[i] = [];
-      for (let j = 0; j < n; j++) {
-        let s = 0;
-        for (let d = 0; d < nDimensions; d++) s += (points[i][d] - points[j][d]) ** 2;
-        dHat[i][j] = Math.sqrt(Math.max(s, 1e-10));
-      }
+    const dHat = pairsList.map(p => dist(p.i, p.j));
+    // Disparities: PAVA of the current distances in dissimilarity order (Kruskal's
+    // monotone regression), giving the best monotone-increasing targets.
+    const dstar = pava(dHat);
+    let num = 0, den = 0;
+    for (let k = 0; k < pairsList.length; k++) { num += (dHat[k] - dstar[k]) ** 2; den += dHat[k] ** 2; }
+    stress = Math.sqrt(den > 0 ? num / den : 0); // Kruskal stress-1
+    if (stress < 1e-6) break;
+    // SMACOF Guttman transform toward the disparities.
+    const B = Array.from({ length: n }, () => Array(n).fill(0));
+    for (let k = 0; k < pairsList.length; k++) {
+      const { i, j } = pairsList[k];
+      const b = dHat[k] > 1e-10 ? -dstar[k] / dHat[k] : 0;
+      B[i][j] = b; B[j][i] = b;
     }
-
-    // Isotonic regression (pool-adjacent-violators) for stress
-    let newStress = 0, dTotal = 0;
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        newStress += (D[i][j] - dHat[i][j]) ** 2;
-        dTotal += D[i][j] ** 2;
-      }
-    }
-    stress = dTotal > 0 ? newStress / dTotal : 0;
-
-    // Simple gradient descent
-    const lr = 0.1 / (1 + 0.01 * iter);
-    for (let i = 0; i < n; i++) {
-      for (let d = 0; d < nDimensions; d++) {
-        let g = 0;
-        for (let j = 0; j < n; j++) {
-          if (i === j) continue;
-          const term = (dHat[i][j] - D[i][j]) / Math.max(dHat[i][j], 1e-10);
-          g += term * (points[i][d] - points[j][d]);
-        }
-        points[i][d] -= lr * g;
-      }
-    }
-    if (stress < 1e-4) break;
+    for (let i = 0; i < n; i++) { let s = 0; for (let j = 0; j < n; j++) if (j !== i) s += B[i][j]; B[i][i] = -s; }
+    points = Array.from({ length: n }, (_, i) => Array.from({ length: nDimensions }, (_, d) => {
+      let acc = 0; for (let j = 0; j < n; j++) acc += B[i][j] * points[j][d];
+      return acc / n;
+    }));
   }
 
   return {
@@ -208,8 +231,20 @@ export function landmarkMDS(D, { seed = 42, nLandmarks = 10, nDim = 2 } = {}) {
   const n = D.length;
   const L = Math.min(nLandmarks, n);
   const landmarks = [...Array(n).keys()].sort(() => __rng() - 0.5).slice(0, L);
-  const dLand = landmarks.map(li => landmarks.map(lj => D[li][lj]));
-  const G = dLand.map((row, i) => row.map((v, j) => -0.5 * (v * v - dLand[i][0] * dLand[i][0] / L - dLand[0][j] * dLand[0][j] / L + dLand[0][0] * dLand[0][0] / (L * L))));
-  const points = Array.from({length: n}, (_, i) => Array.from({length: nDim}, (_, k) => +(landmarks.indexOf(i) >= 0 ? 0.5 - k * 0.1 : 0).toFixed(4)));
-  return { test: 'Landmark MDS', points: points.slice(0, 15), nLandmarks: L, n, apa: `Landmark MDS: ${L} landmarks, n=${n}` };
+  // Classical MDS on the landmark squared-distance submatrix Δ (de Silva & Tenenbaum).
+  const Delta = landmarks.map(li => landmarks.map(lj => D[li][lj] ** 2));
+  const rowMean = Delta.map(r => avg(r));
+  const grand = avg(rowMean);
+  const Bl = Delta.map((row, i) => row.map((v, j) => -0.5 * (v - rowMean[i] - rowMean[j] + grand)));
+  const { eigenvalues, eigenvectors } = jacobiEigen(Bl);
+  const dims = eigenvalues.map((e, idx) => ({ e, vec: eigenvectors[idx] })).sort((a, b) => b.e - a.e)
+    .slice(0, nDim).filter(p => p.e > 1e-8);
+  // Distance-based triangulation: place every point a (landmark or not) by
+  //   x_a[k] = −½ · (1/√λ_k) · Σ_i v_k[i] (‖a−Lᵢ‖² − δ̄ᵢ),  δ̄ᵢ = mean_j Δ[i][j].
+  const points = Array.from({ length: n }, (_, a) => dims.map(pr => {
+    let acc = 0;
+    for (let i = 0; i < L; i++) { const da = D[a][landmarks[i]] ** 2; acc += (pr.vec[i] / Math.sqrt(pr.e)) * (da - rowMean[i]); }
+    return +(-0.5 * acc).toFixed(4);
+  }));
+  return { test: 'Landmark MDS', points: points.slice(0, 15), nLandmarks: L, nDim: dims.length, n, apa: `Landmark MDS: ${L} landmarks, n=${n}` };
 }

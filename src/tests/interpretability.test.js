@@ -46,3 +46,44 @@ describe('globalSurrogate', () => {
   it('null <5', () => expect(globalSurrogate([[1]], [2])).toBeNull());
   it('r2 between 0-1', () => { const r = globalSurrogate(X, y); if (r) { expect(r.r2).toBeGreaterThanOrEqual(0); expect(r.r2).toBeLessThanOrEqual(1) } });
 });
+
+// ── Correctness tests: real linear-surrogate explanations ──────────
+const Xind = Array.from({ length: 25 }, (_, i) => [i, (i * 7) % 5, (i * 3) % 4]);
+const ylin = Xind.map(r => 2 * r[0] + 3 * r[1] - 1.5 * r[2] + 5);
+
+describe('globalSurrogate fits a real linear surrogate', () => {
+  it('achieves near-perfect R2 and recovers coefficients on linear data', () => {
+    const r = globalSurrogate(Xind, ylin);
+    expect(r.r2).toBeGreaterThan(0.99);
+    expect(r.coefficients[0]).toBeCloseTo(2, 1);
+    expect(r.coefficients[1]).toBeCloseTo(3, 1);
+  });
+});
+
+describe('partialDependence reflects the real model effect', () => {
+  it('PDP slope on feature 0 matches its coefficient (~2)', () => {
+    const r = partialDependence(Xind, ylin, 0);
+    const k = r.grid.length;
+    const slope = (r.pdp[k - 1] - r.pdp[0]) / (r.grid[k - 1] - r.grid[0]);
+    expect(slope).toBeCloseTo(2, 1);
+  });
+});
+
+describe('shapValues are real Shapley values of the linear surrogate', () => {
+  it('mean |SHAP| per feature matches |beta_j|*E|x_j - x_bar_j|', () => {
+    const r = shapValues(Xind, ylin, { seed: 7, nSamples: 400 });
+    const beta = [2, 3, -1.5];
+    const colMean = j => Xind.reduce((s, row) => s + row[j], 0) / Xind.length;
+    const expected = beta.map((b, j) => Math.abs(b) * Xind.reduce((s, row) => s + Math.abs(row[j] - colMean(j)), 0) / Xind.length);
+    for (let j = 0; j < 3; j++) expect(Math.abs(r.shap[j] - expected[j])).toBeLessThan(0.15 * expected[j] + 0.05);
+  });
+});
+
+describe('limeImportance fits a real local linear surrogate', () => {
+  it('recovers the linear model coefficients around the query point', () => {
+    const r = limeImportance(Xind, ylin, Xind[10], { seed: 11, nSamples: 120 });
+    expect(r.coefficients[0]).toBeCloseTo(2, 1);
+    expect(r.coefficients[1]).toBeCloseTo(3, 1);
+    expect(r.coefficients[2]).toBeCloseTo(-1.5, 1);
+  });
+});

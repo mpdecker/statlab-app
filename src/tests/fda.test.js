@@ -49,3 +49,34 @@ describe('functionalRegression', () => {
   it('beta finite', () => { const r = functionalRegression(d, 'y', 'x', 'time', 'id'); if (r) expect(Number.isFinite(r.beta)).toBe(true); });
   it('nSubjects positive', () => { const r = functionalRegression(d, 'y', 'x', 'time', 'id'); if (r) expect(r.nSubjects).toBeGreaterThan(0); });
 });
+
+describe('fpca projects onto eigenfunctions (real FPC scores)', () => {
+  it('variance of FPC score k equals eigenvalue k', () => {
+    const tp = Array.from({ length: 10 }, (_, t) => t);
+    const X = Array.from({ length: 18 }, (_, i) =>
+      tp.map(t => Math.sin(0.4 * t) * ((i % 6) - 2.5) + Math.cos(0.2 * t) * (((i * 3) % 5) - 2)));
+    const r = fpca(X, tp);
+    const col0 = r.fpcScores.map(s => s[0]);
+    const mean0 = col0.reduce((a, b) => a + b, 0) / col0.length;
+    const var0 = col0.reduce((a, b) => a + (b - mean0) ** 2, 0) / col0.length;
+    expect(var0).toBeCloseTo(r.eigenvalues[0], 2);
+  });
+});
+
+describe('functionalRegression fits a real functional linear model', () => {
+  it('recovers the coefficient function beta(t)', () => {
+    const trueBeta = [2, -1, 0.5];
+    const d = [];
+    let s = 555;
+    const rnd = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return (s / 2 ** 32) * 2 - 1; };
+    for (let id = 0; id < 40; id++) {
+      const xs = [rnd(), rnd(), rnd()];
+      const y = trueBeta[0] * xs[0] + trueBeta[1] * xs[1] + trueBeta[2] * xs[2];
+      for (let t = 0; t < 3; t++) d.push({ id, time: t, x: xs[t], y });
+    }
+    const r = functionalRegression(d, 'y', 'x', 'time', 'id', { ridge: 0 });
+    expect(r.betaCurve[0]).toBeCloseTo(2, 1);
+    expect(r.betaCurve[1]).toBeCloseTo(-1, 1);
+    expect(r.betaCurve[2]).toBeCloseTo(0.5, 1);
+  });
+});
