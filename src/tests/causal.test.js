@@ -725,3 +725,14 @@ describe('sensitivityBounds', () => {
     if (r) expect(Number.isFinite(r.bias)).toBe(true);
   });
 });
+
+describe('doubleML uses X in the nuisance models (cross-fitted PLR)', () => {
+  it('recovers the treatment effect under X-confounding', () => {
+    let s = 41; const N = () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+    const y = [], D = [], X = [];
+    const theta = 1.5;
+    for (let i = 0; i < 300; i++) { const x = N(); const d = 0.8 * x + N(); const yi = theta * d + 2 * x + N(); X.push([x]); D.push(d); y.push(yi); }
+    const r = doubleML(y, D, X, { splits: 2, seed: 1 });
+    expect(Math.abs(r.ate - 1.5)).toBeLessThan(0.4); // mean-only nuisance (ignoring X) is badly biased
+  });
+});

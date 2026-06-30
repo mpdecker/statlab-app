@@ -60,3 +60,11 @@ describe('sequential edge cases', () => {
   it('lanDemets null <5', () => expect(lanDemets(data.slice(0, 3), 3)).toBeNull());
   it('conditionalPower null for invalid', () => expect(conditionalPower(data, 30, 20, 0.5)).toBeNull());
 });
+
+describe('pocockBoundaries computes the constant per K and alpha', () => {
+  it('matches the known Pocock constants per K', () => {
+    expect(pocockBoundaries(2, 0.05).boundaries[0].boundary).toBeCloseTo(2.178, 1); // K=2
+    expect(pocockBoundaries(5, 0.05).boundaries[0].boundary).toBeGreaterThan(2.3);  // ~2.41, not the hardcoded 2.17
+    expect(pocockBoundaries(5, 0.05).boundaries[0].boundary).toBeLessThan(2.5);
+  });
+});

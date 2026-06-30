@@ -42,9 +42,24 @@ export function simulationConvergence(runs, { window = 10, tolerance = 0.01 } = 
 export function sobolSensitivity(inputs, output, { nBootstrap = 100 } = {}) {
   if (!inputs || !inputs.length || !output || inputs[0].length !== output.length) return null;
   const p = inputs.length, n = output.length;
+  const ybar = avg(output);
+  const varY = output.reduce((s, v) => s + (v - ybar) ** 2, 0) / n || 1e-12;
+  const nBins = Math.max(4, Math.min(20, Math.round(Math.sqrt(n))));
+  // First-order Sobol index S_i = Var(E[Y|X_i]) / Var(Y), estimated by binning
+  // each factor and taking the variance of the per-bin Y means (captures
+  // nonlinear effects that a plain correlation misses).
   const indices = inputs.map((x, i) => {
-    const r = corr([...x], [...output]);
-    return { factor: i + 1, r: +r.toFixed(4), sensitivity: +(r * r).toFixed(4) };
+    const ord = [...Array(n).keys()].sort((a, b) => x[a] - x[b]);
+    let between = 0;
+    for (let b = 0; b < nBins; b++) {
+      const lo = Math.floor(b * n / nBins), hi = Math.floor((b + 1) * n / nBins);
+      if (hi <= lo) continue;
+      let s = 0; for (let t = lo; t < hi; t++) s += output[ord[t]];
+      const bm = s / (hi - lo);
+      between += (hi - lo) / n * (bm - ybar) ** 2;
+    }
+    const S = Math.max(0, Math.min(1, between / varY));
+    return { factor: i + 1, r: +corr([...x], [...output]).toFixed(4), sensitivity: +S.toFixed(4) };
   });
   return { test: 'Sobol Sensitivity', indices, nFactors: p, n, apa: `Sobol: ${p} factors, n = ${n}` };
 }

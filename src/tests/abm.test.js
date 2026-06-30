@@ -60,3 +60,14 @@ describe('segregationIndex', () => {
   it('null <5', () => expect(segregationIndex(d.slice(0,3), 'group', 'location')).toBeNull());
   it('D between 0-1', () => { const r = segregationIndex(d, 'group', 'location'); if (r) { expect(r.D).toBeGreaterThanOrEqual(0); expect(r.D).toBeLessThanOrEqual(1); } });
 });
+
+describe('sobolSensitivity estimates variance-based indices (not corr^2)', () => {
+  it('captures a nonlinear effect that correlation misses', () => {
+    let s = 5; const u = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return (s / 2 ** 32) * 2 - 1; };
+    const x0 = [], x1 = [], y = [];
+    for (let i = 0; i < 300; i++) { const a = u(), b = u(); x0.push(a); x1.push(b); y.push(a * a); } // y = x0^2 (corr(x0,y)~0)
+    const r = sobolSensitivity([x0, x1], y);
+    expect(r.indices[0].sensitivity).toBeGreaterThan(0.5); // S_0 high
+    expect(r.indices[1].sensitivity).toBeLessThan(0.2);    // S_1 ~ 0
+  });
+});

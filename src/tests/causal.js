@@ -356,8 +356,21 @@ export function doubleML(y, D, Xraw, { splits = 2, seed = 42 } = {}) {
     const dTrain = train.map(i => D[i]), dTest = test.map(i => D[i]);
     const xTrain = train.map(i => X[i]), xTest = test.map(i => X[i]);
 
-    const yHat = test.map(() => avg(yTrain));
-    const dHat = test.map(() => avg(dTrain));
+    // Cross-fitted nuisance models ℓ̂(X)=E[Y|X] and m̂(X)=E[D|X], fit on the
+    // training fold by OLS (the old code used the training MEAN, ignoring X, so
+    // it never removed X-confounding). Predict on the held-out test fold.
+    const olsFit = (rows, target) => {
+      const Z = rows.map(r => [1, ...r]);
+      const kz = Z[0].length;
+      const ZtZ = Array.from({ length: kz }, (_, a) => Array.from({ length: kz }, (_, b) => Z.reduce((s, row) => s + row[a] * row[b], 0)));
+      const ZtY = Array.from({ length: kz }, (_, a) => Z.reduce((s, row, t) => s + row[a] * target[t], 0));
+      const inv = matInv(ZtZ);
+      const beta = inv ? inv.map(row => row.reduce((s, v, j) => s + v * ZtY[j], 0)) : Array(kz).fill(0);
+      return row => beta[0] + row.reduce((s, v, j) => s + v * beta[1 + j], 0);
+    };
+    const yModel = olsFit(xTrain, yTrain), dModel = olsFit(xTrain, dTrain);
+    const yHat = xTest.map(yModel);
+    const dHat = xTest.map(dModel);
     let num = 0, den = 0;
     for (let i = 0; i < test.length; i++) {
       const residY = yTest[i] - yHat[i];

@@ -106,10 +106,10 @@ implementations can be fixed. Status legend:
 
 | 75 | `landmarkMDS` | mds.js:213 | ✅ FIXED | points hardcoded `0.5−k*0.1`; Gram matrix computed but unused | real landmark MDS embedding |
 | 76 | `annealedImportance` | smc.js:116 | BROKEN | x never moves between temps; weight algebra degenerate | AIS with MCMC transitions |
-| 77 | `sobolSensitivity` | abm.js:42 | MISLABELED | returns corr², not Sobol variance indices | Saltelli variance decomposition |
+| 77 | `sobolSensitivity` | abm.js:42 | ✅ FIXED | returns corr², not Sobol variance indices | Saltelli variance decomposition |
 | 78 | `particleMCMC` | smc.js:104 | MISLABELED | plain IS, no MH moves; nIter unused | PMMH sampler |
 | 79 | `nonMetricMDS` | mds.js:114 | ✅ FIXED | no isotonic regression (comment only) → metric, not non-metric | PAVA on disparities |
-| 80 | `doubleML` | causal.js:343 | APPROX/MISLABELED | nuisance `yHat/dHat` = training means; **X never used** → not debiased ML | cross-fitted ML nuisance models |
+| 80 | `doubleML` | causal.js:343 | ✅ FIXED | nuisance `yHat/dHat` = training means; **X never used** → not debiased ML | cross-fitted ML nuisance models |
 | 81 | `ordinalSEM` | sem.js:593 | STUB | returns `loadings:[]`, `fit:{chisq:NaN,rmsea:NaN,cfi:NaN}` — never fits | WLSMV ordinal SEM |
 | 82 | `measurementInvariance` | sem.js:339 | APPROX/MISLABELED | pass/fail from ad-hoc thresholds, not nested χ² model comparison | fit constrained configural/metric/scalar models |
 | 83 | `transitionModel` | multilevel.js:1035 | ✅ FIXED | regresses y on `(yLag+Σx)` as a single predictor; `se=1/√n` | proper transition/Markov regression |
@@ -129,7 +129,7 @@ implementations can be fixed. Status legend:
 | 97 | `qLearning`/`sarsa` | bandit.js:226/250 | ✅ FIXED | `transitions` arg ignored; nextState random | use supplied transition model |
 | 98 | `hestonModel` | stochastic.js:181 | FABRICATED | kappa/theta/xi/rho passed in, never calibrated; returns inputs | calibrate to returns |
 | 99 | `regimeSwitching` | stochastic.js:144 | INCOMPLETE | μ/σ/trans fixed at heuristic init; only state probs filtered | full Baum-Welch EM |
-| 100 | `pocockBoundaries` | sequential.js:36 | APPROX | hardcoded 2.17 for all stages/α | compute Pocock constant per stages/α |
+| 100 | `pocockBoundaries` | sequential.js:36 | ✅ FIXED | hardcoded 2.17 for all stages/α | compute Pocock constant per stages/α |
 | 101 | `tmddModel` | pk.js:319 | FABRICATED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
 | 102 | `indirectResponse` | pk.js:247 | STUB | returns only `{n}`; computes nothing | indirect-response model fit |
 | 103 | `gpEmulator` | experimental.js:741 | ✅ FIXED | weights = row-normalized K, not K⁻¹y | solve GP linear system via matInv |
