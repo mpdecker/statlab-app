@@ -57,7 +57,7 @@ implementations can be fixed. Status legend:
 | 32 | `hillClimbing` | pgm.js:109 | ✅ FIXED | score monotone in edge count → never adds edges; data unused | real local score deltas |
 | 33 | `scoringBDeu` | pgm.js:141 | ✅ FIXED | `-(E+k)log n·0.5-n·0.1`; data unused | BDeu marginal likelihood |
 | 34 | `dseparation` | pgm.js:58 | ✅ FIXED | `zPaths≥allPaths` heuristic; not d-sep (cf. `dSeparationQuery` which is real) | use moralization (dSeparationQuery) |
-| 35 | `lingam` | causalDiscovery.js:116 | BROKEN | marginal regressions + random order; no ICA/non-Gaussianity/acyclicity | ICA-LiNGAM |
+| 35 | `lingam` | causalDiscovery.js:116 | ✅ FIXED | marginal regressions + random order; no ICA/non-Gaussianity/acyclicity | ICA-LiNGAM |
 | 36 | `fciAlgorithm` | causalDiscovery.js:139 | MISLABELED | returns PC skeleton; no FCI orientation/latents | FCI orientation rules |
 | 37 | `partialCorrTest`/`residuals` | causalDiscovery.js:17 | ✅ FIXED (PR #2) | regression uses only diag(XᵀX) → wrong when Z correlated | full normal-equations solve |
 | 38 | `histogramPCA` | symbolic.js:75 | ✅ FIXED | eigenvalues hardcoded `2-i*0.5`; cov ignored | eigen-decompose computed cov |

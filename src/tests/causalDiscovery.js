@@ -114,26 +114,59 @@ export function pcAlgorithm(data, vars, { alpha = 0.05 } = {}) {
 }
 
 // ── LiNGAM ────────────────────────────────────────────────────────
-export function lingam(data, vars, { seed = 42, maxIter = 20 } = {}) {
-  __rng = mulberry32(seed);
+export function lingam(data, vars, { seed = 42, threshold = 0.15 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 3) return null;
-  const n = data.length, k = vars.length;
+  const k = vars.length;
+  // DirectLiNGAM (Shimizu et al. 2011): find the causal order by repeatedly
+  // selecting the most exogenous variable — the one least dependent on the
+  // residuals of the others regressed on it — then deflate. Dependence is the
+  // (model-free) distance correlation, so the procedure exploits non-Gaussianity.
   const X = data.map(r => vars.map(v => +r[v]));
-  const B = Array.from({length: k}, () => Array(k).fill(0));
-  for (let iter = 0; iter < maxIter; iter++) {
-    const order = [...Array(k).keys()].sort(() => __rng() - 0.5);
-    for (const i of order) {
-      for (let j = 0; j < k; j++) {
-        if (j === i) continue;
-        let num = 0, den = 0;
-        for (let t = 0; t < n; t++) { num += X[t][j] * X[t][i]; den += X[t][j] * X[t][j]; }
-        B[i][j] = den > 0 ? num / den : 0;
-      }
+  const col = j => X.map(r => r[j]);
+  const sub = X.length > 250 ? X.filter((_, i) => i % Math.ceil(X.length / 250) === 0) : X; // cap dCor cost
+  const stdz = c => { const m = avg(c); const sd = Math.sqrt(avg(c.map(v => (v - m) ** 2))) || 1; return c.map(v => (v - m) / sd); };
+  const residOf = (y, x) => { const cov = y.reduce((a, v, t) => a + v * x[t], 0), vx = x.reduce((a, v) => a + v * v, 0); const b = vx > 0 ? cov / vx : 0; return y.map((v, t) => v - b * x[t]); };
+  const dcov2 = (x, y) => {
+    const m = x.length;
+    const A = x.map(xi => x.map(xj => Math.abs(xi - xj)));
+    const B = y.map(yi => y.map(yj => Math.abs(yi - yj)));
+    const dbl = M => { const rm = M.map(r => avg(r)); const gm = avg(rm); return M.map((r, i) => r.map((v, j) => v - rm[i] - rm[j] + gm)); };
+    const Ac = dbl(A), Bc = dbl(B); let s = 0; for (let i = 0; i < m; i++) for (let j = 0; j < m; j++) s += Ac[i][j] * Bc[i][j]; return s / (m * m);
+  };
+  const dcor = (x, y) => { const vx = dcov2(x, x), vy = dcov2(y, y), c = dcov2(x, y); return vx * vy > 0 ? Math.sqrt(Math.abs(c) / Math.sqrt(vx * vy)) : 0; };
+
+  // Causal order via DirectLiNGAM on a (subsampled) standardized working copy.
+  let work = vars.map((_, j) => stdz(sub.map(r => r[j])));
+  let active = vars.map((_, j) => j);
+  const order = [];
+  while (active.length > 1) {
+    let best = active[0], bestScore = Infinity;
+    for (const mm of active) {
+      let T = 0;
+      for (const j of active) { if (j === mm) continue; T += dcor(work[mm], residOf(work[j], work[mm])); }
+      if (T < bestScore) { bestScore = T; best = mm; }
     }
+    order.push(best);
+    work = work.map((c, i) => (active.includes(i) && i !== best ? stdz(residOf(c, work[best])) : c));
+    active = active.filter(i => i !== best);
   }
+  order.push(active[0]);
+
+  // Structural coefficients: regress each variable on its predecessors in the
+  // causal order (its potential parents) by OLS; keep edges above threshold.
   const edges = [];
-  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) if (Math.abs(B[i][j]) > 0.1) edges.push({ from: j, to: i, b: +B[i][j].toFixed(4) });
-  return { test: 'LiNGAM', edges, nEdges: edges.length, nVars: k, n, apa: `LiNGAM: ${edges.length} edges, ${k} vars` };
+  for (let oi = 1; oi < k; oi++) {
+    const child = order[oi];
+    const parents = order.slice(0, oi);
+    const Z = X.map(r => [1, ...parents.map(p => r[p])]);
+    const y = col(child);
+    const kz = parents.length + 1;
+    const ZtZ = Array.from({ length: kz }, (_, a) => Array.from({ length: kz }, (_, b) => Z.reduce((s, r) => s + r[a] * r[b], 0)));
+    const ZtY = Array.from({ length: kz }, (_, a) => Z.reduce((s, r, i) => s + r[a] * y[i], 0));
+    const beta = solveNormalEquations(ZtZ, ZtY);
+    parents.forEach((p, idx) => { if (Math.abs(beta[1 + idx]) > threshold) edges.push({ from: p, to: child, b: +beta[1 + idx].toFixed(4) }); });
+  }
+  return { test: 'LiNGAM', edges, nEdges: edges.length, causalOrder: order, nVars: k, n: data.length, apa: `LiNGAM (DirectLiNGAM): ${edges.length} edges, ${k} vars` };
 }
 
 // ── FCI Algorithm ─────────────────────────────────────────────────

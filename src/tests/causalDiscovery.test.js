@@ -53,3 +53,23 @@ describe('causalDiscovery edge cases', () => {
   it('dagAdjacency null for invalid', () => expect(dagAdjacency(null, null)).toBeNull());
   it('pcAlgorithm null for small', () => expect(pcAlgorithm(d.slice(0, 5), ['x1', 'x2', 'x3'])).toBeNull());
 });
+
+describe('lingam recovers the causal order (DirectLiNGAM)', () => {
+  it('finds the chain x1 -> x2 -> x3 from non-Gaussian data', () => {
+    let s = 91; const u = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+    const noise = () => -Math.log(u()) - 1; // exponential (non-Gaussian), mean 0
+    const data = [];
+    for (let i = 0; i < 400; i++) {
+      const x1 = noise() * 2;
+      const x2 = 0.8 * x1 + noise();
+      const x3 = 0.6 * x2 + noise();
+      data.push({ x1, x2, x3 });
+    }
+    const r = lingam(data, ['x1', 'x2', 'x3']);
+    const has = (f, t) => r.edges.some(e => e.from === f && e.to === t);
+    expect(has(0, 1)).toBe(true);  // x1 -> x2
+    expect(has(1, 2)).toBe(true);  // x2 -> x3
+    expect(has(1, 0)).toBe(false); // not reversed
+    expect(has(2, 1)).toBe(false);
+  });
+});
