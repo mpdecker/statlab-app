@@ -44,3 +44,11 @@ describe('gowerDistance', () => {
   it('null <2', () => expect(gowerDistance([1], [2])).toBeNull());
   it('distance between 0-1', () => { const r = gowerDistance([1,2,3], [4,5,6]); if (r && Number.isFinite(r.distance)) expect(r.distance).toBeGreaterThanOrEqual(0); });
 });
+
+describe('distanceMatrix computes real Euclidean distances', () => {
+  it('uses (a-b)^2 not a - b^2', () => {
+    const x = [[1, 1], [4, 5], [1, 1], [1, 1], [1, 1]];
+    const D = distanceMatrix(x);
+    expect(D[0][1]).toBeCloseTo(5, 6); // sqrt(3^2 + 4^2)
+  });
+});

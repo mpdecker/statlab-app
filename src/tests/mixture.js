@@ -8,52 +8,55 @@ export function mixtureOfRegressions(x, y, nComponents = 2, { maxIter = 50, seed
   __rng = mulberry32(seed);
   if (!x || !y || x.length < 15 || x.length !== y.length || nComponents < 2) return null;
   const n = x.length, K = nComponents;
-  // Initialize: randomly assign to components
-  let labels = Array.from({ length: n }, () => Math.floor(__rng() * K));
+  const tol = 1e-7;
+  // Initialise responsibilities from a random hard partition (one-hot rows).
+  let gamma = Array.from({ length: n }, () => {
+    const k = Math.floor(__rng() * K);
+    return Array.from({ length: K }, (_, j) => (j === k ? 1 : 0));
+  });
   let pis = Array(K).fill(1 / K);
   let coeffs = Array.from({ length: K }, () => ({ slope: 0, intercept: 0, sigma: 1 }));
-  let logLik = -Infinity;
+  let prevLL = -Infinity;
 
   for (let iter = 0; iter < maxIter; iter++) {
-    // M-step: fit regression per component
+    // M-step: weighted least squares per component (weights = responsibilities γ_ik).
     for (let k = 0; k < K; k++) {
-      const idx = [];
-      labels.forEach((l, i) => { if (l === k) idx.push(i); });
-      if (idx.length < 3) continue;
-      let sx = 0, sy = 0, sxx = 0, sxy = 0;
-      for (const i of idx) { sx += x[i]; sy += y[i]; sxx += x[i] * x[i]; sxy += x[i] * y[i]; }
-      const m = idx.length;
-      const denom = m * sxx - sx * sx;
-      const slope = denom ? (m * sxy - sx * sy) / denom : 0;
-      const interc = denom ? (sxx * sy - sx * sxy) / denom : 0;
-      const resid = idx.map(i => y[i] - interc - slope * x[i]);
-      const sigma = Math.sqrt(resid.reduce((s, r) => s + r * r, 0) / (m - 1)) || 1;
+      let sw = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+      for (let i = 0; i < n; i++) {
+        const w = gamma[i][k];
+        sw += w; sx += w * x[i]; sy += w * y[i]; sxx += w * x[i] * x[i]; sxy += w * x[i] * y[i];
+      }
+      if (sw < 1e-8) continue;
+      const denom = sw * sxx - sx * sx;
+      const slope = Math.abs(denom) > 1e-12 ? (sw * sxy - sx * sy) / denom : 0;
+      const interc = (sy - slope * sx) / sw;
+      let ss = 0;
+      for (let i = 0; i < n; i++) { const r = y[i] - interc - slope * x[i]; ss += gamma[i][k] * r * r; }
+      const sigma = Math.max(Math.sqrt(ss / sw) || 0, 1e-3);
       coeffs[k] = { slope, intercept: interc, sigma };
-      pis[k] = m / n;
+      pis[k] = sw / n;
     }
-    // E-step: reassign labels
-    labels = x.map((xi, i) => {
-      const probs = Array.from({ length: K }, (_, k) => {
-        const c = coeffs[k];
-        const resid = y[i] - c.intercept - c.slope * xi;
-        const ll = -0.5 * Math.log(2 * Math.PI * c.sigma * c.sigma) - 0.5 * (resid * resid) / (c.sigma * c.sigma);
-        return Math.exp(ll) * pis[k];
+    // E-step: responsibilities γ_ik ∝ π_k·N(y_i; a_k+b_k x_i, σ_k²); accumulate log-lik.
+    let ll = 0;
+    gamma = x.map((xi, i) => {
+      const probs = coeffs.map((c, k) => {
+        const r = y[i] - c.intercept - c.slope * xi;
+        const dens = Math.exp(-0.5 * (r * r) / (c.sigma * c.sigma)) / (Math.sqrt(2 * Math.PI) * c.sigma);
+        return pis[k] * dens;
       });
-      const s = probs.reduce((a, v) => a + v, 1e-10);
-      return probs.map(p => p / s);
+      const s = probs.reduce((a, v) => a + v, 0);
+      ll += Math.log(s + 1e-300);
+      return s > 0 ? probs.map(p => p / s) : probs.map(() => 1 / K);
     });
-    // Converge when labels stabilize
-    const hardLabels = labels.map(lp => lp.indexOf(Math.max(...lp)));
-    let changed = 0;
-    for (let i = 0; i < n; i++) if (hardLabels[i] !== Math.floor(__rng() * 2)) changed++;
-    if (iter > 5) break;
+    if (Math.abs(ll - prevLL) < tol) { prevLL = ll; break; }
+    prevLL = ll;
   }
 
   const components = coeffs.map((c, k) => ({
     component: k + 1, pi: +pis[k].toFixed(4), intercept: +c.intercept.toFixed(4), slope: +c.slope.toFixed(4), sigma: +c.sigma.toFixed(4),
   }));
 
-  return { test: 'Mixture of Regressions', components, nComponents: K, n, apa: `MoR: ${K} components, n = ${n}` };
+  return { test: 'Mixture of Regressions', components, nComponents: K, n, logLik: +prevLL.toFixed(4), apa: `MoR: ${K} components, n = ${n}` };
 }
 
 // ── Switching Regression ──────────────────────────────────────────
@@ -190,7 +193,7 @@ export function gaussianMixtureModel(data, k = 2, { seed = 42, maxIter = 30, tol
     const probs = pi.map((p, j) => { const diff = X[i].reduce((s, v, t) => s + (v - mu[j][t]) ** 2, 0); return p * Math.exp(-diff / (2 * sigma2[j])); });
     return probs.indexOf(Math.max(...probs));
   });
-  return { test: 'Gaussian Mixture Model', mu: mu.map(m => m.map(v => +v.toFixed(4))), pi: pi.map(v => +v.toFixed(4)), k, n, apa: `GMM: ${k} components, n=${n}` };
+  return { test: 'Gaussian Mixture Model', mu: mu.map(m => m.map(v => +v.toFixed(4))), pi: pi.map(v => +v.toFixed(4)), sigma2: sigma2.map(v => +v.toFixed(6)), k, n, apa: `GMM: ${k} components, n=${n}` };
 }
 
 // ── Nonparametric Mixture ─────────────────────────────────────────
@@ -219,11 +222,25 @@ export function nonparametricMixture(data, k = 2, { seed = 42, bandwidth = null,
 
 // ── Mixture Posterior Probabilities ───────────────────────────────
 export function mixturePosterior(data, gmmResult) {
-  if (!data || !gmmResult) return null;
+  if (!data || !data.length || !gmmResult || !gmmResult.mu || !gmmResult.pi) return null;
   const n = data.length;
-  const k = gmmResult.k || 2;
-  const posteriors = Array.from({length: n}, (_, i) => {
-    return Array(k).fill(1 / k);
+  const mu = gmmResult.mu;
+  const k = gmmResult.k || mu.length;
+  const pi = gmmResult.pi;
+  const d = mu[0].length;
+  const sigma2 = gmmResult.sigma2 || Array(k).fill(1);
+  // Coerce each observation to a numeric vector matching the component dimension.
+  const X = data.map(row => (Array.isArray(row) ? row.map(Number) : [Number(row)]));
+  // Bayes responsibility γ_ij = π_j N(x_i; μ_j, σ²_j I) / Σ_l π_l N(x_i; μ_l, σ²_l I).
+  const posteriors = X.map(xi => {
+    const probs = pi.map((p, j) => {
+      let diff = 0;
+      for (let t = 0; t < d; t++) { const e = (xi[t] ?? 0) - mu[j][t]; diff += e * e; }
+      const s2 = Math.max(sigma2[j], 1e-12);
+      return p * Math.exp(-diff / (2 * s2)) / Math.pow(2 * Math.PI * s2, d / 2);
+    });
+    const sum = probs.reduce((a, b) => a + b, 0);
+    return sum > 0 ? probs.map(v => v / sum) : probs.map(() => 1 / k);
   });
   return { test: 'Mixture Posterior', posteriors: posteriors.slice(0, 10).map(r => r.map(v => +v.toFixed(4))), n, k, apa: `Posterior: ${k} components, n=${n}` };
 }

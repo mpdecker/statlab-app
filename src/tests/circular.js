@@ -1,4 +1,5 @@
 import { avg } from '../math/core.js';
+import { tPVal } from '../math/distributions.js';
 
 function toRad(angle, degrees) { return degrees ? angle * Math.PI / 180 : angle; }
 
@@ -156,7 +157,7 @@ export function circularLinearRegression(theta, x, { degrees = false } = {}) {
   const coefSE = [se * Math.sqrt(1 / n + sx * sx / (n * denom)), se / Math.sqrt(denom / n)];
   const coeffs = coefNames.map((name, j) => {
     const t = coefSE[j] > 0 ? coefVals[j] / coefSE[j] : 0;
-    const p = 1; // approx
+    const p = +tPVal(Math.abs(t), n - 2).toFixed(5); // two-tailed t-test, df = n − 2
     return { name, b: +coefVals[j].toFixed(5), se: +coefSE[j].toFixed(5), t: +t.toFixed(4), p };
   });
 

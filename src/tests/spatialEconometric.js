@@ -1,6 +1,6 @@
 import { avg, sampleVar } from '../math/core.js';
 import { jacobiEigen, matInv } from '../math/matrix.js';
-import { normalCDF } from '../math/distributions.js';
+import { normalCDF, chiPVal } from '../math/distributions.js';
 
 // log|det(M)| via Gaussian elimination with partial pivoting (M real, n×n).
 function logAbsDet(M0) {
@@ -146,7 +146,7 @@ export function spatialHausman(betaFE, seFE, betaRE, seRE) {
     const varDiff = Math.max((seFE[j] || 0.1) ** 2 - (seRE[j] || 0.1) ** 2, 0.001);
     H += diff * diff / varDiff;
   }
-  const p = Math.exp(-H / 2);
+  const p = chiPVal(H, k); // χ²(k) upper tail, not the df=2-only exp(−H/2)
   return { test: 'Spatial Hausman', H: +H.toFixed(4), df: k, p: +p.toFixed(4), apa: `Spatial Hausman: H=${H.toFixed(2)}, p=${p.toFixed(3)}` };
 }
 

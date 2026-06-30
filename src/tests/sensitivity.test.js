@@ -30,3 +30,10 @@ describe('andrewsPlot', () => {
   it('null <2 rows', () => expect(andrewsPlot([[1]])).toBeNull());
   it('curves array non-empty', () => { const r = andrewsPlot(X); if (r) { expect(Array.isArray(r.curves)).toBe(true); expect(r.curves.length).toBeGreaterThan(0); } }); it('curves non-empty', () => { const r = andrewsPlot(X); if (r) { expect(r.curves).toBeDefined(); } });
 });
+
+describe('modelComparison uses a real F-distribution p-value', () => {
+  it('gives a tiny p-value for a large F statistic', () => {
+    const r = modelComparison(10, 1, 30, 1, 1); // F=10 on ~(28,28) df
+    expect(r.p).toBeLessThan(0.01);
+  });
+});

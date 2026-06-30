@@ -43,8 +43,37 @@ describe('nonparametricMixture', () => {
   it('sizes non-empty', () => { const r = nonparametricMixture(data, 2); if (r) expect(r.sizes.length).toBeGreaterThan(0); });
 });
 describe('mixturePosterior', () => {
-  const gmm = { k: 2 };
+  const gmm = { k: 2, mu: [[1.5], [4.5]], pi: [0.5, 0.5], sigma2: [1, 1] };
   it('contract keys', () => expectKeys(mixturePosterior([1,2,3,4,5], gmm), ['test','posteriors','n','k','apa']));
   it('null invalid', () => expect(mixturePosterior([1,2], null)).toBeNull());
+  it('null when gmm lacks fitted params', () => expect(mixturePosterior([1,2,3,4,5], { k: 2 })).toBeNull());
   it('posteriors non-empty', () => { const r = mixturePosterior([1,2,3,4,5], gmm); if (r) expect(r.posteriors.length).toBeGreaterThan(0); });
+});
+
+describe('mixturePosterior computes real responsibilities (not uniform 1/k)', () => {
+  it('assigns each point almost entirely to its own cluster', () => {
+    const data = [0, 0.2, -0.1, 0.1, 10, 10.1, 9.9, 10.2];
+    const gmm = gaussianMixtureModel(data, 2, { seed: 1 });
+    const post = mixturePosterior(data, gmm);
+    const near0 = gmm.mu[0][0] < gmm.mu[1][0] ? 0 : 1; // component centred near 0
+    expect(post.posteriors[0][near0]).toBeGreaterThan(0.9); // point 0 → low cluster
+    expect(post.posteriors[4][near0]).toBeLessThan(0.1);    // point 10 → high cluster
+  });
+});
+
+describe('mixtureOfRegressions recovers two distinct regression lines (real soft-EM)', () => {
+  it('recovers slopes {2, -1} from a two-line mixture', () => {
+    const x = [], y = [];
+    for (let i = 0; i < 60; i++) {
+      const comp = i % 2;            // interleave so both lines span the same x range
+      const xi = Math.floor(i / 2) - 15;
+      const noise = 0.04 * (((i * 7) % 5) - 2);
+      x.push(xi);
+      y.push(comp === 0 ? 2 * xi + 1 + noise : -1 * xi + 5 + noise);
+    }
+    const r = mixtureOfRegressions(x, y, 2, { seed: 3 });
+    const slopes = r.components.map(c => c.slope).sort((a, b) => a - b);
+    expect(slopes[0]).toBeCloseTo(-1, 1);
+    expect(slopes[1]).toBeCloseTo(2, 1);
+  });
 });

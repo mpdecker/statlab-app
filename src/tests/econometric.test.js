@@ -177,3 +177,10 @@ describe('bivariateProbit is a real FIML estimator', () => {
     expect(r.rho).toBeGreaterThan(0);
   });
 });
+
+describe('hausmanTest uses the correct chi-square tail', () => {
+  it('rejects RE when FE and RE estimates differ sharply (small p)', () => {
+    const r = hausmanTest([2, 3], [0.5, 0.5], [1, 1], [0.3, 0.3]);
+    expect(r.p).toBeLessThan(0.01);
+  });
+});

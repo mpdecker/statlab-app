@@ -8,7 +8,10 @@ export function distanceMatrix(x) {
   const D = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => {
     if (i === j) return 0;
     let s = 0;
-    for (let k = 0; k < (x[i].length || 1); k++) s += (Array.isArray(x[i]) ? x[i][k] : x[i]) - (Array.isArray(x[j]) ? x[j][k] : x[j]) ** 2;
+    for (let k = 0; k < (x[i].length || 1); k++) {
+      const d = (Array.isArray(x[i]) ? x[i][k] : x[i]) - (Array.isArray(x[j]) ? x[j][k] : x[j]);
+      s += d * d;
+    }
     return Math.sqrt(Math.abs(s));
   }));
   return D;

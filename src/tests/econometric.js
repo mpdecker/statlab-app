@@ -282,7 +282,7 @@ export function hausmanTest(betaFE, seFE, betaRE, seRE) {
     const varDiff = Math.max((seFE[j] || 0.1) ** 2 - (seRE[j] || 0.1) ** 2, 0.001);
     H += diff * diff / varDiff;
   }
-  const p = 1 - chiPVal(H, k);
+  const p = chiPVal(H, k); // chiPVal is the upper tail P(χ² > H) = the Hausman p-value
   return { test: 'Hausman Test', H: +H.toFixed(4), df: k, p, apa: `Hausman: χ²(${k}) = ${H.toFixed(2)}, ${p < 0.05 ? 'reject RE, use FE' : 'RE consistent'}` };
 }
 

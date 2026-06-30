@@ -1,4 +1,5 @@
 import { avg, sampleVar } from '../math/core.js';
+import { fPVal } from '../math/distributions.js';
 import { mulberry32 } from '../math/rng.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
@@ -58,9 +59,6 @@ export function modelComparison(mse1, mse2, n, k1, k2) {
   return { test: 'Model Comparison', f: +fStat.toFixed(4), df1, df2, p, n, apa: `F = ${fStat.toFixed(2)}, ${p < 0.05 ? 'models differ' : 'models similar'}` };
 }
 
-function fPVal(f, df1, df2) {
-  return Math.min(1, Math.max(0, Math.exp(-0.5 * f * f / (df1 + df2))));
-}
 
 // ── Forecast Combination ──────────────────────────────────────────
 export function forecastCombination(forecasts, actual, { method = 'equal' } = {}) {
