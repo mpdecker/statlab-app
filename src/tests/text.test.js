@@ -99,3 +99,14 @@ describe('tfidfSimilaritySearch', () => {
   it('null <2', () => expect(tfidfSimilaritySearch(['one'], 'query')).toBeNull());
   it('results non-empty', () => { const r = tfidfSimilaritySearch(docs, 'hello world', { topN: 2 }); if (r) expect(r.results.length).toBeGreaterThan(0); });
 });
+
+describe('svdEmbeddings does a real PPMI truncated SVD', () => {
+  const topicDocs = [];
+  for (let i = 0; i < 10; i++) { topicDocs.push('cat dog pet cat dog pet animal'); topicDocs.push('car road drive car road drive vehicle'); }
+  function cos(a, b) { let d = 0, na = 0, nb = 0; for (let i = 0; i < a.length; i++) { d += a[i] * b[i]; na += a[i] ** 2; nb += b[i] ** 2; } return d / (Math.sqrt(na * nb) + 1e-12); }
+  it('within-topic words are more similar than cross-topic', () => {
+    const r = svdEmbeddings(topicDocs, { nDims: 6 });
+    const v = w => r.embeddings.find(e => e.word === w).vector;
+    expect(cos(v('cat'), v('dog'))).toBeGreaterThan(cos(v('cat'), v('car')));
+  });
+});

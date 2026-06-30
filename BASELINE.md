@@ -94,7 +94,7 @@ implementations can be fixed. Status legend:
 | 66 | `sPLSRegression` | pls.js:129 | ✅ FIXED | deflation `Xres-=pt*(Xres/pt)` zeroes X | correct NIPALS deflation |
 | 67 | `pls2` | pls.js:30 | ✅ FIXED | no proper NIPALS iteration/deflation | real PLS2 |
 
-| 68 | `svdEmbeddings` | text.js:221 | FABRICATED | no SVD — returns normalized co-occ rows; `sameness=vec[0]+0.5` | truncated SVD of PPMI matrix |
+| 68 | `svdEmbeddings` | text.js:221 | ✅ FIXED | no SVD — returns normalized co-occ rows; `sameness=vec[0]+0.5` | truncated SVD of PPMI matrix |
 
 | 69 | `procrustes` | ordination.js:145 | ✅ FIXED | "SVD" faked — rotation=identity; m² is raw SS, no optimal rotation/scaling | real Procrustes SVD rotation |
 | 70 | `distanceMatrix` | distance.js:11 | ✅ FIXED | operator precedence: computes `a - b**2`, not `(a-b)**2` → wrong distances | `(x[i][k]-x[j][k])**2` |
@@ -102,7 +102,7 @@ implementations can be fixed. Status legend:
 | 72 | `circularLinearRegression` p | circular.js:159 | ✅ FIXED | `p = 1` hardcoded (coefs real) | F/t test on the regression |
 | 73 | `envfit` p | ordination.js:186 | BROKEN(p) | `p = exp(-r²n/2)` ad-hoc, not permutation | permutation p-value |
 
-| 74 | `ec50` CI | doseResponse.js:89 | FABRICATED(CI) | CI hardcoded `logEC50 ± 0.5` (point est real) | delta-method / profile-likelihood CI |
+| 74 | `ec50` CI | doseResponse.js:89 | ✅ FIXED | CI hardcoded `logEC50 ± 0.5` (point est real) | delta-method / profile-likelihood CI |
 
 | 75 | `landmarkMDS` | mds.js:213 | ✅ FIXED | points hardcoded `0.5−k*0.1`; Gram matrix computed but unused | real landmark MDS embedding |
 | 76 | `annealedImportance` | smc.js:116 | BROKEN | x never moves between temps; weight algebra degenerate | AIS with MCMC transitions |
