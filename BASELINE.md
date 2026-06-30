@@ -44,7 +44,7 @@ implementations can be fixed. Status legend:
 | 20 | `globalSurrogate` | interpretability.js:150 | ✅ FIXED | "surrogate" = `mean+Σ(x-x̄)*0.1`; params ignored | fit an actual surrogate tree/linear model |
 | 21 | `mixturePosterior` | mixture.js:221 | ✅ FIXED | returns uniform `1/k` for all points | responsibilities from gmmResult params |
 | 22 | `mixtureOfRegressions` | mixture.js:7 | ✅ FIXED | EM dead after iter 1 (labels become arrays); random convergence check | proper soft-EM with responsibilities |
-| 23 | `moderatedMediation` | bootstrap.js:192 | BROKEN | `b_w` is an ad-hoc ratio, not the moderated path coef | fit Y~M*W, take index a·b_w |
+| 23 | `moderatedMediation` | bootstrap.js:192 | ✅ FIXED | `b_w` is an ad-hoc ratio, not the moderated path coef | fit Y~M*W, take index a·b_w |
 
 | 24 | `tobitModel` | econometric.js:24 | ✅ FIXED | reimplemented as Type-I censored-normal MLE via `mleFit` (censored obs → Φ((L−xβ)/σ); adds intercept; reports MLE β, Hessian-based SE, z, computed p, σ, logLik). TDD: recovers slope 2.000 & p≈0 with no censoring (was through-origin OLS giving 2.13, p≡1); handles left-censored data. |
 | 25 | `bivariateProbit` | econometric.js:53 | ✅ FIXED | full-information ML biprobit: implemented Φ₂ (bivariate-normal CDF via Simpson on the standard integral identity), likelihood Φ₂(q₁·xβ₁, q₂·xβ₂, q₁q₂ρ), `mleFit` over [β₁,β₂,atanh ρ]; returns both equations' coefficients + Hessian SEs + ρ. TDD: recovers β₁ₓ=1.17, β₂ₓ=−1.03, ρ=0.64 from a DGP with true (1.2, −0.9, 0.5). Was just raw corr(y1,y2). |
@@ -98,9 +98,9 @@ implementations can be fixed. Status legend:
 
 | 69 | `procrustes` | ordination.js:145 | ✅ FIXED | "SVD" faked — rotation=identity; m² is raw SS, no optimal rotation/scaling | real Procrustes SVD rotation |
 | 70 | `distanceMatrix` | distance.js:11 | ✅ FIXED | operator precedence: computes `a - b**2`, not `(a-b)**2` → wrong distances | `(x[i][k]-x[j][k])**2` |
-| 71 | `partialDistanceCorr` | distance.js:89 | BROKEN | "residuals" `v - z·x̄/z̄` are not regression residuals | residualize via distance proj |
+| 71 | `partialDistanceCorr` | distance.js:89 | ✅ FIXED | "residuals" `v - z·x̄/z̄` are not regression residuals | residualize via distance proj |
 | 72 | `circularLinearRegression` p | circular.js:159 | ✅ FIXED | `p = 1` hardcoded (coefs real) | F/t test on the regression |
-| 73 | `envfit` p | ordination.js:186 | BROKEN(p) | `p = exp(-r²n/2)` ad-hoc, not permutation | permutation p-value |
+| 73 | `envfit` p | ordination.js:186 | ✅ FIXED | `p = exp(-r²n/2)` ad-hoc, not permutation | permutation p-value |
 
 | 74 | `ec50` CI | doseResponse.js:89 | ✅ FIXED | CI hardcoded `logEC50 ± 0.5` (point est real) | delta-method / profile-likelihood CI |
 

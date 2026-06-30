@@ -1,5 +1,6 @@
 import { avg, sampleSD } from '../math/core.js';
 import { normalCDF, normalINV } from '../math/distributions.js';
+import { matInv } from '../math/matrix.js';
 
 function lcg(seed) {
   let s = seed >>> 0;
@@ -198,11 +199,17 @@ export function moderatedMediation(data, treatVar, mediator, moderator, outcomeV
   let sx = 0, sm = 0, sxx = 0, sxm = 0;
   for (let i = 0; i < n; i++) { sx += x[i]; sm += m[i]; sxx += x[i] * x[i]; sxm += x[i] * m[i]; }
   const a = (n * sxm - sx * sm) / Math.max(n * sxx - sx * sx, 1);
-  let sw = 0, sy = 0, sww = 0, swy = 0;
-  let smw = 0;
-  for (let i = 0; i < n; i++) { sw += w[i] * m[i]; sy += y[i]; sww += w[i] * w[i]; swy += w[i] * y[i]; }
-  const bw = Math.abs(sw > 0 ? swy / sw : 0);
-  return { test: 'Moderated Mediation', a: +a.toFixed(4), bw: +bw.toFixed(4), index: +(a * bw).toFixed(4), n, apa: `ModMed index = ${(a * bw).toFixed(3)}` };
+  // Index of moderated mediation (Hayes) = a · β_{MW}, where β_{MW} is the
+  // coefficient on the M×W interaction in the outcome model
+  // Y = β0 + β_M·M + β_W·W + β_{MW}·(M·W) (the W-dependence of the M→Y path).
+  // The old b_w was an ad-hoc ratio Σ(w·m·y)/Σ(w·m).
+  const Z = data.map((_, i) => [1, m[i], w[i], m[i] * w[i]]);
+  const ZtZ = Array.from({ length: 4 }, (_, p) => Array.from({ length: 4 }, (_, q) => Z.reduce((s, r) => s + r[p] * r[q], 0)));
+  const ZtY = Array.from({ length: 4 }, (_, p) => Z.reduce((s, r, i) => s + r[p] * y[i], 0));
+  const inv = matInv(ZtZ);
+  const beta = inv ? inv.map(row => row.reduce((s, v, j) => s + v * ZtY[j], 0)) : [0, 0, 0, 0];
+  const bw = beta[3];
+  return { test: 'Moderated Mediation', a: +a.toFixed(4), bw: +bw.toFixed(4), bMW: +bw.toFixed(4), index: +(a * bw).toFixed(4), n, apa: `ModMed index = ${(a * bw).toFixed(3)}` };
 }
 
 // ── Split Conformal ───────────────────────────────────────────────
