@@ -27,15 +27,18 @@ export function classicalMDS(data, vars, { nDimensions = 2 } = {}) {
     -0.5 * (D2[i][j] - rowMeans[i] - rowMeans[j] + grandMean)
   ));
 
-  // Eigendecomposition
+  // Eigendecomposition: pair eigenvalues with their eigenvectors and sort
+  // descending. The embedding coordinate is eᵢⱼ = vⱼ(i)·√λⱼ; dimensions beyond
+  // the number of positive eigenvalues (degenerate/low-rank data) are zero.
   const eigs = jacobiEigen(B);
-  const evals = eigs.eigenvalues.filter(e => e > 1e-8).sort((a, b) => b - a);
-  const evecs = eigs.eigenvectors.slice(0, Math.min(nDimensions, evals.length));
+  const pairs = eigs.eigenvalues.map((e, idx) => ({ e, vec: eigs.eigenvectors[idx] })).sort((a, b) => b.e - a.e);
+  const usedDims = Math.min(nDimensions, pairs.filter(p => p.e > 1e-8).length);
 
   const points = Array.from({ length: n }, (_, i) =>
-    Array.from({ length: Math.min(nDimensions, evals.length) }, (_, d) => {
-      const vec = evecs[d] || [];
-      return +(vec[i] || 0) * Math.sqrt(Math.max(evals[d] || 0, 0)).toFixed(4);
+    Array.from({ length: nDimensions }, (_, d) => {
+      const pr = pairs[d];
+      if (!pr || pr.e <= 1e-8) return 0;
+      return +(pr.vec[i] * Math.sqrt(pr.e)).toFixed(4);
     })
   );
 
@@ -52,8 +55,8 @@ export function classicalMDS(data, vars, { nDimensions = 2 } = {}) {
   stress = stress / Math.max(dTotal, 1e-10);
 
   return {
-    test: 'Classical MDS', points, nDimensions: Math.min(nDimensions, evals.length), stress: +stress.toFixed(4), n,
-    apa: `Classical MDS: ${Math.min(nDimensions, evals.length)}D, stress = ${stress.toFixed(3)}, n = ${n}`,
+    test: 'Classical MDS', points, nDimensions: usedDims, stress: +stress.toFixed(4), n,
+    apa: `Classical MDS: ${usedDims}D, stress = ${stress.toFixed(3)}, n = ${n}`,
   };
 }
 

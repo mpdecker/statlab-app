@@ -104,3 +104,12 @@ describe('jacobiEigen', () => {
     }
   });
 });
+
+describe('jacobiEigen handles equal diagonal entries (th=0)', () => {
+  it('eigenvalues of [[13,-13],[-13,13]] are 26 and 0', () => {
+    const { eigenvalues } = jacobiEigen([[13, -13], [-13, 13]]);
+    const sorted = [...eigenvalues].sort((a, b) => b - a);
+    expect(sorted[0]).toBeCloseTo(26, 6);
+    expect(sorted[1]).toBeCloseTo(0, 6);
+  });
+});

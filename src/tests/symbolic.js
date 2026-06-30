@@ -1,5 +1,5 @@
 import { avg } from '../math/core.js';
-import { solveNormalEquations } from '../math/matrix.js';
+import { solveNormalEquations, jacobiEigen } from '../math/matrix.js';
 
 // ── Interval Mean ─────────────────────────────────────────────────
 export function intervalMean(data, loVar, hiVar) {
@@ -41,7 +41,15 @@ export function intervalPCA(data, loVars, hiVars) {
     const mi = avg(centers.map(r => r[i])); const mj = avg(centers.map(r => r[j]));
     return centers.reduce((s, r) => s + (r[i] - mi) * (r[j] - mj), 0) / (n - 1);
   }));
-  return { test: 'Interval PCA', covDim: `${p}×${p}`, n, apa: `Interval PCA: ${p} vars` };
+  // Eigen-decompose the center covariance (Centers method for interval PCA).
+  const { eigenvalues, eigenvectors } = jacobiEigen(S);
+  const total = eigenvalues.reduce((s, v) => s + Math.max(v, 0), 0) || 1;
+  const propVar = eigenvalues.map(e => +(Math.max(e, 0) / total).toFixed(4));
+  return {
+    test: 'Interval PCA', covDim: `${p}×${p}`,
+    eigenvalues: eigenvalues.map(v => +v.toFixed(6)), propVar,
+    loadings: eigenvectors.map(vec => vec.map(v => +v.toFixed(4))), n, apa: `Interval PCA: ${p} vars`,
+  };
 }
 
 // ── Histogram Distance (Wasserstein) ──────────────────────────────
@@ -73,9 +81,11 @@ export function histogramPCA(data, histCols) {
     for (let k = 0; k < n; k++) s += (X[k][i] - means[i]) * (X[k][j] - means[j]);
     return s / (n - 1);
   }));
-  const evals = cov.map((_, i) => +(2 - i * 0.5).toFixed(4));
-  const propVar = evals.map(e => e / evals.reduce((s, v) => s + v, 0));
-  return { test: 'Histogram PCA', eigenvalues: evals, propVar: propVar.map(v => +v.toFixed(4)), n, p, apa: `HistPCA: ${p} vars, n=${n}` };
+  const { eigenvalues } = jacobiEigen(cov); // real eigen-decomposition of the histogram-mean covariance
+  const evals = eigenvalues.map(e => +e.toFixed(4));
+  const total = eigenvalues.reduce((s, v) => s + Math.max(v, 0), 0) || 1;
+  const propVar = eigenvalues.map(e => +(Math.max(e, 0) / total).toFixed(4));
+  return { test: 'Histogram PCA', eigenvalues: evals, propVar, n, p, apa: `HistPCA: ${p} vars, n=${n}` };
 }
 
 // ── Symbolic Regression (on interval data) ────────────────────────

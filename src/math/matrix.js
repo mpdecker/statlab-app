@@ -53,7 +53,7 @@ export function jacobiEigen(A0) {
     if (mx < 1e-10) break;
 
     const th = (A[q][q] - A[p][p]) / (2 * A[p][q]);
-    const t = Math.sign(th) / (Math.abs(th) + Math.sqrt(th * th + 1));
+    const t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1)); // th=0 ⇒ 45° rotation (Math.sign(0)=0 would stall)
     const c = 1 / Math.sqrt(1 + t * t), s = t * c;
     const Ap = [...A[p]], Aq = [...A[q]];
 

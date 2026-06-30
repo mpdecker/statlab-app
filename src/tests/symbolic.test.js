@@ -40,3 +40,23 @@ describe('symbolicRegression correctness', () => {
     expect(bx2).toBeCloseTo(2, 4);
   });
 });
+
+describe('histogramPCA eigen-decomposes the real covariance', () => {
+  it('puts ~all variance on PC1 for rank-1 (collinear) data', () => {
+    const d = []; for (let i = 0; i < 12; i++) d.push({ v1: [i, i + 1], v2: [i * 0.5, i * 0.5 + 0.5], v3: [i * 0.3, i * 0.3 + 0.3] });
+    const r = histogramPCA(d, ['v1', 'v2', 'v3']);
+    expect(r.propVar[0]).toBeGreaterThan(0.99);
+    expect(r.eigenvalues[2]).toBeLessThan(0.01);
+  });
+});
+
+describe('intervalPCA returns a real eigen-decomposition', () => {
+  it('reports eigenvalues whose sum equals the total center variance', () => {
+    const d = []; for (let i = 0; i < 12; i++) d.push({ lo: i, hi: i + 2, lo2: -i, hi2: -i + 1 });
+    const r = intervalPCA(d, ['lo', 'lo2'], ['hi', 'hi2']);
+    const trace = r.eigenvalues.reduce((s, v) => s + v, 0);
+    // centers: dim0 = i+1, dim1 = -i+0.5 → both perfectly collinear → rank 1
+    expect(r.eigenvalues[1]).toBeLessThan(1e-6);
+    expect(trace).toBeGreaterThan(1);
+  });
+});
