@@ -35,9 +35,9 @@ implementations can be fixed. Status legend:
 | 12 | Cox coeffs | demo.js:76 | ✅ FIXED | β/se/p were hardcoded (0.1/0.1/0.05); now delegates to the real `survival.coxPH`. TDD: recovers a positive significant β from a hazard-∝-exp(x) DGP. |
 | 12b | **`coxPH` (+ fineGray, frailtyCox, timeVaryingCox, cureModel) — CRITICAL SIGN BUG** | survival.js:137,313,467,572,782,824 | ✅ FIXED | Newton update used `β + hess⁻¹·grad`, but `hess` is the **negative-definite** Hessian, so the ascent step is `β − hess⁻¹·grad`. Every Cox/logistic coefficient in the survival module was **sign-flipped** (β̂ ≈ −β_true). Shape-only tests (HR>0, p∈[0,1]) never caught it. **Not in the original audit — found while fixing demo (#12); survival had been marked REAL from reading.** TDD: coxPH now recovers β=+0.78 (was −0.91) on a known DGP; timeVaryingCox HR 1.74. Affects all dependents (Fine-Gray, frailty, time-varying, cure). |
 | 13 | ILR regression coeffs | compositional.js:82 | ✅ FIXED | `se:0.1` → analytic OLS SE `√(σ̂²·(XᵀX)⁻¹_jj)` + z + p. **Also fixed a worse latent bug:** `compRegression` consumed the *display-truncated* `ilrTransform().transformed` (first 5 rows), so it had been regressing on only 5 observations regardless of n — now uses full `_ilrCoords(data)`. TDD-driven. |
-| 14 | `tsne` | dimReduction.js:8 | BROKEN | perplexity ignored (σ=1); gradient omits `-Q` repulsion → collapse | perplexity binary search + full KL gradient |
-| 15 | `lle` | dimReduction.js:88 | BROKEN | reconstruction weights hardcoded uniform `1/k` | solve constrained least squares per neighborhood |
-| 16 | `umapApprox` | dimReduction.js:124 | MISLABELED | is just PCA | real UMAP or rename to PCA |
+| 14 | `tsne` | dimReduction.js:8 | ✅ FIXED | perplexity ignored (σ=1); gradient omits `-Q` repulsion → collapse | perplexity binary search + full KL gradient |
+| 15 | `lle` | dimReduction.js:88 | ✅ FIXED | reconstruction weights hardcoded uniform `1/k` | solve constrained least squares per neighborhood |
+| 16 | `umapApprox` | dimReduction.js:124 | ✅ FIXED | is just PCA | real UMAP or rename to PCA |
 | 17 | `shapValues` | interpretability.js:7 | ✅ FIXED | corr×var heuristic; perm loop is a no-op | Shapley sampling over a real model |
 | 18 | `limeImportance` | interpretability.js:29 | ✅ FIXED | perturbation heuristic, no local surrogate | weighted local linear surrogate |
 | 19 | `partialDependence` | interpretability.js:49 | ✅ FIXED | uses corr pseudo-model, not a trained model | require a model fn (cf. alePlot) |
