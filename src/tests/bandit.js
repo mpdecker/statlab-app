@@ -1,6 +1,16 @@
 import { avg } from '../math/core.js';
 import { normalCDF } from '../math/distributions.js';
 import { mulberry32, randBeta } from '../math/rng.js';
+import { matInv } from '../math/matrix.js';
+
+// Resolve the next state from a supplied transition model (function or table),
+// falling back to a uniform random next state when none is given.
+function nextStateFrom(transitions, state, action, nStates, rand) {
+  if (typeof transitions === 'function') return transitions(state, action);
+  const t = transitions?.[state]?.[action];
+  if (t != null) return t;
+  return Math.floor(rand() * nStates);
+}
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
@@ -103,28 +113,34 @@ export function contextualBandit(arms, nContext = 2, nIterations = 100, { seed =
   if (!arms || arms.length < 2 || nContext < 1 || nIterations < 10) return null;
   const k = arms.length;
   const d = nContext;
-  const A = Array.from({ length: k }, () => Array.from({ length: d }, (_, i2) => Array(d).fill(0)));
+  const A = Array.from({ length: k }, () => Array.from({ length: d }, (_, i2) => Array.from({ length: d }, (_, j) => (i2 === j ? 1 : 0)))); // ridge A = I
   const b = Array.from({ length: k }, () => Array(d).fill(0));
-  for (let a = 0; a < k; a++) for (let i = 0; i < d; i++) A[a][i][i] = 1; // Id matrix
-  
+  // Reward model: array arms are true weight vectors (reward ~ Bernoulli(σ(wᵀx)));
+  // scalar arms are context-free Bernoulli(p) probabilities.
+  const W = arms.map(a => (Array.isArray(a) ? Array.from({ length: d }, (_, j) => a[j] || 0) : null));
+  const baseP = arms.map(a => (Array.isArray(a) ? null : Math.max(0, Math.min(1, +a || 0))));
+  const sigmoid = z => 1 / (1 + Math.exp(-z));
+
   const history = [];
   let totalReward = 0;
 
   for (let t = 0; t < nIterations; t++) {
     const context = Array.from({ length: d }, () => __rng() * 2 - 1);
+    // LinUCB: θ̂ = A⁻¹b, score = θ̂ᵀx + α·√(xᵀA⁻¹x).
     const scores = A.map((Aa, a) => {
-      const theta = Aa.map((row, i) => row.reduce((s, Aij, j) => s + (A[a][i][j] || 0) * b[a][j], 0));
-      const atx = Aa.reduce((s, row, i) => {
-        const qdot = context.reduce((qs, cj, j) => qs + row[j] * cj, 0);
-        return s + qdot * context[i];
-      }, 0);
-      return theta.reduce((s, ti, i) => s + ti * context[i], 0) + alpha * Math.sqrt(atx);
+      const Ainv = matInv(Aa) || Aa;
+      const theta = Ainv.map(row => row.reduce((s, v, j) => s + v * b[a][j], 0));
+      const Ainvx = Ainv.map(row => row.reduce((s, v, j) => s + v * context[j], 0));
+      const quad = context.reduce((s, xi, i) => s + xi * Ainvx[i], 0);
+      const mean = theta.reduce((s, ti, i) => s + ti * context[i], 0);
+      return mean + alpha * Math.sqrt(Math.max(quad, 0));
     });
     const arm = scores.indexOf(Math.max(...scores));
-    const r = __rng() < 0.3 ? 1 : 0;
+    const p = W[arm] ? sigmoid(W[arm].reduce((s, w, i) => s + w * context[i], 0)) : baseP[arm];
+    const r = __rng() < p ? 1 : 0;
     totalReward += r;
 
-    // Update A and b for the chosen arm
+    // Update A and b for the chosen arm.
     for (let i = 0; i < d; i++) {
       for (let j = 0; j < d; j++) A[arm][i][j] += context[i] * context[j];
       b[arm][i] += r * context[i];
@@ -231,8 +247,8 @@ export function qLearning(nStates, nActions, rewards, transitions, { seed = 42, 
       let action;
       if (__rng() < epsilon) action = Math.floor(__rng() * nActions);
       else action = Q[state].indexOf(Math.max(...Q[state]));
-      const r = typeof rewards === 'function' ? rewards(state, action) : (rewards?.[state]?.[action] || __rng());
-      const nextState = Math.floor(__rng() * nStates);
+      const r = typeof rewards === 'function' ? rewards(state, action) : (rewards?.[state]?.[action] ?? __rng());
+      const nextState = nextStateFrom(transitions, state, action, nStates, __rng);
       const maxNext = Math.max(...(Q[nextState] || [0]));
       Q[state][action] += lr * (r + gamma * maxNext - Q[state][action]);
       state = nextState;
@@ -252,8 +268,8 @@ export function sarsa(nStates, nActions, rewards, transitions, { seed = 42, epis
     let state = 0;
     let action = Math.floor(__rng() * nActions);
     for (let step = 0; step < 20; step++) {
-      const r = typeof rewards === 'function' ? rewards(state, action) : (rewards?.[state]?.[action] || __rng());
-      const nextState = Math.floor(__rng() * nStates);
+      const r = typeof rewards === 'function' ? rewards(state, action) : (rewards?.[state]?.[action] ?? __rng());
+      const nextState = nextStateFrom(transitions, state, action, nStates, __rng);
       let nextAction;
       if (__rng() < epsilon) nextAction = Math.floor(__rng() * nActions);
       else nextAction = Q[nextState].indexOf(Math.max(...Q[nextState]));
