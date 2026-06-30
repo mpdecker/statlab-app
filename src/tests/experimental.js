@@ -746,7 +746,10 @@ export function gpEmulator(X, y, { lengthScale = 1, noiseVar = 0.01 } = {}) {
     for (let k = 0; k < X[i].length; k++) s += (X[i][k] - X[j][k]) ** 2;
     return Math.exp(-0.5 * s / (lengthScale * lengthScale)) + (i === j ? noiseVar : 0);
   }));
-  const alpha = K.map((row, i) => row.reduce((s, v, j) => s + v * y[j], 0) / Math.max(row.reduce((r, v) => r + v, 0), 1));
+  // GP posterior weights α = K⁻¹y (was a row-normalised K·y, not a linear solve).
+  const Kinv = matInv(K);
+  const alpha = Kinv ? Kinv.map(row => row.reduce((s, v, j) => s + v * y[j], 0))
+    : K.map((row) => row.reduce((s, v, j) => s + v * y[j], 0) / Math.max(row.reduce((r, v) => r + v, 0), 1));
   const pred = X.map((xi, i) => {
     let s = 0;
     for (let j = 0; j < n; j++) {

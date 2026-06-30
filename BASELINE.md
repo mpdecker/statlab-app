@@ -96,7 +96,7 @@ implementations can be fixed. Status legend:
 
 | 68 | `svdEmbeddings` | text.js:221 | FABRICATED | no SVD — returns normalized co-occ rows; `sameness=vec[0]+0.5` | truncated SVD of PPMI matrix |
 
-| 69 | `procrustes` | ordination.js:145 | BROKEN | "SVD" faked — rotation=identity; m² is raw SS, no optimal rotation/scaling | real Procrustes SVD rotation |
+| 69 | `procrustes` | ordination.js:145 | ✅ FIXED | "SVD" faked — rotation=identity; m² is raw SS, no optimal rotation/scaling | real Procrustes SVD rotation |
 | 70 | `distanceMatrix` | distance.js:11 | ✅ FIXED | operator precedence: computes `a - b**2`, not `(a-b)**2` → wrong distances | `(x[i][k]-x[j][k])**2` |
 | 71 | `partialDistanceCorr` | distance.js:89 | BROKEN | "residuals" `v - z·x̄/z̄` are not regression residuals | residualize via distance proj |
 | 72 | `circularLinearRegression` p | circular.js:159 | ✅ FIXED | `p = 1` hardcoded (coefs real) | F/t test on the regression |
@@ -121,7 +121,7 @@ implementations can be fixed. Status legend:
 | 89 | `gpdMLE` | extreme.js:57 | ✅ FIXED | real GPD maximum likelihood via `mleFit` over [logσ, ξ] with support guard `1+ξy/σ>0`; MoM start values; delta-method SE for σ. TDD: recovers σ=2.32, ξ=0.26 from GPD(2, 0.3) exceedances (was σ→7.4, ξ→0.102). |
 | 90 | `gevMLE` | extreme.js:4 | ✅ FIXED | fixed-step gradient on questionable (CDF-derived) gradients | Newton on GEV log-likelihood |
 | 91 | `peaksOverThreshold` | extreme.js:129 | ✅ FIXED | xi hardcoded 0.1; scale=mean(exceed); no GPD fit | fit GPD to exceedances |
-| 92 | `rarefaction` | ecology.js:52 | BROKEN | nonsense expected-species formula (Hurlbert commented out, unused) | hypergeometric rarefaction |
+| 92 | `rarefaction` | ecology.js:52 | ✅ FIXED | nonsense expected-species formula (Hurlbert commented out, unused) | hypergeometric rarefaction |
 | 93 | `adonis2` | ecology.js:121 | INCOMPLETE | pseudo-F real but no permutation p-value (nPerm unused) | permutation test for p |
 | 94 | `thompsonSampling` | bandit.js:76 | ✅ FIXED | "Beta sample" = mean + uniform noise, not a Beta draw | sample from Beta(s,f) |
 | 95 | `contextualBandit` (LinUCB) | bandit.js:105 | ✅ FIXED | never inverts A; reward random `rng<0.3` (no env) | A⁻¹ ridge solution; real reward |
@@ -132,7 +132,7 @@ implementations can be fixed. Status legend:
 | 100 | `pocockBoundaries` | sequential.js:36 | APPROX | hardcoded 2.17 for all stages/α | compute Pocock constant per stages/α |
 | 101 | `tmddModel` | pk.js:319 | FABRICATED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
 | 102 | `indirectResponse` | pk.js:247 | STUB | returns only `{n}`; computes nothing | indirect-response model fit |
-| 103 | `gpEmulator` | experimental.js:741 | APPROX | weights = row-normalized K, not K⁻¹y | solve GP linear system via matInv |
+| 103 | `gpEmulator` | experimental.js:741 | ✅ FIXED | weights = row-normalized K, not K⁻¹y | solve GP linear system via matInv |
 | 104 | `varmax` | timeseries.js:1453 | STUB | returns `{n,p,q}`; estimates nothing | VARMAX estimation |
 | 105 | `vecm` | timeseries.js:1472 | STUB | returns `{n,p,rank}`; no estimation | Johansen VECM |
 | 106 | `cointegrationRank` | timeseries.js:1461 | ✅ FIXED | trace stats = `n·(maxRank−r+1)·0.1` hardcoded | real Johansen trace/max-eigen |

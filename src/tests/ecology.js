@@ -1,5 +1,6 @@
 import { avg, sampleVar } from '../math/core.js';
 import { mulberry32 } from '../math/rng.js';
+import { lngamma } from '../math/distributions.js';
 
 // ── Shannon Diversity ─────────────────────────────────────────────
 export function shannonDiversity(counts) {
@@ -55,25 +56,18 @@ export function rarefaction(data, sampleSize) {
   const counts = {};
   data.forEach(v => { counts[v] = (counts[v] || 0) + 1; });
   const Sobs = Object.keys(counts).length;
+  // Hurlbert rarefaction: E[S_m] = Σ_i [1 − C(N−Nᵢ, m)/C(N, m)], the expected
+  // number of species in a random subsample of size m (= sampleSize) from N.
+  const lnC = (a, b) => (a < b ? -Infinity : lngamma(a + 1) - lngamma(b + 1) - lngamma(a - b + 1));
+  const lnCN = lnC(n, sampleSize);
   let expected = 0;
   for (const k in counts) {
     const Ni = counts[k];
-    if (n - Ni >= sampleSize) {
-      const prob = Math.exp(
-        lngamma(n - Ni + 1) + lngamma(n - sampleSize + 1) - lngamma(n - Ni - sampleSize + 1) - lngamma(n + 1)
-      );
-      // Simple approximation
-    }
-    expected += n - Ni >= sampleSize ? 1 - Math.exp(Ni / n) / (sampleSize / n + Ni / n) : 1;
+    const pAbsent = (n - Ni >= sampleSize) ? Math.exp(lnC(n - Ni, sampleSize) - lnCN) : 0;
+    expected += 1 - pAbsent;
   }
-  const raref = Math.min(Sobs, expected);
+  const raref = expected;
   return { test: 'Rarefaction', expectedSpecies: +raref.toFixed(2), sampleSize, nObserved: n, sobs: Sobs, apa: `Rarefaction: ${raref.toFixed(1)} spp at n=${sampleSize}` };
-}
-
-function lngamma(x) {
-  let s = 0;
-  for (let i = 1; i <= Math.floor(x); i++) s += Math.log(i);
-  return s;
 }
 
 // ── Indicator Species Analysis ────────────────────────────────────

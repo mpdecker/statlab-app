@@ -71,3 +71,14 @@ describe('mso', () => {
   it('null <3', () => expect(mso([[0,1],[1,0]])).toBeNull());
   it('order array non-empty', () => { const r = mso(D); if (r) expect(r.order.length).toBeGreaterThan(0); });
 });
+
+describe('procrustes finds the optimal rotation', () => {
+  it('m^2 ~ 0 when Y is a rotation of X', () => {
+    const th = 0.7, R = [[Math.cos(th), -Math.sin(th)], [Math.sin(th), Math.cos(th)]];
+    let s = 3; const z = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return (s / 2 ** 32) * 2 - 1; };
+    const X = Array.from({ length: 12 }, () => [z(), z()]);
+    const Y = X.map(r => [r[0] * R[0][0] + r[1] * R[0][1], r[0] * R[1][0] + r[1] * R[1][1]]);
+    const r = procrustes(X, Y);
+    expect(r.m2).toBeLessThan(1e-3);
+  });
+});
