@@ -119,8 +119,8 @@ implementations can be fixed. Status legend:
 | 87 | `tgarch` | finance.js:211 | ✅ FIXED | Gaussian MLE of GJR-GARCH(1,1) with feasibility transforms (ω>0, α,β≥0, α+γ≥0). TDD: recovers ω/α/γ/β ≈ .093/.128/.069/.530 from GJR(.1/.08/.06/.6) (was hardcoded 0.9). |
 | 88 | `blackScholes`/`optionGreeks`/`greeks` | finance.js:236 | ✅ FIXED | swapped `tanh`-for-Φ → real `normalCDF`; optionGreeks theta/rho now use Φ(d2). TDD: BS call now 10.4506 (was 9.54), put 5.5735, delta=N(d1). |
 | 89 | `gpdMLE` | extreme.js:57 | ✅ FIXED | real GPD maximum likelihood via `mleFit` over [logσ, ξ] with support guard `1+ξy/σ>0`; MoM start values; delta-method SE for σ. TDD: recovers σ=2.32, ξ=0.26 from GPD(2, 0.3) exceedances (was σ→7.4, ξ→0.102). |
-| 90 | `gevMLE` | extreme.js:4 | APPROX | fixed-step gradient on questionable (CDF-derived) gradients | Newton on GEV log-likelihood |
-| 91 | `peaksOverThreshold` | extreme.js:129 | APPROX | xi hardcoded 0.1; scale=mean(exceed); no GPD fit | fit GPD to exceedances |
+| 90 | `gevMLE` | extreme.js:4 | ✅ FIXED | fixed-step gradient on questionable (CDF-derived) gradients | Newton on GEV log-likelihood |
+| 91 | `peaksOverThreshold` | extreme.js:129 | ✅ FIXED | xi hardcoded 0.1; scale=mean(exceed); no GPD fit | fit GPD to exceedances |
 | 92 | `rarefaction` | ecology.js:52 | BROKEN | nonsense expected-species formula (Hurlbert commented out, unused) | hypergeometric rarefaction |
 | 93 | `adonis2` | ecology.js:121 | INCOMPLETE | pseudo-F real but no permutation p-value (nPerm unused) | permutation test for p |
 | 94 | `thompsonSampling` | bandit.js:76 | ✅ FIXED | "Beta sample" = mean + uniform noise, not a Beta draw | sample from Beta(s,f) |
