@@ -32,3 +32,39 @@ describe('spaceTimeForecast', () => {
   it('forecast array present', () => { const r = spaceTimeForecast(d, 'y', ['x1'], W, { timeVar: 'time', steps: 2 }); if (r) { expect(Array.isArray(r.forecast)).toBe(true); expect(r.forecast.length).toBeGreaterThan(0); } });
   it('nSteps matches', () => { const r = spaceTimeForecast(d, 'y', ['x1'], W, { timeVar: 'time', steps: 2 }); if (r) expect(r.nSteps).toBe(2); });
 });
+
+// Controlled spatial-lag DGP on a ring lattice: y = (I-ρW)^-1 (Xβ + ε).
+import { matInv as _matInv } from '../math/matrix.js';
+function ringSpatialData(n, rho, beta) {
+  const W = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (j === (i + 1) % n || j === (i - 1 + n) % n) ? 0.5 : 0));
+  let s = 17; const z = () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+  const x = Array.from({ length: n }, () => z());
+  const rhs = x.map(xi => beta * xi + z() * 0.3);
+  const I = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (i === j ? 1 : 0) - rho * W[i][j]));
+  const Ainv = _matInv(I);
+  const y = Ainv.map(row => row.reduce((a, v, j) => a + v * rhs[j], 0));
+  const data = y.map((yi, i) => ({ y: yi, x1: x[i] }));
+  return { data, W };
+}
+
+describe('starModel uses consistent spatial-lag estimation (2SLS)', () => {
+  it('recovers the true spatial autoregressive parameter rho', () => {
+    const { data, W } = ringSpatialData(40, 0.6, 2);
+    const r = starModel(data, 'y', ['x1'], W);
+    expect(Math.abs(r.rho - 0.6)).toBeLessThan(0.15);
+  });
+});
+
+describe('spatiotemporalMoran computes the standard normalized Moran I', () => {
+  it('matches the (n/S0)·Σwᵢⱼzᵢzⱼ/Σzᵢ² formula with temporal contiguity', () => {
+    let s = 5; const z = () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+    const data = []; let v = 0;
+    for (let t = 0; t < 30; t++) { v = 0.7 * v + z() * 0.3; data.push({ y: v, time: t }); }
+    const n = data.length, y = data.map(d => d.y), mu = y.reduce((a, b) => a + b, 0) / n, zz = y.map(p => p - mu);
+    let S0 = 0, num = 0;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const w = Math.abs(i - j) === 1 ? 1 : 0; S0 += w; num += w * zz[i] * zz[j]; }
+    const expectedI = (n / S0) * num / zz.reduce((a, b) => a + b * b, 0);
+    expect(spatiotemporalMoran(data, 'y', 'time').I).toBeCloseTo(expectedI, 3);
+    expect(spatiotemporalMoran(data, 'y', 'time').I).toBeGreaterThan(0.2);
+  });
+});

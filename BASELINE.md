@@ -66,9 +66,9 @@ implementations can be fixed. Status legend:
 
 | 41 | `backfitOne`→`gamBackfitting`,`gamSpline` | gam.js:24 | ✅ FIXED (PR #2) | diagonal-only solve on correlated spline basis (primary, not fallback) → wrong β | full penalized normal-equations solve |
 | 42 | `gamLocalScoring` | gam.js:90 | ✅ FIXED (PR #2) | diag-only IRLS | full weighted normal-equations |
-| 43 | `starModel` | spatialTemporal.js:15 | BROKEN | diag-only OLS on endogenous Wy (also needs ML/IV) | spatial ML/2SLS |
-| 44 | `gstarModel` | spatialTemporal.js:35 | BROKEN | diag-only solve | spatial ML |
-| 45 | `spatiotemporalMoran` | spatialTemporal.js:59 | FABRICATED | uses `(i+1)%n` sequential neighbor, no W matrix | real W-based ST Moran |
+| 43 | `starModel` | spatialTemporal.js:15 | ✅ FIXED | diag-only OLS on endogenous Wy (also needs ML/IV) | spatial ML/2SLS |
+| 44 | `gstarModel` | spatialTemporal.js:35 | ✅ FIXED | diag-only solve | spatial ML |
+| 45 | `spatiotemporalMoran` | spatialTemporal.js:59 | ✅ FIXED | uses `(i+1)%n` sequential neighbor, no W matrix | real W-based ST Moran |
 | 46 | `spaceTimeForecast` | spatialTemporal.js:79 | FABRICATED | returns `rho*2` for every step | iterate the fitted model |
 | 47 | `fpcaExpanded` | fda.js:99 | FABRICATED | random scores, eigenvalues hardcoded `3/(i+1)` | eigen of smoothed covariance surface |
 | 48 | `functionalRegression` | fda.js:118 | ✅ FIXED | returns `corr(x̄,y)` as β | basis-expanded functional coefficient |
