@@ -1162,3 +1162,45 @@ describe('egarch estimates its parameters by MLE', () => {
     expect(r.params.gamma).toBeLessThan(0);      // estimated leverage, not the hardcoded +0.05
   });
 });
+
+describe('VAR cluster: real estimation (varmax, vecm, FEVD, IRF CI)', () => {
+  function lcg(seed) { let s = seed; return () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; }; }
+
+  it('varmax (ARMAX) recovers the AR and exogenous coefficients', () => {
+    const z = lcg(3); const data = []; let yPrev = 0;
+    for (let i = 0; i < 200; i++) { const x = z(); const y = 0.5 * yPrev + 1.5 * x + z() * 0.3; data.push({ y, x1: x }); yPrev = y; }
+    const r = varmax(data, 'y', ['x1'], { p: 1, q: 1 });
+    const ar = r.coefficients.find(c => c.term === 'ar1');
+    const ex = r.coefficients.find(c => c.term === 'x1');
+    expect(Math.abs(ar.estimate - 0.5)).toBeLessThan(0.2);
+    expect(Math.abs(ex.estimate - 1.5)).toBeLessThan(0.3);
+  });
+
+  it('vecm recovers a negative error-correction adjustment for cointegrated series', () => {
+    const z = lcg(7); const data = []; let x = 0;
+    for (let i = 0; i < 200; i++) { x += z(); const y = x + z() * 0.5; data.push({ y, x1: x }); } // y,x cointegrated (y≈x)
+    const r = vecm(data, 'y', ['x1'], { p: 1 });
+    expect(r.adjustment).toBeLessThan(0);        // error-correction pulls back toward equilibrium
+    expect(Math.abs(r.cointegratingVector[0] - 1)).toBeLessThan(0.3); // β ≈ 1
+  });
+
+  it('fevdDecomposition computes a real orthogonalized FEVD from a fitted VAR', () => {
+    const z = lcg(11); const v0 = [], v1 = []; let a = 0, b = 0;
+    for (let i = 0; i < 200; i++) { const na = z() * 0.1, nb = z(); a = 0.2 * a + 0.9 * b + na; b = 0.5 * b + nb; v0.push(a); v1.push(b); } // y0 driven by LAGGED y1
+    const var2 = varModel({ y0: v0, y1: v1 }, 1, { horizon: 10 });
+    const r = fevdDecomposition(var2, { horizon: 8 });
+    // y0 is driven mostly by y1's shock → at a longer horizon, shock(y1) share of y0 > own share
+    const last = r.fevd[r.fevd.length - 1].decomposition.find(d => d.variable.includes('0') || d.variable === 'y0' || d.variable === 'V1');
+    const fromY1 = last.contributions.find(c => c.source.includes('1') || c.source === 'y1' || c.source === 'V2');
+    expect(fromY1.pct).toBeGreaterThan(40);
+  });
+
+  it('impulseResponseCI does a real residual bootstrap (data-driven width)', () => {
+    const z = lcg(5); const y0 = [], y1 = []; let a = 0, b = 0;
+    for (let i = 0; i < 200; i++) { a = 0.6 * a + 0.0001 * z(); b = 0.5 * b + 0.0001 * z(); y0.push(a); y1.push(b); } // near-deterministic
+    const r = impulseResponseCI({ y0, y1 }, { p: 1, horizon: 6, shock: 0, respond: 0, B: 100, seed: 1 });
+    // low-noise data → narrow CI, unlike the old fixed ±1.96·|v|·0.3 (≈0.59·|v|)
+    const width = (r.ci.hi[1] - r.ci.lo[1]);
+    expect(width).toBeLessThan(0.3 * Math.abs(r.irf[1]) + 0.05);
+  });
+});

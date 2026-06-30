@@ -133,20 +133,20 @@ implementations can be fixed. Status legend:
 | 101 | `tmddModel` | pk.js:319 | ✅ FIXED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
 | 102 | `indirectResponse` | pk.js:247 | ✅ FIXED | returns only `{n}`; computes nothing | indirect-response model fit |
 | 103 | `gpEmulator` | experimental.js:741 | ✅ FIXED | weights = row-normalized K, not K⁻¹y | solve GP linear system via matInv |
-| 104 | `varmax` | timeseries.js:1453 | STUB | returns `{n,p,q}`; estimates nothing | VARMAX estimation |
-| 105 | `vecm` | timeseries.js:1472 | STUB | returns `{n,p,rank}`; no estimation | Johansen VECM |
+| 104 | `varmax` | timeseries.js:1453 | ✅ FIXED | returns `{n,p,q}`; estimates nothing | VARMAX estimation |
+| 105 | `vecm` | timeseries.js:1472 | ✅ FIXED | returns `{n,p,rank}`; no estimation | Johansen VECM |
 | 106 | `cointegrationRank` | timeseries.js:1461 | ✅ FIXED | trace stats = `n·(maxRank−r+1)·0.1` hardcoded | real Johansen trace/max-eigen |
-| 107 | `impulseResponseCI` | timeseries.js:1478 | FABRICATED | CI = `±1.96·|v|·0.3`, not bootstrap | bootstrap IRF draws |
-| 108 | `fevdDecomposition` | timeseries.js:1487 | FABRICATED | contributions hardcoded 0.7/0.3 | real FEVD from VAR |
+| 107 | `impulseResponseCI` | timeseries.js:1478 | ✅ FIXED | CI = `±1.96·|v|·0.3`, not bootstrap | bootstrap IRF draws |
+| 108 | `fevdDecomposition` | timeseries.js:1487 | ✅ FIXED | contributions hardcoded 0.7/0.3 | real FEVD from VAR |
 | 109 | `dccGarch`/`bekkGarch`/`cccGarch`/`mgarchForecast`/`mgarchDiagnostics` | timeseries.js:1501–1543 | STUB/FABRICATED | identity/0.01/0.3/0.02 hardcoded; no estimation | real multivariate GARCH |
 | 110 | `egarch` | timeseries.js:1546 | ✅ FIXED | omega/alpha/beta/gamma hardcoded; never estimated (same as finance.js #86) | EGARCH MLE |
 | 111 | `multiArmBandit` | abTesting.js:87 | ✅ FIXED | fake Beta draw + random reward (cf. bandit #94) | sample Beta; real reward |
 | 112 | `modelComparison` p | sensitivity.js:61 | ✅ FIXED | local `fPVal = exp(-0.5·f²/(df1+df2))`, not F dist | real F-distribution p |
-| 113 | `pagelsLambda` | phylogenetics.js:18 | FABRICATED | ad-hoc `obsSS/(n·meanSq)`; **tree ignored** | ML λ on tree covariance |
-| 114 | `blombergK` | phylogenetics.js:28 | FABRICATED | `K = obsMean/(obsMean/2)` ≈ 2 always; tree ignored | K from tree-expected vs observed variance |
-| 115 | `independentContrasts`/`picCorrelation` | phylogenetics.js:4/69 | MISLABELED | adjacent-pair diffs, not Felsenstein PIC (tree ignored) | real PIC using tree+branch lengths |
-| 116 | `pglsRegression` | phylogenetics.js:87 | MISLABELED | covariance `exp(-|i−j|·0.5)` from row index, not tree | GLS with phylogenetic covariance |
-| 117 | `ouTraitModel` | phylogenetics.js:127 | BROKEN | residual uses `indexOf(d)` (wrong indexing); no tree | OU MLE on tree |
+| 113 | `pagelsLambda` | phylogenetics.js:18 | ✅ FIXED | ad-hoc `obsSS/(n·meanSq)`; **tree ignored** | ML λ on tree covariance |
+| 114 | `blombergK` | phylogenetics.js:28 | ✅ FIXED | `K = obsMean/(obsMean/2)` ≈ 2 always; tree ignored | K from tree-expected vs observed variance |
+| 115 | `independentContrasts`/`picCorrelation` | phylogenetics.js:4/69 | ✅ FIXED | adjacent-pair diffs, not Felsenstein PIC (tree ignored) | real PIC using tree+branch lengths |
+| 116 | `pglsRegression` | phylogenetics.js:87 | ✅ FIXED | covariance `exp(-|i−j|·0.5)` from row index, not tree | GLS with phylogenetic covariance |
+| 117 | `ouTraitModel` | phylogenetics.js:127 | ✅ FIXED | residual uses `indexOf(d)` (wrong indexing); no tree | OU MLE on tree |
 
 > **Whole-module issue — phylogenetics.js:** every method ignores the `tree` argument and operates on tip
 > ordering alone. The module is non-functional as phylogenetic comparative methods. Only `diversificationRate`

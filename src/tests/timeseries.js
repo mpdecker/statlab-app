@@ -1453,12 +1453,81 @@ export function encompassingTest(forecast1, forecast2, actual) {
   return { test: 'Encompassing Test', t: +t.toFixed(4), p, n, apa: `Encompass: t = ${t.toFixed(2)}, ${p < 0.05 ? 'f2 encompasses f1' : 'f1 not encompassed'}` };
 }
 
-// ── VARMAX ────────────────────────────────────────────────────────
+// ── Shared least-squares + VAR helpers for the VAR cluster ─────────
+function _ols(rows, y) {
+  const p = rows[0].length;
+  const XtX = Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) => rows.reduce((s, r) => s + r[a] * r[b], 0)));
+  const XtY = Array.from({ length: p }, (_, a) => rows.reduce((s, r, i) => s + r[a] * y[i], 0));
+  const inv = matInv(XtX);
+  const beta = inv ? inv.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0)) : Array(p).fill(0);
+  const resid = y.map((v, i) => v - rows[i].reduce((s, c, j) => s + c * beta[j], 0));
+  return { beta, resid, inv };
+}
+// Fit a reduced-form VAR(p): returns AR matrices A[lag] (k×k), const c[k], residual
+// covariance Σ, residual vectors (nObs×k), and the per-equation companion data.
+function _fitVAR(Ycols, p) {
+  const k = Ycols.length, T = Ycols[0].length, nObs = T - p, nParams = 1 + k * p;
+  const Yt = Array.from({ length: T }, (_, t) => Ycols.map(col => col[t]));
+  const X = [];
+  for (let t = p; t < T; t++) { const row = [1]; for (let lag = 1; lag <= p; lag++) for (let j = 0; j < k; j++) row.push(Yt[t - lag][j]); X.push(row); }
+  const cf = Array.from({ length: k }, () => Array(nParams).fill(0));
+  const resid = Array.from({ length: nObs }, () => Array(k).fill(0));
+  for (let eq = 0; eq < k; eq++) {
+    const yEq = Yt.slice(p).map(r => r[eq]);
+    const f = _ols(X, yEq);
+    cf[eq] = f.beta;
+    for (let t = 0; t < nObs; t++) resid[t][eq] = f.resid[t];
+  }
+  const A = []; for (let lag = 1; lag <= p; lag++) A.push(Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => cf[i][1 + (lag - 1) * k + j])));
+  const c = cf.map(r => r[0]);
+  const sigma = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => { let s = 0; for (let t = 0; t < nObs; t++) s += resid[t][i] * resid[t][j]; return s / Math.max(1, nObs - nParams); }));
+  return { A, c, sigma, resid, k, p, T, Yt };
+}
+// Orthogonalized (Cholesky) impulse responses Θ_h = Φ_h·P over the horizon.
+function _varIRF(A, sigma, horizon) {
+  const k = sigma.length, p = A.length;
+  const P = chol(sigma, k);
+  const I = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => (i === j ? 1 : 0)));
+  const phi = [I];
+  for (let h = 1; h <= horizon; h++) {
+    const ph = Array.from({ length: k }, () => Array(k).fill(0));
+    for (let lag = 1; lag <= Math.min(h, p); lag++) for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) for (let m = 0; m < k; m++) ph[i][j] += A[lag - 1][i][m] * phi[h - lag][m][j];
+    phi.push(ph);
+  }
+  return phi.map(ph => Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => { let s = 0; for (let m = 0; m < k; m++) s += ph[i][m] * P[m][j]; return s; })));
+}
+
+// ── VARMAX (ARMAX via Hannan–Rissanen 2-stage) ────────────────────
 export function varmax(data, yVar, xVars, { p = 1, q = 1 } = {}) {
   if (!data || data.length < 15 || !yVar) return null;
   const n = data.length;
-  const exoVars = xVars?.length || 0;
-  return { test: 'VARMAX', n, p, q, nExog: exoVars, apa: `VARMAX(${p},${q}): n = ${n}` };
+  const y = data.map(r => +r[yVar]);
+  const X = (xVars || []).map(v => data.map(r => +r[v]));
+  // Stage 1: a long AR(P) to estimate the innovations ε̂.
+  const P = Math.min(Math.max(p + q + 2, 4), Math.floor(n / 3));
+  const eps = Array(n).fill(0);
+  {
+    const rows = [], tgt = [];
+    for (let t = P; t < n; t++) { const row = [1]; for (let i = 1; i <= P; i++) row.push(y[t - i]); rows.push(row); tgt.push(y[t]); }
+    const f = _ols(rows, tgt); for (let t = P; t < n; t++) eps[t] = f.resid[t - P];
+  }
+  // Stage 2: regress y_t on [const, AR lags, exogenous, MA lags of ε̂].
+  const start = P + q, rows = [], tgt = [];
+  for (let t = start; t < n; t++) {
+    const row = [1];
+    for (let i = 1; i <= p; i++) row.push(y[t - i]);
+    for (let j = 0; j < X.length; j++) row.push(X[j][t]);
+    for (let m = 1; m <= q; m++) row.push(eps[t - m]);
+    rows.push(row); tgt.push(y[t]);
+  }
+  const fit = _ols(rows, tgt);
+  const coefficients = [{ term: 'const', estimate: +fit.beta[0].toFixed(5) }];
+  let idx = 1;
+  for (let i = 1; i <= p; i++) coefficients.push({ term: `ar${i}`, estimate: +fit.beta[idx++].toFixed(5) });
+  for (let j = 0; j < X.length; j++) coefficients.push({ term: xVars[j], estimate: +fit.beta[idx++].toFixed(5) });
+  for (let m = 1; m <= q; m++) coefficients.push({ term: `ma${m}`, estimate: +fit.beta[idx++].toFixed(5) });
+  const rss = fit.resid.reduce((s, r) => s + r * r, 0), sigma2 = rss / Math.max(1, rows.length - fit.beta.length);
+  return { test: 'VARMAX', coefficients, sigma2: +sigma2.toFixed(6), n, p, q, nExog: X.length, apa: `VARMAX(${p},${q}): n = ${n}` };
 }
 
 // ── Cointegration Rank Selection ──────────────────────────────────
@@ -1491,30 +1560,110 @@ export function cointegrationRank(data, { maxRank = 3 } = {}) {
 // ── VECM ──────────────────────────────────────────────────────────
 export function vecm(data, yVar, xVars, { p = 1, rank = 1 } = {}) {
   if (!data || data.length < 15 || !yVar) return null;
-  return { test: 'VECM', n: data.length, p, rank: Math.max(0, rank), apa: `VECM(${p}): rank = ${rank}, n = ${data.length}` };
+  const n = data.length;
+  const y = data.map(r => +r[yVar]);
+  const X = (xVars || []).map(v => data.map(r => +r[v]));
+  // Engle–Granger 2-step VECM. Step 1: cointegrating regression
+  //   y_t = α₀ + Σ_j β_j x_{j,t} + u_t ;  the error-correction term is ECT_t = u_t.
+  const rows1 = y.map((_, t) => [1, ...X.map(col => col[t])]);
+  const f1 = _ols(rows1, y);
+  const cointegratingVector = f1.beta.slice(1);
+  const ect = f1.resid;
+  // Step 2: Δy_t = c + α·ECT_{t−1} + Σ γ_i Δy_{t−i} + Σ δ_i Δx_{t−i} + e_t.
+  const dy = y.map((v, t) => (t > 0 ? v - y[t - 1] : 0));
+  const dx = X.map(col => col.map((v, t) => (t > 0 ? v - col[t - 1] : 0)));
+  const rows2 = [], tgt = [];
+  for (let t = p + 1; t < n; t++) {
+    const row = [1, ect[t - 1]];
+    for (let i = 1; i <= p; i++) row.push(dy[t - i]);
+    for (let j = 0; j < dx.length; j++) for (let i = 1; i <= p; i++) row.push(dx[j][t - i]);
+    rows2.push(row); tgt.push(dy[t]);
+  }
+  const f2 = _ols(rows2, tgt);
+  const adjustment = f2.beta[1]; // speed of adjustment α (negative ⇒ error-correcting)
+  return {
+    test: 'VECM', adjustment: +adjustment.toFixed(5), cointegratingVector: cointegratingVector.map(b => +b.toFixed(4)),
+    intercept: +f1.beta[0].toFixed(4), n, p, rank: Math.max(0, rank),
+    apa: `VECM(${p}): α=${adjustment.toFixed(3)}, β=[${cointegratingVector.map(b => b.toFixed(2)).join(',')}], rank=${rank}, n=${n}`,
+  };
 }
 
 // ── Impulse Response with Bootstrap CI ────────────────────────────
-export function impulseResponseCI(irf, { B = 200 } = {}) {
-  if (!irf || !irf.length) return null;
-  const n = irf.length;
-  const lo = irf.map(v => +((v || 0) - 1.96 * Math.abs(v || 0) * 0.3).toFixed(4));
-  const hi = irf.map(v => +((v || 0) + 1.96 * Math.abs(v || 0) * 0.3).toFixed(4));
-  return { test: 'IRF Bootstrap CI', irf: irf.slice(0, 10).map(v => +v.toFixed(4)), ci: { lo: lo.slice(0, 10), hi: hi.slice(0, 10) }, B, n, apa: `IRF CI: ${B} bootstrap draws` };
+export function impulseResponseCI(irf, { B = 200, p = 1, horizon = 10, shock = 0, respond = 0, seed = 42, alpha = 0.05 } = {}) {
+  if (!irf) return null;
+  // Backward-compatible analytic band when only a 1-D point IRF is supplied.
+  if (Array.isArray(irf) && (irf.length === 0 || typeof irf[0] === 'number')) {
+    if (!irf.length) return null;
+    const lo = irf.map(v => +((v || 0) - 1.96 * Math.abs(v || 0) * 0.3).toFixed(4));
+    const hi = irf.map(v => +((v || 0) + 1.96 * Math.abs(v || 0) * 0.3).toFixed(4));
+    return { test: 'IRF Bootstrap CI', irf: irf.slice(0, 10).map(v => +v.toFixed(4)), ci: { lo: lo.slice(0, 10), hi: hi.slice(0, 10) }, B, n: irf.length, apa: 'IRF CI: analytic band (point IRF only)' };
+  }
+  // Real residual (recursive-design) bootstrap. `irf` is a multivariate series
+  // (object of arrays or k×T matrix). Fit a VAR, then resample residual VECTORS,
+  // rebuild Y*, refit, and recompute the IRF — repeated B times for percentiles.
+  const Ycols = Array.isArray(irf) ? irf.map(r => [...r]) : Object.keys(irf).map(k => irf[k].slice());
+  const k = Ycols.length, T = Ycols[0].length;
+  if (T < k * p + 5) return null;
+  const base = _fitVAR(Ycols, p);
+  const pointIRF = _varIRF(base.A, base.sigma, horizon).map(theta => theta[respond][shock]);
+  let s = seed >>> 0; const rnd = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+  const draws = Array.from({ length: horizon + 1 }, () => []);
+  const nObs = base.resid.length;
+  for (let b = 0; b < B; b++) {
+    // Reconstruct a bootstrap series from the fitted dynamics + resampled residuals.
+    const Yb = base.Yt.slice(0, p).map(row => [...row]); // seed with the first p observations
+    for (let t = p; t < T; t++) {
+      const u = base.resid[Math.floor(rnd() * nObs)];
+      const yt = base.c.map((cc, i) => {
+        let v = cc; for (let lag = 1; lag <= p; lag++) for (let j = 0; j < k; j++) v += base.A[lag - 1][i][j] * Yb[t - lag][j];
+        return v + u[i];
+      });
+      Yb.push(yt);
+    }
+    const Ycb = Array.from({ length: k }, (_, i) => Yb.map(row => row[i]));
+    const fb = _fitVAR(Ycb, p);
+    const irfB = _varIRF(fb.A, fb.sigma, horizon).map(theta => theta[respond][shock]);
+    irfB.forEach((v, h) => draws[h].push(v));
+  }
+  const pct = (arr, q) => { const a = [...arr].sort((x, y) => x - y); return a[Math.max(0, Math.min(a.length - 1, Math.floor(q * (a.length - 1))))]; };
+  const lo = draws.map(d => +pct(d, alpha / 2).toFixed(5));
+  const hi = draws.map(d => +pct(d, 1 - alpha / 2).toFixed(5));
+  return { test: 'IRF Bootstrap CI', irf: pointIRF.map(v => +v.toFixed(5)), ci: { lo, hi }, B, horizon, shock, respond, n: T, apa: `IRF CI: ${B} residual-bootstrap draws` };
 }
 
 // ── FEVD with CLI ─────────────────────────────────────────────────
 export function fevdDecomposition(varResult, { horizon = 10 } = {}) {
   if (!varResult || !varResult.k) return null;
-  const k = varResult.k, h = Math.min(horizon, 10);
-  const fevd = Array.from({ length: h }, (_, step) => ({
+  const k = varResult.k, h = Math.min(horizon, 20);
+  // Real orthogonalized FEVD when a fitted VAR (coefficients + residualCov) is
+  // supplied: contribution of shock j to variable i's H-step forecast-error
+  // variance = Σ_{s<H} Θ_s[i][j]² / Σ_{s<H} Σ_j Θ_s[i][j]², Θ_s = Φ_s·chol(Σ).
+  if (Array.isArray(varResult.coefficients) && Array.isArray(varResult.residualCov)) {
+    const p = varResult.p || 1;
+    const A = [];
+    for (let lag = 1; lag <= p; lag++) A.push(Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => varResult.coefficients[i].coefficients[1 + (lag - 1) * k + j].estimate)));
+    const theta = _varIRF(A, varResult.residualCov, h);
+    const name = idx => varResult.coefficients[idx]?.equation || `V${idx + 1}`;
+    const fevd = [];
+    for (let H = 1; H <= h; H++) {
+      const decomposition = [];
+      for (let resp = 0; resp < k; resp++) {
+        const contrib = Array(k).fill(0); let total = 0;
+        for (let sStep = 0; sStep < H; sStep++) for (let shock = 0; shock < k; shock++) { const v = theta[sStep][resp][shock]; contrib[shock] += v * v; total += v * v; }
+        decomposition.push({ variable: name(resp), contributions: contrib.map((c, shock) => ({ source: name(shock), pct: +(100 * (total > 0 ? c / total : 0)).toFixed(1) })) });
+      }
+      fevd.push({ horizon: H, decomposition });
+    }
+    return { test: 'FEVD Decomposition', fevd, k, horizon: h, apa: `FEVD (orthogonalized): ${k} vars, ${h} steps` };
+  }
+  // Fallback for a bare { k } object (no fitted model): identity decomposition.
+  const hh = Math.min(h, 10);
+  const fevd = Array.from({ length: hh }, (_, step) => ({
     horizon: step + 1, decomposition: Array.from({ length: k }, (_, v) => ({
-      variable: `V${v + 1}`, contributions: Array.from({ length: k }, (_, s) => ({
-        source: `V${s + 1}`, pct: +(100 * (s === v ? 0.7 : 0.3 / (k - 1))).toFixed(1),
-      })),
+      variable: `V${v + 1}`, contributions: Array.from({ length: k }, (_, s) => ({ source: `V${s + 1}`, pct: +(100 * (s === v ? 1 : 0)).toFixed(1) })),
     })),
   }));
-  return { test: 'FEVD Decomposition', fevd, k, horizon: h, apa: `FEVD: ${k} vars, ${h} steps` };
+  return { test: 'FEVD Decomposition', fevd, k, horizon: hh, apa: `FEVD: ${k} vars (no fitted model supplied)` };
 }
 
 // ── DCC-GARCH ─────────────────────────────────────────────────────

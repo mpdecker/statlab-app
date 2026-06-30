@@ -33,3 +33,71 @@ describe('ouTraitModel', () => {
   it('alpha positive', () => { const r = ouTraitModel(d, 'trait'); if (r) expect(r.alpha).toBeGreaterThan(0); });
   it('sigma2 positive', () => { const r = ouTraitModel(d, 'trait'); if (r) expect(r.sigma2).toBeGreaterThan(0); });
 });
+
+// ── Real tree-based validation (Brownian-motion simulation on a known tree) ──
+function balancedVCV(D) { // 2^D tips, unit branches; C[i][j] = shared leading bits
+  const nTips = 2 ** D;
+  return Array.from({ length: nTips }, (_, i) => Array.from({ length: nTips }, (_, j) => {
+    if (i === j) return D;
+    let shared = 0; for (let b = D - 1; b >= 0; b--) { if (((i >> b) & 1) === ((j >> b) & 1)) shared++; else break; }
+    return shared;
+  }));
+}
+function chol(A) { const n = A.length, L = Array.from({ length: n }, () => Array(n).fill(0)); for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) { let s = A[i][j]; for (let k = 0; k < j; k++) s -= L[i][k] * L[j][k]; L[i][j] = i === j ? Math.sqrt(Math.max(s, 1e-12)) : s / (L[j][j] || 1e-12); } return L; }
+function mkRng(seed) { let s = seed; return () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; }; }
+function simBM(L, z, sigma) { return L.map(row => row.reduce((s, v, j) => s + v * z[j], 0) * sigma); }
+
+describe('phylogenetics: real tree-based comparative methods', () => {
+  const D = 5, C = balancedVCV(D), n = C.length, L = chol(C), tree = { vcv: C };
+
+  it('pagelsLambda ≈ 1 for Brownian-motion traits, ≈ 0 for iid noise', () => {
+    const rng = mkRng(7);
+    const bm = simBM(L, Array.from({ length: n }, () => rng()), 1);
+    const iid = Array.from({ length: n }, () => rng());
+    expect(pagelsLambda(bm, tree).lambda).toBeGreaterThan(0.4);  // clear phylogenetic signal
+    expect(pagelsLambda(iid, tree).lambda).toBeLessThan(0.2);     // ~no signal
+  });
+
+  it('blombergK ≈ 1 for Brownian-motion traits', () => {
+    const rng = mkRng(11);
+    const bm = simBM(L, Array.from({ length: n }, () => rng()), 1);
+    const r = blombergK(bm, tree);
+    expect(r.K).toBeGreaterThan(0.5);
+    expect(r.K).toBeLessThan(2);
+  });
+
+  it('pglsRegression recovers the slope under phylogenetic error', () => {
+    const rng = mkRng(3);
+    const x = simBM(L, Array.from({ length: n }, () => rng()), 1);
+    const err = simBM(L, Array.from({ length: n }, () => rng()), 0.3);
+    const beta1 = 1.8;
+    const y = x.map((xi, i) => 2 + beta1 * xi + err[i]);
+    const data = x.map((xi, i) => ({ x: xi, y: y[i] }));
+    const r = pglsRegression(data, 'x', 'y', 1, { tree });
+    expect(Math.abs(r.beta[1] - 1.8)).toBeLessThan(0.4);
+  });
+
+  it('picCorrelation recovers a known cross-trait correlation', () => {
+    const rng = mkRng(5);
+    const z1 = Array.from({ length: n }, () => rng());
+    const z2 = Array.from({ length: n }, () => rng());
+    const rho = 0.8;
+    const t1 = simBM(L, z1, 1);
+    const t2 = simBM(L, z1.map((v, i) => rho * v + Math.sqrt(1 - rho * rho) * z2[i]), 1);
+    const r = picCorrelation(t1, t2, tree);
+    expect(Math.abs(r.r - 0.8)).toBeLessThan(0.25);
+    // independently-evolved traits: removes the spurious tree-driven correlation
+    const indep1 = simBM(L, Array.from({ length: n }, () => rng()), 1);
+    const indep2 = simBM(L, Array.from({ length: n }, () => rng()), 1);
+    expect(Math.abs(picCorrelation(indep1, indep2, tree).r)).toBeLessThan(0.4);
+  });
+
+  it('ouTraitModel infers stronger pull (higher α) for weaker phylogenetic signal', () => {
+    const rng = mkRng(9);
+    const bm = simBM(L, Array.from({ length: n }, () => rng()), 1);   // strong signal → small α
+    const noisy = Array.from({ length: n }, () => rng());             // no signal → large α
+    const aBM = ouTraitModel(bm.map((v, i) => ({ trait: v })), 'trait', { tree }).alpha;
+    const aNoise = ouTraitModel(noisy.map((v, i) => ({ trait: v })), 'trait', { tree }).alpha;
+    expect(aNoise).toBeGreaterThan(aBM);
+  });
+});
