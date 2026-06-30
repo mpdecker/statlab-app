@@ -47,3 +47,13 @@ describe('gam edge cases', () => {
   it('gamEffectiveDf null for empty', () => expect(gamEffectiveDf([])).toBeNull());
   it('gamInteraction null for short data', () => expect(gamInteraction(d.slice(0, 5), 'y', 'x1', 'x2')).toBeNull());
 });
+
+describe('gamInteraction fits the tensor-product interaction model', () => {
+  it('captures a real x1*x2 interaction (high R^2)', () => {
+    const d = [];
+    let s = 5; const rnd = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return (s / 2 ** 32) * 2 - 1; };
+    for (let i = 0; i < 60; i++) { const a = rnd() * 3, b = rnd() * 3; d.push({ x1: a, x2: b, y: a * b + 0.05 * rnd() }); }
+    const r = gamInteraction(d, 'y', 'x1', 'x2', { df: 6 });
+    expect(r.rSquared).toBeGreaterThan(0.8);
+  });
+});

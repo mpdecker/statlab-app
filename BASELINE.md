@@ -84,7 +84,7 @@ implementations can be fixed. Status legend:
 | 56 | `gloveEmbeddings` | nlp.js:22 | ✅ FIXED | builds co-occurrence then returns random vectors | weighted LSQ on log-cooc |
 | 57 | `dependencyParse` | nlp.js:71 | ✅ FIXED | links token→previous, positional labels | real parser or relabel |
 | 58 | `partWorthUtilities` | conjoint.js:18 | ✅ FIXED (PR #2) | diag-only solve | dummy-coded OLS |
-| 59 | `choiceSimulation` | conjoint.js:42 | FABRICATED | random utilities, ignores profiles/attrs | logit from estimated part-worths |
+| 59 | `choiceSimulation` | conjoint.js:42 | ✅ FIXED | random utilities, ignores profiles/attrs | logit from estimated part-worths |
 | 60 | `cpDecomposition` | tensor.js:182 | ✅ FIXED | ALS loop never updates A/B/C; factors stay random | real CP-ALS (cf. `parafac`, which is correct) |
 | 61 | `tuckerRegression` | tensor.js:203 | ✅ FIXED | β random, never fit | HOSVD-based regression |
 | 62 | `tensorCompletion` | tensor.js:219 | ✅ FIXED | fills missing with `i+j+k` | low-rank tensor completion |
@@ -152,7 +152,7 @@ implementations can be fixed. Status legend:
 > ordering alone. The module is non-functional as phylogenetic comparative methods. Only `diversificationRate`
 > (Yule λ = n/totalTime) and the permutation `phylogeneticSignal` are defensible.
 
-| 118 | `gamInteraction` | gam.js:113 | STUB | returns `{n}`; computes nothing | tensor-product smooth interaction |
+| 118 | `gamInteraction` | gam.js:113 | ✅ FIXED | returns `{n}`; computes nothing | tensor-product smooth interaction |
 
 ---
 
