@@ -37,3 +37,12 @@ describe('betadisper', () => {
   it('dispersions array non-empty', () => { const r = betadisper(d, ['sp1','sp2','sp3'], 'group'); if (r) { expect(Array.isArray(r.dispersions)).toBe(true); expect(r.dispersions.length).toBeGreaterThan(0); } });
   it('dispersions non-empty', () => { const r = betadisper(d, ['sp1','sp2','sp3'], 'group'); if (r) { expect(Array.isArray(r.dispersions)).toBe(true); expect(r.dispersions.length).toBeGreaterThan(0); } });
 });
+
+describe('rarefaction uses Hurlbert expected species', () => {
+  it('matches the exact value for a simple community', () => {
+    const data = [...Array(5).fill('a'), ...Array(5).fill('b')]; // N=10, two species, 5 each
+    const r = rarefaction(data, 5);
+    // E[S_5] = 2*(1 - C(5,5)/C(10,5)) = 2*(1 - 1/252) = 1.99206
+    expect(r.expectedSpecies).toBeCloseTo(1.992, 2);
+  });
+});

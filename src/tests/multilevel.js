@@ -1007,10 +1007,33 @@ export function remlEstimate(X, y, clusterVar) {
   if (inv) { beta = inv.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0)); }
   else { beta = X[0].map(() => 0); }
   const resid = y.map((yi, i) => yi - X[i].reduce((s, x, j) => s + x * beta[j], 0));
-  const sigma2R = sampleVar(resid) * (n / Math.max(n - p - 1, 1));
-  const logLik = -0.5 * n * (Math.log(2 * Math.PI) + Math.log(Math.max(sigma2R, 1e-10))) - 0.5 * resid.reduce((s, r) => s + r * r, 0) / Math.max(sigma2R, 1e-10);
+  const rss = resid.reduce((s, r) => s + r * r, 0);
+  let sigma2R, sigma2u = 0, icc = 0;
+  if (clusterVar && clusterVar.length === n) {
+    // Random-intercept variance components from the residual ANOVA decomposition
+    // (Henderson / moments; equals REML for balanced clusters).
+    const clusters = [...new Set(clusterVar)];
+    const k = clusters.length;
+    const rbar = avg(resid);
+    const byC = {}; clusters.forEach(c => { byC[c] = []; });
+    clusterVar.forEach((c, i) => byC[c].push(resid[i]));
+    let ssB = 0, ssW = 0, sumNc2 = 0;
+    for (const c of clusters) {
+      const arr = byC[c], nc = arr.length, mc = avg(arr);
+      ssB += nc * (mc - rbar) ** 2; sumNc2 += nc * nc;
+      for (const r of arr) ssW += (r - mc) ** 2;
+    }
+    const msW = ssW / Math.max(1, n - k), msB = ssB / Math.max(1, k - 1);
+    const m0 = (n - sumNc2 / n) / Math.max(1, k - 1); // average cluster size (unbalanced-corrected)
+    sigma2R = msW;
+    sigma2u = Math.max(0, (msB - msW) / Math.max(m0, 1e-9));
+    icc = sigma2u / Math.max(sigma2u + sigma2R, 1e-12);
+  } else {
+    sigma2R = rss / Math.max(n - p, 1); // REML residual variance for a fixed-effects model
+  }
+  const logLik = -0.5 * n * (Math.log(2 * Math.PI) + Math.log(Math.max(sigma2R, 1e-10))) - 0.5 * rss / Math.max(sigma2R, 1e-10);
   const aic = -2 * logLik + 2 * (p + 1);
-  return { test: 'REML Estimation', sigma2: +sigma2R.toFixed(6), logLik: +logLik.toFixed(4), aic: +aic.toFixed(4), n, p, apa: `REML: sigma2=${sigma2R.toFixed(4)}, AIC=${aic.toFixed(2)}` };
+  return { test: 'REML Estimation', sigma2: +sigma2R.toFixed(6), sigma2u: +sigma2u.toFixed(6), icc: +icc.toFixed(4), logLik: +logLik.toFixed(4), aic: +aic.toFixed(4), n, p, apa: `REML: σ²_e=${sigma2R.toFixed(4)}, σ²_u=${sigma2u.toFixed(4)}, ICC=${icc.toFixed(3)}` };
 }
 
 // ── Repeated Measures MANOVA ──────────────────────────────────────
@@ -1036,20 +1059,29 @@ export function transitionModel(data, yVar, xVars, { idVar, lag = 1 } = {}) {
   if (!data || data.length < 15 || !yVar || !xVars || !idVar) return null;
   const ids = [...new Set(data.map(r => r[idVar]))];
   if (ids.length < 3) return null;
-  const y = data.map(r => +r[yVar]);
-  const yLag = data.map((r, i) => {
-    if (i > 0 && data[i][idVar] === data[i-1][idVar]) return y[i-1];
-    return avg(y);
-  });
-  const X = data.map(r => xVars.map(v => +r[v]));
-  const n = data.length;
-  let num = 0, den = 0;
-  for (let i = 0; i < n; i++) {
-    const xi = X[i].reduce((s, v) => s + v, 0);
-    num += y[i] * (yLag[i] + xi);
-    den += (yLag[i] + xi) ** 2;
+  const yAll = data.map(r => +r[yVar]);
+  // Multiple regression y_it = α + φ·y_{i,t−1} + Σ β_k x_k over rows with a
+  // valid within-subject lag (the old code summed yLag and all x into ONE
+  // predictor sharing a single coefficient, with a fake se=1/√n).
+  const rows = [];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idVar] !== data[i - 1][idVar]) continue;
+    rows.push({ y: yAll[i], z: [1, yAll[i - 1], ...xVars.map(v => +data[i][v])] });
   }
-  const beta = den > 0 ? num / den : 0;
-  const coeffs = xVars.map(name => ({ name, b: +beta.toFixed(5), se: +(1 / Math.sqrt(n)).toFixed(5) }));
-  return { test: 'Transition Model', coefficients: coeffs, nSubjects: ids.length, n, apa: `Transition: ${ids.length} subjects, beta = ${beta.toFixed(3)}` };
+  const m = rows.length, kz = 2 + xVars.length;
+  if (m < kz + 1) return null;
+  const Z = rows.map(r => r.z), yv = rows.map(r => r.y);
+  const ZtZ = Array.from({ length: kz }, (_, a) => Array.from({ length: kz }, (_, b) => Z.reduce((s, r) => s + r[a] * r[b], 0)));
+  const ZtY = Array.from({ length: kz }, (_, a) => Z.reduce((s, r, i) => s + r[a] * yv[i], 0));
+  const inv = matInv(ZtZ);
+  const beta = inv ? inv.map(row => row.reduce((s, v, j) => s + v * ZtY[j], 0)) : Array(kz).fill(0);
+  let rss = 0; for (let i = 0; i < m; i++) { const f = Z[i].reduce((s, v, j) => s + v * beta[j], 0); rss += (yv[i] - f) ** 2; }
+  const sigma2 = rss / Math.max(1, m - kz);
+  const se = j => (inv ? Math.sqrt(Math.max(0, sigma2 * inv[j][j])) : 0);
+  const coeffs = xVars.map((name, j) => ({ name, b: +beta[2 + j].toFixed(5), se: +se(2 + j).toFixed(5) }));
+  return {
+    test: 'Transition Model', coefficients: coeffs, intercept: +beta[0].toFixed(5),
+    lagCoefficient: +beta[1].toFixed(5), lagSe: +se(1).toFixed(5), nSubjects: ids.length, n: m,
+    apa: `Transition: ${ids.length} subjects, φ = ${beta[1].toFixed(3)}`,
+  };
 }

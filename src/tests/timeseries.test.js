@@ -1136,3 +1136,29 @@ describe('stateSpace', () => {
     if (r) expect(r.filtered.length).toBeLessThanOrEqual(15);
   });
 });
+
+describe('cointegrationRank runs real Johansen on multivariate series', () => {
+  function rwTrend(seed) { let s = seed; const z = () => { let u = 0; for (let i = 0; i < 12; i++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; }; return z; }
+  it('detects rank 1 for two cointegrated series, rank 0 for independent walks', () => {
+    const z = rwTrend(123); let w = 0;
+    const coint = [];
+    for (let t = 0; t < 150; t++) { w += z(); coint.push([w + z() * 0.3, w + z() * 0.3]); } // share the trend w
+    expect(cointegrationRank(coint).bestRank).toBe(1);
+    const z2 = rwTrend(77); let a = 0, b = 0; const indep = [];
+    for (let t = 0; t < 150; t++) { a += z2(); b += z2(); indep.push([a, b]); } // independent random walks
+    expect(cointegrationRank(indep).bestRank).toBe(0);
+  });
+});
+
+describe('egarch estimates its parameters by MLE', () => {
+  it('recovers a strong ARCH effect from simulated EGARCH data', () => {
+    // simulate EGARCH(1,1) with strong ARCH (alpha=0.4) and leverage (gamma<0)
+    let s = 4321; const z = () => { let u = 0; for (let i = 0; i < 12; i++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+    const omega = -0.2, alpha = 0.4, beta = 0.9, gamma = -0.2;
+    let lh = omega / (1 - beta); const data = [];
+    for (let t = 0; t < 800; t++) { const zt = z(); data.push(Math.sqrt(Math.exp(lh)) * zt); lh = omega + beta * lh + alpha * (Math.abs(zt) - Math.sqrt(2 / Math.PI)) + gamma * zt; }
+    const r = egarch(data);
+    expect(r.params.alpha).toBeGreaterThan(0.2); // estimated strong ARCH, not the hardcoded 0.1
+    expect(r.params.gamma).toBeLessThan(0);      // estimated leverage, not the hardcoded +0.05
+  });
+});

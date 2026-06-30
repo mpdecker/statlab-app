@@ -35,9 +35,9 @@ implementations can be fixed. Status legend:
 | 12 | Cox coeffs | demo.js:76 | ✅ FIXED | β/se/p were hardcoded (0.1/0.1/0.05); now delegates to the real `survival.coxPH`. TDD: recovers a positive significant β from a hazard-∝-exp(x) DGP. |
 | 12b | **`coxPH` (+ fineGray, frailtyCox, timeVaryingCox, cureModel) — CRITICAL SIGN BUG** | survival.js:137,313,467,572,782,824 | ✅ FIXED | Newton update used `β + hess⁻¹·grad`, but `hess` is the **negative-definite** Hessian, so the ascent step is `β − hess⁻¹·grad`. Every Cox/logistic coefficient in the survival module was **sign-flipped** (β̂ ≈ −β_true). Shape-only tests (HR>0, p∈[0,1]) never caught it. **Not in the original audit — found while fixing demo (#12); survival had been marked REAL from reading.** TDD: coxPH now recovers β=+0.78 (was −0.91) on a known DGP; timeVaryingCox HR 1.74. Affects all dependents (Fine-Gray, frailty, time-varying, cure). |
 | 13 | ILR regression coeffs | compositional.js:82 | ✅ FIXED | `se:0.1` → analytic OLS SE `√(σ̂²·(XᵀX)⁻¹_jj)` + z + p. **Also fixed a worse latent bug:** `compRegression` consumed the *display-truncated* `ilrTransform().transformed` (first 5 rows), so it had been regressing on only 5 observations regardless of n — now uses full `_ilrCoords(data)`. TDD-driven. |
-| 14 | `tsne` | dimReduction.js:8 | BROKEN | perplexity ignored (σ=1); gradient omits `-Q` repulsion → collapse | perplexity binary search + full KL gradient |
-| 15 | `lle` | dimReduction.js:88 | BROKEN | reconstruction weights hardcoded uniform `1/k` | solve constrained least squares per neighborhood |
-| 16 | `umapApprox` | dimReduction.js:124 | MISLABELED | is just PCA | real UMAP or rename to PCA |
+| 14 | `tsne` | dimReduction.js:8 | ✅ FIXED | perplexity ignored (σ=1); gradient omits `-Q` repulsion → collapse | perplexity binary search + full KL gradient |
+| 15 | `lle` | dimReduction.js:88 | ✅ FIXED | reconstruction weights hardcoded uniform `1/k` | solve constrained least squares per neighborhood |
+| 16 | `umapApprox` | dimReduction.js:124 | ✅ FIXED | is just PCA | real UMAP or rename to PCA |
 | 17 | `shapValues` | interpretability.js:7 | ✅ FIXED | corr×var heuristic; perm loop is a no-op | Shapley sampling over a real model |
 | 18 | `limeImportance` | interpretability.js:29 | ✅ FIXED | perturbation heuristic, no local surrogate | weighted local linear surrogate |
 | 19 | `partialDependence` | interpretability.js:49 | ✅ FIXED | uses corr pseudo-model, not a trained model | require a model fn (cf. alePlot) |
@@ -49,7 +49,7 @@ implementations can be fixed. Status legend:
 | 24 | `tobitModel` | econometric.js:24 | ✅ FIXED | reimplemented as Type-I censored-normal MLE via `mleFit` (censored obs → Φ((L−xβ)/σ); adds intercept; reports MLE β, Hessian-based SE, z, computed p, σ, logLik). TDD: recovers slope 2.000 & p≈0 with no censoring (was through-origin OLS giving 2.13, p≡1); handles left-censored data. |
 | 25 | `bivariateProbit` | econometric.js:53 | ✅ FIXED | full-information ML biprobit: implemented Φ₂ (bivariate-normal CDF via Simpson on the standard integral identity), likelihood Φ₂(q₁·xβ₁, q₂·xβ₂, q₁q₂ρ), `mleFit` over [β₁,β₂,atanh ρ]; returns both equations' coefficients + Hessian SEs + ρ. TDD: recovers β₁ₓ=1.17, β₂ₓ=−1.03, ρ=0.64 from a DGP with true (1.2, −0.9, 0.5). Was just raw corr(y1,y2). |
 | 26 | `panelFixedEffects` | econometric.js:131 | ✅ FIXED | reimplemented as the within (LSDV) estimator: demean by unit, multivariate OLS via matInv, analytic SE `√(σ̂²·(XᵀX)⁻¹_jj)` with df=N−nUnits−p. TDD: recovers [2,−1] exactly from constructed panel. |
-| 27 | `heckmanSelection` | econometric.js:29 | BROKEN | LPM selection not probit; `indexOf(array)` bug; no outcome eq output | probit selection + IMR-augmented OLS |
+| 27 | `heckmanSelection` | econometric.js:29 | ✅ FIXED | LPM selection not probit; `indexOf(array)` bug; no outcome eq output | probit selection + IMR-augmented OLS |
 | 28 | `bicScore` | pgm.js:53 | ✅ FIXED | `n·log(1-avgR)+k·log(n)`, not a graph BIC | per-node local BIC |
 | 29 | `beliefPropagation` | pgm.js:18 | ✅ FIXED | messages init to 1, never updated; maxIter unused | sum-product message passing |
 | 30 | `variableElimination` | pgm.js:68 | ✅ FIXED | eliminates nothing; counts factors | actual factor elimination |
@@ -66,9 +66,9 @@ implementations can be fixed. Status legend:
 
 | 41 | `backfitOne`→`gamBackfitting`,`gamSpline` | gam.js:24 | ✅ FIXED (PR #2) | diagonal-only solve on correlated spline basis (primary, not fallback) → wrong β | full penalized normal-equations solve |
 | 42 | `gamLocalScoring` | gam.js:90 | ✅ FIXED (PR #2) | diag-only IRLS | full weighted normal-equations |
-| 43 | `starModel` | spatialTemporal.js:15 | BROKEN | diag-only OLS on endogenous Wy (also needs ML/IV) | spatial ML/2SLS |
-| 44 | `gstarModel` | spatialTemporal.js:35 | BROKEN | diag-only solve | spatial ML |
-| 45 | `spatiotemporalMoran` | spatialTemporal.js:59 | FABRICATED | uses `(i+1)%n` sequential neighbor, no W matrix | real W-based ST Moran |
+| 43 | `starModel` | spatialTemporal.js:15 | ✅ FIXED | diag-only OLS on endogenous Wy (also needs ML/IV) | spatial ML/2SLS |
+| 44 | `gstarModel` | spatialTemporal.js:35 | ✅ FIXED | diag-only solve | spatial ML |
+| 45 | `spatiotemporalMoran` | spatialTemporal.js:59 | ✅ FIXED | uses `(i+1)%n` sequential neighbor, no W matrix | real W-based ST Moran |
 | 46 | `spaceTimeForecast` | spatialTemporal.js:79 | FABRICATED | returns `rho*2` for every step | iterate the fitted model |
 | 47 | `fpcaExpanded` | fda.js:99 | FABRICATED | random scores, eigenvalues hardcoded `3/(i+1)` | eigen of smoothed covariance surface |
 | 48 | `functionalRegression` | fda.js:118 | ✅ FIXED | returns `corr(x̄,y)` as β | basis-expanded functional coefficient |
@@ -80,23 +80,23 @@ implementations can be fixed. Status legend:
 | 53b | `difLogistic` | psychometrics.js:793 | BROKEN | diag-only solve; linear OLS labeled "logistic"; `score=i%10` placeholder | logistic DIF (Mantel-Haenszel/IRT) |
 | 54 | non-response adj. | survey.js:470 | ✅ FIXED (PR #2) | diag-only solve; ad-hoc weights | logistic response-propensity weights |
 
-| 55 | `word2vecSkipGram` | nlp.js:7 | FABRICATED | random W1 returned; never trains; epochs/lr ignored | skip-gram negative sampling |
-| 56 | `gloveEmbeddings` | nlp.js:22 | FABRICATED | builds co-occurrence then returns random vectors | weighted LSQ on log-cooc |
+| 55 | `word2vecSkipGram` | nlp.js:7 | ✅ FIXED | random W1 returned; never trains; epochs/lr ignored | skip-gram negative sampling |
+| 56 | `gloveEmbeddings` | nlp.js:22 | ✅ FIXED | builds co-occurrence then returns random vectors | weighted LSQ on log-cooc |
 | 57 | `dependencyParse` | nlp.js:71 | FABRICATED | links token→previous, positional labels | real parser or relabel |
 | 58 | `partWorthUtilities` | conjoint.js:18 | ✅ FIXED (PR #2) | diag-only solve | dummy-coded OLS |
 | 59 | `choiceSimulation` | conjoint.js:42 | FABRICATED | random utilities, ignores profiles/attrs | logit from estimated part-worths |
 | 60 | `cpDecomposition` | tensor.js:182 | ✅ FIXED | ALS loop never updates A/B/C; factors stay random | real CP-ALS (cf. `parafac`, which is correct) |
 | 61 | `tuckerRegression` | tensor.js:203 | ✅ FIXED | β random, never fit | HOSVD-based regression |
 | 62 | `tensorCompletion` | tensor.js:219 | ✅ FIXED | fills missing with `i+j+k` | low-rank tensor completion |
-| 63 | `vipScores` | pls.js:47 | FABRICATED | `√(i+1)/nc`, not from weights/loadings | VIP from PLS weights & SS |
-| 64 | `sparsePLS` | pls.js:135 | FABRICATED | hardcoded `0.5` loadings (selection is real) | sparse loadings from sPLS |
-| 65 | `rda` | pls.js:57 | BROKEN | diag-only constrained SS | full RDA (constrained eigen) |
-| 66 | `sPLSRegression` | pls.js:129 | BROKEN | deflation `Xres-=pt*(Xres/pt)` zeroes X | correct NIPALS deflation |
-| 67 | `pls2` | pls.js:30 | BROKEN | no proper NIPALS iteration/deflation | real PLS2 |
+| 63 | `vipScores` | pls.js:47 | ✅ FIXED | `√(i+1)/nc`, not from weights/loadings | VIP from PLS weights & SS |
+| 64 | `sparsePLS` | pls.js:135 | ✅ FIXED | hardcoded `0.5` loadings (selection is real) | sparse loadings from sPLS |
+| 65 | `rda` | pls.js:57 | ✅ FIXED | diag-only constrained SS | full RDA (constrained eigen) |
+| 66 | `sPLSRegression` | pls.js:129 | ✅ FIXED | deflation `Xres-=pt*(Xres/pt)` zeroes X | correct NIPALS deflation |
+| 67 | `pls2` | pls.js:30 | ✅ FIXED | no proper NIPALS iteration/deflation | real PLS2 |
 
 | 68 | `svdEmbeddings` | text.js:221 | FABRICATED | no SVD — returns normalized co-occ rows; `sameness=vec[0]+0.5` | truncated SVD of PPMI matrix |
 
-| 69 | `procrustes` | ordination.js:145 | BROKEN | "SVD" faked — rotation=identity; m² is raw SS, no optimal rotation/scaling | real Procrustes SVD rotation |
+| 69 | `procrustes` | ordination.js:145 | ✅ FIXED | "SVD" faked — rotation=identity; m² is raw SS, no optimal rotation/scaling | real Procrustes SVD rotation |
 | 70 | `distanceMatrix` | distance.js:11 | ✅ FIXED | operator precedence: computes `a - b**2`, not `(a-b)**2` → wrong distances | `(x[i][k]-x[j][k])**2` |
 | 71 | `partialDistanceCorr` | distance.js:89 | BROKEN | "residuals" `v - z·x̄/z̄` are not regression residuals | residualize via distance proj |
 | 72 | `circularLinearRegression` p | circular.js:159 | ✅ FIXED | `p = 1` hardcoded (coefs real) | F/t test on the regression |
@@ -112,34 +112,34 @@ implementations can be fixed. Status legend:
 | 80 | `doubleML` | causal.js:343 | APPROX/MISLABELED | nuisance `yHat/dHat` = training means; **X never used** → not debiased ML | cross-fitted ML nuisance models |
 | 81 | `ordinalSEM` | sem.js:593 | STUB | returns `loadings:[]`, `fit:{chisq:NaN,rmsea:NaN,cfi:NaN}` — never fits | WLSMV ordinal SEM |
 | 82 | `measurementInvariance` | sem.js:339 | APPROX/MISLABELED | pass/fail from ad-hoc thresholds, not nested χ² model comparison | fit constrained configural/metric/scalar models |
-| 83 | `transitionModel` | multilevel.js:1035 | BROKEN | regresses y on `(yLag+Σx)` as a single predictor; `se=1/√n` | proper transition/Markov regression |
-| 84 | `remlEstimate` | multilevel.js:999 | MISLABELED | plain OLS + residual var, no REML variance-component estimation | actual REML |
+| 83 | `transitionModel` | multilevel.js:1035 | ✅ FIXED | regresses y on `(yLag+Σx)` as a single predictor; `se=1/√n` | proper transition/Markov regression |
+| 84 | `remlEstimate` | multilevel.js:999 | ✅ FIXED | plain OLS + residual var, no REML variance-component estimation | actual REML |
 | 85 | `repeatedMeasuresMANOVA` | multilevel.js:1017 | INCOMPLETE | returns SS only, no F/Wilks/p | RM-MANOVA test statistic |
 | 86 | `egarch` | finance.js:195 | ✅ FIXED | Gaussian MLE of EGARCH(1,1): ln σ²_t = ω+β ln σ²_{t-1}+α(\|z\|−E\|z\|)+γz, β=tanh; gradient-descent + Newton (`_garchFit` helper). TDD: estimates β=0.70/α=0.29 (was all hardcoded). |
 | 87 | `tgarch` | finance.js:211 | ✅ FIXED | Gaussian MLE of GJR-GARCH(1,1) with feasibility transforms (ω>0, α,β≥0, α+γ≥0). TDD: recovers ω/α/γ/β ≈ .093/.128/.069/.530 from GJR(.1/.08/.06/.6) (was hardcoded 0.9). |
 | 88 | `blackScholes`/`optionGreeks`/`greeks` | finance.js:236 | ✅ FIXED | swapped `tanh`-for-Φ → real `normalCDF`; optionGreeks theta/rho now use Φ(d2). TDD: BS call now 10.4506 (was 9.54), put 5.5735, delta=N(d1). |
 | 89 | `gpdMLE` | extreme.js:57 | ✅ FIXED | real GPD maximum likelihood via `mleFit` over [logσ, ξ] with support guard `1+ξy/σ>0`; MoM start values; delta-method SE for σ. TDD: recovers σ=2.32, ξ=0.26 from GPD(2, 0.3) exceedances (was σ→7.4, ξ→0.102). |
-| 90 | `gevMLE` | extreme.js:4 | APPROX | fixed-step gradient on questionable (CDF-derived) gradients | Newton on GEV log-likelihood |
-| 91 | `peaksOverThreshold` | extreme.js:129 | APPROX | xi hardcoded 0.1; scale=mean(exceed); no GPD fit | fit GPD to exceedances |
-| 92 | `rarefaction` | ecology.js:52 | BROKEN | nonsense expected-species formula (Hurlbert commented out, unused) | hypergeometric rarefaction |
+| 90 | `gevMLE` | extreme.js:4 | ✅ FIXED | fixed-step gradient on questionable (CDF-derived) gradients | Newton on GEV log-likelihood |
+| 91 | `peaksOverThreshold` | extreme.js:129 | ✅ FIXED | xi hardcoded 0.1; scale=mean(exceed); no GPD fit | fit GPD to exceedances |
+| 92 | `rarefaction` | ecology.js:52 | ✅ FIXED | nonsense expected-species formula (Hurlbert commented out, unused) | hypergeometric rarefaction |
 | 93 | `adonis2` | ecology.js:121 | INCOMPLETE | pseudo-F real but no permutation p-value (nPerm unused) | permutation test for p |
 | 94 | `thompsonSampling` | bandit.js:76 | ✅ FIXED | "Beta sample" = mean + uniform noise, not a Beta draw | sample from Beta(s,f) |
 | 95 | `contextualBandit` (LinUCB) | bandit.js:105 | ✅ FIXED | never inverts A; reward random `rng<0.3` (no env) | A⁻¹ ridge solution; real reward |
-| 96 | `deepQNetwork` | bandit.js:273 | BROKEN | W1 update uses `tanh(weight)` not gradient; forward double-counts | correct backprop |
+| 96 | `deepQNetwork` | bandit.js:273 | ✅ FIXED | W1 update uses `tanh(weight)` not gradient; forward double-counts | correct backprop |
 | 97 | `qLearning`/`sarsa` | bandit.js:226/250 | ✅ FIXED | `transitions` arg ignored; nextState random | use supplied transition model |
 | 98 | `hestonModel` | stochastic.js:181 | FABRICATED | kappa/theta/xi/rho passed in, never calibrated; returns inputs | calibrate to returns |
 | 99 | `regimeSwitching` | stochastic.js:144 | INCOMPLETE | μ/σ/trans fixed at heuristic init; only state probs filtered | full Baum-Welch EM |
 | 100 | `pocockBoundaries` | sequential.js:36 | APPROX | hardcoded 2.17 for all stages/α | compute Pocock constant per stages/α |
 | 101 | `tmddModel` | pk.js:319 | FABRICATED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
 | 102 | `indirectResponse` | pk.js:247 | STUB | returns only `{n}`; computes nothing | indirect-response model fit |
-| 103 | `gpEmulator` | experimental.js:741 | APPROX | weights = row-normalized K, not K⁻¹y | solve GP linear system via matInv |
+| 103 | `gpEmulator` | experimental.js:741 | ✅ FIXED | weights = row-normalized K, not K⁻¹y | solve GP linear system via matInv |
 | 104 | `varmax` | timeseries.js:1453 | STUB | returns `{n,p,q}`; estimates nothing | VARMAX estimation |
 | 105 | `vecm` | timeseries.js:1472 | STUB | returns `{n,p,rank}`; no estimation | Johansen VECM |
-| 106 | `cointegrationRank` | timeseries.js:1461 | FABRICATED | trace stats = `n·(maxRank−r+1)·0.1` hardcoded | real Johansen trace/max-eigen |
+| 106 | `cointegrationRank` | timeseries.js:1461 | ✅ FIXED | trace stats = `n·(maxRank−r+1)·0.1` hardcoded | real Johansen trace/max-eigen |
 | 107 | `impulseResponseCI` | timeseries.js:1478 | FABRICATED | CI = `±1.96·|v|·0.3`, not bootstrap | bootstrap IRF draws |
 | 108 | `fevdDecomposition` | timeseries.js:1487 | FABRICATED | contributions hardcoded 0.7/0.3 | real FEVD from VAR |
 | 109 | `dccGarch`/`bekkGarch`/`cccGarch`/`mgarchForecast`/`mgarchDiagnostics` | timeseries.js:1501–1543 | STUB/FABRICATED | identity/0.01/0.3/0.02 hardcoded; no estimation | real multivariate GARCH |
-| 110 | `egarch` | timeseries.js:1546 | FABRICATED | omega/alpha/beta/gamma hardcoded; never estimated (same as finance.js #86) | EGARCH MLE |
+| 110 | `egarch` | timeseries.js:1546 | ✅ FIXED | omega/alpha/beta/gamma hardcoded; never estimated (same as finance.js #86) | EGARCH MLE |
 | 111 | `multiArmBandit` | abTesting.js:87 | ✅ FIXED | fake Beta draw + random reward (cf. bandit #94) | sample Beta; real reward |
 | 112 | `modelComparison` p | sensitivity.js:61 | ✅ FIXED | local `fPVal = exp(-0.5·f²/(df1+df2))`, not F dist | real F-distribution p |
 | 113 | `pagelsLambda` | phylogenetics.js:18 | FABRICATED | ad-hoc `obsSS/(n·meanSq)`; **tree ignored** | ML λ on tree covariance |

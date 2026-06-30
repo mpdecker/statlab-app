@@ -55,20 +55,27 @@ export function spaceTimeInteraction(data, yVar, xVars, timeVar) {
 }
 
 // ── Spatiotemporal Moran's I ──────────────────────────────────────
-export function spatiotemporalMoran(data, yVar, timeVar) {
+export function spatiotemporalMoran(data, yVar, timeVar, W = null) {
   if (!data || data.length < 10 || !yVar || !timeVar) return null;
   const n = data.length;
   const y = data.map(r => +r[yVar]);
   const t = data.map(r => +r[timeVar]);
   const mu = avg(y);
-  let num = 0, denom = 0;
-  for (let i = 0; i < n; i++) {
-    const zi = y[i] - mu;
-    denom += zi * zi;
-    const dt = Math.abs(t[i] - t[(i + 1) % n]);
-    if (dt < 10) num += zi * (y[(i + 1) % n] - mu);
+  const z = y.map(v => v - mu);
+  // Weights: a supplied spatial matrix W, else symmetric temporal contiguity
+  // (units adjacent in time get weight 1). Standard Moran I = (n/S0)·Σ wᵢⱼzᵢzⱼ/Σzᵢ².
+  let wMat;
+  if (Array.isArray(W) && W.length === n) {
+    wMat = W;
+  } else {
+    const order = [...Array(n).keys()].sort((a, b) => t[a] - t[b]);
+    const rank = Array(n); order.forEach((idx, r) => { rank[idx] = r; });
+    wMat = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => (Math.abs(rank[i] - rank[j]) === 1 ? 1 : 0)));
   }
-  const I = denom ? num / denom : 0;
+  let S0 = 0, num = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { S0 += wMat[i][j]; num += wMat[i][j] * z[i] * z[j]; }
+  const denom = z.reduce((s, v) => s + v * v, 0);
+  const I = (denom > 0 && S0 > 0) ? (n / S0) * (num / denom) : 0;
   return { test: 'Spatiotemporal Moran', I: +I.toFixed(4), n, apa: `ST Moran I = ${I.toFixed(3)}` };
 }
 

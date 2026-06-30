@@ -1,6 +1,7 @@
 import { avg } from '../math/core.js';
 import { fPVal, chiPVal } from '../math/distributions.js';
 import { mulberry32 } from '../math/rng.js';
+import { jacobiEigen } from '../math/matrix.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
@@ -151,14 +152,22 @@ export function procrustes(X, Y) {
     for (let k = 0; k < n; k++) s += X[k][i] * Y[k][j];
     return s;
   }));
-  // SVD of XtY
-  const diag = Array(p).fill(0).map((_, i) => XtY[i][i] || 0);
-  const rotation = diag.map((_, i) => diag.map((_, j) => i === j ? 1 : 0));
-  // Residual
-  const difference = rotation.map((r, i) => r.map((_, j) => +(X[i][j] - Y[i][j]).toFixed(4)));
+  // Optimal orthogonal rotation R = U Vᵀ from the SVD of XᵀY = U Σ Vᵀ. SVD via
+  // eigendecomposition: V, Σ² from (XᵀY)ᵀ(XᵀY); U[:,c] = XᵀY·V[:,c]/σ_c.
+  const M = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => { let s = 0; for (let a = 0; a < p; a++) s += XtY[a][i] * XtY[a][j]; return s; }));
+  const eig = jacobiEigen(M);
+  const sing = eig.eigenvalues.map(v => Math.sqrt(Math.max(v, 0)));
+  const V = eig.eigenvectors;
+  const U = sing.map((sv, c) => {
+    const col = Array.from({ length: p }, (_, i) => { let s = 0; for (let a = 0; a < p; a++) s += XtY[i][a] * V[c][a]; return s; });
+    return sv > 1e-12 ? col.map(v => v / sv) : col;
+  });
+  const R = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => { let s = 0; for (let c = 0; c < p; c++) s += U[c][i] * V[c][j]; return s; }));
+  // Residual after rotating X: ‖X·R − Y‖².
   let ss = 0;
-  for (let i = 0; i < n; i++) for (let j = 0; j < p; j++) ss += (X[i][j] - Y[i][j]) ** 2;
-  return { test: 'Procrustes', m2: +ss.toFixed(4), n, p, apa: `Procrustes: m² = ${ss.toFixed(3)}` };
+  for (let i = 0; i < n; i++) for (let j = 0; j < p; j++) { let xr = 0; for (let a = 0; a < p; a++) xr += X[i][a] * R[a][j]; ss += (xr - Y[i][j]) ** 2; }
+  const rotation = R.map(r => r.map(v => +v.toFixed(4)));
+  return { test: 'Procrustes', m2: +ss.toFixed(4), rotation, n, p, apa: `Procrustes: m² = ${ss.toFixed(3)}` };
 }
 
 // ── CCA Preparation ────────────────────────────────────────────────────────

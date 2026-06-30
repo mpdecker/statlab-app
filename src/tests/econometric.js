@@ -53,24 +53,42 @@ export function tobitModel(data, yVar, xVars, { lowerBound = 0, upperBound = nul
 export function heckmanSelection(data, yVar, xVars, selectVar, zVars) {
   if (!data || data.length < 20 || !yVar || !selectVar || !zVars) return null;
   const n = data.length;
-  const selected = data.map(r => r[selectVar] === 1 ? 1 : 0);
-  const Z = data.map(r => zVars.map(c => +r[c]));
-  const Zt = Z[0].map((_, j) => Z.map(r => r[j]));
-  const ZtZ = Zt.map(r1 => Z[0].map((_, j) => r1.reduce((s, _, k) => s + Z[k][j] * r1[k], 0)));
-  const ZtS = Zt.map(r1 => r1.reduce((s, v, k) => s + v * selected[k], 0));
-  const invZ = matInv(ZtZ);
-  if (!invZ) return null;
-  const gamma = invZ.map(row => row.reduce((s, v, j) => s + v * ZtS[j], 0));
-  const zp = Z.map(zi => gamma.reduce((s, g, j) => s + g * zi[j], 0));
-  const imr = zp.map(h => {
-    const pdf = Math.exp(-0.5 * h * h) / Math.sqrt(2 * Math.PI);
-    const cdf = 0.5 * (1 + Math.tanh(h / Math.SQRT2));
-    return pdf / Math.max(cdf, 0.001);
-  });
-  const y = data.map(r => +r[yVar]);
-  const obs = selected.map((s, i) => s ? i : -1).filter(i => i >= 0);
-  const Xobs = xVars ? obs.map(i => xVars.map(v => +data[i][v])).map(xi => [...xi, imr[obs.indexOf(xi)]]) : [];
-  return { test: 'Heckman Selection', imr: imr.slice(0, 10).map(v => +v.toFixed(4)), n, nSelected: obs.length, apa: `Heckman: ${obs.length}/${n} selected` };
+  const selected = data.map(r => (r[selectVar] === 1 ? 1 : 0));
+  const Z = data.map(r => [1, ...zVars.map(c => +r[c])]); // selection regressors (with intercept)
+  const kz = Z[0].length;
+  // Step 1: probit of the selection indicator on Z by ML.
+  const probitNLL = g => {
+    let nll = 0;
+    for (let i = 0; i < n; i++) {
+      const idx = Z[i].reduce((s, v, j) => s + v * g[j], 0);
+      const p = Math.min(Math.max(normalCDF(idx), 1e-12), 1 - 1e-12);
+      nll -= selected[i] ? Math.log(p) : Math.log(1 - p);
+    }
+    return Number.isFinite(nll) ? nll : 1e10;
+  };
+  const gfit = mleFit(Array(kz).fill(0), probitNLL, { maxIter: 60 });
+  const gamma = gfit.theta;
+  // Inverse Mills ratio λ = φ(Zγ)/Φ(Zγ) at the probit index.
+  const phi = h => Math.exp(-0.5 * h * h) / Math.sqrt(2 * Math.PI);
+  const imr = Z.map(zi => { const h = zi.reduce((s, g, j) => s + g * gamma[j], 0); return phi(h) / Math.max(normalCDF(h), 1e-8); });
+  // Step 2: OLS of y on [1, X, λ] over the SELECTED observations.
+  const obs = selected.map((sv, i) => (sv ? i : -1)).filter(i => i >= 0);
+  const xv = xVars || [];
+  const Xo = obs.map(i => [1, ...xv.map(v => +data[i][v]), imr[i]]);
+  const yo = obs.map(i => +data[i][yVar]);
+  const kk = Xo[0].length;
+  const XtX = Array.from({ length: kk }, (_, a) => Array.from({ length: kk }, (_, b) => Xo.reduce((s, r) => s + r[a] * r[b], 0)));
+  const XtY = Array.from({ length: kk }, (_, a) => Xo.reduce((s, r, i) => s + r[a] * yo[i], 0));
+  const beta = solveNormalEquations(XtX, XtY);
+  const coefficients = [
+    { name: 'Intercept', b: +beta[0].toFixed(4) },
+    ...xv.map((nm, j) => ({ name: nm, b: +beta[1 + j].toFixed(4) })),
+  ];
+  const lambdaCoef = +beta[kk - 1].toFixed(4); // ρ·σ_ε — significance ⇒ selection bias present
+  return {
+    test: 'Heckman Selection', imr: imr.slice(0, 10).map(v => +v.toFixed(4)), coefficients,
+    lambdaCoef, n, nSelected: obs.length, apa: `Heckman: ${obs.length}/${n} selected, λ-coef = ${lambdaCoef}`,
+  };
 }
 
 // Standard bivariate-normal CDF P(Z1≤a, Z2≤b; ρ) via Simpson integration of

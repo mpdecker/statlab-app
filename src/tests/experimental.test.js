@@ -498,3 +498,13 @@ describe('expectedImprovement', () => {
   it('bestIdx >= 0', () => { const r = expectedImprovement([0.5, 0.8, 0.3, 0.9], [0.1, 0.15, 0.2, 0.1], 0.7); if (r) expect(r.bestIdx).toBeGreaterThanOrEqual(0); });
   it('bestObserved finite', () => { const r = expectedImprovement([0.5, 0.8, 0.3, 0.9], [0.1, 0.15, 0.2, 0.1], 0.7); if (r) expect(Number.isFinite(r.bestObserved)).toBe(true); });
 });
+
+describe('gpEmulator solves the GP linear system (K^-1 y)', () => {
+  it('interpolates the training data with small RMSE', () => {
+    let s = 8; const z = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return (s / 2 ** 32) * 2 - 1; };
+    const X = Array.from({ length: 15 }, () => [z(), z()]);
+    const y = X.map(r => Math.sin(r[0]) + 0.5 * r[1]);
+    const r = gpEmulator(X, y, { lengthScale: 1, noiseVar: 1e-6 });
+    expect(r.rmse).toBeLessThan(0.05);
+  });
+});

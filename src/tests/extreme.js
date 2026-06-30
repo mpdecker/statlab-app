@@ -7,37 +7,24 @@ export function gevMLE(data) {
   const n = data.length;
   const mu0 = avg(data);
   const sig0 = sampleSD(data) || 1;
-  let mu = mu0, sigma = sig0, xi = 0;
-  const maxIter = 30;
-
-  for (let iter = 0; iter < maxIter; iter++) {
-    const z = data.map(v => (v - mu) / sigma);
-    const valid = xi !== 0;
-    let gMu = 0, gSig = 0, gXi = 0;
-    for (let i = 0; i < n; i++) {
-      let term, dMu, dSig, dXi;
-      if (xi === 0) {
-        const e = Math.exp(-z[i]);
-        term = 1 - e;
-        dMu = (1 - e) / sigma;
-        dSig = (1 - e) * z[i] / sigma;
-        dXi = 0;
+  // GEV negative log-likelihood over [μ, ln σ, ξ]; tᵢ = 1 + ξ(xᵢ−μ)/σ must be > 0.
+  const negLogLik = ([mu_, logSig, xi_]) => {
+    const sigma_ = Math.exp(logSig);
+    let nll = 0;
+    for (const x of data) {
+      const z = (x - mu_) / sigma_;
+      if (Math.abs(xi_) < 1e-6) {
+        nll += logSig + z + Math.exp(-z);
       } else {
-        const t = Math.max(1 + xi * z[i], 1e-10);
-        const tInvXi = Math.pow(t, -1 / xi);
-        dMu = (1 / xi + 1) * tInvXi / (t * sigma);
-        dSig = (1 / xi + 1) * tInvXi * z[i] / (t * sigma);
-        dXi = (Math.log(t) / (xi * xi) - z[i] / (xi * t)) * (1 + xi) * tInvXi / t;
+        const t = 1 + xi_ * z;
+        if (t <= 1e-10) return 1e10;
+        nll += logSig + (1 + 1 / xi_) * Math.log(t) + Math.pow(t, -1 / xi_);
       }
-      gMu += dMu / n;
-      gSig += dSig / n;
-      gXi += dXi / n;
     }
-    mu -= 0.1 * gMu;
-    sigma = Math.max(0.01, sigma - 0.1 * gSig);
-    xi = xi - 0.05 * gXi;
-    if (Math.abs(gMu) + Math.abs(gSig) + Math.abs(gXi) < 1e-5) break;
-  }
+    return Number.isFinite(nll) ? nll : 1e10;
+  };
+  const fit = mleFit([mu0, Math.log(sig0), 0.1], negLogLik, { maxIter: 100 });
+  const mu = fit.theta[0], sigma = Math.exp(fit.theta[1]), xi = fit.theta[2];
 
   // Return levels for 10, 50, 100 years
   const rp = [10, 50, 100];
@@ -148,13 +135,23 @@ export function hillEstimator(data, k = null) {
 export function peaksOverThreshold(data, threshold = null) {
   if (!data || data.length < 10) return null;
   const n = data.length;
-  const thresh = threshold || avg(data) + 2 * Math.sqrt(sampleVar(data));
+  const thresh = threshold != null ? threshold : avg(data) + 2 * Math.sqrt(sampleVar(data));
   const exceedances = data.filter(v => v > thresh).map(v => +(v - thresh).toFixed(4));
   if (exceedances.length < 3) return null;
   const nExceed = exceedances.length;
-  const xi = 0.1;
-  const scale = avg(exceedances);
-  return { test: 'Peaks Over Threshold', threshold: +thresh.toFixed(4), exceedances: exceedances.slice(0, 10), xi: +xi.toFixed(4), scale: +scale.toFixed(4), nExceed, n, apa: `POT: ${nExceed} exceedances, thresh=${thresh.toFixed(2)}` };
+  // Fit a Generalised Pareto distribution to the exceedances by ML (gpdMLE
+  // filters at the same threshold); fall back to method-of-moments if it can't.
+  const gpd = gpdMLE(data, thresh);
+  let xi, scale;
+  if (gpd) {
+    xi = gpd.xi; scale = gpd.sigma;
+  } else {
+    const mean = avg(exceedances);
+    const variance = exceedances.reduce((s, v) => s + (v - mean) ** 2, 0) / Math.max(1, nExceed - 1) || 1;
+    xi = +(0.5 * (1 - (mean * mean) / variance)).toFixed(4);
+    scale = +(0.5 * mean * ((mean * mean) / variance + 1)).toFixed(4);
+  }
+  return { test: 'Peaks Over Threshold', threshold: +thresh.toFixed(4), exceedances: exceedances.slice(0, 10), xi: +xi.toFixed(4), scale: +scale.toFixed(4), nExceed, n, apa: `POT: ${nExceed} exceedances, thresh=${thresh.toFixed(2)}, ξ=${(+xi).toFixed(3)}` };
 }
 
 // ── Threshold Selection ───────────────────────────────────────────
