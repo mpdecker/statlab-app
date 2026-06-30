@@ -123,7 +123,7 @@ implementations can be fixed. Status legend:
 | 91 | `peaksOverThreshold` | extreme.js:129 | APPROX | xi hardcoded 0.1; scale=mean(exceed); no GPD fit | fit GPD to exceedances |
 | 92 | `rarefaction` | ecology.js:52 | BROKEN | nonsense expected-species formula (Hurlbert commented out, unused) | hypergeometric rarefaction |
 | 93 | `adonis2` | ecology.js:121 | INCOMPLETE | pseudo-F real but no permutation p-value (nPerm unused) | permutation test for p |
-| 94 | `thompsonSampling` | bandit.js:76 | APPROX/MISLABELED | "Beta sample" = mean + uniform noise, not a Beta draw | sample from Beta(s,f) |
+| 94 | `thompsonSampling` | bandit.js:76 | ✅ FIXED | "Beta sample" = mean + uniform noise, not a Beta draw | sample from Beta(s,f) |
 | 95 | `contextualBandit` (LinUCB) | bandit.js:105 | BROKEN | never inverts A; reward random `rng<0.3` (no env) | A⁻¹ ridge solution; real reward |
 | 96 | `deepQNetwork` | bandit.js:273 | BROKEN | W1 update uses `tanh(weight)` not gradient; forward double-counts | correct backprop |
 | 97 | `qLearning`/`sarsa` | bandit.js:226/250 | APPROX | `transitions` arg ignored; nextState random | use supplied transition model |
@@ -140,7 +140,7 @@ implementations can be fixed. Status legend:
 | 108 | `fevdDecomposition` | timeseries.js:1487 | FABRICATED | contributions hardcoded 0.7/0.3 | real FEVD from VAR |
 | 109 | `dccGarch`/`bekkGarch`/`cccGarch`/`mgarchForecast`/`mgarchDiagnostics` | timeseries.js:1501–1543 | STUB/FABRICATED | identity/0.01/0.3/0.02 hardcoded; no estimation | real multivariate GARCH |
 | 110 | `egarch` | timeseries.js:1546 | FABRICATED | omega/alpha/beta/gamma hardcoded; never estimated (same as finance.js #86) | EGARCH MLE |
-| 111 | `multiArmBandit` | abTesting.js:87 | APPROX | fake Beta draw + random reward (cf. bandit #94) | sample Beta; real reward |
+| 111 | `multiArmBandit` | abTesting.js:87 | ✅ FIXED | fake Beta draw + random reward (cf. bandit #94) | sample Beta; real reward |
 | 112 | `modelComparison` p | sensitivity.js:61 | ✅ FIXED | local `fPVal = exp(-0.5·f²/(df1+df2))`, not F dist | real F-distribution p |
 | 113 | `pagelsLambda` | phylogenetics.js:18 | FABRICATED | ad-hoc `obsSS/(n·meanSq)`; **tree ignored** | ML λ on tree covariance |
 | 114 | `blombergK` | phylogenetics.js:28 | FABRICATED | `K = obsMean/(obsMean/2)` ≈ 2 always; tree ignored | K from tree-expected vs observed variance |

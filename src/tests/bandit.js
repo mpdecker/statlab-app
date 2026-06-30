@@ -1,6 +1,6 @@
 import { avg } from '../math/core.js';
 import { normalCDF } from '../math/distributions.js';
-import { mulberry32 } from '../math/rng.js';
+import { mulberry32, randBeta } from '../math/rng.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
@@ -83,11 +83,7 @@ export function thompsonSampling(arms, rewards, nIterations = 100, { seed = 42, 
   let totalReward = 0;
 
   for (let t = 0; t < nIterations; t++) {
-    const samples = successes.map((s, i) => {
-      let a = 2 * s;
-      const u = __rng();
-      return s / (s + failures[i] + 1e-6) + (__rng() - 0.5) * 0.2;
-    });
+    const samples = successes.map((s, i) => randBeta(__rng, s, failures[i])); // draw θ_i ~ Beta(α_i, β_i)
     const arm = samples.indexOf(Math.max(...samples));
     const r = typeof rewards[arm] === 'function' ? rewards[arm]() : rewards[arm];
     if (r > 0.5) successes[arm]++;

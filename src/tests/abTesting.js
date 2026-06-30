@@ -1,6 +1,6 @@
 import { avg, sampleVar } from '../math/core.js';
 import { normalCDF, normalINV, chiPVal } from '../math/distributions.js';
-import { mulberry32 } from '../math/rng.js';
+import { mulberry32, randBeta } from '../math/rng.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
@@ -92,13 +92,9 @@ export function multiArmBandit(arms, { seed = 42, iterations = 200 } = {}) {
   const failures = Array(k).fill(1);
   let totalReward = 0;
   for (let t = 0; t < iterations; t++) {
-    const samples = successes.map((s, i) => {
-      let a = 2 * s, b = 2 * failures[i];
-      let sum = 0; for (let j = 0; j < 12; j++) sum += __rng(); sum -= 6;
-      return s / (s + failures[i] + 1e-6) + sum * 0.05;
-    });
+    const samples = successes.map((s, i) => randBeta(__rng, s, failures[i])); // θ_i ~ Beta(α_i, β_i)
     const arm = samples.indexOf(Math.max(...samples));
-    const r = __rng() < 0.3 ? 1 : 0;
+    const r = __rng() < arms[arm] ? 1 : 0; // Bernoulli reward from the chosen arm's true probability
     totalReward += r;
     if (r > 0.5) successes[arm]++; else failures[arm]++;
   }
