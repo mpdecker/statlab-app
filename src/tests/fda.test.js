@@ -80,3 +80,19 @@ describe('functionalRegression fits a real functional linear model', () => {
     expect(r.betaCurve[2]).toBeCloseTo(0.5, 1);
   });
 });
+
+describe('fpcaExpanded does a real longitudinal FPCA', () => {
+  it('variance of FPC score k equals eigenvalue k (not hardcoded 3/(i+1))', () => {
+    const d = [];
+    for (let id = 0; id < 24; id++) for (let t = 0; t < 4; t++) {
+      const score = (id % 6) - 2.5;
+      d.push({ id, time: t, v1: 5 + score * Math.cos(t) + ((id * 7) % 5 - 2) * 0.1, v2: t });
+    }
+    const r = fpcaExpanded(d, ['v1', 'v2'], 'time', 'id', { nComponents: 2 });
+    expect(r.scores.length).toBeGreaterThan(0);
+    const col0 = r.scores.map(s => s[0]);
+    const mean0 = col0.reduce((a, b) => a + b, 0) / col0.length;
+    const var0 = col0.reduce((a, b) => a + (b - mean0) ** 2, 0) / (col0.length - 1);
+    expect(var0).toBeCloseTo(r.eigenvalues[0], 1);
+  });
+});
