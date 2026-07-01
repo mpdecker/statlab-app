@@ -29,8 +29,8 @@ describe('spatiotemporalMoran', () => {
 });
 describe('spaceTimeForecast', () => {
   it('contract keys', () => expectKeys(spaceTimeForecast({ rho: 0.5 }), ['test', 'forecasts', 'nSteps', 'apa']));
-  it('forecast array present', () => { const r = spaceTimeForecast(d, 'y', ['x1'], W, { timeVar: 'time', steps: 2 }); if (r) { expect(Array.isArray(r.forecast)).toBe(true); expect(r.forecast.length).toBeGreaterThan(0); } });
-  it('nSteps matches', () => { const r = spaceTimeForecast(d, 'y', ['x1'], W, { timeVar: 'time', steps: 2 }); if (r) expect(r.nSteps).toBe(2); });
+  it('forecast array present', () => { const r = spaceTimeForecast(starModel(d, 'y', ['x1'], W), 2); if (r) { expect(Array.isArray(r.forecasts)).toBe(true); expect(r.forecasts.length).toBeGreaterThan(0); } });
+  it('nSteps matches', () => { const r = spaceTimeForecast(starModel(d, 'y', ['x1'], W), 2); if (r) expect(r.nSteps).toBe(2); });
 });
 
 // Controlled spatial-lag DGP on a ring lattice: y = (I-ρW)^-1 (Xβ + ε).
@@ -52,6 +52,34 @@ describe('starModel uses consistent spatial-lag estimation (2SLS)', () => {
     const { data, W } = ringSpatialData(40, 0.6, 2);
     const r = starModel(data, 'y', ['x1'], W);
     expect(Math.abs(r.rho - 0.6)).toBeLessThan(0.15);
+  });
+});
+
+describe('spaceTimeForecast propagates the fitted spatial-lag dynamics forward', () => {
+  it('one-step forecast matches ρ·W·y + Xβ computed directly from the fitted model', () => {
+    const { data, W } = ringSpatialData(30, 0.4, 1.5);
+    const r = starModel(data, 'y', ['x1'], W);
+    const f = spaceTimeForecast(r, 1);
+    const y0 = data.map(row => row.y);
+    const x1 = data.map(row => row.x1);
+    const betaX = r.coefficients[0].b;
+    const Wy = W.map(row => row.reduce((s, wi, j) => s + wi * y0[j], 0));
+    const expected = Wy.map((wy, i) => r.rho * wy + betaX * x1[i]);
+    const expectedMean = expected.reduce((a, b) => a + b, 0) / expected.length;
+    expect(f.forecasts[0]).toBeCloseTo(expectedMean, 2);
+  });
+  it('forecast converges to the analytic fixed point (I-ρW)⁻¹Xβ as steps grow', () => {
+    const { data, W } = ringSpatialData(30, 0.4, 1.5);
+    const r = starModel(data, 'y', ['x1'], W);
+    const f = spaceTimeForecast(r, 60);
+    expect(f.equilibrium).not.toBeNull();
+    expect(Math.abs(f.forecasts[59] - f.equilibrium)).toBeLessThan(0.01);
+  });
+  it('falls back to geometric ρ^h decay when no spatial state is supplied', () => {
+    const f = spaceTimeForecast({ rho: 0.5 }, 3);
+    expect(f.forecasts).toHaveLength(3);
+    expect(f.forecasts[0]).toBeCloseTo(0.5, 4);
+    expect(f.forecasts[2]).toBeCloseTo(0.125, 4);
   });
 });
 

@@ -193,6 +193,55 @@ describe('measurementInvariance', () => {
   });
 });
 
+describe('measurementInvariance detects real (non-)invariance via nested chi-square tests', () => {
+  function mkRng(seed) {
+    let s = seed;
+    return () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+  }
+
+  it('a fully invariant 2-group CFA (same loadings/intercepts/residuals) is supported through strict', () => {
+    const z = mkRng(21);
+    const lambda = [1, 0.8, 1.2], tau = [2, 1, 3];
+    const data = [];
+    for (let g = 0; g < 2; g++) {
+      for (let i = 0; i < 150; i++) {
+        const f = z();
+        data.push({
+          v1: tau[0] + lambda[0] * f + z() * 0.3,
+          v2: tau[1] + lambda[1] * f + z() * 0.3,
+          v3: tau[2] + lambda[2] * f + z() * 0.3,
+          group: g === 0 ? 'A' : 'B',
+        });
+      }
+    }
+    const r = measurementInvariance(data, ['v1', 'v2', 'v3'], 'group');
+    expect(r.steps[1].passed).toBe(true);
+    expect(r.steps[2].passed).toBe(true);
+    expect(r.steps[3].passed).toBe(true);
+    expect(r.highestLevel).toBe('strict');
+  });
+
+  it('a 2-group CFA with grossly different loadings fails metric invariance', () => {
+    const z = mkRng(23);
+    const data = [];
+    for (let g = 0; g < 2; g++) {
+      const lambda = g === 0 ? [1, 0.8, 1.2] : [1, 3.5, 4.5];
+      for (let i = 0; i < 150; i++) {
+        const f = z();
+        data.push({
+          v1: 2 + lambda[0] * f + z() * 0.3,
+          v2: 1 + lambda[1] * f + z() * 0.3,
+          v3: 3 + lambda[2] * f + z() * 0.3,
+          group: g === 0 ? 'A' : 'B',
+        });
+      }
+    }
+    const r = measurementInvariance(data, ['v1', 'v2', 'v3'], 'group');
+    expect(r.steps[1].passed).toBe(false);
+    expect(r.highestLevel).toBe('configural');
+  });
+});
+
 describe('latentGrowthModel', () => {
   it('returns null for too few time points', () => {
     const data = Array.from({ length: 20 }, () => ({ t0: 1, t1: 2 }));
@@ -294,6 +343,35 @@ describe('ordinalSEM', () => {
   it('contract keys', () => expectKeys(ordinalSEM(d, ['v1', 'v2', 'v3'], 'F =~ v1 + v2 + v3'), ['test', 'loadings', 'thresholds', 'fit', 'n', 'apa']));
   it('thresholds present', () => { const r = ordinalSEM(d, ['v1', 'v2', 'v3'], 'F =~ v1 + v2 + v3'); expect(r.thresholds.length).toBe(3); });
   it('loadings non-empty', () => { const r = ordinalSEM(d, ['v1', 'v2', 'v3'], 'F =~ v1 + v2 + v3'); if (r) expect(r).toHaveProperty('loadings'); });
+});
+
+describe('ordinalSEM recovers real polychoric correlations and a real factor fit', () => {
+  it('fit indices are finite (not the hardcoded NaN of the old stub)', () => {
+    const d = []; for (let i = 0; i < 30; i++) d.push({ v1: i % 5, v2: (i + 1) % 5, v3: (i + 2) % 5 });
+    const r = ordinalSEM(d, ['v1', 'v2', 'v3'], 'F =~ v1 + v2 + v3');
+    expect(Number.isFinite(r.fit.chisq)).toBe(true);
+    expect(Number.isFinite(r.fit.rmsea)).toBe(true);
+    expect(Number.isFinite(r.fit.cfi)).toBe(true);
+  });
+
+  it('recovers positive loadings (relative to the fixed reference indicator) from a simulated ordinal single-factor model', () => {
+    let s = 31; const z = () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+    const lambda = [1, 0.9, 0.7];
+    const cutpoints = [-1, -0.3, 0.3, 1];
+    const data = [];
+    for (let i = 0; i < 300; i++) {
+      const f = z();
+      const row = {};
+      lambda.forEach((l, idx) => {
+        const raw = l * f + z() * 0.4;
+        row[`v${idx + 1}`] = cutpoints.filter(c => raw > c).length;
+      });
+      data.push(row);
+    }
+    const r = ordinalSEM(data, ['v1', 'v2', 'v3'], 'F =~ v1 + v2 + v3', { nThresh: 4 });
+    expect(r.loadings.length).toBe(2);
+    r.loadings.forEach(l => expect(l.estimate).toBeGreaterThan(0));
+  });
 });
 
 describe('cfiCompare', () => {

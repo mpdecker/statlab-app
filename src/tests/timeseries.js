@@ -1,5 +1,5 @@
 import { avg, sampleVar, corr, fmtP } from '../math/core.js';
-import { tPVal, fPVal, normalCDF } from '../math/distributions.js';
+import { tPVal, fPVal, normalCDF, chiPVal } from '../math/distributions.js';
 import { matInv, matMul, matTrans, jacobiEigen } from '../math/matrix.js';
 import { mleFit } from '../math/inference.js';
 
@@ -1666,49 +1666,316 @@ export function fevdDecomposition(varResult, { horizon = 10 } = {}) {
   return { test: 'FEVD Decomposition', fevd, k, horizon: hh, apa: `FEVD: ${k} vars (no fitted model supplied)` };
 }
 
-// ── DCC-GARCH ─────────────────────────────────────────────────────
-export function dccGarch(returns, { p = 1, q = 1 } = {}) {
-  if (!returns || returns.length < 20 || !returns[0]) return null;
-  const T = returns.length; const k = returns[0].length;
-  const H = Array.from({ length: T }, () => Array.from({ length: k }, () => Array(k).fill(0)));
-  const R = Array.from({ length: T }, () => Array.from({ length: k }, () => Array(k).fill(0)));
-  for (let t = 0; t < T; t++) for (let i = 0; i < k; i++) { H[t][i][i] = 0.01; R[t][i][i] = 1; }
-  return { test: 'DCC-GARCH', n: T, k, p, q, apa: `DCC-GARCH(${p},${q}): ${k} assets, T=${T}` };
+// ── Shared helpers for the MGARCH family ───────────────────────────
+// Univariate GARCH(1,1) fit (same recursion/gradient-ascent as garch(), but
+// without its n>=30 gate and returning the full-length conditional-variance
+// and standardized-residual series needed to build the multivariate models.
+function _univGarch11(data) {
+  const n = data.length;
+  const mean = avg(data);
+  const res = data.map(v => v - mean);
+  const varRes = res.reduce((s, v) => s + v * v, 0) / n;
+  let omega = Math.max(1e-6, varRes * 0.1);
+  let alpha = 0.05;
+  let beta = 0.9;
+  const maxIter = 200;
+  for (let iter = 0; iter < maxIter; iter++) {
+    const sigma2 = Array(n).fill(omega / (1 - alpha - beta));
+    sigma2[0] = Math.max(varRes, 1e-6);
+    for (let t = 1; t < n; t++) sigma2[t] = omega + alpha * res[t - 1] * res[t - 1] + beta * sigma2[t - 1];
+    let gradO = 0, gradA = 0, gradB = 0;
+    for (let t = 1; t < n; t++) {
+      const s = Math.max(sigma2[t], 1e-10);
+      const invS = 1 / s;
+      const invS2 = invS * invS;
+      const resSq = res[t] * res[t];
+      let dSigma_dO = 1;
+      let dSigma_dA = res[t - 1] * res[t - 1];
+      let dSigma_dB = sigma2[t - 1];
+      if (t > 1) {
+        dSigma_dO += beta * dSigma_dO;
+        dSigma_dA = res[t - 1] * res[t - 1] + beta * dSigma_dA;
+        dSigma_dB = sigma2[t - 1] + beta * dSigma_dB;
+      }
+      gradO += -0.5 * invS * dSigma_dO + 0.5 * resSq * invS2 * dSigma_dO;
+      gradA += -0.5 * invS * dSigma_dA + 0.5 * resSq * invS2 * dSigma_dA;
+      gradB += -0.5 * invS * dSigma_dB + 0.5 * resSq * invS2 * dSigma_dB;
+    }
+    omega = Math.max(1e-10, omega + 0.01 * gradO / n);
+    alpha = Math.max(0.001, Math.min(0.5, alpha + 0.01 * gradA / n));
+    beta = Math.max(0.4, Math.min(0.999, beta + 0.01 * gradB / n));
+    if (alpha + beta > 0.999) { alpha *= 0.99; beta *= 0.99; }
+    if (Math.abs(gradO) + Math.abs(gradA) + Math.abs(gradB) < 1e-4 * n) break;
+  }
+  const sigma2 = Array(n).fill(omega / (1 - alpha - beta));
+  sigma2[0] = Math.max(varRes, 1e-6);
+  for (let t = 1; t < n; t++) sigma2[t] = omega + alpha * res[t - 1] * res[t - 1] + beta * sigma2[t - 1];
+  const z = res.map((e, t) => e / Math.sqrt(Math.max(sigma2[t], 1e-12)));
+  return { omega, alpha, beta, mean, res, sigma2, z };
 }
-
-// ── BEKK ──────────────────────────────────────────────────────────
-export function bekkGarch(returns, { p = 1, q = 1 } = {}) {
-  if (!returns || returns.length < 20 || !returns[0]) return null;
-  const T = returns.length; const k = returns[0].length;
-  const C = Array.from({ length: k }, () => Array(k).fill(0));
-  for (let i = 0; i < k; i++) C[i][i] = 0.01;
-  return { test: 'BEKK', C: C.map(r => r.map(v => +v.toFixed(4)).slice(0, 2)).slice(0, 2), k, T, p, q, apa: `BEKK(${p},${q}): ${k} assets` };
+// Determinant via Gaussian elimination with partial pivoting (generic k×k).
+function _det(M) {
+  const n = M.length;
+  const A = M.map(r => r.slice());
+  let det = 1;
+  for (let i = 0; i < n; i++) {
+    let piv = i;
+    for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > Math.abs(A[piv][i])) piv = r;
+    if (Math.abs(A[piv][i]) < 1e-12) return 0;
+    if (piv !== i) { [A[i], A[piv]] = [A[piv], A[i]]; det *= -1; }
+    det *= A[i][i];
+    for (let r = i + 1; r < n; r++) {
+      const f = A[r][i] / A[i][i];
+      for (let c = i; c < n; c++) A[r][c] -= f * A[i][c];
+    }
+  }
+  return det;
+}
+// Grid-search QML fit of a mean-reverting recursion Q_t = (1-a-b)*Qbar + a*outer_{t-1} + b*Q_{t-1}
+// against a Gaussian log-likelihood -0.5*(log|R_t| + z_t'R_t^-1 z_t). Shared by DCC and scalar BEKK.
+function _fitMeanRevertingCorr(loglikFn) {
+  let best = { a: 0.05, b: 0.85, ll: -Infinity };
+  const aGrid = [0.01, 0.02, 0.03, 0.05, 0.08, 0.12, 0.18];
+  const bGrid = [0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.93, 0.95, 0.97];
+  for (const a of aGrid) for (const b of bGrid) {
+    if (a + b >= 0.999) continue;
+    const ll = loglikFn(a, b);
+    if (ll > best.ll) best = { a, b, ll };
+  }
+  for (let da = -0.015; da <= 0.015; da += 0.005) {
+    for (let db = -0.03; db <= 0.03; db += 0.01) {
+      const a = Math.max(0.001, best.a + da), b = Math.max(0.001, best.b + db);
+      if (a + b >= 0.999) continue;
+      const ll = loglikFn(a, b);
+      if (ll > best.ll) best = { a, b, ll };
+    }
+  }
+  return best;
+}
+// ARCH-LM test on a standardized-residual series (regress z_t^2 on lagged z^2, T*R^2 ~ chi2(nLags)).
+function _archLM(z, nLags = 1) {
+  const T = z.length;
+  const z2 = z.map(v => v * v);
+  const rows = [], y = [];
+  for (let t = nLags; t < T; t++) {
+    const row = [1];
+    for (let L = 1; L <= nLags; L++) row.push(z2[t - L]);
+    rows.push(row);
+    y.push(z2[t]);
+  }
+  const fit = _ols(rows, y);
+  const yMean = avg(y);
+  const ssTot = y.reduce((s, v) => s + (v - yMean) ** 2, 0);
+  const ssRes = fit.resid.reduce((s, v) => s + v * v, 0);
+  const r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
+  const stat = rows.length * r2;
+  return { stat, df: nLags, p: chiPVal(stat, nLags) };
+}
+// h-step-ahead GARCH(1,1) variance forecast path (mean-reverts to the unconditional variance).
+function _garchVarForecast(fit, steps) {
+  const n = fit.res.length;
+  const uncond = fit.omega / Math.max(1e-8, 1 - fit.alpha - fit.beta);
+  const persistence = fit.alpha + fit.beta;
+  const last = fit.omega + fit.alpha * fit.res[n - 1] * fit.res[n - 1] + fit.beta * fit.sigma2[n - 1];
+  const seq = [last];
+  for (let h = 1; h < steps; h++) seq.push(uncond + persistence * (seq[h - 1] - uncond));
+  return seq;
 }
 
 // ── CCC-GARCH ─────────────────────────────────────────────────────
 export function cccGarch(returns, { p = 1, q = 1 } = {}) {
   if (!returns || returns.length < 20 || !returns[0]) return null;
-  const T = returns.length; const k = returns[0].length;
-  const Rcc = Array.from({ length: k }, () => Array(k).fill(0));
-  for (let i = 0; i < k; i++) Rcc[i][i] = 1;
-  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) Rcc[i][j] = 0.3;
-  return { test: 'CCC-GARCH', R: Rcc.slice(0, 3).map(r => r.slice(0, 3).map(v => +v.toFixed(4))), k, T, p, q, apa: `CCC-GARCH(${p},${q}): ${k} assets` };
+  const T = returns.length, k = returns[0].length;
+  const fits = Array.from({ length: k }, (_, i) => _univGarch11(returns.map(r => r[i])));
+  const z = Array.from({ length: T }, (_, t) => fits.map(f => f.z[t]));
+  const R = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) =>
+    i === j ? 1 : corr(z.map(row => row[i]), z.map(row => row[j]))));
+  const offDiag = [];
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) offDiag.push(R[i][j]);
+  const avgCorr = offDiag.length ? offDiag.reduce((s, v) => s + v, 0) / offDiag.length : 0;
+  return {
+    test: 'CCC-GARCH', R: R.map(row => row.map(v => +v.toFixed(4))), k, T, p, q,
+    garchFits: fits.map(f => ({ omega: +f.omega.toFixed(6), alpha: +f.alpha.toFixed(4), beta: +f.beta.toFixed(4) })),
+    _fits: fits,
+    apa: `CCC-GARCH(${p},${q}): ${k} assets, T=${T}, mean pairwise corr = ${avgCorr.toFixed(3)}`,
+  };
+}
+
+// ── DCC-GARCH ─────────────────────────────────────────────────────
+export function dccGarch(returns, { p = 1, q = 1 } = {}) {
+  if (!returns || returns.length < 20 || !returns[0]) return null;
+  const T = returns.length, k = returns[0].length;
+  const fits = Array.from({ length: k }, (_, i) => _univGarch11(returns.map(r => r[i])));
+  const z = Array.from({ length: T }, (_, t) => fits.map(f => f.z[t]));
+  const Qbar = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) =>
+    i === j ? 1 : corr(z.map(row => row[i]), z.map(row => row[j]))));
+
+  function dccLogLik(a, b) {
+    let Q = Qbar.map(row => row.slice());
+    let ll = 0;
+    for (let t = 1; t < T; t++) {
+      const zp = z[t - 1];
+      Q = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) =>
+        (1 - a - b) * Qbar[i][j] + a * zp[i] * zp[j] + b * Q[i][j]));
+      const d = Q.map((row, i) => Math.sqrt(Math.max(row[i], 1e-10)));
+      const R = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => Q[i][j] / (d[i] * d[j])));
+      const Rinv = matInv(R);
+      const detR = _det(R);
+      if (!Rinv || detR <= 1e-10) { ll -= 1e6; continue; }
+      const zt = z[t];
+      let quad = 0;
+      for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) quad += zt[i] * Rinv[i][j] * zt[j];
+      ll += -0.5 * (Math.log(detR) + quad);
+    }
+    return ll;
+  }
+  const { a, b } = _fitMeanRevertingCorr(dccLogLik);
+
+  let Q = Qbar.map(row => row.slice());
+  const offPairs = [];
+  for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) offPairs.push([i, j]);
+  let corrSum = 0, corrCnt = 0;
+  for (let t = 1; t < T; t++) {
+    const zp = z[t - 1];
+    Q = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) =>
+      (1 - a - b) * Qbar[i][j] + a * zp[i] * zp[j] + b * Q[i][j]));
+    const d = Q.map((row, i) => Math.sqrt(Math.max(row[i], 1e-10)));
+    const Rt = Q.map((row, i) => row.map((v, j) => v / (d[i] * d[j])));
+    for (const [i, j] of offPairs) { corrSum += Rt[i][j]; corrCnt++; }
+  }
+  const meanCorr = corrCnt ? corrSum / corrCnt : 1;
+  return {
+    test: 'DCC-GARCH', n: T, k, p, q, a: +a.toFixed(4), b: +b.toFixed(4),
+    Qbar: Qbar.map(row => row.map(v => +v.toFixed(4))),
+    meanCorr: +meanCorr.toFixed(4),
+    garchFits: fits.map(f => ({ omega: +f.omega.toFixed(6), alpha: +f.alpha.toFixed(4), beta: +f.beta.toFixed(4) })),
+    _fits: fits, _Qbar: Qbar, _Qlast: Q, _zLast: z[T - 1],
+    apa: `DCC-GARCH(${p},${q}): a = ${a.toFixed(3)}, b = ${b.toFixed(3)}, mean corr = ${meanCorr.toFixed(3)}, T=${T}`,
+  };
+}
+
+// ── BEKK ──────────────────────────────────────────────────────────
+// Scalar (variance-targeting) BEKK(1,1): H_t = (1-a-b)*Sigma + a*eps_{t-1}eps_{t-1}' + b*H_{t-1}.
+export function bekkGarch(returns, { p = 1, q = 1 } = {}) {
+  if (!returns || returns.length < 20 || !returns[0]) return null;
+  const T = returns.length, k = returns[0].length;
+  const means = Array.from({ length: k }, (_, i) => avg(returns.map(r => r[i])));
+  const eps = returns.map(r => r.map((v, i) => v - means[i]));
+  const Sigma = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => {
+    let s = 0; for (let t = 0; t < T; t++) s += eps[t][i] * eps[t][j];
+    return s / T;
+  }));
+
+  function bekkLogLik(a, b) {
+    let H = Sigma.map(row => row.slice());
+    let ll = 0;
+    for (let t = 1; t < T; t++) {
+      const ep = eps[t - 1];
+      H = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) =>
+        (1 - a - b) * Sigma[i][j] + a * ep[i] * ep[j] + b * H[i][j]));
+      const Hinv = matInv(H);
+      const detH = _det(H);
+      if (!Hinv || detH <= 1e-12) { ll -= 1e6; continue; }
+      const et = eps[t];
+      let quad = 0;
+      for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) quad += et[i] * Hinv[i][j] * et[j];
+      ll += -0.5 * (Math.log(detH) + quad);
+    }
+    return ll;
+  }
+  const { a, b } = _fitMeanRevertingCorr(bekkLogLik);
+  const Ctarget = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => (1 - a - b) * Sigma[i][j]));
+  const C = chol(Ctarget, k);
+
+  let H = Sigma.map(row => row.slice());
+  for (let t = 1; t < T; t++) {
+    const ep = eps[t - 1];
+    H = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) =>
+      (1 - a - b) * Sigma[i][j] + a * ep[i] * ep[j] + b * H[i][j]));
+  }
+  return {
+    test: 'BEKK', C: C.map(row => row.map(v => +v.toFixed(4))), k, T, p, q,
+    a: +a.toFixed(4), b: +b.toFixed(4),
+    Sigma: Sigma.map(row => row.map(v => +v.toFixed(6))),
+    _Sigma: Sigma, _eps: eps, _Hlast: H,
+    apa: `BEKK(${p},${q}): a = ${a.toFixed(3)}, b = ${b.toFixed(3)}, ${k} assets, T=${T}`,
+  };
 }
 
 // ── MGARCH Forecast ───────────────────────────────────────────────
 export function mgarchForecast(mgarchResult, steps = 1) {
   if (!mgarchResult || !mgarchResult.k) return null;
   const k = mgarchResult.k;
-  const forecast = Array.from({ length: steps }, () =>
-    Array.from({ length: k }, () => Array(k).fill(0)).map((r, i) => r.map((_, j) => +(i === j ? 0.02 : 0).toFixed(5)))
-  );
-  return { test: 'MGARCH Forecast', forecast, steps, k, apa: `MGARCH forecast: ${steps} steps` };
+  const nSteps = Math.max(1, steps);
+
+  if (mgarchResult._fits && mgarchResult.R && !mgarchResult.Qbar) {
+    // CCC: correlation is constant across the horizon, only per-asset variances evolve.
+    const R = mgarchResult.R;
+    const varH = mgarchResult._fits.map(f => _garchVarForecast(f, nSteps));
+    const forecast = Array.from({ length: nSteps }, (_, h) =>
+      Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) =>
+        +(R[i][j] * Math.sqrt(Math.max(varH[i][h], 1e-12)) * Math.sqrt(Math.max(varH[j][h], 1e-12))).toFixed(6))));
+    return { test: 'MGARCH Forecast', forecast, steps: nSteps, k, apa: `MGARCH forecast (CCC): ${nSteps} steps` };
+  }
+
+  if (mgarchResult._fits && mgarchResult._Qbar && mgarchResult.a != null) {
+    // DCC: both the correlation matrix and the per-asset variances evolve, correlation
+    // mean-reverting to Qbar at rate (a+b).
+    const { a, b } = mgarchResult;
+    const Qbar = mgarchResult._Qbar;
+    const zLast = mgarchResult._zLast;
+    const varH = mgarchResult._fits.map(f => _garchVarForecast(f, nSteps));
+    let Qh = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) =>
+      (1 - a - b) * Qbar[i][j] + a * zLast[i] * zLast[j] + b * mgarchResult._Qlast[i][j]));
+    const forecast = [];
+    for (let h = 0; h < nSteps; h++) {
+      if (h > 0) Qh = Qh.map((row, i) => row.map((v, j) => (1 - a - b) * Qbar[i][j] + (a + b) * Qh[i][j]));
+      const d = Qh.map((row, i) => Math.sqrt(Math.max(row[i], 1e-10)));
+      const Rh = Qh.map((row, i) => row.map((v, j) => v / (d[i] * d[j])));
+      forecast.push(Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) =>
+        +(Rh[i][j] * Math.sqrt(Math.max(varH[i][h], 1e-12)) * Math.sqrt(Math.max(varH[j][h], 1e-12))).toFixed(6))));
+    }
+    return { test: 'MGARCH Forecast', forecast, steps: nSteps, k, apa: `MGARCH forecast (DCC): ${nSteps} steps` };
+  }
+
+  if (mgarchResult._Sigma && mgarchResult.a != null && mgarchResult._Hlast) {
+    // BEKK: covariance mean-reverts to the targeted unconditional Sigma.
+    const { a, b } = mgarchResult;
+    const Sigma = mgarchResult._Sigma;
+    let H = mgarchResult._Hlast;
+    const forecast = [];
+    for (let h = 0; h < nSteps; h++) {
+      if (h > 0) H = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => (1 - a - b) * Sigma[i][j] + (a + b) * H[i][j]));
+      forecast.push(H.map(row => row.map(v => +v.toFixed(6))));
+    }
+    return { test: 'MGARCH Forecast', forecast, steps: nSteps, k, apa: `MGARCH forecast (BEKK): ${nSteps} steps` };
+  }
+
+  // No fitted model parameters supplied (bare {k} contract) — flat placeholder forecast.
+  const forecast = Array.from({ length: nSteps }, () =>
+    Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => +(i === j ? 0.02 : 0).toFixed(5))));
+  return { test: 'MGARCH Forecast', forecast, steps: nSteps, k, apa: `MGARCH forecast: ${nSteps} steps (no fitted model supplied)` };
 }
 
 // ── MGARCH Diagnostics ────────────────────────────────────────────
 export function mgarchDiagnostics(mgarchResult) {
   if (!mgarchResult) return null;
-  return { test: 'MGARCH Diagnostics', n: mgarchResult.n || 0, k: mgarchResult.k || 0, apa: `MGARCH diag: ${mgarchResult.k || 0} assets` };
+  const n = mgarchResult.n != null ? mgarchResult.n : (mgarchResult.T != null ? mgarchResult.T : 0);
+  const k = mgarchResult.k || 0;
+
+  if (mgarchResult._fits && Array.isArray(mgarchResult._fits)) {
+    const archTests = mgarchResult._fits.map((f, idx) => {
+      const t = _archLM(f.z, 1);
+      return { asset: idx + 1, stat: +t.stat.toFixed(4), df: t.df, p: +t.p.toFixed(4) };
+    });
+    const clean = archTests.every(t => t.p > 0.05);
+    return {
+      test: 'MGARCH Diagnostics', n, k, archTests,
+      apa: `MGARCH diagnostics: ${k} assets, ARCH-LM ${clean ? 'shows no remaining ARCH effects' : 'detects remaining ARCH effects'} in standardized residuals`,
+    };
+  }
+
+  return { test: 'MGARCH Diagnostics', n, k, apa: `MGARCH diag: ${k} assets` };
 }
 
 // ── EGARCH ──────────────────────────────────────────────────────────────────

@@ -69,7 +69,7 @@ implementations can be fixed. Status legend:
 | 43 | `starModel` | spatialTemporal.js:15 | ✅ FIXED | diag-only OLS on endogenous Wy (also needs ML/IV) | spatial ML/2SLS |
 | 44 | `gstarModel` | spatialTemporal.js:35 | ✅ FIXED | diag-only solve | spatial ML |
 | 45 | `spatiotemporalMoran` | spatialTemporal.js:59 | ✅ FIXED | uses `(i+1)%n` sequential neighbor, no W matrix | real W-based ST Moran |
-| 46 | `spaceTimeForecast` | spatialTemporal.js:79 | FABRICATED | returns `rho*2` for every step | iterate the fitted model |
+| 46 | `spaceTimeForecast` | spatialTemporal.js:79 | ✅ FIXED | returns `rho*2` for every step | iterate the fitted model |
 | 47 | `fpcaExpanded` | fda.js:99 | ✅ FIXED | random scores, eigenvalues hardcoded `3/(i+1)` | eigen of smoothed covariance surface |
 | 48 | `functionalRegression` | fda.js:118 | ✅ FIXED | returns `corr(x̄,y)` as β | basis-expanded functional coefficient |
 | 49 | `fpca` | fda.js:27 | ✅ FIXED | scores `sc[k]·√λ` not projected on eigenvectors | project scores onto eigenfns |
@@ -110,8 +110,8 @@ implementations can be fixed. Status legend:
 | 78 | `particleMCMC` | smc.js:104 | ✅ FIXED | plain IS, no MH moves; nIter unused | PMMH sampler |
 | 79 | `nonMetricMDS` | mds.js:114 | ✅ FIXED | no isotonic regression (comment only) → metric, not non-metric | PAVA on disparities |
 | 80 | `doubleML` | causal.js:343 | ✅ FIXED | nuisance `yHat/dHat` = training means; **X never used** → not debiased ML | cross-fitted ML nuisance models |
-| 81 | `ordinalSEM` | sem.js:593 | STUB | returns `loadings:[]`, `fit:{chisq:NaN,rmsea:NaN,cfi:NaN}` — never fits | WLSMV ordinal SEM |
-| 82 | `measurementInvariance` | sem.js:339 | APPROX/MISLABELED | pass/fail from ad-hoc thresholds, not nested χ² model comparison | fit constrained configural/metric/scalar models |
+| 81 | `ordinalSEM` | sem.js:593 | ✅ FIXED | returns `loadings:[]`, `fit:{chisq:NaN,rmsea:NaN,cfi:NaN}` — never fits | WLSMV ordinal SEM |
+| 82 | `measurementInvariance` | sem.js:339 | ✅ FIXED | pass/fail from ad-hoc thresholds, not nested χ² model comparison | fit constrained configural/metric/scalar models |
 | 83 | `transitionModel` | multilevel.js:1035 | ✅ FIXED | regresses y on `(yLag+Σx)` as a single predictor; `se=1/√n` | proper transition/Markov regression |
 | 84 | `remlEstimate` | multilevel.js:999 | ✅ FIXED | plain OLS + residual var, no REML variance-component estimation | actual REML |
 | 85 | `repeatedMeasuresMANOVA` | multilevel.js:1017 | INCOMPLETE | returns SS only, no F/Wilks/p | RM-MANOVA test statistic |
@@ -138,7 +138,7 @@ implementations can be fixed. Status legend:
 | 106 | `cointegrationRank` | timeseries.js:1461 | ✅ FIXED | trace stats = `n·(maxRank−r+1)·0.1` hardcoded | real Johansen trace/max-eigen |
 | 107 | `impulseResponseCI` | timeseries.js:1478 | ✅ FIXED | CI = `±1.96·|v|·0.3`, not bootstrap | bootstrap IRF draws |
 | 108 | `fevdDecomposition` | timeseries.js:1487 | ✅ FIXED | contributions hardcoded 0.7/0.3 | real FEVD from VAR |
-| 109 | `dccGarch`/`bekkGarch`/`cccGarch`/`mgarchForecast`/`mgarchDiagnostics` | timeseries.js:1501–1543 | STUB/FABRICATED | identity/0.01/0.3/0.02 hardcoded; no estimation | real multivariate GARCH |
+| 109 | `dccGarch`/`bekkGarch`/`cccGarch`/`mgarchForecast`/`mgarchDiagnostics` | timeseries.js:1501–1543 | ✅ FIXED | identity/0.01/0.3/0.02 hardcoded; no estimation | real multivariate GARCH |
 | 110 | `egarch` | timeseries.js:1546 | ✅ FIXED | omega/alpha/beta/gamma hardcoded; never estimated (same as finance.js #86) | EGARCH MLE |
 | 111 | `multiArmBandit` | abTesting.js:87 | ✅ FIXED | fake Beta draw + random reward (cf. bandit #94) | sample Beta; real reward |
 | 112 | `modelComparison` p | sensitivity.js:61 | ✅ FIXED | local `fPVal = exp(-0.5·f²/(df1+df2))`, not F dist | real F-distribution p |
@@ -252,7 +252,7 @@ sensitivity(sobol/delta), abTesting(most), genetics, demo(demography). Oracle-VE
 ### Batch 8 read-confirmed
 - **bayesian.js** ✅ REAL (23) — mcmc(adaptive MH), posteriorSummary, hpdInterval, waic, normalNormal/NIG/betaBinomial/gammaPoisson/dirichletMultinomial conjugates, bayesianLinear/Logistic/Poisson regression, bayesianANOVA, bayesianMixedModel, bicBayesFactor, savageDickeyBF, jszBayesFactorT, bayesianDIC, posteriorPredictiveCheck, bmaRegression(+PIP/predict/summary). No fakes.
 - **causal.js** ✅ REAL (35, read 1–430) — propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity, syntheticControl, backdoorAdjustment REAL; **doubleML APPROX (X unused, #80)**. (mediation variants 430–950 not transcribed; structure consistent.)
-- **sem.js** ✅ (8) — sem(RAM-ML), semMultiGroup, latentGrowthModel, pathAnalysis, cfiCompare REAL; bifactorModel APPROX; measurementInvariance APPROX(#82); ordinalSEM STUB(#81).
+- **sem.js** ✅ (8) — sem(RAM-ML), semMultiGroup, latentGrowthModel, pathAnalysis, cfiCompare REAL; bifactorModel APPROX; measurementInvariance FIXED(#82, nested χ² multi-group CFA); ordinalSEM FIXED(#81, polychoric ML factor fit).
 
 ### Batch 7 read-confirmed
 - **clinical.js** ✅ REAL (31) — blandAltman(+ratio), diagnosticAccuracy(Wilson CI), likelihoodRatios, NRI, weighted/fleiss/krippendorff/ac1 kappa, deLong, partialAUC, optimalThreshold, HosmerLemeshow, calibration, netBenefit, decisionCurve, brier, haybittlePeto, wangTsiatis, inverseNormal, fisherCombination, cliffsDelta, rankBiserial, PAF, clinicalUtility — REAL; cornfieldBounds, adaptiveDesign APPROX.
