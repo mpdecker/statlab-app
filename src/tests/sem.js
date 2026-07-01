@@ -1,6 +1,20 @@
 import { avg, sampleVar, corr, fmtP } from '../math/core.js';
-import { chiPVal, normalINV } from '../math/distributions.js';
+import { chiPVal, normalINV, normalCDF } from '../math/distributions.js';
 import { matInv, jacobiEigen } from '../math/matrix.js';
+
+// Standard bivariate-normal CDF P(Z1<=a, Z2<=b; rho) via Simpson integration of
+// Phi2 = Phi(a)Phi(b) + (1/2pi)*int_0^rho exp(-(a^2-2tab+b^2)/(2(1-t^2)))/sqrt(1-t^2) dt.
+function _bvnCDF(a, b, rho) {
+  if (rho <= -0.9999) return Math.max(0, normalCDF(a) + normalCDF(b) - 1);
+  if (rho >= 0.9999) return Math.min(normalCDF(a), normalCDF(b));
+  const base = normalCDF(a) * normalCDF(b);
+  if (Math.abs(rho) < 1e-10) return base;
+  const f = t => Math.exp(-(a * a - 2 * t * a * b + b * b) / (2 * (1 - t * t))) / Math.sqrt(1 - t * t);
+  const steps = 32, h = rho / steps;
+  let s = f(0) + f(rho);
+  for (let i = 1; i < steps; i++) s += (i % 2 ? 4 : 2) * f(i * h);
+  return Math.min(1, Math.max(0, base + (h / 3) * s / (2 * Math.PI)));
+}
 
 function covMatrix(data, vars) {
   const n = data.length;
@@ -160,26 +174,18 @@ function mlDiscrepancy(S, modelCovMat) {
   return Math.log(detM) + tr - Math.log(detS || 1e-10) - p;
 }
 
-// ── SEM ───────────────────────────────────────────────────────────
-
-export function sem(opts = {}) {
-  if (opts == null) return null;
-  const { equations = null, data = null, method = 'ML', maxIter = 200, tolerance = 1e-6 } = opts ?? {};
-  if (!equations || !equations.length || !data || data.length < 10) return null;
-
-  const parsed = parseEquations(equations, data);
-  const { varOrder, allOrder, latents, measurement, structural, p, m } = parsed;
-  if (m < 3) return null;
-
+// ── Shared RAM-ML fitting (used by sem() and ordinalSEM()) ─────────────────
+// Newton-Raphson minimization of the ML discrepancy function over a RAM model's
+// free parameters, given an arbitrary observed covariance/correlation matrix S.
+function _fitRAMByML(S, ram, parsed, { maxIter = 200, tolerance = 1e-6 } = {}) {
+  const { free, m } = ram;
+  const { varOrder, allOrder } = parsed;
   const obsVarNames = varOrder.slice(0, m);
-  const S = covMatrix(data, obsVarNames);
-  const ram = buildRAM(parsed);
-  const n = data.length;
-  const k = ram.free.length;
+  const k = free.length;
 
   let theta = Array(k).fill(0);
   let idx = 0;
-  for (const f of ram.free) {
+  for (const f of free) {
     if (f.type === 'loading' || f.type === 'path') { theta[idx++] = 0.3; }
     else if (f.type === 'residual') {
       const v = obsVarNames.indexOf(allOrder[f.i]);
@@ -222,8 +228,6 @@ export function sem(opts = {}) {
   const mc = modelCov(theta, ram, parsed);
   if (!mc) return null;
 
-  let idx2 = 0;
-  for (const f of ram.free) { idx2++; }
   const hessFinal = Array.from({ length: k }, (_, i) =>
     Array.from({ length: k }, (_, j) => {
       const eps = 1e-6;
@@ -235,23 +239,12 @@ export function sem(opts = {}) {
   const hInvFinal = matInv(hessFinal);
   const ses = hInvFinal ? Array.from({ length: k }, (_, j) => Math.sqrt(Math.max(0, hInvFinal[j][j]))) : Array(k).fill(Infinity);
 
-  let idx3 = 0;
-  const coefficients = [];
-  for (const f of ram.free) {
-    const val = theta[idx3];
-    const se = ses[idx3];
-    if (f.type === 'loading' || f.type === 'path') {
-      const z = se > 0 ? val / se : 0;
-      const pv = chiPVal(z * z, 1);
-      const from = f.type === 'loading' ? `Load ${allOrder[f.i]}←${allOrder[f.j]}` : `Path ${allOrder[f.i]}←${allOrder[f.j]}`;
-      coefficients.push({ from, estimate: +val.toFixed(6), se: +se.toFixed(6), z: +z.toFixed(4), p: pv });
-    } else {
-      coefficients.push({ from: `Var(${allOrder[f.i]})`, estimate: +Math.exp(val).toFixed(6), se: +se.toFixed(6) });
-    }
-    idx3++;
-  }
+  return { theta, mc, ses, k, fML: discrepancy(theta) };
+}
 
-  const fML = discrepancy(theta);
+// Standard SEM fit indices (chi2/df/p, CFI/TLI, RMSEA+CI, SRMR) from an ML
+// discrepancy value against the independence (diagonal) null model.
+function _semFitStats(S, mc, n, m, k, fML) {
   const chi2 = (n - 1) * fML;
   const df = m * (m + 1) / 2 - k;
   const pChi = chiPVal(chi2, Math.max(1, df));
@@ -281,12 +274,55 @@ export function sem(opts = {}) {
   const rmseaCIlo = rmsea > 0 ? Math.max(0, rmsea * Math.sqrt(Math.exp(2 * Math.log(chi2 / df) - 2 * 1.96 / Math.sqrt(Math.max(1, df * (n - 1)))))) : 0;
   const rmseaCIhi = rmsea > 0 ? rmsea * Math.sqrt(Math.exp(2 * Math.log(chi2 / df) + 2 * 1.96 / Math.sqrt(Math.max(1, df * (n - 1))))) : 0;
 
+  return {
+    chi2, df: Math.max(1, df), p: pChi,
+    cfi: Math.min(1, Math.max(0, cfi)), tli: Math.min(1, Math.max(0, tli)),
+    rmsea, rmseaCI: [rmseaCIlo, rmseaCIhi], srmr,
+  };
+}
+
+// ── SEM ───────────────────────────────────────────────────────────
+
+export function sem(opts = {}) {
+  if (opts == null) return null;
+  const { equations = null, data = null, method = 'ML', maxIter = 200, tolerance = 1e-6 } = opts ?? {};
+  if (!equations || !equations.length || !data || data.length < 10) return null;
+
+  const parsed = parseEquations(equations, data);
+  const { varOrder, allOrder, latents, measurement, structural, m } = parsed;
+  if (m < 3) return null;
+
+  const obsVarNames = varOrder.slice(0, m);
+  const S = covMatrix(data, obsVarNames);
+  const ram = buildRAM(parsed);
+  const n = data.length;
+
+  const fit0 = _fitRAMByML(S, ram, parsed, { maxIter, tolerance });
+  if (!fit0) return null;
+  const { theta, mc, ses, k, fML } = fit0;
+
+  const coefficients = [];
+  for (let i = 0; i < ram.free.length; i++) {
+    const f = ram.free[i];
+    const val = theta[i];
+    const se = ses[i];
+    if (f.type === 'loading' || f.type === 'path') {
+      const z = se > 0 ? val / se : 0;
+      const pv = chiPVal(z * z, 1);
+      const from = f.type === 'loading' ? `Load ${allOrder[f.i]}←${allOrder[f.j]}` : `Path ${allOrder[f.i]}←${allOrder[f.j]}`;
+      coefficients.push({ from, estimate: +val.toFixed(6), se: +se.toFixed(6), z: +z.toFixed(4), p: pv });
+    } else {
+      coefficients.push({ from: `Var(${allOrder[f.i]})`, estimate: +Math.exp(val).toFixed(6), se: +se.toFixed(6) });
+    }
+  }
+
+  const { chi2, df, p: pChi, cfi, tli, rmsea, rmseaCI, srmr } = _semFitStats(S, mc, n, m, k, fML);
+
   const logLik = -0.5 * n * (m * Math.log(2 * Math.PI) + Math.log(Math.abs(1)) + chi2);
   const aic = 2 * k - 2 * logLik;
   const bic = k * Math.log(n) - 2 * logLik;
 
   const loadPrefix = measurement.length ? `CFA: ${latents.length} latent(s)` : '';
-  const structPrefix = structural.length ? `Paths: ${structural.map(s => s.outcome).join(', ')}` : '';
   return {
     test: 'SEM' + (loadPrefix ? ' (' + loadPrefix + ')' : ''),
     model: { equations, latents, observables: varOrder.length, n },
@@ -294,14 +330,10 @@ export function sem(opts = {}) {
     loadings: coefficients.filter(c => c.from.startsWith('Load')),
     paths: coefficients.filter(c => c.from.startsWith('Path')),
     fit: {
-      chi2: +chi2.toFixed(4), df: Math.max(1, df), p: pChi,
-      cfi: +Math.min(1, Math.max(0, cfi)).toFixed(4),
-      tli: +Math.min(1, Math.max(0, tli)).toFixed(4),
-      rmsea: +rmsea.toFixed(4),
-      rmseaCI: [+rmseaCIlo.toFixed(4), +rmseaCIhi.toFixed(4)],
-      srmr: +srmr.toFixed(4),
-      aic: +aic.toFixed(2),
-      bic: +bic.toFixed(2),
+      chi2: +chi2.toFixed(4), df, p: pChi,
+      cfi: +cfi.toFixed(4), tli: +tli.toFixed(4),
+      rmsea: +rmsea.toFixed(4), rmseaCI: rmseaCI.map(v => +v.toFixed(4)),
+      srmr: +srmr.toFixed(4), aic: +aic.toFixed(2), bic: +bic.toFixed(2),
     },
     apa: `SEM χ²(${df}) = ${chi2.toFixed(2)}, ${fmtP(pChi)}, CFI = ${cfi.toFixed(3)}, TLI = ${tli.toFixed(3)}, RMSEA = ${rmsea.toFixed(3)}, SRMR = ${srmr.toFixed(3)}`,
   };
@@ -335,96 +367,193 @@ export function semMultiGroup(data, groupVar, equations) {
   };
 }
 
+// ── Multi-group CFA fitting shared by measurementInvariance ────────────────
+// Single-factor CFA (lambda_1=1 fixed, lambda_2..lambda_m free) fit jointly by
+// ML across G groups on the pooled mean+covariance discrepancy, with loadings/
+// intercepts/residuals optionally constrained equal across groups. Latent
+// variances are always free per group; latent means are fixed at 0 unless
+// intercepts are shared (in which case they're free except in the first group,
+// which anchors the scale) — the standard identification scheme for nested
+// configural/metric/scalar/strict invariance tests.
+function _fitMultiGroupCFA(groupStats, m, { shareLoadings, shareIntercepts, shareResiduals, maxIter = 60, tolerance = 1e-5 } = {}) {
+  const G = groupStats.length;
+  const nLoad = m - 1;
+  const loadBlocks = shareLoadings ? 1 : G;
+  const residBlocks = shareResiduals ? 1 : G;
+  const interceptBlocks = shareIntercepts ? 1 : G;
+  const nAlpha = shareIntercepts ? (G - 1) : 0;
+  const k = nLoad * loadBlocks + m * residBlocks + G + m * interceptBlocks + nAlpha;
+
+  function unpack(theta) {
+    let idx = 0;
+    const loadSets = [];
+    for (let b = 0; b < loadBlocks; b++) { loadSets.push([1, ...theta.slice(idx, idx + nLoad)]); idx += nLoad; }
+    const residSets = [];
+    for (let b = 0; b < residBlocks; b++) { residSets.push(theta.slice(idx, idx + m).map(Math.exp)); idx += m; }
+    const psiSets = theta.slice(idx, idx + G).map(Math.exp); idx += G;
+    const interceptSets = [];
+    for (let b = 0; b < interceptBlocks; b++) { interceptSets.push(theta.slice(idx, idx + m)); idx += m; }
+    const alphaFree = theta.slice(idx, idx + nAlpha); idx += nAlpha;
+    const alphaSets = shareIntercepts ? [0, ...alphaFree] : Array(G).fill(0);
+    return { loadSets, residSets, psiSets, interceptSets, alphaSets };
+  }
+
+  function discrepancy(theta) {
+    const { loadSets, residSets, psiSets, interceptSets, alphaSets } = unpack(theta);
+    let total = 0;
+    for (let g = 0; g < G; g++) {
+      const lambda = loadSets[shareLoadings ? 0 : g];
+      const resid = residSets[shareResiduals ? 0 : g];
+      const psi = psiSets[g];
+      const tau = interceptSets[shareIntercepts ? 0 : g];
+      const alpha = alphaSets[g];
+      const Sigma = Array.from({ length: m }, (_, i) => Array.from({ length: m }, (_, j) =>
+        lambda[i] * lambda[j] * psi + (i === j ? resid[i] : 0)));
+      let f = mlDiscrepancy(groupStats[g].S, Sigma);
+      const inv = matInv(Sigma);
+      if (inv) {
+        const mu = lambda.map((li, i) => tau[i] + li * alpha);
+        const diff = groupStats[g].means.map((x, i) => x - mu[i]);
+        let q = 0;
+        for (let i = 0; i < m; i++) for (let j = 0; j < m; j++) q += diff[i] * inv[i][j] * diff[j];
+        f += q;
+      } else {
+        f += 1e6;
+      }
+      total += (groupStats[g].n - 1) * f;
+    }
+    return total;
+  }
+
+  let theta = Array(k).fill(0);
+  {
+    let idx = 0;
+    for (let b = 0; b < loadBlocks; b++) for (let i = 0; i < nLoad; i++) theta[idx++] = 0.7;
+    for (let b = 0; b < residBlocks; b++) for (let i = 0; i < m; i++) theta[idx++] = Math.log(Math.max(0.05, groupStats[0].S[i][i] * 0.5));
+    for (let g = 0; g < G; g++) theta[idx++] = Math.log(1.0);
+    for (let b = 0; b < interceptBlocks; b++) for (let i = 0; i < m; i++) theta[idx++] = groupStats[b].means[i];
+    for (let a = 0; a < nAlpha; a++) theta[idx++] = 0;
+  }
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const eps = 1e-6;
+    const f0 = discrepancy(theta);
+    const grad = Array(k).fill(0);
+    for (let j = 0; j < k; j++) { const up = [...theta]; up[j] += eps; grad[j] = (discrepancy(up) - f0) / eps; }
+    const hess = Array.from({ length: k }, () => Array(k).fill(0));
+    for (let i = 0; i < k; i++) {
+      for (let j = i; j < k; j++) {
+        const up1 = [...theta]; up1[i] += eps; up1[j] += eps;
+        const val = (discrepancy(up1) - discrepancy(theta.map((v, p) => p === i ? v + eps : v)) - discrepancy(theta.map((v, p) => p === j ? v + eps : v)) + f0) / (eps * eps);
+        hess[i][j] = val; hess[j][i] = val;
+      }
+    }
+    const hInv = matInv(hess);
+    if (!hInv) break;
+    const step = hInv.map(r => r.reduce((s, v, i) => s - v * grad[i], 0));
+    let lam = 1;
+    for (let halve = 0; halve <= 10; halve++) {
+      const cand = theta.map((v, j) => v + lam * step[j]);
+      if (discrepancy(cand) < f0 - 1e-10) { theta = cand; break; }
+      lam /= 2;
+    }
+    if (grad.reduce((s, g2) => s + g2 * g2, 0) < tolerance) break;
+  }
+
+  const chi2 = discrepancy(theta);
+  const df = Math.max(0, G * (m * (m + 1) / 2 + m) - k);
+  const { loadSets, interceptSets } = unpack(theta);
+  return { chi2, df, k, loadSets, interceptSets };
+}
+
+// Independence (diagonal-covariance, saturated-mean) baseline across all groups,
+// used to compute CFI/TLI for the configural model.
+function _nullModelChi2MultiGroup(groupStats, m) {
+  let chi2 = 0, df = 0;
+  for (const gs of groupStats) {
+    const diagS = Array.from({ length: m }, (_, i) => Array.from({ length: m }, (_, j) => i === j ? Math.max(1e-6, gs.S[i][i]) : 0));
+    chi2 += (gs.n - 1) * mlDiscrepancy(gs.S, diagS);
+    df += m * (m - 1) / 2;
+  }
+  return { chi2, df };
+}
+
+function _fitStatsFromChi2(chi2, df, nullChi2, nullDf, nTotal) {
+  const p = chiPVal(chi2, Math.max(1, df));
+  let cfi = 1, tli = 1;
+  if (df > 0 && nullChi2 > chi2 && nullDf > df) {
+    cfi = 1 - Math.max(0, chi2 - df) / Math.max(1e-10, nullChi2 - nullDf);
+    tli = ((nullChi2 / nullDf) - (chi2 / df)) / Math.max(1e-10, (nullChi2 / nullDf) - 1);
+  }
+  const rmsea = df > 0 ? Math.sqrt(Math.max(0, (chi2 - df) / (df * nTotal))) : 0;
+  return { chi2, df, p, cfi: Math.min(1, Math.max(0, cfi)), tli: Math.min(1, Math.max(0, tli)), rmsea };
+}
+
 // ── Measurement invariance ──────────────────────────────────────────────────
+// Real nested chi-square tests across configural -> metric -> scalar -> strict
+// multi-group CFA models (Vandenberg & Lance, 2000; Millsap, 2011): each level
+// adds an equality constraint (loadings, then intercepts, then residual
+// variances) and a level is "supported" when the added constraint does not
+// significantly worsen fit (Delta chi2 test, p > .05) relative to the
+// previous, less-constrained level.
 export function measurementInvariance(data, vars, groupVar, factorName = 'f1') {
   if (!data || !vars || !groupVar) return null;
   const groups = [...new Set(data.map(r => String(r[groupVar])))].sort();
   if (groups.length < 2 || vars.length < 3) return null;
+  const m = vars.length;
 
-  const eqStr = `${factorName} =~ ${vars.join(' + ')}`;
-  const steps = [];
-  const results = [];
-
-  for (const g of groups) {
+  const groupStats = groups.map(g => {
     const subset = data.filter(r => String(r[groupVar]) === g);
-    const r = sem({ equations: [eqStr], data: subset });
-    if (r) results.push({ group: g, r, n: subset.length });
+    return { group: g, n: subset.length, S: covMatrix(subset, vars), means: vars.map(v => avg(subset.map(r => +r[v]))) };
+  });
+  if (groupStats.some(gs => gs.n < 5)) return null;
+  const nTotal = groupStats.reduce((s, gs) => s + gs.n, 0);
+
+  const configural = _fitMultiGroupCFA(groupStats, m, { shareLoadings: false, shareIntercepts: false, shareResiduals: false });
+  const metric = _fitMultiGroupCFA(groupStats, m, { shareLoadings: true, shareIntercepts: false, shareResiduals: false });
+  const scalar = _fitMultiGroupCFA(groupStats, m, { shareLoadings: true, shareIntercepts: true, shareResiduals: false });
+  const strict = _fitMultiGroupCFA(groupStats, m, { shareLoadings: true, shareIntercepts: true, shareResiduals: true });
+
+  const { chi2: nullChi2, df: nullDf } = _nullModelChi2MultiGroup(groupStats, m);
+  const configuralStats = _fitStatsFromChi2(configural.chi2, configural.df, nullChi2, nullDf, nTotal);
+
+  function nestedTest(constrained, base) {
+    const deltaChi2 = Math.max(0, constrained.chi2 - base.chi2);
+    const deltaDf = Math.max(1, constrained.df - base.df);
+    const p = chiPVal(deltaChi2, deltaDf);
+    return { deltaChi2, deltaDf, p, passed: p > 0.05 };
   }
-  if (results.length < 2) return null;
 
-  const baseCFI = results.reduce((s, v) => s + (v.r.fit.cfi || 0), 0) / results.length;
-  const baseRMSEA = results.reduce((s, v) => s + (v.r.fit.rmsea || 0), 0) / results.length;
+  const metricTest = nestedTest(metric, configural);
+  const scalarTest = nestedTest(scalar, metric);
+  const strictTest = nestedTest(strict, scalar);
+  const scalarSupported = metricTest.passed && scalarTest.passed;
+  const strictSupported = scalarSupported && strictTest.passed;
 
-  const pooled = [];
-  for (const g of groups) {
-    const subset = data.filter(r => String(r[groupVar]) === g);
-    const nG = subset.length;
-    const S = covMatrix(subset, vars);
-    pooled.push({ group: g, S, n: nG, loadings: results.find(r => r.group === g)?.r.loadings || [] });
-  }
+  const steps = [
+    {
+      model: 'Configural', cfi: +configuralStats.cfi.toFixed(4), rmsea: +configuralStats.rmsea.toFixed(4),
+      chi2: +configural.chi2.toFixed(4), df: configural.df, passed: true,
+      note: 'Baseline model: factor structure estimated freely in each group',
+    },
+    {
+      model: 'Metric (Weak)', deltaChi2: +metricTest.deltaChi2.toFixed(4), deltaDf: metricTest.deltaDf, p: +metricTest.p.toFixed(4),
+      passed: metricTest.passed,
+      note: metricTest.passed ? 'Constraining loadings equal across groups does not significantly worsen fit' : 'Loadings differ across groups — metric invariance not supported',
+    },
+    {
+      model: 'Scalar (Strong)', deltaChi2: +scalarTest.deltaChi2.toFixed(4), deltaDf: scalarTest.deltaDf, p: +scalarTest.p.toFixed(4),
+      passed: scalarSupported,
+      note: scalarSupported ? 'Constraining intercepts equal across groups does not significantly worsen fit' : 'Intercepts differ across groups — scalar invariance not supported',
+    },
+    {
+      model: 'Strict', deltaChi2: +strictTest.deltaChi2.toFixed(4), deltaDf: strictTest.deltaDf, p: +strictTest.p.toFixed(4),
+      passed: strictSupported,
+      note: strictSupported ? 'Constraining residual variances equal across groups does not significantly worsen fit' : 'Residual variances differ across groups — strict invariance not supported',
+    },
+  ];
 
-  const configuralFit = { cfi: baseCFI, rmsea: baseRMSEA, status: 'configural' };
-  steps.push({ model: 'Configural', cfi: baseCFI, rmsea: baseRMSEA, passed: true, note: 'Groups have same factor structure' });
-
-  const allLoadings = [];
-  results.forEach(r => {
-    r.r.loadings.forEach(l => {
-      if (l.estimate && l.indicator) allLoadings.push(l.estimate);
-    });
-  });
-
-  const loadingMean = allLoadings.length ? avg(allLoadings) : 0;
-  let loadingDiff = 0;
-  results.forEach(r => {
-    r.r.loadings.forEach(l => {
-      if (l.estimate) loadingDiff += Math.abs(l.estimate - loadingMean);
-    });
-  });
-  loadingDiff = allLoadings.length ? loadingDiff / allLoadings.length : 0;
-
-  const metricPassed = loadingDiff < Math.abs(loadingMean) * 0.3;
-  steps.push({
-    model: 'Metric (Weak)',
-    meanLoadingDiff: +loadingDiff.toFixed(4),
-    passed: metricPassed,
-    note: metricPassed ? 'Loadings approximately equal across groups' : 'Loadings differ across groups — metric invariance not supported',
-  });
-
-  const grandMeans = vars.map(v => avg(data.map(r => +r[v] || 0)));
-  let interceptDiff = 0;
-  results.forEach(r => {
-    vars.forEach((v, j) => {
-      const vals = data.filter(d => String(d[groupVar]) === r.group).map(d => +d[v] || 0);
-      interceptDiff += Math.abs(avg(vals) - grandMeans[j]);
-    });
-  });
-  interceptDiff /= vars.length * results.length;
-
-  const scalarPassed = interceptDiff < Math.max(0.5, avg(grandMeans.map(Math.abs)) * 0.15);
-  steps.push({
-    model: 'Scalar (Strong)',
-    meanInterceptDiff: +interceptDiff.toFixed(4),
-    passed: scalarPassed,
-    note: scalarPassed ? 'Intercepts approximately equal across groups' : 'Intercepts differ — scalar invariance not supported',
-  });
-
-  let residualDiff = 0;
-  const allResid = [];
-  results.forEach(r => {
-    const sub = data.filter(d => String(d[groupVar]) === r.group);
-    vars.forEach(v => allResid.push(sampleVar(sub.map(d => +d[v] || 0))));
-  });
-  const meanResid = avg(allResid);
-  allResid.forEach(v => residualDiff += Math.abs(v - meanResid) / (meanResid || 1));
-  residualDiff /= allResid.length;
-
-  const strictPassed = residualDiff < 0.25;
-  steps.push({
-    model: 'Strict',
-    meanResidualDiff: +residualDiff.toFixed(4),
-    passed: strictPassed,
-    note: strictPassed ? 'Residual variances approximately equal across groups' : 'Residual variances differ — strict invariance not supported',
-  });
+  const highestLevel = strictSupported ? 'strict' : scalarSupported ? 'scalar' : metricTest.passed ? 'metric' : 'configural';
 
   return {
     test: 'Measurement Invariance',
@@ -432,10 +561,10 @@ export function measurementInvariance(data, vars, groupVar, factorName = 'f1') {
     vars,
     groups,
     steps,
-    configuralCFI: baseCFI,
-    configuralRMSEA: baseRMSEA,
-    highestLevel: strictPassed ? 'strict' : scalarPassed ? 'scalar' : metricPassed ? 'metric' : 'configural',
-    apa: `Measurement invariance: ${factorName} configural CFI = ${baseCFI.toFixed(3)}. Highest supported level: ${strictPassed ? 'strict' : scalarPassed ? 'scalar' : metricPassed ? 'metric' : 'configural'}.`,
+    configuralCFI: +configuralStats.cfi.toFixed(4),
+    configuralRMSEA: +configuralStats.rmsea.toFixed(4),
+    highestLevel,
+    apa: `Measurement invariance: ${factorName} configural CFI = ${configuralStats.cfi.toFixed(3)}. Metric Δχ²(${metricTest.deltaDf}) = ${metricTest.deltaChi2.toFixed(2)}, p = ${metricTest.p.toFixed(3)}. Highest supported level: ${highestLevel}.`,
   };
 }
 
@@ -590,40 +719,104 @@ export function bifactorModel(data, generalFactor, groupFactors, { maxIter = 50 
 }
 
 // ── Ordinal SEM ───────────────────────────────────────────────────
+// Two-step polychoric correlations (Olsson, 1979): each variable's thresholds
+// are the normal-quantile inverses of its observed cumulative category
+// proportions, then rho is estimated by ML against the observed contingency
+// table for every pair. The resulting polychoric correlation matrix is then
+// fit with a single-factor model using the same RAM-ML machinery as sem().
 export function ordinalSEM(data, vars, model, { nThresh = 5 } = {}) {
   if (!data || data.length < 20 || !vars || vars.length < 3 || !model) return null;
-  const m = vars.length;
+  const m = vars.length, n = data.length;
+
+  const cats = vars.map(v => {
+    const raw = data.map(r => +r[v]);
+    const sorted = [...raw].sort((a, b) => a - b);
+    const cuts = [];
+    for (let t = 1; t <= nThresh; t++) {
+      const idx = Math.min(sorted.length - 1, Math.floor(t * sorted.length / (nThresh + 1)));
+      cuts.push(sorted[idx]);
+    }
+    const nCat = nThresh + 1;
+    const cat = raw.map(v0 => Math.min(nCat - 1, cuts.filter(c => v0 > c).length));
+    const counts = Array(nCat).fill(0);
+    cat.forEach(c => counts[c]++);
+    let cum = 0;
+    const z = [-8];
+    for (let c = 0; c < nCat - 1; c++) { cum += counts[c]; z.push(normalINV(Math.min(0.9999, Math.max(0.0001, cum / n)))); }
+    z.push(8);
+    return { cuts, cat, z, nCat };
+  });
+
   const R = Array.from({ length: m }, () => Array(m).fill(0));
   for (let i = 0; i < m; i++) {
     R[i][i] = 1;
     for (let j = i + 1; j < m; j++) {
-      const xi = data.map(r => +r[vars[i]]).filter(Number.isFinite);
-      const xj = data.map(r => +r[vars[j]]).filter(Number.isFinite);
-      const nMin = Math.min(xi.length, xj.length);
-      if (nMin < 5) { R[i][j] = 0; R[j][i] = 0; continue; }
-      const rho = corr(xi.slice(0, nMin), xj.slice(0, nMin));
-      const rPoly = Math.max(-0.99, Math.min(0.99, rho * (nMin / (nMin - 1))));
-      R[i][j] = rPoly; R[j][i] = rPoly;
+      const ci = cats[i], cj = cats[j];
+      const table = Array.from({ length: ci.nCat }, () => Array(cj.nCat).fill(0));
+      for (let r = 0; r < n; r++) table[ci.cat[r]][cj.cat[r]]++;
+      const negLL = rho => {
+        let ll = 0;
+        for (let a = 0; a < ci.nCat; a++) for (let b = 0; b < cj.nCat; b++) {
+          if (!table[a][b]) continue;
+          const p = _bvnCDF(ci.z[a + 1], cj.z[b + 1], rho) - _bvnCDF(ci.z[a], cj.z[b + 1], rho)
+                   - _bvnCDF(ci.z[a + 1], cj.z[b], rho) + _bvnCDF(ci.z[a], cj.z[b], rho);
+          ll += table[a][b] * Math.log(Math.max(p, 1e-12));
+        }
+        return -ll;
+      };
+      let best = { rho: 0, nll: negLL(0) };
+      for (let g = -95; g <= 95; g += 5) {
+        const rho = g / 100, nll = negLL(rho);
+        if (nll < best.nll) best = { rho, nll };
+      }
+      for (let step = 0.02; step >= 0.0005; step /= 4) {
+        for (const d of [-step, step]) {
+          const rho = Math.max(-0.995, Math.min(0.995, best.rho + d));
+          const nll = negLL(rho);
+          if (nll < best.nll) best = { rho, nll };
+        }
+      }
+      R[i][j] = best.rho; R[j][i] = best.rho;
     }
   }
 
-  const thresholds = vars.map(v => {
-    const vals = data.map(r => +r[v]).filter(Number.isFinite).sort((a, b) => a - b);
-    const th = [];
-    for (let t = 1; t <= nThresh; t++) {
-      const idx = Math.floor(t * vals.length / (nThresh + 1));
-      th.push(idx < vals.length ? +vals[idx].toFixed(4) : 0);
-    }
-    return { variable: v, thresholds: th };
-  });
+  const thresholds = vars.map((v, i) => ({ variable: v, thresholds: cats[i].cuts.map(c => +c.toFixed(4)) }));
+
+  const eqStr = model.includes('=~') ? model : `${model} =~ ${vars.join(' + ')}`;
+  const parsed = parseEquations([eqStr], data);
+  if (parsed.m < 3) return null;
+  const ram = buildRAM(parsed);
+  const fitR = _fitRAMByML(R, ram, parsed);
+  if (!fitR) {
+    return {
+      test: 'Ordinal SEM', loadings: [], thresholds,
+      fit: { chisq: NaN, rmsea: NaN, cfi: NaN }, n,
+      apa: `Ordinal SEM: ${m} variables, polychoric matrix, n = ${n} (model did not converge)`,
+    };
+  }
+  const { theta, mc, ses, k, fML } = fitR;
+  const { chi2, df, p, cfi, tli, rmsea } = _semFitStats(R, mc, n, m, k, fML);
+
+  const loadings = [];
+  for (let i = 0; i < ram.free.length; i++) {
+    const f = ram.free[i];
+    if (f.type !== 'loading') continue;
+    const val = theta[i], se = ses[i];
+    const zStat = se > 0 ? val / se : 0;
+    loadings.push({
+      indicator: parsed.allOrder[f.i], factor: parsed.allOrder[f.j],
+      estimate: +val.toFixed(4), se: +se.toFixed(4), z: +zStat.toFixed(4), p: chiPVal(zStat * zStat, 1),
+    });
+  }
 
   return {
     test: 'Ordinal SEM',
-    loadings: [],
+    loadings,
     thresholds,
-    fit: { chisq: NaN, rmsea: NaN, cfi: NaN },
-    n: data.length,
-    apa: `Ordinal SEM: ${m} variables, polycor matrix, n = ${data.length}`,
+    R: R.map(row => row.map(v => +v.toFixed(4))),
+    fit: { chisq: +chi2.toFixed(4), df, p, cfi: +cfi.toFixed(4), tli: +tli.toFixed(4), rmsea: +rmsea.toFixed(4) },
+    n,
+    apa: `Ordinal SEM: ${m} variables, polychoric-correlation ML factor fit, chi2(${df}) = ${chi2.toFixed(2)}, CFI = ${cfi.toFixed(3)}, RMSEA = ${rmsea.toFixed(3)}, n = ${n}`,
   };
 }
 

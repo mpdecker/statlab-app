@@ -110,8 +110,8 @@ implementations can be fixed. Status legend:
 | 78 | `particleMCMC` | smc.js:104 | ✅ FIXED | plain IS, no MH moves; nIter unused | PMMH sampler |
 | 79 | `nonMetricMDS` | mds.js:114 | ✅ FIXED | no isotonic regression (comment only) → metric, not non-metric | PAVA on disparities |
 | 80 | `doubleML` | causal.js:343 | ✅ FIXED | nuisance `yHat/dHat` = training means; **X never used** → not debiased ML | cross-fitted ML nuisance models |
-| 81 | `ordinalSEM` | sem.js:593 | STUB | returns `loadings:[]`, `fit:{chisq:NaN,rmsea:NaN,cfi:NaN}` — never fits | WLSMV ordinal SEM |
-| 82 | `measurementInvariance` | sem.js:339 | APPROX/MISLABELED | pass/fail from ad-hoc thresholds, not nested χ² model comparison | fit constrained configural/metric/scalar models |
+| 81 | `ordinalSEM` | sem.js:593 | ✅ FIXED | returns `loadings:[]`, `fit:{chisq:NaN,rmsea:NaN,cfi:NaN}` — never fits | WLSMV ordinal SEM |
+| 82 | `measurementInvariance` | sem.js:339 | ✅ FIXED | pass/fail from ad-hoc thresholds, not nested χ² model comparison | fit constrained configural/metric/scalar models |
 | 83 | `transitionModel` | multilevel.js:1035 | ✅ FIXED | regresses y on `(yLag+Σx)` as a single predictor; `se=1/√n` | proper transition/Markov regression |
 | 84 | `remlEstimate` | multilevel.js:999 | ✅ FIXED | plain OLS + residual var, no REML variance-component estimation | actual REML |
 | 85 | `repeatedMeasuresMANOVA` | multilevel.js:1017 | INCOMPLETE | returns SS only, no F/Wilks/p | RM-MANOVA test statistic |
@@ -252,7 +252,7 @@ sensitivity(sobol/delta), abTesting(most), genetics, demo(demography). Oracle-VE
 ### Batch 8 read-confirmed
 - **bayesian.js** ✅ REAL (23) — mcmc(adaptive MH), posteriorSummary, hpdInterval, waic, normalNormal/NIG/betaBinomial/gammaPoisson/dirichletMultinomial conjugates, bayesianLinear/Logistic/Poisson regression, bayesianANOVA, bayesianMixedModel, bicBayesFactor, savageDickeyBF, jszBayesFactorT, bayesianDIC, posteriorPredictiveCheck, bmaRegression(+PIP/predict/summary). No fakes.
 - **causal.js** ✅ REAL (35, read 1–430) — propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity, syntheticControl, backdoorAdjustment REAL; **doubleML APPROX (X unused, #80)**. (mediation variants 430–950 not transcribed; structure consistent.)
-- **sem.js** ✅ (8) — sem(RAM-ML), semMultiGroup, latentGrowthModel, pathAnalysis, cfiCompare REAL; bifactorModel APPROX; measurementInvariance APPROX(#82); ordinalSEM STUB(#81).
+- **sem.js** ✅ (8) — sem(RAM-ML), semMultiGroup, latentGrowthModel, pathAnalysis, cfiCompare REAL; bifactorModel APPROX; measurementInvariance FIXED(#82, nested χ² multi-group CFA); ordinalSEM FIXED(#81, polychoric ML factor fit).
 
 ### Batch 7 read-confirmed
 - **clinical.js** ✅ REAL (31) — blandAltman(+ratio), diagnosticAccuracy(Wilson CI), likelihoodRatios, NRI, weighted/fleiss/krippendorff/ac1 kappa, deLong, partialAUC, optimalThreshold, HosmerLemeshow, calibration, netBenefit, decisionCurve, brier, haybittlePeto, wangTsiatis, inverseNormal, fisherCombination, cliffsDelta, rankBiserial, PAF, clinicalUtility — REAL; cornfieldBounds, adaptiveDesign APPROX.
