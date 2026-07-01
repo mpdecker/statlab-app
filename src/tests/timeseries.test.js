@@ -1204,3 +1204,53 @@ describe('VAR cluster: real estimation (varmax, vecm, FEVD, IRF CI)', () => {
     expect(width).toBeLessThan(0.3 * Math.abs(r.irf[1]) + 0.05);
   });
 });
+
+describe('MGARCH family: real multivariate volatility estimation', () => {
+  // Simulate two GARCH(1,1) series with correlated innovations (corr rho).
+  function simMGARCH(T, rho, seed) {
+    let s = seed; const N = () => { let u = 0; for (let k = 0; k < 12; k++) { s = (Math.imul(1664525, s) + 1013904223) >>> 0; u += s / 2 ** 32; } return u - 6; };
+    const om = 0.00002, al = 0.08, be = 0.9;
+    let h0 = om / (1 - al - be), h1 = h0; const out = [];
+    for (let t = 0; t < T; t++) {
+      const z0 = N(), z1 = rho * z0 + Math.sqrt(1 - rho * rho) * N();
+      const e0 = Math.sqrt(h0) * z0, e1 = Math.sqrt(h1) * z1;
+      out.push([e0, e1]);
+      h0 = om + al * e0 * e0 + be * h0; h1 = om + al * e1 * e1 + be * h1;
+    }
+    return out;
+  }
+
+  it('cccGarch recovers the constant conditional correlation', () => {
+    const r = cccGarch(simMGARCH(600, 0.6, 3));
+    expect(Math.abs(r.R[0][1] - 0.6)).toBeLessThan(0.15);
+    expect(r.R[0][0]).toBeCloseTo(1, 6);
+  });
+
+  it('dccGarch estimates valid DCC parameters and a time-varying correlation', () => {
+    const r = dccGarch(simMGARCH(600, 0.6, 5));
+    expect(r.a).toBeGreaterThanOrEqual(0);
+    expect(r.b).toBeGreaterThanOrEqual(0);
+    expect(r.a + r.b).toBeLessThan(1);
+    expect(Math.abs(r.meanCorr - 0.6)).toBeLessThan(0.2); // average dynamic correlation
+  });
+
+  it('bekkGarch targets the unconditional covariance', () => {
+    const data = simMGARCH(600, 0.6, 7);
+    const r = bekkGarch(data);
+    expect(r.a + r.b).toBeLessThan(1);
+    expect(r.a).toBeGreaterThan(0);
+  });
+
+  it('mgarchForecast produces a valid covariance forecast from a fitted CCC model', () => {
+    const model = cccGarch(simMGARCH(600, 0.6, 9));
+    const r = mgarchForecast(model, 3);
+    expect(r.forecast[0][0][0]).toBeGreaterThan(0);               // positive variance
+    expect(Math.sign(r.forecast[0][0][1])).toBe(Math.sign(model.R[0][1])); // covariance sign matches correlation
+  });
+
+  it('mgarchDiagnostics finds no remaining ARCH in standardized residuals of a fit', () => {
+    const model = cccGarch(simMGARCH(600, 0.6, 11));
+    const r = mgarchDiagnostics(model);
+    expect(r.archTests[0].p).toBeGreaterThan(0.05); // standardized resids are ~white
+  });
+});

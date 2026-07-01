@@ -138,7 +138,7 @@ implementations can be fixed. Status legend:
 | 106 | `cointegrationRank` | timeseries.js:1461 | ✅ FIXED | trace stats = `n·(maxRank−r+1)·0.1` hardcoded | real Johansen trace/max-eigen |
 | 107 | `impulseResponseCI` | timeseries.js:1478 | ✅ FIXED | CI = `±1.96·|v|·0.3`, not bootstrap | bootstrap IRF draws |
 | 108 | `fevdDecomposition` | timeseries.js:1487 | ✅ FIXED | contributions hardcoded 0.7/0.3 | real FEVD from VAR |
-| 109 | `dccGarch`/`bekkGarch`/`cccGarch`/`mgarchForecast`/`mgarchDiagnostics` | timeseries.js:1501–1543 | STUB/FABRICATED | identity/0.01/0.3/0.02 hardcoded; no estimation | real multivariate GARCH |
+| 109 | `dccGarch`/`bekkGarch`/`cccGarch`/`mgarchForecast`/`mgarchDiagnostics` | timeseries.js:1501–1543 | ✅ FIXED | identity/0.01/0.3/0.02 hardcoded; no estimation | real multivariate GARCH |
 | 110 | `egarch` | timeseries.js:1546 | ✅ FIXED | omega/alpha/beta/gamma hardcoded; never estimated (same as finance.js #86) | EGARCH MLE |
 | 111 | `multiArmBandit` | abTesting.js:87 | ✅ FIXED | fake Beta draw + random reward (cf. bandit #94) | sample Beta; real reward |
 | 112 | `modelComparison` p | sensitivity.js:61 | ✅ FIXED | local `fPVal = exp(-0.5·f²/(df1+df2))`, not F dist | real F-distribution p |
