@@ -57,6 +57,12 @@ describe('pca', () => {
     const res = pca(data, vars);
     expect(res.loadings).toHaveLength(3);
   });
+  it('matches a numpy eigh(correlation matrix) oracle', () => {
+    const e = ref.multivariate.pca_basic;
+    const rows = e.x.map((_, i) => ({ x: e.x[i], y: e.y[i], z: e.z[i] }));
+    const res = pca(rows, ['x', 'y', 'z']);
+    res.eigenvaluesRaw.forEach((v, i) => expect(v).toBeCloseTo(e.eigenvalues[i], 3));
+  });
 });
 
 describe('efa', () => {
@@ -135,6 +141,19 @@ describe('manova', () => {
     const r = manova(data, ['y1', 'y2'], 'species');
     if (r) expectKeys(r, ['test', 'wilksLambda', 'pillaiTrace', 'prob', 'ndep', 'n', 'apa']);
   });
+
+  it('matches a statsmodels MANOVA oracle (all four multivariate statistics)', () => {
+    const e = ref.multivariate.manova_basic;
+    const rows = e.y1.map((_, i) => ({ y1: e.y1[i], y2: e.y2[i], group: e.group[i] }));
+    const r = manova(rows, ['y1', 'y2'], 'group');
+    expect(r.wilksLambda).toBeCloseTo(e.wilksLambda, 3);
+    expect(r.pillaiTrace).toBeCloseTo(e.pillaiTrace, 3);
+    expect(r.hotellingLawleyTrace).toBeCloseTo(e.hotellingLawleyTrace, 2);
+    // Roy's largest root: previously computed via naive (A+Aᵀ)/2 symmetrization of the
+    // non-symmetric matrix E⁻¹H, which preserves the trace (Hotelling-Lawley matched)
+    // but corrupts individual eigenvalues — this assertion is the regression test.
+    expect(r.roysLargestRoot).toBeCloseTo(e.roysLargestRoot, 2);
+  });
 });
 
 describe('canonicalCorr', () => {
@@ -158,6 +177,16 @@ describe('canonicalCorr', () => {
     const ccRows = rows.map((r, ix) => ({ ...r, ySyn: +(r.x1 + r.x3) / 3 + ix * .001 }));
     const r = canonicalCorr(ccRows, ['x1', 'x2'], ['x3', 'ySyn']);
     if (r) expect(r.correlations.length).toBeGreaterThan(0);
+  });
+
+  it('matches a numpy SVD oracle (regression test for the symSqrtInvSPD whitening bug)', () => {
+    // symSqrtInvSPD (used to whiten Rxx/Ryy) previously computed a mathematically
+    // wrong inverse-square-root (verified by an M^(-1/2)·M^(-1/2)·M ≈ I identity
+    // check failing before the fix), silently corrupting every canonical correlation.
+    const e = ref.multivariate.canonicalCorr_basic;
+    const rows2 = e.x1.map((_, i) => ({ x1: e.x1[i], x2: e.x2[i], y1: e.y1[i], y2: e.y2[i] }));
+    const r = canonicalCorr(rows2, ['x1', 'x2'], ['y1', 'y2']);
+    r.correlations.forEach((v, i) => expect(v).toBeCloseTo(e.correlations[i], 3));
   });
 });
 
@@ -183,6 +212,21 @@ describe('linearDiscriminant', () => {
   it('contract keys when valid', () => {
     const r = linearDiscriminant(ldaRows, 'grp', ['x1', 'x2']);
     if (r) { expect(r).toHaveProperty('coefficients'); expect(r).toHaveProperty('accuracyTrain'); }
+  });
+
+  it('matches a scipy.linalg.eigh(Sb, Sw) generalized-eigenproblem oracle (regression test for the symSqrtInvSPD bug)', () => {
+    // The old code eigendecomposed a naively-symmetrized Sw⁻¹Sb, corrupting the
+    // discriminant DIRECTION itself (not just a displayed statistic) — this is the
+    // vector actually used to project and classify new points.
+    const e = ref.multivariate.lda_basic;
+    const rows = [...e.g1.map(([x1, x2]) => ({ x1, x2, g: 0 })), ...e.g2.map(([x1, x2]) => ({ x1, x2, g: 1 }))];
+    const r = linearDiscriminant(rows, 'g', ['x1', 'x2']);
+    // Eigenvectors are only defined up to an overall sign; compare the direction's
+    // absolute components (both g1/g2 centroids project to well-separated scores
+    // either way, so accuracy/ordering are unaffected by the sign).
+    expect(Math.abs(r.coefficients[0])).toBeCloseTo(Math.abs(e.w[0]), 3);
+    expect(Math.abs(r.coefficients[1])).toBeCloseTo(Math.abs(e.w[1]), 3);
+    expect(r.accuracyTrain).toBe(100);
   });
 });
 

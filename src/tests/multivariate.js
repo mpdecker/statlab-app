@@ -160,11 +160,20 @@ function diagMat(d) {
   return d.map((v, ri) => d.map((__, ci) => (ri === ci ? v : 0)));
 }
 
+// Symmetric inverse square root of a symmetric PD matrix M, via its spectral
+// decomposition M = Σ_k λ_k v_k v_kᵀ ⇒ M^(-1/2) = Σ_k (1/√λ_k) v_k v_kᵀ, where
+// jacobiEigen's `eigenvectors[k]` is the k-th eigenvector as a plain array.
+// Previously this multiplied the (row-of-eigenvectors) matrix V by diag(1/√λ)
+// via matMul(V, invS) then V — that treats V's ROWS as if they were basis
+// components indexed by eigenvalue, which is not what matMul(V,invS) computes;
+// verified wrong by an identity check (M^(-1/2)·M^(-1/2)·M was far from I).
+// This fed into canonicalCorr (Sx/Sy whitening) and linearDiscriminant's
+// Sw^(-1/2) — both potentially returning wrong numbers.
 function symSqrtInvSPD(M) {
-  const { eigenvalues: ev, eigenvectors: V } = jacobiEigen(M);
-  const invS = diagMat(ev.map(x => Math.sqrt(1 / Math.max(x, 1e-8))));
-  const VD = matMul(V, invS), Vt = matTrans(V);
-  return matMul(VD, Vt);
+  const { eigenvalues, eigenvectors } = jacobiEigen(M);
+  const n = M.length;
+  return Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) =>
+    eigenvalues.reduce((s, lam, k) => s + (lam > 1e-10 ? (1 / Math.sqrt(lam)) * eigenvectors[k][i] * eigenvectors[k][j] : 0), 0)));
 }
 
 function symProd(A) {
@@ -224,15 +233,20 @@ export function manova(data, yVars, groupVar) {
     pillai = Math.max(0, Math.min(nuH, pillai));
   }
 
-  const invE = matInv(E.map((rr, ix) =>
-    rr.map((v, jx) => v + ((ix === jx ? 1e-6 : 0) * (jacobiEigen(E).eigenvalues[0] ?? 1) * 1e-8))));
+  // Eigenvalues of E⁻¹H (needed for Hotelling-Lawley trace = Σλᵢ and Roy's root =
+  // max λᵢ) via the symmetric similarity transform E^(-1/2)·H·E^(-1/2), which has
+  // the SAME eigenvalues as E⁻¹H because E is symmetric PD. The previous code
+  // instead naively symmetrized (E⁻¹H + (E⁻¹H)ᵀ)/2 before eigendecomposing — this
+  // preserves the trace (so Hotelling-Lawley matched a real oracle) but NOT the
+  // individual eigenvalues, so Roy's largest root was wrong (verified against
+  // statsmodels' MANOVA: Roy's root off by ~1% on a real test case).
+  const Ereg = E.map((rr, ix) => rr.map((v, jx) => v + (ix === jx ? 1e-6 * ((jacobiEigen(E).eigenvalues[0]) ?? 1) * 1e-8 : 0)));
+  const EinvSqrt = symSqrtInvSPD(Ereg);
   let hotLaw = 0, roysRoot = 0;
-  if (invE) {
-    const EiHprod = symProd(matMul(invE, H));
-    const eigH = jacobiEigen(EiHprod).eigenvalues.filter(e => e > 1e-10).slice(0, nuH);
-    hotLaw = eigH.reduce((s, x) => s + x, 0);
-    roysRoot = eigH.length ? Math.max(...eigH) : 0;
-  }
+  const symM = matMul(matMul(EinvSqrt, H), EinvSqrt);
+  const eigH = jacobiEigen(symM).eigenvalues.filter(e => e > 1e-10).slice(0, nuH);
+  hotLaw = eigH.reduce((s, x) => s + x, 0);
+  roysRoot = eigH.length ? Math.max(...eigH) : 0;
 
   return {
     test: 'MANOVA',
@@ -320,15 +334,21 @@ export function linearDiscriminant(data, groupVar, xVars) {
     Sb = matAdd_(Sb, matScale_(outerVec_(dc), ng));
   });
 
-  const traceSw = jacobiEigen(symProd(Sw)).eigenvalues.reduce((s, ev) => s + Math.max(ev, 0), 0) || 1;
+  const traceSw = jacobiEigen(Sw).eigenvalues.reduce((s, ev) => s + Math.max(ev, 0), 0) || 1;
   const ridge = traceSw / p * 1e-4;
   Sw = Sw.map((r, ix) => r.map((v, iy) => v + (ix === iy ? ridge : 0)));
-  const invSw = matInv(Sw);
-  if (!invSw) return null;
-  const eig = jacobiEigen(symProd(matMul(invSw, Sb)));
-  /** jacobiEigen sorts λ descending — first column eigenvector corresponds to λ₁ */
-  const wRaw = eig.eigenvectors[0];
-  if (!wRaw?.length) return null;
+  // Fisher's discriminant direction solves the generalized eigenproblem Sb·w = λ·Sw·w.
+  // Sw⁻¹Sb is generally NOT symmetric, so naively symmetrizing it before
+  // eigendecomposing (the previous code) corrupts both eigenvalues AND
+  // eigenvectors — i.e. the discriminant direction itself, not just a displayed
+  // number. Use the symmetric similarity transform instead: eigendecompose
+  // Sw^(-1/2)·Sb·Sw^(-1/2) (symmetric, same eigenvalues as Sw⁻¹Sb), then map its
+  // leading eigenvector back to the original space via w = Sw^(-1/2)·u₁.
+  const SwInvSqrt = symSqrtInvSPD(Sw);
+  const eig = jacobiEigen(matMul(matMul(SwInvSqrt, Sb), SwInvSqrt));
+  const u1 = eig.eigenvectors[0];
+  if (!u1?.length) return null;
+  const wRaw = SwInvSqrt.map(row => row.reduce((s, v, j) => s + v * u1[j], 0));
   const norm = Math.sqrt(wRaw.reduce((s, c) => s + c * c, 0)) || 1;
   const w = wRaw.map(c => c / norm);
 

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { kmEstimate, logRankTest, nelsonAalen, coxPH, parametricSurvival, fineGray, frailtyCox, timeVaryingCox, rmst, rmstCompare, aalenModel, cureModel, multistateModel, agModel, pwpgap, wlwMarginal, survivalTree, randomSurvivalForest, rsfVariableImportance, timeDependentROC, survivalCalibration, survivalForestPredict, jointModel, landmarkAnalysis, pseudoValues } from './survival.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+const survRef = ref.survival;
 
 const obsA = [
   { time: 5, event: 1 }, { time: 8, event: 1 }, { time: 12, event: 0 },
@@ -88,6 +90,18 @@ describe('kmEstimate', () => {
     expect(r.nEvents).toBe(obsA.filter(o => o.event === 1).length);
   });
 
+  it('matches a lifelines.KaplanMeierFitter oracle at the last event time', () => {
+    // statlab's kmEstimate tabulates only event times (not trailing censoring-only
+    // rows, which lifelines' table includes) — a legitimate convention difference,
+    // so compare at the last EVENT time rather than each implementation's last row.
+    const e = survRef.km_basic;
+    const obs = e.time.map((t, i) => ({ time: t, event: e.event[i] }));
+    const r = kmEstimate(obs);
+    const last = r.survivalTable[r.survivalTable.length - 1];
+    expect(last.time).toBeCloseTo(e.lastEventTime, 6);
+    expect(last.survival).toBeCloseTo(e.survivalAtLastEvent, 4);
+  });
+
   it('medianSurvival is calculated', () => {
     const r = kmEstimate(obsA);
     expect(r.medianSurvival).toBeGreaterThan(0);
@@ -137,6 +151,15 @@ describe('logRankTest', () => {
     const r = logRankTest(obsA, obsB);
     expect(r.p).toBeGreaterThanOrEqual(0);
     expect(r.p).toBeLessThanOrEqual(1);
+  });
+
+  it('matches a lifelines.statistics.logrank_test oracle', () => {
+    const e = survRef.logRank_basic;
+    const oA = e.time1.map((t, i) => ({ time: t, event: e.event1[i] }));
+    const oB = e.time2.map((t, i) => ({ time: t, event: e.event2[i] }));
+    const r = logRankTest(oA, oB);
+    expect(r.chi2).toBeCloseTo(e.chi2, 4);
+    expect(r.p).toBeCloseTo(e.p, 6);
   });
 
   it('apa is a string', () => {
@@ -239,6 +262,19 @@ describe('coxPH', () => {
     const r = coxPH(coxData, ['age']);
     expectKeys(r, ['test', 'coefficients', 'logLikelihood', 'baselineSurvival', 'n', 'nEvents', 'strata', 'apa']);
     expect(r.test).toBe('Cox Proportional Hazards');
+  });
+
+  it('matches a lifelines.CoxPHFitter oracle (regression test for the earlier Newton-step sign-flip fix)', () => {
+    // survival.js's Newton update previously used β+H⁻¹·grad against a
+    // negative-definite Hessian (should be β−H⁻¹·grad), sign-flipping every
+    // Cox/logistic coefficient in this module — fixed earlier in this session,
+    // now validated against an independent lifelines fit.
+    const e = survRef.coxPH_basic;
+    const obs = e.time.map((t, i) => ({ time: t, event: e.event[i], x: e.x[i] }));
+    const r = coxPH(obs, ['x']);
+    expect(r.coefficients[0].beta).toBeCloseTo(e.beta, 3);
+    expect(r.coefficients[0].se).toBeCloseTo(e.se, 3);
+    expect(r.coefficients[0].p).toBeCloseTo(e.p, 3);
   });
 
   it('coefficients have expected per-covariate keys', () => {
@@ -683,6 +719,31 @@ describe('cureModel', () => {
   it('contract keys', () => { const r = cureModel(cd, ['x']); if (r) expectKeys(r, ['test', 'cureFraction', 'cureModel', 'survivalModel', 'n', 'nCensored', 'apa']); });
   it('cure fraction in [0,1] if valid', () => { const r = cureModel(cd, ['x']); if (r) { expect(r.cureFraction).toBeGreaterThanOrEqual(0); expect(r.cureFraction).toBeLessThanOrEqual(1); } });
   it('null for <30', () => expect(cureModel(cd.slice(0, 10), ['x'])).toBeNull());
+});
+
+describe('cureModel E-step uses the survival function of the uncured population (not just marginal pi)', () => {
+  it('recovers a cure fraction close to the true simulated cured proportion', () => {
+    let s = 31; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+    const trueCureFrac = 0.4;
+    const obs = [];
+    for (let i = 0; i < 150; i++) {
+      const x = i % 2;
+      const cured = rnd() < trueCureFrac;
+      if (cured) {
+        obs.push({ time: 50 + rnd() * 20, event: 0, x }); // administratively censored, never fails
+      } else {
+        const hazardScale = Math.exp(0.5 * x);
+        const t = -Math.log(rnd()) / (0.05 * hazardScale);
+        const censorTime = 10 + rnd() * 40;
+        if (t < censorTime) obs.push({ time: t, event: 1, x });
+        else obs.push({ time: censorTime, event: 0, x });
+      }
+    }
+    const r = cureModel(obs, ['x']);
+    expect(r).not.toBeNull();
+    expect(r.cureFraction).toBeGreaterThan(0.2);
+    expect(r.cureFraction).toBeLessThan(0.6);
+  });
 });
 
 describe('multistateModel', () => {

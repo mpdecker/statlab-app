@@ -99,6 +99,14 @@ describe('friedman', () => {
     expect(res).toHaveProperty('W_kendall');
   });
 
+  it('matches a scipy.stats.friedmanchisquare oracle', () => {
+    const e = ref.anova.friedman_basic;
+    const matrix = e.d1.map((_, i) => [e.d1[i], e.d2[i], e.d3[i]]);
+    const res = friedman(matrix);
+    expect(res.chi2).toBeCloseTo(e.chi2, 4);
+    expect(res.p).toBeCloseTo(e.p, 6);
+  });
+
   it('Kendall W is between 0 and 1', () => {
     const blocks = [[1,2,3],[3,2,1],[2,1,3]];
     const res = friedman(blocks);
@@ -126,6 +134,14 @@ describe('cochranQ', () => {
     expect(res).not.toBeNull();
     expect(res).toHaveProperty('Q');
     expect(res).toHaveProperty('p');
+  });
+
+  it('matches a statsmodels.stats.contingency_tables.cochrans_q oracle', () => {
+    const e = ref.anova.cochranQ_basic;
+    const res = cochranQ(e.matrix);
+    expect(res.Q).toBeCloseTo(e.Q, 4);
+    expect(res.df).toBe(e.df);
+    expect(res.p).toBeCloseTo(e.p, 6);
   });
 
   it('Q is non-negative', () => {

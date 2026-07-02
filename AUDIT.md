@@ -4,6 +4,59 @@
 **Scope:** 84 method modules, 1,034 exported functions, 41,279 LOC; full test suite (4,619 tests, all passing).
 **Question:** Is this safe to release to npm as a rigorous statistics package?
 
+> **REMEDIATION STATUS (2026-07-01, updated).** All 118 fix-list items in `BASELINE.md` are ✅ FIXED, including
+> the last four that had lingered as BROKEN/INCOMPLETE: `difLogistic` (real IRLS logistic DIF + nested LR χ²
+> tests), `repeatedMeasuresMANOVA` (within-subjects F test + Greenhouse–Geisser), `adonis2` (real PERMANOVA
+> permutation p), and `regimeSwitching` (Gaussian-HMM Baum-Welch EM). A second pass then closed nearly every
+> item in the "WEAK / APPROX worth revisiting" table too — `splitConformal`, `jackknifePlus`,
+> `latentProfileAnalysis`, `mixtureOfExperts`, `nonparametricMixture`, `arellanoBond`, `cointegration`
+> (MacKinnon critical values), `equivalenceT`/`sampleSizeT` (real t-critical, and `sampleSizeT` now actually
+> honors `alpha`/`power` instead of silently ignoring them), KS p-values (full Kolmogorov series + Stephens
+> finite-sample correction), `cureModel` (real Breslow-baseline E-step), `cornfieldBounds` (real confounding
+> bound instead of an unrelated Wald CI), `adaptiveDesign`, and `waveletSignificance`. Full suite:
+> **4,787 tests pass**. Three more defects were *discovered* during this pass (not part of the original
+> fix list) and spawned as follow-up tasks rather than fixed inline: a mislabeled `arellanoBond` in
+> multilevel.js, fabricated `vecm`/`structuralVAR` in econometric.js, and a residual set of simplified
+> (not fabricated) heuristics in fda.js/pgm.js/sem.js/causalDiscovery.js. The **scientific-rigor blocker
+> (#2 below) is resolved** for the entire audited surface; every headline method now computes the quantity
+> it claims, backed by a TDD test against a known DGP. The **packaging blocker (#1) remains** — this is
+> still a Vite React app, not a library — see `EXTRACTION-PLAN.md`.
+>
+> **Oracle-coverage expansion (2026-07-01, third pass).** Addressed remediation path #3 from this audit
+> ("full library release only after every headline method has a test against an independent reference").
+> Installed scipy/statsmodels/lifelines (R is unavailable in this environment) and built
+> `scripts/gen-reference.py` as the canonical, fully-reproducible oracle generator (verified idempotent —
+> byte-identical `reference.json` across repeated runs), replacing the R-only `gen-reference.R` path.
+> Systematically added independent numeric oracles across `means`, `anova`, `categorical`, `regression`,
+> `nonparametric`, `multivariate`, and `survival` — roughly 30 new oracle-backed test cases on top of the
+> ~10 pre-existing ones. **This surfaced 8 previously-undetected real correctness bugs** that a century of
+> shape-only tests had never caught (each verified against an independent scipy/statsmodels/lifelines
+> computation, not a self-snapshot):
+> - `yuentTest` (means.js) — Winsorized-variance divisor used `n-1` instead of the correct `h-1` (h = trimmed
+>   sample size), inflating `|t|` by ~2.2× on an outlier-containing sample and understating p.
+> - `welchANOVA` (anova.js) — `df2` formula used coefficient 2 instead of 3, and the F-statistic's denominator
+>   inflation term was missing a `(k-2)` factor (invisible at k=3, wrong for every other k); p was off by
+>   orders of magnitude.
+> - `mannWhitney` (nonparametric.js) and `wilcoxonSR` (nonparametric.js) — both omitted the tie-correction
+>   term in the normal-approximation variance, understating `|z|` whenever values repeat across/within groups.
+> - `grubbsTest` (categorical.js) — used a normal-distribution p-value approximation instead of the exact
+>   t(n-2)-distribution reference; understated significance by 4+ orders of magnitude on an obvious outlier
+>   (p=0.033 vs the true p≈1.4e-6).
+> - `symSqrtInvSPD` (multivariate.js, shared helper) — computed a mathematically wrong matrix inverse-square-root
+>   (failed a basic `M^(-1/2)·M^(-1/2)·M ≈ I` identity check), silently corrupting **both**
+>   `canonicalCorr` (wrong canonical correlations) **and** `linearDiscriminant` (wrong discriminant
+>   *direction* — the actual classification vector, not just a displayed statistic).
+> - `manova`'s Roy's largest root (multivariate.js) — eigendecomposed a naively-symmetrized `(E⁻¹H+(E⁻¹H)ᵀ)/2`
+>   instead of the correct symmetric-similarity transform; this preserves the *trace* (so Hotelling-Lawley
+>   traceE⁻¹H matched a real oracle) but corrupts individual eigenvalues, so Roy's root was wrong by ~1%.
+>
+> All eight are fixed, each with a regression test citing the specific oracle. Full suite: **4,816 tests
+> pass**. `cointegration`, `sur`/`threeSLS`, and the earlier `coxPH` sign-bug fix were independently
+> re-validated against MacKinnon tables / documented scope / lifelines respectively during this pass and
+> found already correct. Not exhaustive — bayesian.js, timeseries.js (beyond univariate), clustering.js, and
+> most of the "signature-scanned only" modules from the original audit still lack independent oracles; that
+> remains future work.
+
 ## Verdict
 
 **Not as-is.** Two independent blockers:

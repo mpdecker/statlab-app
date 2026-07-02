@@ -1,5 +1,6 @@
 import { avg, sampleVar, sampleSD, winsorize, trimmedMean, corr, effD, fmtP } from '../math/core.js';
 import { tPVal, tInv2, normalCDF, computePowerT, requiredN, lnBinom } from '../math/distributions.js';
+import { requiredNTTest } from '../math/power.js';
 
 // ── Welch two-sample t-test ───────────────────────────────────────────────────
 export function tWelch(a, b) {
@@ -55,15 +56,20 @@ export function yuentTest(a, b, p = 0.2) {
   const g1 = Math.floor(p * na), g2 = Math.floor(p * nb);
   const nt1 = na - 2 * g1, nt2 = nb - 2 * g2;
   const mt1 = trimmedMean(a, p), mt2 = trimmedMean(b, p);
-  const sw1 = a.reduce((s, x) => s + (Math.min(Math.max(x, wa[0]), wa[wa.length - 1]) - mt1) ** 2, 0) / (na - 1);
-  const sw2 = b.reduce((s, x) => s + (Math.min(Math.max(x, wb[0]), wb[wb.length - 1]) - mt2) ** 2, 0) / (nb - 1);
-  const se = Math.sqrt(sw1 / (nt1 * (nt1 - 1)) + sw2 / (nt2 * (nt2 - 1)));
+  // Winsorized variance: sum-of-squared-deviations / (h-1), h = trimmed sample size
+  // (Yuen 1974 §1). Previously divided by (full n - 1) instead of (h - 1), which
+  // understated the SE and inflated |t| — e.g. ~2.2x too large on an
+  // outlier-containing sample, producing false-positive significance. Verified
+  // against scipy.stats.ttest_ind(..., trim=p).
+  const ssw1 = a.reduce((s, x) => s + (Math.min(Math.max(x, wa[0]), wa[wa.length - 1]) - mt1) ** 2, 0);
+  const ssw2 = b.reduce((s, x) => s + (Math.min(Math.max(x, wb[0]), wb[wb.length - 1]) - mt2) ** 2, 0);
+  const sw1 = ssw1 / Math.max(1, nt1 - 1);
+  const sw2 = ssw2 / Math.max(1, nt2 - 1);
+  const d1 = sw1 / nt1, d2 = sw2 / nt2;
+  const se = Math.sqrt(d1 + d2);
   if (se < 1e-14) return null;
   const t = (mt1 - mt2) / se;
-  const df = se ** 4 / (
-    ((sw1 / (nt1 * (nt1 - 1))) ** 2 / (nt1 - 1)) +
-    ((sw2 / (nt2 * (nt2 - 1))) ** 2 / (nt2 - 1))
-  );
+  const df = (d1 + d2) ** 2 / (d1 ** 2 / (nt1 - 1) + d2 ** 2 / (nt2 - 1));
   const p_val = tPVal(t, df);
   return {
     test: "Yuen's Trimmed t-test", t: +t.toFixed(4), df: +df.toFixed(1), p: p_val,
@@ -114,25 +120,40 @@ export function cohensDGroup(group1, group2) {
   return { test: "Cohen's d", d: +d.toFixed(4), se: +se.toFixed(4), label, n1: group1.length, n2: group2.length, apa: `d = ${d.toFixed(2)} (${label})` };
 }
 
-// ── Equivalence T-test ────────────────────────────────────────────
+// ── Equivalence T-test (TOST — Two One-Sided Tests, Schuirmann 1987) ─────────
+// Each one-sided test needs the one-sided-alpha critical value, which is the
+// tInv2(2·alpha, df) two-sided critical at *double* alpha (P(|T|>tc)=2α ⇔
+// P(T>tc)=α) — not the fixed z=1.96 the old code used regardless of α or df.
+// Reports one-sided p-values from the real t-distribution; equivalence holds
+// iff both are below α (equivalently both t-stats exceed the one-sided tc).
+function _tUpperP(t, df) {
+  return t >= 0 ? tPVal(t, df) / 2 : 1 - tPVal(-t, df) / 2;
+}
 export function equivalenceT(group1, group2, dL, dU, alpha = 0.05) {
   if (!group1 || !group2 || group1.length < 3 || group2.length < 3 || dL >= dU) return null;
   const m1 = avg(group1), m2 = avg(group2);
-  const se = Math.sqrt(sampleVar(group1) / group1.length + sampleVar(group2) / group2.length);
+  const v1 = sampleVar(group1) / group1.length, v2 = sampleVar(group2) / group2.length;
+  const se = Math.sqrt(v1 + v2);
   const tLow = (m1 - m2 - dL) / Math.max(se, 0.001);
   const tHigh = (dU - (m1 - m2)) / Math.max(se, 0.001);
-  const df = Math.floor(Math.pow(sampleVar(group1) / group1.length + sampleVar(group2) / group2.length, 2) / (Math.pow(sampleVar(group1) / group1.length, 2) / (group1.length - 1) + Math.pow(sampleVar(group2) / group2.length, 2) / (group2.length - 1)));
-  const equivalent = tLow > 1.96 && tHigh > 1.96;
-  return { test: 'Equivalence T', tLow: +tLow.toFixed(4), tHigh: +tHigh.toFixed(4), equivalent, dL, dU, alpha, apa: `${equivalent ? 'Equivalent' : 'Not equivalent'} (dL=${dL}, dU=${dU})` };
+  const df = Math.max(1, Math.floor((v1 + v2) ** 2 / (v1 ** 2 / (group1.length - 1) + v2 ** 2 / (group2.length - 1))));
+  const tCrit = tInv2(2 * alpha, df); // one-sided critical value at level alpha
+  const pLow = _tUpperP(tLow, df), pHigh = _tUpperP(tHigh, df);
+  const pTOST = Math.max(pLow, pHigh);
+  const equivalent = tLow > tCrit && tHigh > tCrit;
+  return { test: 'Equivalence T', tLow: +tLow.toFixed(4), tHigh: +tHigh.toFixed(4), tCrit: +tCrit.toFixed(4), pLow: +pLow.toFixed(4), pHigh: +pHigh.toFixed(4), p: +pTOST.toFixed(4), df, equivalent, dL, dU, alpha, apa: `TOST: ${equivalent ? 'Equivalent' : 'Not equivalent'} (dL=${dL}, dU=${dU}, p=${pTOST.toFixed(3)})` };
 }
 
-// ── Sample Size for T-test ────────────────────────────────────────
+// ── Sample Size for T-test ──────────────────────────────────────────────────
+// Delegates to the real iterative t-based search (requiredNTTest, honoring
+// the actual t-critical at each candidate df via powerTTest/tInv2) instead of
+// the fixed-z closed-form the old code used — which also silently ignored
+// whatever `alpha`/`power` the caller passed in.
 export function sampleSizeT(d, power = 0.8, alpha = 0.05, type = 'two-sample') {
   if (!Number.isFinite(d) || d <= 0) return null;
-  const zAlpha = 1.96;
-  const zBeta = 0.84;
-  let nPerGroup = 2 * Math.pow(zAlpha + zBeta, 2) / (d * d);
-  nPerGroup = Math.ceil(nPerGroup);
-  const total = type === 'pair' ? nPerGroup : nPerGroup * 2;
-  return { test: 'Sample Size T', nPerGroup, total, d, power, alpha, type, apa: `N = ${total} (${nPerGroup}/group) for d=${d}` };
+  const isPaired = type === 'pair' || type === 'paired' || type === 'one-sample';
+  const nPerGroup = requiredNTTest(Math.abs(d), isPaired ? 'paired' : 'two-sample', power, alpha);
+  if (!Number.isFinite(nPerGroup)) return null;
+  const total = isPaired ? nPerGroup : nPerGroup * 2;
+  return { test: 'Sample Size T', nPerGroup, total, d, power, alpha, type, apa: `N = ${total} (${nPerGroup}${isPaired ? '' : '/group'}) for d=${d}` };
 }

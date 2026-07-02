@@ -2,6 +2,24 @@ import { avg, rank, effR, fmtP, sampleVar } from '../math/core.js';
 import { normalCDF, chiPVal } from '../math/distributions.js';
 import { mulberry32 } from './fixtures/phase3.js';
 
+// Kolmogorov distribution survival function Q(λ) = 2 Σ_{k=1}^∞ (-1)^{k-1} e^{-2k²λ²}
+// (the full alternating series, not just its leading term) with early termination
+// once terms stop changing the sum to machine precision — the standard algorithm
+// from Numerical Recipes' `probks`.
+function _ksProb(lambda) {
+  if (lambda < 1e-8) return 1;
+  const a2 = -2 * lambda * lambda;
+  let fac = 2, sum = 0, termbf = 0;
+  for (let j = 1; j <= 100; j++) {
+    const term = fac * Math.exp(a2 * j * j);
+    sum += term;
+    if (Math.abs(term) <= 1e-3 * termbf || Math.abs(term) <= 1e-10 * Math.abs(sum)) return Math.min(1, Math.max(0, sum));
+    fac = -fac;
+    termbf = Math.abs(term);
+  }
+  return 1; // failed to converge (λ too small for the asymptotic form) — conservative
+}
+
 export function ksTestOneSample(sample, cdf) {
   if (!sample || sample.length < 5) return null;
   const n = sample.length;
@@ -13,14 +31,16 @@ export function ksTestOneSample(sample, cdf) {
     const tcdf = cdf(sorted[i]);
     D = Math.max(D, Math.abs(ecdf - tcdf), Math.abs(ecdfLow - tcdf));
   }
-  const z = D * Math.sqrt(n);
-  const p = 2 * Math.exp(-2 * z * z);
+  // Stephens (1970) finite-sample correction to the asymptotic Kolmogorov statistic.
+  const sqrtN = Math.sqrt(n);
+  const lambda = (sqrtN + 0.12 + 0.11 / sqrtN) * D;
+  const p = _ksProb(lambda);
   return {
     test: "Kolmogorov-Smirnov (one-sample)",
     D: +D.toFixed(6),
     n,
-    p: +Math.min(1, p).toFixed(6),
-    apa: `KS one-sample D = ${D.toFixed(4)}, ${fmtP(Math.min(1, p))}, n = ${n}`,
+    p: +p.toFixed(6),
+    apa: `KS one-sample D = ${D.toFixed(4)}, ${fmtP(p)}, n = ${n}`,
   };
 }
 
@@ -35,14 +55,15 @@ export function ksTestTwoSample(a, b) {
     const cdfB = b.filter(x => x <= val).length / nb;
     D = Math.max(D, Math.abs(cdfA - cdfB));
   }
-  const z = D * Math.sqrt((na * nb) / (na + nb));
-  const p = 2 * Math.exp(-2 * z * z);
+  const en = Math.sqrt((na * nb) / (na + nb));
+  const lambda = (en + 0.12 + 0.11 / en) * D;
+  const p = _ksProb(lambda);
   return {
     test: "Kolmogorov-Smirnov (two-sample)",
     D: +D.toFixed(6),
     na, nb,
-    p: +Math.min(1, p).toFixed(6),
-    apa: `KS two-sample D = ${D.toFixed(4)}, ${fmtP(Math.min(1, p))}, n₁ = ${na}, n₂ = ${nb}`,
+    p: +p.toFixed(6),
+    apa: `KS two-sample D = ${D.toFixed(4)}, ${fmtP(p)}, n₁ = ${na}, n₂ = ${nb}`,
   };
 }
 
@@ -110,11 +131,26 @@ export function runsTestAboveBelowMedian(continuousSeq) {
 
 export function mannWhitney(a, b) {
   if (a.length < 2 || b.length < 2) return null;
-  const na = a.length, nb = b.length;
+  const na = a.length, nb = b.length, N = na + nb;
   let u1 = 0;
   a.forEach(x => b.forEach(y => { if (x > y) u1++; else if (x === y) u1 += .5; }));
   const u2 = na * nb - u1, u = Math.min(u1, u2);
-  const z = (u - na * nb / 2) / Math.sqrt(na * nb * (na + nb + 1) / 12);
+  // Tie correction for the normal-approximation variance (values tied *across* the
+  // combined sample — including ties between a and b — reduce the variance of U
+  // relative to the no-ties formula). Without this, z is understated whenever
+  // values repeat between groups. Matches scipy.stats.mannwhitneyu(method=
+  // 'asymptotic', use_continuity=False).
+  const combined = [...a, ...b].slice().sort((p, q) => p - q);
+  let tieSum = 0, i = 0;
+  while (i < N) {
+    let j = i;
+    while (j < N && combined[j] === combined[i]) j++;
+    const t = j - i;
+    if (t > 1) tieSum += t ** 3 - t;
+    i = j;
+  }
+  const variance = (na * nb / 12) * ((N + 1) - tieSum / (N * (N - 1)));
+  const z = variance > 0 ? (u - na * nb / 2) / Math.sqrt(variance) : 0;
   const p = 2 * (1 - normalCDF(Math.abs(z)));
   const rb = u1 / (na * nb), cd = 2 * rb - 1;
   return {
@@ -132,8 +168,24 @@ export function wilcoxonSR(a, b = null) {
   let wPlus = 0, wMinus = 0;
   nonzero.forEach((d, i) => { if (d > 0) wPlus += r[i]; else wMinus += r[i]; });
   const W = Math.min(wPlus, wMinus);
-  const muW = n * (n + 1) / 4, sigW = Math.sqrt(n * (n + 1) * (2 * n + 1) / 24);
-  const z = (W - muW) / sigW, p = 2 * (1 - normalCDF(Math.abs(z)));
+  const muW = n * (n + 1) / 4;
+  // Tie correction for the normal-approximation variance (values of |diff| that tie
+  // reduce Var(W) relative to the no-ties formula). Without this, z is understated
+  // whenever |diff| repeats — verified against scipy.stats.wilcoxon(method='approx',
+  // correction=False).
+  const sortedAbs = [...absD].sort((p, q) => p - q);
+  let tieSum = 0, i = 0;
+  while (i < n) {
+    let j = i;
+    while (j < n && sortedAbs[j] === sortedAbs[i]) j++;
+    const t = j - i;
+    if (t > 1) tieSum += t ** 3 - t;
+    i = j;
+  }
+  const varW = n * (n + 1) * (2 * n + 1) / 24 - tieSum / 48;
+  const sigW = Math.sqrt(Math.max(varW, 0));
+  const z = sigW > 0 ? (W - muW) / sigW : 0;
+  const p = 2 * (1 - normalCDF(Math.abs(z)));
   const rEff = Math.abs(z) / Math.sqrt(n);
   return {
     test: "Wilcoxon Signed-Rank", W: +W.toFixed(1), wPlus: +wPlus.toFixed(1), wMinus: +wMinus.toFixed(1),

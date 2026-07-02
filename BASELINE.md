@@ -77,7 +77,7 @@ implementations can be fixed. Status legend:
 | 51 | `survey` (line 470) | survey.js:470 | ✅ FIXED (PR #2) | diag-only solve | verify & fix |
 | 52 | `compositional` ILR reg | compositional.js:81 | ✅ FIXED (PR #2) | diag-only solve (compounds with se:0.1) | full OLS in ILR coords |
 
-| 53b | `difLogistic` | psychometrics.js:793 | BROKEN | diag-only solve; linear OLS labeled "logistic"; `score=i%10` placeholder | logistic DIF (Mantel-Haenszel/IRT) |
+| 53b | `difLogistic` | psychometrics.js:782 | ✅ FIXED | was linear OLS labeled "logistic" with no inference. Now real IRLS logistic regression fitting three nested models (matching / +uniform / +non-uniform DIF) with likelihood-ratio χ²(1) tests + p-values for uniform & non-uniform DIF and a Zumbo–Thomas ΔR² effect-size flag. TDD: flags a simulated uniform DIF (pUniform<0.01, b>0.5) and does not flag equivalent groups (pUniform>0.05). |
 | 54 | non-response adj. | survey.js:470 | ✅ FIXED (PR #2) | diag-only solve; ad-hoc weights | logistic response-propensity weights |
 
 | 55 | `word2vecSkipGram` | nlp.js:7 | ✅ FIXED | random W1 returned; never trains; epochs/lr ignored | skip-gram negative sampling |
@@ -114,7 +114,7 @@ implementations can be fixed. Status legend:
 | 82 | `measurementInvariance` | sem.js:339 | ✅ FIXED | pass/fail from ad-hoc thresholds, not nested χ² model comparison | fit constrained configural/metric/scalar models |
 | 83 | `transitionModel` | multilevel.js:1035 | ✅ FIXED | regresses y on `(yLag+Σx)` as a single predictor; `se=1/√n` | proper transition/Markov regression |
 | 84 | `remlEstimate` | multilevel.js:999 | ✅ FIXED | plain OLS + residual var, no REML variance-component estimation | actual REML |
-| 85 | `repeatedMeasuresMANOVA` | multilevel.js:1017 | INCOMPLETE | returns SS only, no F/Wilks/p | RM-MANOVA test statistic |
+| 85 | `repeatedMeasuresMANOVA` | multilevel.js:1040 | ✅ FIXED | was SS-only. Now a within-subjects RM-ANOVA: partitions SS_total=SS_subjects+SS_condition+SS_error, F=MS_condition/MS_error on (k−1,(n−1)(k−1)) df with an F-dist p-value, plus the Greenhouse–Geisser sphericity ε and corrected p. TDD: detects a real condition effect (F>4, p<0.01) and stays non-significant when levels share a mean. |
 | 86 | `egarch` | finance.js:195 | ✅ FIXED | Gaussian MLE of EGARCH(1,1): ln σ²_t = ω+β ln σ²_{t-1}+α(\|z\|−E\|z\|)+γz, β=tanh; gradient-descent + Newton (`_garchFit` helper). TDD: estimates β=0.70/α=0.29 (was all hardcoded). |
 | 87 | `tgarch` | finance.js:211 | ✅ FIXED | Gaussian MLE of GJR-GARCH(1,1) with feasibility transforms (ω>0, α,β≥0, α+γ≥0). TDD: recovers ω/α/γ/β ≈ .093/.128/.069/.530 from GJR(.1/.08/.06/.6) (was hardcoded 0.9). |
 | 88 | `blackScholes`/`optionGreeks`/`greeks` | finance.js:236 | ✅ FIXED | swapped `tanh`-for-Φ → real `normalCDF`; optionGreeks theta/rho now use Φ(d2). TDD: BS call now 10.4506 (was 9.54), put 5.5735, delta=N(d1). |
@@ -122,13 +122,13 @@ implementations can be fixed. Status legend:
 | 90 | `gevMLE` | extreme.js:4 | ✅ FIXED | fixed-step gradient on questionable (CDF-derived) gradients | Newton on GEV log-likelihood |
 | 91 | `peaksOverThreshold` | extreme.js:129 | ✅ FIXED | xi hardcoded 0.1; scale=mean(exceed); no GPD fit | fit GPD to exceedances |
 | 92 | `rarefaction` | ecology.js:52 | ✅ FIXED | nonsense expected-species formula (Hurlbert commented out, unused) | hypergeometric rarefaction |
-| 93 | `adonis2` | ecology.js:121 | INCOMPLETE | pseudo-F real but no permutation p-value (nPerm unused) | permutation test for p |
+| 93 | `adonis2` | ecology.js:115 | ✅ FIXED | pseudo-F was real but `nPerm` was unused (no p). Now a full free-permutation PERMANOVA (Anderson 2001): seeded label shuffles build the null for pseudo-F; p=(b+1)/(nPerm+1). TDD: separated groups → p<0.05 & R²>0.5; exchangeable groups → p>0.05. |
 | 94 | `thompsonSampling` | bandit.js:76 | ✅ FIXED | "Beta sample" = mean + uniform noise, not a Beta draw | sample from Beta(s,f) |
 | 95 | `contextualBandit` (LinUCB) | bandit.js:105 | ✅ FIXED | never inverts A; reward random `rng<0.3` (no env) | A⁻¹ ridge solution; real reward |
 | 96 | `deepQNetwork` | bandit.js:273 | ✅ FIXED | W1 update uses `tanh(weight)` not gradient; forward double-counts | correct backprop |
 | 97 | `qLearning`/`sarsa` | bandit.js:226/250 | ✅ FIXED | `transitions` arg ignored; nextState random | use supplied transition model |
 | 98 | `hestonModel` | stochastic.js:181 | ✅ FIXED | kappa/theta/xi/rho passed in, never calibrated; returns inputs | calibrate to returns |
-| 99 | `regimeSwitching` | stochastic.js:144 | INCOMPLETE | μ/σ/trans fixed at heuristic init; only state probs filtered | full Baum-Welch EM |
+| 99 | `regimeSwitching` | stochastic.js:144 | ✅ FIXED | μ/σ/trans were fixed at heuristic init (forward-only filter). Now a Gaussian-HMM Baum-Welch EM: scaled forward-backward α/β, posteriors γ/ξ, M-step re-estimation of emission μ/σ and the full transition matrix to log-lik convergence; stationary dist via power iteration. TDD: recovers two separated regime means (≈0 and ≈10) from a persistent 2-regime series; transition rows sum to 1. |
 | 100 | `pocockBoundaries` | sequential.js:36 | ✅ FIXED | hardcoded 2.17 for all stages/α | compute Pocock constant per stages/α |
 | 101 | `tmddModel` | pk.js:319 | ✅ FIXED | kel/ksyn/kdeg/kint hardcoded; pred=exp decay; no fit | fit TMDD ODE system |
 | 102 | `indirectResponse` | pk.js:247 | ✅ FIXED | returns only `{n}`; computes nothing | indirect-response model fit |
@@ -202,18 +202,31 @@ sensitivity(sobol/delta), abTesting(most), genetics, demo(demography). Oracle-VE
 
 ## WEAK / APPROX worth revisiting
 
+**Remediation pass 2026-07-01:** all items below except `sur`/`threeSLS` (intentionally scope-documented,
+not a defect) are now ✅ FIXED, each with a TDD test recovering a known ground truth. Full suite: 4,800+
+tests pass. Three more issues were *discovered* during this pass and spawned as follow-up tasks rather than
+fixed inline (out of the originally-scoped list): a mislabeled `arellanoBond` in multilevel.js (first-difference
+OLS with no lagged-DV regressor or instruments, despite the name), fabricated `vecm`/`structuralVAR` in
+econometric.js (hardcoded 0.1/0.2 coefficients, fake exponential-decay IRF), and a residual set of simplified-
+but-not-fabricated heuristics (`scalarOnFunction`, `functionalClustering`, `junctionTree`, `bifactorModel`,
+`skeletonPhase`/`pcAlgorithm`) left for a follow-up session.
+
 | Function | File | Note |
 |---|---|---|
-| `splitConformal` | bootstrap.js:209 | pairs cal/train by `i % len`; no model |
-| `jackknifePlus` | bootstrap.js:229 | degenerate ratio "model" (no intercept) |
-| `latentProfileAnalysis` | mixture.js:84 | k-means, not LPA (no covariance/EM) |
-| `mixtureOfExperts` | mixture.js:121 | hard-assignment, no soft gating |
-| `nonparametricMixture` | mixture.js:197 | KDE-weighted clustering |
-| `arellanoBond` | econometric.js:182 | simple lag ratio + `se=1/√n`; not AB-GMM |
-| `sur` / `threeSLS` | econometric.js:199/230 | real OLS/2SLS but only equals SUR/3SLS when regressors shared (documented) |
-| `cointegration` | econometric.js:289 | EG residual ADF, no MacKinnon crit values |
-| `equivalenceT` / `sampleSizeT` | means.js | z=1.96 instead of t-critical (standard normal approx) |
-| KS p-values | nonparametric.js | one-term asymptotic `2e^{-2z²}` |
+| `splitConformal` | bootstrap.js:216 | ✅ FIXED — was pairing cal/train by `i % len` with no model at all (signature didn't even accept covariates). Now fits a real predictor on the training fold (OLS if `xTrain`/`xCal` supplied, else the constant/mean model) and scores absolute residuals on a disjoint calibration fold with the finite-sample-corrected `⌈(1-α)(n+1)⌉`-th order statistic — genuine split conformal. TDD: supplying covariates measurably shrinks the radius vs. the fallback mean model. |
+| `jackknifePlus` | bootstrap.js:236 | ✅ FIXED — was a degenerate through-origin ratio `pred=(ΣY/ΣX)·x` (no intercept), badly biased whenever the true relationship has a nonzero intercept. Now real per-fold intercept+slope OLS (Barber et al. 2021 Jackknife+: LOO residuals + min/max interval construction from predictions at a target `xNew`). TDD: recovers an interval bracketing the true value on a `y=2x-5` line, which the old through-origin fit could not. |
+| `latentProfileAnalysis` | mixture.js:87 | ✅ FIXED — was plain k-means (no covariance/EM, no likelihood). Now a real multivariate Gaussian-mixture EM with class-varying diagonal covariance (local independence), reporting logLik/BIC/AIC for the model-selection workflow LPA is normally used for. TDD: recovers two well-separated profile means/SDs and finite BIC. |
+| `mixtureOfExperts` | mixture.js:124 | ✅ FIXED — was hard nearest-expert reassignment (no soft gating). Now a real EM with a softmax gating network (multinomial logit on x, fit by weighted gradient ascent) + per-expert weighted-LS regression + soft E-step responsibilities. TDD: recovers two distinct expert slopes with non-degenerate (neither ~0 nor ~1) mixing proportions. |
+| `nonparametricMixture` | mixture.js:200 | ✅ FIXED — was hard nearest-kernel-mode reassignment. Now a real weighted-KDE EM (Benaglia et al. 2009 npEM): leave-one-out kernel density per component, re-weighted by soft responsibilities each iteration. TDD: recovers an unbalanced (80/20) mixing proportion, which a hard/symmetric assignment would not. |
+| `arellanoBond` | econometric.js:308 | ✅ FIXED — was a simple lag-ratio regression + `se=1/√n` (no instruments, ignored `xVars`). Now a real Arellano-Bond difference-GMM: Δy_{t-1} regressor instrumented with the full block-diagonal set of lagged levels, one-step GMM weight matrix W=(Z'HZ)⁻¹ using the MA(1) differenced-error structure, plus AR(2) and Sargan/Hansen diagnostics. TDD: recovers the true AR(1) coefficient (0.25–0.85 band around true 0.5) of a simulated dynamic panel despite the fixed effect. |
+| `sur` / `threeSLS` | econometric.js:325/356 | real OLS/2SLS but only equals SUR/3SLS when regressors shared (documented, not a defect — left as-is) |
+| `cointegration` | econometric.js:544 | ✅ FIXED — was Student-t p-values on the EG statistic (wrong reference distribution, and `xVars` were summed into one column instead of used as separate regressors; residuals also omitted the OLS intercept). Now real multivariate first-stage OLS, a genuine ADF regression with an OLS-derived SE for τ (not an assumed `1/√n`), and MacKinnon (1991) asymptotic critical values (tabulated 1/5/10% by N regressors) with monotonic normal-quantile interpolation for the p-value. TDD: correctly separates a real cointegrated pair (p<0.05) from a classic Granger-Newbold spurious regression of two independent random walks (p>0.10). |
+| `equivalenceT` / `sampleSizeT` | means.js:118/136 | ✅ FIXED — `equivalenceT` used a fixed z=1.96 TOST decision boundary regardless of df/α (now `tInv2(2α,df)`, the correct one-sided t-critical, plus real one-sided t p-values). `sampleSizeT` used a fixed-z closed form that **silently ignored** the `alpha`/`power` arguments entirely; now delegates to the already-correct, previously-unused `requiredNTTest` (real iterative t-critical search). TDD: sample size now responds to both `power` and `alpha`; equivalence correctly classifies a near-identical pair as equivalent and a clearly-different pair as not. |
+| KS p-values | nonparametric.js:5,27 | ✅ FIXED — was the single leading term `2e^{-2z²}` of the Kolmogorov series (a crude truncation) with no finite-sample correction. Now sums the full alternating series (Numerical Recipes' `probks` algorithm, early-terminated at machine precision) with the Stephens (1970) finite-sample λ correction. TDD: matches an independently-reimplemented oracle of the same textbook series to 4 decimals. |
+| `cureModel` | survival.js:738 | ✅ FIXED — E-step comment admitted "simplified: use current cure probability", skipping the survival-function term entirely (used marginal π instead of `π/(π+(1-π)·S_u(t))`). Now computes a real weighted-Breslow baseline `Ŝ_0(t)` from the already-fitted weighted Cox model each iteration and uses it in the correct Sy & Taylor (2000) mixture-cure E-step. TDD: recovers a cure fraction in [0.2, 0.6] from data simulated with a true 0.4 cured proportion. |
+| `cornfieldBounds` | clinical.js:578 | ✅ FIXED — accepted `confounderPrevalence` but never used it; returned the ordinary Wald 95% CI lower bound of the OR (a sampling-uncertainty statement, not a confounding bound). Now the real Cornfield (1959)/Schlesselman (1978) formula: minimum confounder-outcome RR = OR/(p·(OR-1)+1) needed to explain away the observed association. TDD: the bound now changes with `confounderPrevalence` (previously identical regardless of input) and scales with observed OR strength. |
+| `adaptiveDesign` | clinical.js:706 | ✅ FIXED — used an ad hoc `1-exp(-2·target²/(1/n1+1/n2))` unrelated to any real power distribution and independent of α. Now the standard normal-approximation combined-information power formula Φ(δ-z_{α/2}). Still the fixed-design analogue, not a true group-sequential conditional-power recalculation (needs an interim test statistic/information fraction) — flagged as a further follow-up. TDD: power now correctly increases with effect size, n, and looser α (previously power didn't respond to α at all since it wasn't a parameter). |
+| `waveletSignificance` | signal.js:375 | ✅ FIXED — threshold was `log(1/α)`, not derived from any wavelet-power null distribution. Now the Torrence & Compo (1998) white-noise significance test: threshold = (mean power as background-spectrum proxy) × χ²₂(α)/2, a real chi-square quantile via `chiCrit`. |
 
 ---
 

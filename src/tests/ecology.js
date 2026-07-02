@@ -111,34 +111,56 @@ export function simperAnalysis(data, speciesCols, groupCol) {
   return { test: 'SIMPER Analysis', contributions: withPct, groupsCompared: groups.slice(0, 2), apa: `SIMPER: ${withPct.length} species, ${groups[0]} vs ${groups[1]}` };
 }
 
-// ── adonis2 (Permutational MANOVA) ────────────────────────────────
-export function adonis2(data, speciesCols, groupCol, { nPerm = 99 } = {}) {
+// ── adonis2 (Permutational MANOVA; Anderson 2001) ─────────────────
+// PERMANOVA on Euclidean distances: pseudo-F from the between/within
+// sum-of-squares partition, with a free-permutation null distribution
+// (permute group labels nPerm times) for the p-value.
+export function adonis2(data, speciesCols, groupCol, { nPerm = 999, seed = 12345 } = {}) {
   if (!data || data.length < 5 || !speciesCols || speciesCols.length < 2 || !groupCol) return null;
   const n = data.length;
   const Y = data.map(r => speciesCols.map(s => +r[s]));
-  const distMat = [];
-  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
-    let s = 0;
-    for (let k = 0; k < Y[i].length; k++) s += (Y[i][k] - Y[j][k]) ** 2;
-    distMat.push(Math.sqrt(s));
-  }
-  const groups = [...new Set(data.map(r => r[groupCol]))];
   const grandCentroid = Y[0].map((_, j) => avg(Y.map(r => r[j])));
   let ssTotal = 0;
   for (let i = 0; i < n; i++) { let s = 0; for (let j = 0; j < grandCentroid.length; j++) s += (Y[i][j] - grandCentroid[j]) ** 2; ssTotal += s; }
-  let ssGroup = 0;
-  groups.forEach(g => {
-    const gData = data.filter(r => r[groupCol] === g);
-    if (!gData.length) return;
-    const centroid = Y[0].map((_, j) => avg(gData.map(r => +r[speciesCols[j]])));
-    let ssg = 0;
-    for (let j = 0; j < grandCentroid.length; j++) ssg += (centroid[j] - grandCentroid[j]) ** 2;
-    ssGroup += ssg * gData.length;
-  });
-  const ssResidual = ssTotal - ssGroup;
-  const R2 = ssTotal > 0 ? ssGroup / ssTotal : 0;
-  const F = ssGroup / Math.max(ssResidual, 0.001) * (n - groups.length) / (groups.length - 1);
-  return { test: 'adonis2', R2: +R2.toFixed(4), F: +F.toFixed(4), ssTotal: +ssTotal.toFixed(4), ssGroup: +ssGroup.toFixed(4), nPerm, apa: `adonis2: R2=${R2.toFixed(3)}, F=${F.toFixed(2)}` };
+  const groups = [...new Set(data.map(r => r[groupCol]))];
+  const a = groups.length;
+  if (a < 2) return null;
+
+  // Pseudo-F for an arbitrary label assignment over the fixed observation matrix Y.
+  const pseudoF = (labels) => {
+    let ssGroup = 0;
+    for (const g of groups) {
+      const idx = []; for (let i = 0; i < n; i++) if (labels[i] === g) idx.push(i);
+      if (!idx.length) continue;
+      for (let j = 0; j < grandCentroid.length; j++) {
+        let c = 0; for (const i of idx) c += Y[i][j]; c /= idx.length;
+        ssGroup += idx.length * (c - grandCentroid[j]) ** 2;
+      }
+    }
+    const ssRes = Math.max(ssTotal - ssGroup, 1e-12);
+    return { ssGroup, F: (ssGroup / (a - 1)) / (ssRes / (n - a)) };
+  };
+
+  const labels = data.map(r => r[groupCol]);
+  const obs = pseudoF(labels);
+  const R2 = ssTotal > 0 ? obs.ssGroup / ssTotal : 0;
+
+  // Permutation null: shuffle labels, count F_perm ≥ F_obs. p = (b+1)/(nPerm+1).
+  const rng = mulberry32(seed);
+  let ge = 0;
+  for (let p = 0; p < nPerm; p++) {
+    const perm = labels.slice();
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
+    if (pseudoF(perm).F >= obs.F - 1e-12) ge++;
+  }
+  const pValue = (ge + 1) / (nPerm + 1);
+
+  return {
+    test: 'adonis2', R2: +R2.toFixed(4), F: +obs.F.toFixed(4),
+    ssTotal: +ssTotal.toFixed(4), ssGroup: +obs.ssGroup.toFixed(4),
+    p: +pValue.toFixed(4), nPerm,
+    apa: `adonis2: R²=${R2.toFixed(3)}, pseudo-F(${a - 1}, ${n - a})=${obs.F.toFixed(2)}, p=${pValue.toFixed(3)} (${nPerm} perms)`,
+  };
 }
 
 // ── Beta Dispersal (Homogeneity of dispersions) ───────────────────

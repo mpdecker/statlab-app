@@ -242,6 +242,17 @@ describe('cornfieldBounds', () => {
   it('null for zero cells', () => expect(cornfieldBounds(0, 10, 20, 30, 0.3)).toBeNull());
   it('contract keys', () => expectKeys(cornfieldBounds(50, 20, 30, 100, 0.3), ['test', 'observedOR', 'lowerBound', 'confounderPrevalence', 'n', 'apa']));
   it('lowerBound is a finite number', () => { const r = cornfieldBounds(50, 20, 30, 100, 0.3); if (r) expect(Number.isFinite(r.lowerBound)).toBe(true); });
+  it('uses confounderPrevalence (previously accepted but ignored)', () => {
+    const rLow = cornfieldBounds(50, 20, 30, 100, 0.1);
+    const rHigh = cornfieldBounds(50, 20, 30, 100, 0.9);
+    // Same 2x2 table, different confounder prevalence -> different min-required RR.
+    expect(rLow.lowerBound).not.toBeCloseTo(rHigh.lowerBound, 3);
+  });
+  it('a stronger observed OR requires a stronger confounder to explain away', () => {
+    const weak = cornfieldBounds(30, 25, 25, 30, 0.3);  // OR closer to 1
+    const strong = cornfieldBounds(80, 10, 10, 80, 0.3); // large OR
+    expect(strong.lowerBound).toBeGreaterThan(weak.lowerBound);
+  });
 });
 
 describe('hosmerLemeshow', () => {
@@ -304,6 +315,19 @@ describe('adaptiveDesign', () => {
   it('contract keys', () => expectKeys(adaptiveDesign(50, 50, 0.5), ['test','n1','n2','total','power','method','apa']));
   it('null for invalid args', () => { expect(adaptiveDesign(0, 50, 0.5)).toBeNull(); expect(adaptiveDesign(50, 50, NaN)).toBeNull(); });
   it('total equals n1 + n2', () => { const r = adaptiveDesign(50, 50, 0.5); if (r) expect(r.total).toBe(100); });
+  it('power increases with a larger target effect size and with sample size (real Φ-based power, not the old data-independent exponential)', () => {
+    const smallEffect = adaptiveDesign(50, 50, 0.1);
+    const largeEffect = adaptiveDesign(50, 50, 0.8);
+    expect(largeEffect.power).toBeGreaterThan(smallEffect.power);
+    const smallN = adaptiveDesign(10, 10, 0.5);
+    const largeN = adaptiveDesign(200, 200, 0.5);
+    expect(largeN.power).toBeGreaterThan(smallN.power);
+  });
+  it('tighter alpha (0.01) requires more evidence, lowering power for the same effect/n', () => {
+    const loose = adaptiveDesign(50, 50, 0.4, 'OCP', 0.05);
+    const tight = adaptiveDesign(50, 50, 0.4, 'OCP', 0.01);
+    expect(tight.power).toBeLessThan(loose.power);
+  });
 });
 
 describe('clinicalUtility', () => {

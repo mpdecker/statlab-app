@@ -12,7 +12,8 @@
     "docs": "node scripts/statlab.mjs",
     "docs:list": "node scripts/statlab.mjs list",
     "docs:search": "node scripts/statlab.mjs search",
-    "docs:generate": "node scripts/document.mjs"
+    "docs:generate": "node scripts/document.mjs",
+    "reference:generate": "node scripts/dump-fixtures.mjs && python scripts/gen-reference.py"
   },
   "dependencies": {
     "papaparse": "^5.5.3",

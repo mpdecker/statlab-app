@@ -1,5 +1,5 @@
 import { avg, sampleVar, sampleSD } from '../math/core.js';
-import { tPVal, fPVal, chiPVal, normalCDF } from '../math/distributions.js';
+import { tPVal, fPVal, chiPVal, normalCDF, normalINV } from '../math/distributions.js';
 import { matInv, matMul, matTrans, solveNormalEquations } from '../math/matrix.js';
 import { mleFit } from '../math/inference.js';
 import { mulberry32 } from '../math/rng.js';
@@ -304,21 +304,118 @@ export function hausmanTest(betaFE, seFE, betaRE, seRE) {
   return { test: 'Hausman Test', H: +H.toFixed(4), df: k, p, apa: `Hausman: χ²(${k}) = ${H.toFixed(2)}, ${p < 0.05 ? 'reject RE, use FE' : 'RE consistent'}` };
 }
 
-// ── Arellano-Bond ───────────────────────────────────────────────────────────
-export function arellanoBond(data, yVar, xVars, { idVar, timeVar, maxLags = 2 } = {}) {
+// ── Arellano-Bond Difference GMM (Arellano & Bond 1991) ─────────────────────
+// Dynamic panel y_it = α y_{i,t-1} + β x_it + η_i + ε_it. First-differencing
+// removes the unit effect η_i but leaves Δy_{i,t-1} correlated with Δε_it, so
+// OLS on the differenced equation is biased. AB instruments Δy_{i,t-1} (and
+// Δx if not strictly exogenous) with all available lagged *levels*
+// y_{i,1},…,y_{i,t-2} — a separate instrument column per (calendar time,
+// lag depth) pair (the standard "GMM-style" block-diagonal instrument set,
+// as opposed to a single collapsed column per lag). One-step GMM weight
+// matrix W=(Z'HZ)⁻¹ uses the known MA(1) covariance structure of the
+// differenced errors (H: 2 on the diagonal, −1 for within-unit adjacent
+// periods). Reports the AB AR(2) serial-correlation diagnostic (differenced
+// residuals must be uncorrelated at lag 2 for the instruments to be valid)
+// and a Sargan/Hansen overidentification statistic from the GMM objective.
+export function arellanoBond(data, yVar, xVars = [], { idVar, timeVar, maxLags = 4 } = {}) {
   if (!data || data.length < 15 || !yVar || !idVar) return null;
   const ids = [...new Set(data.map(r => r[idVar]))];
   const n = ids.length;
-  const T = Math.round(data.length / n);
-  if (n < 3 || T < 4 || maxLags < 1) return null;
-  const y = data.map(r => +r[yVar]);
-  const yLag = y.map((v, i) => i > 0 && data[i][idVar] === data[i - 1][idVar] ? y[i - 1] : 0);
-  const b = y.reduce((s, yi, i) => s + yi * yLag[i], 0) / (yLag.reduce((s, l) => s + l * l, 0) || 1);
-  const ar2 = data.reduce((s, r, i) => {
-    if (i < 2 || data[i][idVar] !== data[i - 2][idVar]) return s;
-    return s + (y[i] - b * yLag[i]) * (y[i - 2] - b * yLag[i - 2]);
-  }, 0) / (data.length - 2);
-  return { test: 'Arellano-Bond', b: +b.toFixed(5), se: +(1 / Math.sqrt(data.length)).toFixed(5), ar2: +ar2.toFixed(4), nUnits: n, nPeriods: T, apa: `AB-GMM: β = ${b.toFixed(3)}, AR(2) = ${ar2.toFixed(3)}` };
+  let groups = ids.map(id => data.filter(r => r[idVar] === id));
+  if (timeVar) groups = groups.map(g => [...g].sort((a, b) => +a[timeVar] - +b[timeVar]));
+  const T = groups[0]?.length || 0;
+  if (n < 3 || T < 4 || !groups.every(g => g.length === T)) return null;
+  const xNames = xVars || [];
+  const kX = xNames.length;
+  const p = 1 + kX; // Δy_{t-1} + Δx's
+
+  // Column layout: one instrument column per (t, lag-depth s) pair, t = 2..T-1 (0-indexed
+  // period index; needs y[t-2] to exist), s = 0..min(t-1,maxLags)-1 indexing y[s].
+  const colStart = {}; let nextCol = 0;
+  for (let t = 2; t < T; t++) { colStart[t] = nextCol; nextCol += Math.min(t - 1, maxLags); }
+  const C = nextCol;
+
+  const rows = [];
+  groups.forEach((g, gi) => {
+    const y = g.map(r => +r[yVar]);
+    const X = g.map(r => xNames.map(v => +r[v]));
+    for (let t = 2; t < T; t++) {
+      const dy = y[t] - y[t - 1];
+      const dyLag = y[t - 1] - y[t - 2];
+      const dx = xNames.length ? X[t].map((v, j) => v - X[t - 1][j]) : [];
+      const nLags = Math.min(t - 1, maxLags);
+      const zCols = Array.from({ length: nLags }, (_, s) => ({ col: colStart[t] + s, val: y[s] }));
+      rows.push({ unitIdx: gi, t, dy, dyLag, dx, zCols });
+    }
+  });
+  const M = rows.length;
+  if (M < p + 1 || C < p) return null;
+
+  const Z = Array.from({ length: M }, () => Array(C).fill(0));
+  rows.forEach((r, i) => r.zCols.forEach(({ col, val }) => { Z[i][col] = val; }));
+  const Xmat = rows.map(r => [r.dyLag, ...r.dx]);
+  const yvec = rows.map(r => r.dy);
+
+  // H: within-unit MA(1) structure of the first-differenced errors.
+  const H = Array.from({ length: M }, () => Array(M).fill(0));
+  for (let i = 0; i < M; i++) H[i][i] = 2;
+  for (let i = 0; i < M; i++) for (let j = i + 1; j < M; j++) {
+    if (rows[i].unitIdx === rows[j].unitIdx && Math.abs(rows[i].t - rows[j].t) === 1) { H[i][j] = -1; H[j][i] = -1; }
+  }
+  const ZtH = Array.from({ length: C }, (_, a) => Array.from({ length: M }, (_, i) => { let s = 0; for (let l = 0; l < M; l++) s += Z[l][a] * H[l][i]; return s; }));
+  const ZtHZ = Array.from({ length: C }, (_, a) => Array.from({ length: C }, (_, b) => { let s = 0; for (let i = 0; i < M; i++) s += ZtH[a][i] * Z[i][b]; return s; }));
+  const W = matInv(ZtHZ);
+  if (!W) return null;
+
+  // β = (X'Z W Z'X)⁻¹ X'Z W Z'y
+  const ZtX = Array.from({ length: C }, (_, a) => Array.from({ length: p }, (_, b) => { let s = 0; for (let i = 0; i < M; i++) s += Z[i][a] * Xmat[i][b]; return s; }));
+  const Zty = Array.from({ length: C }, (_, a) => { let s = 0; for (let i = 0; i < M; i++) s += Z[i][a] * yvec[i]; return s; });
+  const WZtX = Array.from({ length: C }, (_, a) => Array.from({ length: p }, (_, b) => { let s = 0; for (let c = 0; c < C; c++) s += W[a][c] * ZtX[c][b]; return s; }));
+  const WZty = Array.from({ length: C }, (_, a) => { let s = 0; for (let c = 0; c < C; c++) s += W[a][c] * Zty[c]; return s; });
+  const XtZWZtX = Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) => { let s = 0; for (let c = 0; c < C; c++) s += ZtX[c][a] * WZtX[c][b]; return s; }));
+  const XtZWZty = Array.from({ length: p }, (_, a) => { let s = 0; for (let c = 0; c < C; c++) s += ZtX[c][a] * WZty[c]; return s; });
+  const Avar0 = matInv(XtZWZtX);
+  if (!Avar0) return null;
+  const beta = Avar0.map(row => row.reduce((s, v, j) => s + v * XtZWZty[j], 0));
+
+  const resid = rows.map((r, i) => yvec[i] - Xmat[i].reduce((s, v, j) => s + v * beta[j], 0));
+  // σ² via the H-weighted quadratic form (accounts for the MA(1) differenced-error structure).
+  let eHe = 0; for (let i = 0; i < M; i++) for (let j = 0; j < M; j++) if (H[i][j]) eHe += resid[i] * H[i][j] * resid[j];
+  const sigma2 = Math.max(eHe / Math.max(M - p, 1), 1e-10);
+  const se = Avar0.map((row, j) => Math.sqrt(Math.max(0, sigma2 * row[j])));
+  const coefNames = ['L.y', ...xNames];
+  const coefficients = coefNames.map((name, j) => {
+    const z = se[j] > 0 ? beta[j] / se[j] : 0;
+    return { name, b: +beta[j].toFixed(5), se: +se[j].toFixed(5), z: +z.toFixed(4), p: +(2 * (1 - normalCDF(Math.abs(z)))).toFixed(4) };
+  });
+
+  // AR(2) diagnostic: (approximate) standardized correlation of differenced residuals
+  // at lag 2 within units — should be ≈0 (non-significant) for instrument validity.
+  const byUnit = {};
+  rows.forEach((r, i) => { (byUnit[r.unitIdx] ??= {})[r.t] = resid[i]; });
+  let sNum = 0, sE2 = 0, sE2lag = 0, nPairs = 0;
+  Object.values(byUnit).forEach(unit => {
+    Object.keys(unit).map(Number).forEach(t => {
+      if (unit[t - 2] !== undefined) { sNum += unit[t] * unit[t - 2]; sE2 += unit[t] ** 2; sE2lag += unit[t - 2] ** 2; nPairs++; }
+    });
+  });
+  const ar2corr = nPairs > 0 && sE2 > 0 && sE2lag > 0 ? sNum / Math.sqrt(sE2 * sE2lag) : 0;
+  const ar2 = ar2corr * Math.sqrt(Math.max(nPairs, 1));
+  const ar2p = +(2 * (1 - normalCDF(Math.abs(ar2)))).toFixed(4);
+
+  // Sargan/Hansen overidentification test from the GMM objective at the optimum.
+  const Ze = Array.from({ length: C }, (_, a) => { let s = 0; for (let i = 0; i < M; i++) s += Z[i][a] * resid[i]; return s; });
+  const WZe = Array.from({ length: C }, (_, a) => { let s = 0; for (let c = 0; c < C; c++) s += W[a][c] * Ze[c]; return s; });
+  const sargan = (Ze.reduce((s, v, a) => s + v * WZe[a], 0)) / sigma2;
+  const sarganDf = Math.max(C - p, 0);
+  const sarganP = sarganDf > 0 ? chiPVal(Math.max(0, sargan), sarganDf) : null;
+
+  return {
+    test: 'Arellano-Bond', coefficients, b: +beta[0].toFixed(5), se: +se[0].toFixed(5),
+    ar2: +ar2.toFixed(4), ar2p, sargan: +sargan.toFixed(4), sarganDf, sarganP,
+    nUnits: n, nPeriods: T, nInstruments: C, nObs: M,
+    apa: `AB difference GMM: L.y = ${beta[0].toFixed(3)} (se=${se[0].toFixed(3)}), AR(2) z=${ar2.toFixed(2)} (${ar2p < 0.05 ? 'instruments questionable' : 'ok'}), Sargan χ²(${sarganDf})=${sargan.toFixed(2)}`,
+  };
 }
 
 // ── Seemingly Unrelated Regression ──────────────────────────────────────────
@@ -443,22 +540,80 @@ export function gmm(data, yVar, xVars, zVars) {
   return { test: 'GMM', coefficients: coeffs, jStat: +jStat.toFixed(4), jP: +jP.toFixed(4), jDf, n, nInstruments: q, apa: `GMM: J(${jDf}) = ${jStat.toFixed(2)}, p = ${jP.toFixed(3)}` };
 }
 
-// ── Cointegration (Engle-Granger) ───────────────────────────────────────────
+// ── Cointegration (Engle-Granger, MacKinnon 1991 critical values) ──────────
+// Step 1: real multivariate OLS y = a + Xβ + e (each xVar its own regressor,
+// not summed together). Step 2: Dickey-Fuller regression on the residuals,
+// Δe_t = τ·e_{t-1} + u_t, with a genuine OLS standard error for τ (not an
+// assumed 1/√n). Step 3: the EG/DF test statistic does not follow a
+// Student-t distribution — it follows the (left-skewed, non-standard)
+// MacKinnon distribution, whose quantiles depend on N = number of variables
+// in the cointegrating regression (1 + xVars.length). We anchor the p-value
+// to MacKinnon's (1991) tabulated asymptotic 1/5/10% critical values for N,
+// then interpolate/extrapolate monotonically in normal-quantile space — an
+// approximation to the full MacKinnon (1994/2010) response-surface p-value,
+// but anchored to the correct reference distribution rather than a t-test.
+const _mackinnonCV = {
+  1: { 1: -3.43, 5: -2.86, 10: -2.57 },
+  2: { 1: -3.90, 5: -3.34, 10: -3.04 },
+  3: { 1: -4.29, 5: -3.74, 10: -3.45 },
+  4: { 1: -4.64, 5: -4.10, 10: -3.81 },
+  5: { 1: -4.96, 5: -4.42, 10: -4.13 },
+  6: { 1: -5.25, 5: -4.72, 10: -4.43 },
+};
+function _mackinnonP(tauStat, N) {
+  const cv = _mackinnonCV[Math.min(6, Math.max(1, N))];
+  // Anchors sorted ascending by τ: (very negative τ, small p) ... (τ=0, p=0.5).
+  const anchors = [
+    [cv[1], 0.01], [cv[5], 0.05], [cv[10], 0.10], [0, 0.5],
+  ].map(([tau, p]) => [tau, normalINV(p)]);
+  if (tauStat <= anchors[0][0]) {
+    // Extrapolate below the 1% point using the slope of the first segment.
+    const [ [t0, z0], [t1, z1] ] = anchors;
+    const slope = (z1 - z0) / (t1 - t0);
+    const z = z0 + slope * (tauStat - t0);
+    return Math.max(1e-6, normalCDF(z));
+  }
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const [t0, z0] = anchors[i], [t1, z1] = anchors[i + 1];
+    if (tauStat >= t0 && tauStat <= t1) {
+      const w = (tauStat - t0) / (t1 - t0);
+      return normalCDF(z0 + w * (z1 - z0));
+    }
+  }
+  return 0.5; // at or beyond τ=0: no evidence against a unit root in the residuals
+}
+
 export function cointegration(data, yVar, xVars) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
+  const n = data.length, p = xVars.length + 1;
   const y = data.map(r => +r[yVar]);
-  const X = data.map(r => xVars.reduce((s, v) => s + +r[v], 0));
-  let num = 0, den = 0;
-  for (let i = 0; i < data.length; i++) { num += (y[i] - avg(y)) * (X[i] - avg(X)); den += (X[i] - avg(X)) ** 2; }
-  const beta = den > 0 ? num / den : 0;
-  const resid = y.map((yi, i) => yi - beta * X[i]);
-  const dResid = resid.slice(1).map((r, i) => r - resid[i]);
-  let aNum = 0, aDen = 0;
-  for (let i = 0; i < dResid.length; i++) { aNum += resid[i] * dResid[i]; aDen += resid[i] * resid[i]; }
-  const rho = aDen > 0 ? aNum / aDen : 0;
-  const tStat = rho / (1 / Math.sqrt(data.length));
-  const p = tPVal(Math.abs(tStat), data.length - 1);
-  return { test: 'Cointegration (Engle-Granger)', tStat: +tStat.toFixed(4), p, rho: +rho.toFixed(4), apa: `EG cointegration: τ = ${tStat.toFixed(2)}, ${p < 0.05 ? 'cointegrated' : 'not cointegrated'}` };
+  const X = data.map(r => [1, ...xVars.map(v => +r[v])]);
+  const XtX = Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) => X.reduce((s, row) => s + row[a] * row[b], 0)));
+  const XtY = Array.from({ length: p }, (_, a) => X.reduce((s, row, i) => s + row[a] * y[i], 0));
+  const beta = solveNormalEquations(XtX, XtY);
+  if (!beta) return null;
+  const resid = y.map((yi, i) => yi - X[i].reduce((s, v, j) => s + v * beta[j], 0));
+  // ADF(0) regression on the residuals: Δe_t = τ·e_{t-1} + u_t (no intercept —
+  // e is mean-zero by construction of the first-stage OLS intercept).
+  const m = resid.length;
+  const eLag = resid.slice(0, m - 1);
+  const dE = resid.slice(1).map((v, i) => v - resid[i]);
+  const sxx = eLag.reduce((s, v) => s + v * v, 0);
+  const sxy = eLag.reduce((s, v, i) => s + v * dE[i], 0);
+  const tau = sxx > 0 ? sxy / sxx : 0;
+  const dfResid = dE.map((v, i) => v - tau * eLag[i]);
+  const sse = dfResid.reduce((s, v) => s + v * v, 0);
+  const df = Math.max(1, m - 1 - 1);
+  const sigma2 = sse / df;
+  const seTau = sxx > 0 ? Math.sqrt(sigma2 / sxx) : Infinity;
+  const tauStat = Number.isFinite(seTau) && seTau > 0 ? tau / seTau : 0;
+  const N = p; // number of variables (y + regressors) in the cointegrating relationship
+  const pValue = _mackinnonP(tauStat, N);
+  return {
+    test: 'Cointegration (Engle-Granger)', tStat: +tauStat.toFixed(4), p: +pValue.toFixed(4),
+    rho: +tau.toFixed(4), N, criticalValues: _mackinnonCV[Math.min(6, Math.max(1, N))], n,
+    apa: `EG cointegration: τ(N=${N}) = ${tauStat.toFixed(2)}, MacKinnon p = ${pValue.toFixed(3)}, ${pValue < 0.05 ? 'cointegrated' : 'not cointegrated'}`,
+  };
 }
 
 // ── Vector Error Correction Model ───────────────────────────────────────────

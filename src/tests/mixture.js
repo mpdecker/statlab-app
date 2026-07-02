@@ -83,78 +83,145 @@ export function switchingRegression(x, y, threshold) {
   return { test: 'Switching Regression', threshold, regime1: { n: regime1.length, ...r1 }, regime2: { n: regime2.length, ...r2 }, n, apa: `Switching reg: threshold = ${threshold}, n1 = ${regime1.length}, n2 = ${regime2.length}` };
 }
 
-// ── Latent Profile Analysis ───────────────────────────────────────
-export function latentProfileAnalysis(data, vars, nProfiles = 2, { maxIter = 30, seed = 42 } = {}) {
+// ── Latent Profile Analysis (Gaussian mixture EM, class-varying diagonal Σ) ──
+// LPA is a finite mixture of multivariate Gaussians over continuous indicators
+// with local independence within class (diagonal covariance). Fit by EM with
+// soft responsibilities (not k-means hard assignment); reports logLik/BIC/AIC
+// for the model-selection workflow LPA is normally used for (choosing K).
+export function latentProfileAnalysis(data, vars, nProfiles = 2, { maxIter = 100, seed = 42, tol = 1e-6 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 20 || !vars || vars.length < 2 || nProfiles < 2) return null;
   const n = data.length, p = vars.length, K = nProfiles;
   const X = data.map(r => vars.map(v => +r[v]));
-  // K-means initialization
-  let labels = Array(n).fill(0).map(() => Math.floor(__rng() * K));
-  const means = Array.from({ length: K }, () => Array(p).fill(0));
+  const colSd = Array.from({ length: p }, (_, j) => Math.sqrt(sampleVar(X.map(r => r[j]))) || 1);
+  let mu = Array.from({ length: K }, (_, k) => X[Math.floor((k + 0.5) * n / K)].slice());
+  let sigma2 = Array.from({ length: K }, () => colSd.map(s => s * s));
   let pis = Array(K).fill(1 / K);
-  // Simple k-means then return profile means
-  for (let iter = 0; iter < 10; iter++) {
-    means.forEach((m, k) => {
-      const idx = [];
-      labels.forEach((l, i) => { if (l === k) idx.push(i); });
-      if (!idx.length) return;
-      for (let j = 0; j < p; j++) m[j] = avg(idx.map(i => X[i][j]));
+  let gamma = Array.from({ length: n }, () => Array(K).fill(1 / K));
+  let logLik = -Infinity, prevLL = -Infinity;
+
+  const logDens = (xi, muk, sig2k) => {
+    let ll = 0;
+    for (let j = 0; j < p; j++) { const s2 = Math.max(sig2k[j], 1e-8), d = xi[j] - muk[j]; ll += -0.5 * Math.log(2 * Math.PI * s2) - 0.5 * d * d / s2; }
+    return ll;
+  };
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    // E-step (log-sum-exp for numerical stability)
+    let ll = 0;
+    gamma = X.map(xi => {
+      const logp = mu.map((muk, k) => Math.log(pis[k] + 1e-300) + logDens(xi, muk, sigma2[k]));
+      const m = Math.max(...logp);
+      const w = logp.map(lp => Math.exp(lp - m));
+      const s = w.reduce((a, b) => a + b, 0);
+      ll += m + Math.log(s + 1e-300);
+      return w.map(v => v / s);
     });
-    labels = X.map(xi => {
-      let bestK = 0, bestD = Infinity;
-      means.forEach((m, k) => {
-        const d = m.reduce((s, mj, j) => s + (xi[j] - mj) ** 2, 0);
-        if (d < bestD) { bestD = d; bestK = k; }
-      });
-      return bestK;
+    logLik = ll;
+    if (Math.abs(ll - prevLL) < tol) break;
+    prevLL = ll;
+    // M-step
+    const Nk = Array(K).fill(0);
+    for (let i = 0; i < n; i++) for (let k = 0; k < K; k++) Nk[k] += gamma[i][k];
+    mu = Array.from({ length: K }, (_, k) => {
+      const m = Array(p).fill(0);
+      for (let i = 0; i < n; i++) for (let j = 0; j < p; j++) m[j] += gamma[i][k] * X[i][j];
+      return m.map(v => (Nk[k] > 1e-8 ? v / Nk[k] : v));
     });
-    pis = Array.from({ length: K }, (_, k) => labels.filter(l => l === k).length / n);
+    sigma2 = Array.from({ length: K }, (_, k) => {
+      const s2 = Array(p).fill(0);
+      for (let i = 0; i < n; i++) for (let j = 0; j < p; j++) { const d = X[i][j] - mu[k][j]; s2[j] += gamma[i][k] * d * d; }
+      return s2.map(v => (Nk[k] > 1e-8 ? Math.max(v / Nk[k], 1e-6) : 1));
+    });
+    pis = Nk.map(v => v / n);
   }
 
-  const profiles = means.map((m, k) => {
-    const idx = labels.filter(l => l === k).length;
-    return { profile: k + 1, n: idx, pi: +pis[k].toFixed(4), means: vars.map((v, j) => ({ variable: v, mean: +m[j].toFixed(4) })) };
-  });
+  const labels = gamma.map(g => g.indexOf(Math.max(...g)));
+  const nParams = K * p * 2 + (K - 1); // class means + class variances + mixing proportions
+  const bic = -2 * logLik + nParams * Math.log(n);
+  const aic = -2 * logLik + 2 * nParams;
+  const profiles = mu.map((m, k) => ({
+    profile: k + 1, n: labels.filter(l => l === k).length, pi: +pis[k].toFixed(4),
+    means: vars.map((v, j) => ({ variable: v, mean: +m[j].toFixed(4), sd: +Math.sqrt(sigma2[k][j]).toFixed(4) })),
+  }));
 
-  return { test: 'Latent Profile Analysis', profiles, nProfiles: K, n, apa: `LPA: ${K} profiles, n = ${n}` };
+  return { test: 'Latent Profile Analysis', profiles, nProfiles: K, n, logLik: +logLik.toFixed(4), bic: +bic.toFixed(4), aic: +aic.toFixed(4), apa: `LPA: ${K} profiles (EM), logLik = ${logLik.toFixed(1)}, BIC = ${bic.toFixed(1)}` };
 }
 
-// ── Mixture of Experts ────────────────────────────────────────────
-export function mixtureOfExperts(x, y, nExperts = 2, { maxIter = 30, seed = 42 } = {}) {
+// ── Mixture of Experts (Jacobs, Jordan, Nowlan & Hinton 1991) ──────
+// A real MoE has an input-dependent *gating network* (here, multinomial
+// softmax logits linear in x) that soft-assigns each point to experts, plus
+// per-expert linear regressions. EM alternates: E-step soft responsibilities
+// γ_ik ∝ gate_k(x_i)·N(y_i; expert_k(x_i), σ_k²); M-step refits each expert by
+// weighted least squares and nudges the gate toward γ by gradient ascent on
+// the (weighted) multinomial cross-entropy. This replaces hard nearest-expert
+// assignment with the soft, jointly-trained gate that defines "mixture of
+// experts" as distinct from a plain mixture of regressions.
+export function mixtureOfExperts(x, y, nExperts = 2, { maxIter = 60, seed = 42, gateLR = 0.5, gateSteps = 5 } = {}) {
   __rng = mulberry32(seed);
   if (!x || !y || x.length < 15 || x.length !== y.length || nExperts < 2) return null;
   const n = x.length, K = nExperts;
-  let labels = Array(n).fill(0).map(() => Math.floor(__rng() * K));
-  const experts = Array.from({ length: K }, () => ({ slope: 0, intercept: 0 }));
-  let pis = Array(K).fill(1 / K);
+  const mx = avg(x), sx = Math.sqrt(sampleVar(x)) || 1;
+  const xs = x.map(v => (v - mx) / sx);
+  let W = Array.from({ length: K }, () => [(__rng() - 0.5) * 0.1, (__rng() - 0.5) * 0.1]);
+  const experts = Array.from({ length: K }, () => ({ slope: 0, intercept: 0, sigma: 1 }));
+  const gate = (xi) => {
+    const logits = W.map(w => w[0] + w[1] * xi);
+    const m = Math.max(...logits);
+    const e = logits.map(l => Math.exp(l - m));
+    const s = e.reduce((a, b) => a + b, 0);
+    return e.map(v => v / s);
+  };
+  // Break symmetry with a random hard partition (a near-uniform gate would keep both
+  // experts fit to the same average line and never differentiate).
+  let gamma = Array.from({ length: n }, () => {
+    const k = Math.floor(__rng() * K);
+    return Array.from({ length: K }, (_, j) => (j === k ? 1 : 0));
+  });
+  let logLik = -Infinity, prevLL = -Infinity;
 
   for (let iter = 0; iter < maxIter; iter++) {
-    // Fit experts
+    // M-step: experts via responsibility-weighted least squares.
     for (let k = 0; k < K; k++) {
-      const idx = [];
-      labels.forEach((l, i) => { if (l === k) idx.push(i); });
-      if (idx.length < 3) continue;
-      let sx = 0, sy = 0, sxx = 0, sxy = 0;
-      for (const i of idx) { sx += x[i]; sy += y[i]; sxx += x[i] * x[i]; sxy += x[i] * y[i]; }
-      const m = idx.length;
-      const denom = m * sxx - sx * sx;
-      experts[k] = { slope: denom ? (m * sxy - sx * sy) / denom : 0, intercept: denom ? (sxx * sy - sx * sxy) / denom : 0 };
-      pis[k] = m / n;
+      let sw = 0, sxk = 0, sy = 0, sxx = 0, sxy = 0;
+      for (let i = 0; i < n; i++) { const w = gamma[i][k]; sw += w; sxk += w * x[i]; sy += w * y[i]; sxx += w * x[i] * x[i]; sxy += w * x[i] * y[i]; }
+      if (sw < 1e-6) continue;
+      const denom = sw * sxx - sxk * sxk;
+      const slope = Math.abs(denom) > 1e-10 ? (sw * sxy - sxk * sy) / denom : 0;
+      const interc = (sy - slope * sxk) / sw;
+      let ss = 0; for (let i = 0; i < n; i++) { const r = y[i] - interc - slope * x[i]; ss += gamma[i][k] * r * r; }
+      experts[k] = { slope, intercept: interc, sigma: Math.max(Math.sqrt(ss / sw) || 0, 1e-3) };
     }
-    // Gating: assign to best expert
-    labels = x.map((xi, i) => {
-      let bestK = 0, bestErr = Infinity;
-      experts.forEach((e, k) => {
-        const err = (y[i] - e.intercept - e.slope * xi) ** 2;
-        if (err < bestErr) { bestErr = err; bestK = k; }
+    // M-step: gating network — weighted gradient-ascent steps of multinomial
+    // logistic regression toward the current soft responsibilities.
+    for (let g = 0; g < gateSteps; g++) {
+      const grad = Array.from({ length: K }, () => [0, 0]);
+      for (let i = 0; i < n; i++) {
+        const p = gate(xs[i]);
+        for (let k = 0; k < K; k++) { const err = gamma[i][k] - p[k]; grad[k][0] += err; grad[k][1] += err * xs[i]; }
+      }
+      for (let k = 0; k < K; k++) { W[k][0] += gateLR * grad[k][0] / n; W[k][1] += gateLR * grad[k][1] / n; }
+    }
+    // E-step: soft responsibilities ∝ gate(x)·N(y; expert(x), σ²)
+    let ll = 0;
+    gamma = x.map((xi, i) => {
+      const g = gate(xs[i]);
+      const probs = experts.map((e, k) => {
+        const r = y[i] - e.intercept - e.slope * xi;
+        return g[k] * Math.exp(-0.5 * (r * r) / (e.sigma * e.sigma)) / (Math.sqrt(2 * Math.PI) * e.sigma);
       });
-      return bestK;
+      const s = probs.reduce((a, v) => a + v, 0);
+      ll += Math.log(s + 1e-300);
+      return s > 0 ? probs.map(p => p / s) : g;
     });
+    logLik = ll;
+    if (Math.abs(ll - prevLL) < 1e-7) break;
+    prevLL = ll;
   }
 
-  const result = experts.map((e, k) => ({ expert: k + 1, pi: +pis[k].toFixed(4), intercept: +e.intercept.toFixed(4), slope: +e.slope.toFixed(4) }));
-  return { test: 'Mixture of Experts', experts: result, nExperts: K, n, apa: `MoE: ${K} experts, n = ${n}` };
+  const avgPi = Array.from({ length: K }, (_, k) => avg(gamma.map(g => g[k])));
+  const result = experts.map((e, k) => ({ expert: k + 1, pi: +avgPi[k].toFixed(4), intercept: +e.intercept.toFixed(4), slope: +e.slope.toFixed(4), sigma: +e.sigma.toFixed(4) }));
+  return { test: 'Mixture of Experts', experts: result, nExperts: K, n, logLik: +logLik.toFixed(4), apa: `MoE: ${K} experts (soft gating), n = ${n}, logLik = ${logLik.toFixed(1)}` };
 }
 
 // ── Gaussian Mixture Model (EM) ───────────────────────────────────
@@ -196,28 +263,61 @@ export function gaussianMixtureModel(data, k = 2, { seed = 42, maxIter = 30, tol
   return { test: 'Gaussian Mixture Model', mu: mu.map(m => m.map(v => +v.toFixed(4))), pi: pi.map(v => +v.toFixed(4)), sigma2: sigma2.map(v => +v.toFixed(6)), k, n, apa: `GMM: ${k} components, n=${n}` };
 }
 
-// ── Nonparametric Mixture ─────────────────────────────────────────
-export function nonparametricMixture(data, k = 2, { seed = 42, bandwidth = null, maxIter = 15 } = {}) {
+// ── Nonparametric Mixture (weighted-KDE EM; Benaglia et al. 2009 npEM) ────
+// Component densities are not assumed Gaussian: each f_j is re-estimated every
+// iteration as a leave-one-out kernel density weighted by the current soft
+// responsibilities, f_j(x_i) = Σ_{l≠i} γ_lj K((x_i-x_l)/h) / (h Σ_{l≠i} γ_lj).
+// E-step then updates γ ∝ π_j f_j(x_i) from that nonparametric density — real
+// alternation between a density estimate and soft cluster membership, not a
+// single hard nearest-kernel-mode reassignment.
+export function nonparametricMixture(data, k = 2, { seed = 42, bandwidth = null, maxIter = 40, tol = 1e-6 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 10 || k < 2) return null;
   const n = data.length;
   const h = bandwidth || 1.06 * Math.sqrt(sampleVar(data)) * Math.pow(n, -0.2) || 0.5;
-  let z = Array.from({length: n}, () => Math.floor(__rng() * k));
+  const kernel = (u) => Math.exp(-0.5 * u * u) / Math.sqrt(2 * Math.PI);
+  const sorted = [...data].sort((a, b) => a - b);
+  // Span initial centers across the full sorted range (not equal-mass quantiles), so an
+  // unbalanced mixture still seeds one center inside each component's support.
+  const centers = Array.from({ length: k }, (_, j) => sorted[Math.round(j * (n - 1) / (k - 1))]);
+  let gamma = data.map(xi => {
+    const d = centers.map(c => Math.exp(-0.5 * ((xi - c) / h) ** 2));
+    const s = d.reduce((a, b) => a + b, 0);
+    return s > 0 ? d.map(v => v / s) : d.map(() => 1 / k);
+  });
+  let pis = Array(k).fill(1 / k);
+  let logLik = -Infinity, prevLL = -Infinity;
+
   for (let iter = 0; iter < maxIter; iter++) {
-    const counts = Array(k).fill(0);
-    const means = Array(k).fill(0);
-    for (let i = 0; i < n; i++) { counts[z[i]]++; means[z[i]] += data[i]; }
-    for (let j = 0; j < k; j++) if (counts[j] > 0) means[j] /= counts[j];
+    // M-step: leave-one-out weighted KDE density per component at every data point.
+    const dens = Array.from({ length: n }, () => Array(k).fill(0));
     for (let i = 0; i < n; i++) {
-      const probs = means.map(m => {
-        const u = (data[i] - m) / h;
-        return Math.exp(-0.5 * u * u) * (counts[means.indexOf(m)] / n);
-      });
-      const sum = probs.reduce((s, v) => s + v, 0);
-      if (sum > 0) z[i] = probs.indexOf(Math.max(...probs));
+      for (let j = 0; j < k; j++) {
+        let num = 0, wj = 0;
+        for (let l = 0; l < n; l++) {
+          if (l === i) continue;
+          num += gamma[l][j] * kernel((data[i] - data[l]) / h);
+          wj += gamma[l][j];
+        }
+        dens[i][j] = wj > 1e-8 ? num / (wj * h) : 1e-300;
+      }
     }
+    // E-step
+    let ll = 0;
+    gamma = data.map((_, i) => {
+      const probs = pis.map((p, j) => p * dens[i][j]);
+      const s = probs.reduce((a, v) => a + v, 0);
+      ll += Math.log(s + 1e-300);
+      return s > 0 ? probs.map(v => v / s) : probs.map(() => 1 / k);
+    });
+    pis = Array.from({ length: k }, (_, j) => avg(gamma.map(g => g[j])));
+    logLik = ll;
+    if (Math.abs(ll - prevLL) < tol) break;
+    prevLL = ll;
   }
-  return { test: 'Nonparametric Mixture', k, bandwidth: +h.toFixed(4), n, sizes: Array(k).fill(0).map((_, j) => z.filter(v => v === j).length), apa: `NP mixture: ${k} components, h=${h.toFixed(2)}` };
+
+  const labels = gamma.map(g => g.indexOf(Math.max(...g)));
+  return { test: 'Nonparametric Mixture', k, bandwidth: +h.toFixed(4), n, pis: pis.map(v => +v.toFixed(4)), sizes: Array(k).fill(0).map((_, j) => labels.filter(l => l === j).length), logLik: +logLik.toFixed(4), apa: `NP mixture: ${k} components (weighted-KDE EM), h = ${h.toFixed(2)}, logLik = ${logLik.toFixed(1)}` };
 }
 
 // ── Mixture Posterior Probabilities ───────────────────────────────
