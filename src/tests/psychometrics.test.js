@@ -446,6 +446,31 @@ describe('generalizedPartialCredit', () => { it('contract keys', () => expectKey
 describe('testEquating', () => { it('contract keys', () => expectKeys(testEquating([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]), ['test', 'equated', 'slope', 'intercept', 'nA', 'nB', 'apa'])); it('coefficients non-empty', () => { const r = testEquating([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]); expect(Number.isFinite(r.slope)).toBe(true); }); it('equated non-empty', () => { const r = testEquating([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]); expect(r.equated.length).toBeGreaterThan(0); }); });
 describe('mixedFormatIRT', () => { it('is defined', () => expect(typeof mixedFormatIRT).toBe('function')); it('params non-empty', () => { const d = []; for (let i = 0; i < 20; i++) { const row = {}; for (let j = 1; j <= 6; j++) row[`i${j}`] = (i + j) % 3 > 0 ? 1 : 0; d.push(row); } const r = mixedFormatIRT(d, ['i1', 'i2', 'i3', 'i4', 'i5', 'i6']); if (r) expect(r.items.length).toBeGreaterThan(0); }); it('items match vars', () => { const d = []; for (let i = 0; i < 20; i++) { const row = {}; for (let j = 1; j <= 6; j++) row[`i${j}`] = (i + j) % 3 > 0 ? 1 : 0; d.push(row); } const r = mixedFormatIRT(d, ['i1', 'i2', 'i3', 'i4', 'i5', 'i6']); if (r) expect(r.items.length).toBe(6); }); });
 describe('difLogistic', () => { it('is defined', () => expect(typeof difLogistic).toBe('function')); it('dif non-empty', () => { const d = []; for (let i = 0; i < 30; i++) d.push({ grp: i < 15 ? 1 : 0, resp: i % 2, score: i }); const r = difLogistic(d, 'grp', 'resp', 'score'); if (r) expect(Number.isFinite(r.uniform)).toBe(true); }); it('nonuniform finite', () => { const d = []; for (let i = 0; i < 30; i++) d.push({ grp: i < 15 ? 1 : 0, resp: i % 2, score: i }); const r = difLogistic(d, 'grp', 'resp', 'score'); if (r && r.nonuniform !== undefined) expect(Number.isFinite(r.nonuniform)).toBe(true); }); });
+describe('difLogistic detects real uniform DIF via nested logistic LR tests', () => {
+  const sig = z => 1 / (1 + Math.exp(-z));
+  // Simulate a binary item with matching-score effect + a strong group main effect (uniform DIF).
+  const mkData = (difMag) => {
+    let s = 20240617; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+    const d = [];
+    for (let i = 0; i < 400; i++) {
+      const grp = i % 2;
+      const score = Math.round(rnd() * 10);       // 0..10 ability proxy
+      const eta = -2 + 0.4 * score + difMag * grp; // uniform DIF shifts intercept by group
+      d.push({ grp, resp: rnd() < sig(eta) ? 1 : 0, score });
+    }
+    return d;
+  };
+  it('flags a large uniform DIF (low p) and estimates a positive shift', () => {
+    const r = difLogistic(mkData(2.0), 'grp', 'resp', 'score');
+    expect(r.pUniform).toBeLessThan(0.01);
+    expect(r.uniform).toBeGreaterThan(0.5);
+  });
+  it('does not flag DIF when groups are equivalent (high p)', () => {
+    const r = difLogistic(mkData(0.0), 'grp', 'resp', 'score');
+    expect(r.pUniform).toBeGreaterThan(0.05);
+  });
+  it('reports likelihood-ratio chi-square and p keys', () => expectKeys(difLogistic(mkData(1.0), 'grp', 'resp', 'score'), ['test','uniform','nonUniform','chiUniform','pUniform','chiNonUniform','pNonUniform','chiTotal','pTotal','r2','flag','n','apa']));
+});
 
 describe('testRetestReliability', () => {
   const t1 = [10,12,14,16,18,20,22,24,26,28];

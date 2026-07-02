@@ -53,6 +53,23 @@ describe('regimeSwitching', () => {
   it('contract keys', () => expectKeys(regimeSwitching(data), ['test','mu','sigma','stationary','regimeCounts','n','apa']));
   it('null <20', () => expect(regimeSwitching([1,2,3])).toBeNull());
   it('regimeCounts non-empty', () => { const r = regimeSwitching(data); if (r) expect(r.regimeCounts.length).toBeGreaterThan(0); });
+  it('Baum-Welch recovers two well-separated regime means', () => {
+    let s = 11; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    // Persistent 2-regime series: first ~half near 0, second ~half near 10.
+    const series = []; for (let i = 0; i < 120; i++) series.push((i < 60 ? 0 : 10) + rnd() * 2);
+    const r = regimeSwitching(series);
+    const lo = Math.min(...r.mu), hi = Math.max(...r.mu);
+    expect(lo).toBeLessThan(3);           // low regime mean near 0
+    expect(hi).toBeGreaterThan(7);        // high regime mean near 10
+    expect(hi - lo).toBeGreaterThan(5);   // regimes are actually separated (not the old fixed init)
+  });
+  it('estimates a transition matrix whose rows are probabilities', () => {
+    let s = 4; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    const series = []; for (let i = 0; i < 80; i++) series.push((Math.floor(i / 10) % 2 === 0 ? 0 : 6) + rnd());
+    const r = regimeSwitching(series);
+    r.transition.forEach(row => { const sum = row.reduce((a, b) => a + b, 0); expect(sum).toBeGreaterThan(0.98); expect(sum).toBeLessThan(1.02); });
+    expect(Number.isFinite(r.logLik)).toBe(true);
+  });
 });
 describe('hestonModel', () => {
   const rets = Array.from({length: 30}, () => (Math.random() - 0.5) * 0.02);

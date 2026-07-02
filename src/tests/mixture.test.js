@@ -24,10 +24,49 @@ describe('latentProfileAnalysis', () => {
   it('nProfiles positive', () => { const r = latentProfileAnalysis(d, ['x1', 'x2']); if (r) expect(r.nProfiles).toBeGreaterThan(0); });
 });
 
+describe('latentProfileAnalysis recovers real class-specific means and variances via EM (not k-means)', () => {
+  it('recovers two well-separated profile centers and reports logLik/BIC', () => {
+    let s = 21; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    const d = [];
+    for (let i = 0; i < 60; i++) {
+      const grp = i < 30 ? 0 : 1;
+      const shift = grp === 0 ? 0 : 10;
+      d.push({ x1: shift + rnd(), x2: shift + rnd() });
+    }
+    const r = latentProfileAnalysis(d, ['x1', 'x2'], 2, { seed: 5 });
+    const means1 = r.profiles.map(p => p.means[0].mean).sort((a, b) => a - b);
+    expect(means1[0]).toBeLessThan(2);
+    expect(means1[1]).toBeGreaterThan(8);
+    expect(Number.isFinite(r.logLik)).toBe(true);
+    expect(Number.isFinite(r.bic)).toBe(true);
+    expect(r.profiles[0].means[0].sd).toBeGreaterThan(0); // class-specific SD reported (not k-means, which has none)
+  });
+});
+
 describe('mixtureOfExperts', () => {
   it('null <15', () => expect(mixtureOfExperts(x.slice(0, 10), y.slice(0, 10))).toBeNull());
   it('contract keys', () => expectKeys(mixtureOfExperts(x, y), ['test', 'experts', 'nExperts', 'n', 'apa']));
   it('nExperts positive', () => { const r = mixtureOfExperts(x, y); if (r) expect(r.nExperts).toBeGreaterThan(0); });
+});
+
+describe('mixtureOfExperts uses a real soft gating network (not hard nearest-expert assignment)', () => {
+  it('recovers two distinct expert slopes with soft, non-degenerate mixing proportions', () => {
+    const xs = [], ys = [];
+    for (let i = 0; i < 80; i++) {
+      const comp = i % 2;
+      const xi = Math.floor(i / 2) - 20;
+      const noise = 0.05 * (((i * 7) % 5) - 2);
+      xs.push(xi);
+      ys.push(comp === 0 ? 3 * xi + noise : -2 * xi + noise);
+    }
+    const r = mixtureOfExperts(xs, ys, 2, { seed: 9 });
+    const slopes = r.experts.map(e => e.slope).sort((a, b) => a - b);
+    expect(slopes[0]).toBeCloseTo(-2, 0);
+    expect(slopes[1]).toBeCloseTo(3, 0);
+    // Soft gating: mixing proportions should be non-degenerate (neither expert collapses to ~0 or ~1).
+    r.experts.forEach(e => { expect(e.pi).toBeGreaterThan(0.05); expect(e.pi).toBeLessThan(0.95); });
+    expect(Number.isFinite(r.logLik)).toBe(true);
+  });
 });
 
 describe('gaussianMixtureModel', () => {
@@ -41,6 +80,22 @@ describe('nonparametricMixture', () => {
   it('contract keys', () => expectKeys(nonparametricMixture(data, 2), ['test','k','bandwidth','n','sizes','apa']));
   it('null k<2', () => expect(nonparametricMixture(data, 1)).toBeNull());
   it('sizes non-empty', () => { const r = nonparametricMixture(data, 2); if (r) expect(r.sizes.length).toBeGreaterThan(0); });
+});
+
+describe('nonparametricMixture uses real weighted-KDE EM (soft responsibilities, not hard nearest-mode reassignment)', () => {
+  it('recovers an unbalanced mixing proportion (not forced toward 50/50)', () => {
+    let s = 8; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    // 80% of points near 0, 20% near 15 — a hard nearest-kernel assignment with equal-size
+    // components would not recover this skew as cleanly as a proportion-aware soft EM.
+    const data = [];
+    for (let i = 0; i < 80; i++) data.push(rnd() * 1.5);
+    for (let i = 0; i < 20; i++) data.push(15 + rnd() * 1.5);
+    const r = nonparametricMixture(data, 2, { seed: 2 });
+    const pis = r.pis.slice().sort((a, b) => a - b);
+    expect(pis[0]).toBeLessThan(0.35);
+    expect(pis[1]).toBeGreaterThan(0.65);
+    expect(Number.isFinite(r.logLik)).toBe(true);
+  });
 });
 describe('mixturePosterior', () => {
   const gmm = { k: 2, mu: [[1.5], [4.5]], pi: [0.5, 0.5], sigma2: [1, 1] };

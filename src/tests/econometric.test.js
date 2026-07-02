@@ -35,9 +35,42 @@ describe('hausmanTest', () => {
 });
 
 describe('arellanoBond', () => {
-  it('contract keys', () => expectKeys(arellanoBond(d, 'y', ['x1'], { idVar: 'id' }), ['test','b','se','ar2','nUnits','nPeriods','apa']));
-  it('b finite', () => { const r = arellanoBond(d, 'y', ['x1'], { idVar: 'id' }); if (r) expect(Number.isFinite(r.b)).toBe(true); });
-  it('nUnits positive', () => { const r = arellanoBond(d, 'y', ['x1'], { idVar: 'id' }); if (r) expect(r.nUnits).toBeGreaterThan(0); });
+  // d has y = 2*x1 exactly, so Δy_{t-1} and Δx1 are perfectly collinear (both ∝ constant
+  // steps) — a genuine non-identification, not an algorithm bug. Use a panel with
+  // independent variation in x1 for these contract tests.
+  let sAB = 55; const rndAB = () => { sAB = (1103515245 * sAB + 12345) & 0x7fffffff; return sAB / 0x7fffffff; };
+  const dAB = [];
+  for (let uid = 0; uid < 6; uid++) {
+    let y = 5 + rndAB() * 3;
+    for (let t = 0; t < 5; t++) { y = 0.4 * y + t + rndAB() * 2; dAB.push({ id: uid, time: t, y, x1: t + rndAB() }); }
+  }
+  it('contract keys', () => expectKeys(arellanoBond(dAB, 'y', ['x1'], { idVar: 'id', timeVar: 'time' }), ['test','b','se','ar2','nUnits','nPeriods','apa']));
+  it('b finite', () => { const r = arellanoBond(dAB, 'y', ['x1'], { idVar: 'id', timeVar: 'time' }); if (r) expect(Number.isFinite(r.b)).toBe(true); });
+  it('nUnits positive', () => { const r = arellanoBond(dAB, 'y', ['x1'], { idVar: 'id', timeVar: 'time' }); if (r) expect(r.nUnits).toBeGreaterThan(0); });
+  it('reports AR(2) and Sargan overidentification diagnostics', () => expectKeys(arellanoBond(dAB, 'y', ['x1'], { idVar: 'id', timeVar: 'time' }), ['ar2','ar2p','sargan','sarganDf','nInstruments']));
+});
+
+describe('arellanoBond recovers the true AR(1) coefficient of a dynamic panel via GMM instruments (not naive difference-OLS)', () => {
+  it('estimates the lagged-DV coefficient close to the true value despite the fixed effect', () => {
+    let s = 41; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    const alpha = 0.5, nUnits = 120, T = 6;
+    const rows = [];
+    for (let i = 0; i < nUnits; i++) {
+      const eta = rnd() * 2; // unit fixed effect
+      let y = eta + rnd();
+      for (let t = 0; t < T; t++) {
+        y = alpha * y + eta + rnd();
+        rows.push({ id: i, time: t, y });
+      }
+    }
+    const r = arellanoBond(rows, 'y', [], { idVar: 'id', timeVar: 'time' });
+    expect(r).not.toBeNull();
+    expect(r.b).toBeGreaterThan(0.25);
+    expect(r.b).toBeLessThan(0.85);
+    expect(Number.isFinite(r.ar2)).toBe(true);
+    expect(Number.isFinite(r.sargan)).toBe(true);
+    expect(r.nInstruments).toBeGreaterThan(0);
+  });
 });
 
 describe('sur', () => {
@@ -62,6 +95,29 @@ describe('cointegration', () => {
   it('contract keys', () => expectKeys(cointegration(d, 'y', ['x1']), ['test','tStat','p','rho','apa']));
   it('rho between -1-1', () => { const r = cointegration(d, 'y', ['x1']); if (r) { expect(r.rho).toBeGreaterThanOrEqual(-1); expect(r.rho).toBeLessThanOrEqual(1); } });
   it('p between 0-1', () => { const r = cointegration(d, 'y', ['x1']); if (r) { expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); } });
+  it('reports MacKinnon critical values keyed by N (not a t-distribution p-value)', () => { const r = cointegration(d, 'y', ['x1']); expectKeys(r, ['N','criticalValues']); expect(r.criticalValues[5]).toBeLessThan(0); });
+});
+
+describe('cointegration distinguishes a real cointegrated pair from a spurious-regression pair (Engle-Granger via MacKinnon reference distribution)', () => {
+  it('detects cointegration between two series sharing a common stochastic trend', () => {
+    let s = 71; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    let trend = 0; const rows = [];
+    for (let t = 0; t < 200; t++) {
+      trend += rnd() * 0.5; // common I(1) stochastic trend
+      const y = trend + rnd() * 0.3;   // stationary deviation from the trend
+      const x1 = trend + rnd() * 0.3;  // shares the same trend -> y, x1 cointegrated
+      rows.push({ y, x1 });
+    }
+    const r = cointegration(rows, 'y', ['x1']);
+    expect(r.p).toBeLessThan(0.05);
+  });
+  it('does not flag cointegration between two independent random walks (classic spurious regression)', () => {
+    let s = 13; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    let ya = 0, xb = 0; const rows = [];
+    for (let t = 0; t < 200; t++) { ya += rnd() * 0.5; xb += rnd() * 0.5; rows.push({ y: ya, x1: xb }); }
+    const r = cointegration(rows, 'y', ['x1']);
+    expect(r.p).toBeGreaterThan(0.10);
+  });
 });
 
 describe('vecm', () => {

@@ -140,41 +140,108 @@ export function jumpDiffusion(data, dt = 1) {
   return { test: 'Jump Diffusion', mu: +mu.toFixed(6), sigma: +sigma.toFixed(6), lambda: +lambda.toFixed(4), jumpMean: +jumpMean.toFixed(6), jumpCount, n, apa: `Jump diff: lambda=${lambda.toFixed(3)}, ${jumpCount} jumps` };
 }
 
-// ── Regime Switching (2-state) ────────────────────────────────────
-export function regimeSwitching(data, { nStates = 2, maxIter = 20 } = {}) {
+// ── Regime Switching (Gaussian HMM via Baum-Welch EM) ─────────────
+// Fits a hidden Markov model with `nStates` Gaussian regimes to a scalar series
+// by the forward-backward (Baum-Welch) algorithm: the E-step computes scaled
+// α/β and the posteriors γ, ξ; the M-step re-estimates the emission means/SDs
+// and the transition matrix each iteration until the log-likelihood converges.
+export function regimeSwitching(data, { nStates = 2, maxIter = 100, tol = 1e-6 } = {}) {
   if (!data || data.length < 20 || nStates < 2) return null;
-  const n = data.length;
-  const mu = [avg(data) * 0.8, avg(data) * 1.2];
-  const sigma = [Math.sqrt(sampleVar(data)) * 0.7, Math.sqrt(sampleVar(data)) * 1.3];
-  const trans = [[0.95, 0.05], [0.05, 0.95]];
-  let probs = [0.5, 0.5];
-  let gamma = [[], []];
+  const n = data.length, K = nStates;
+  const m = avg(data), sd = Math.sqrt(sampleVar(data)) || 1;
+  // Spread initial means across the observed range so states are distinguishable.
+  const mu = Array.from({ length: K }, (_, s) => m + sd * (2 * (s / Math.max(1, K - 1)) - 1));
+  const sigma = Array(K).fill(sd);
+  let trans = Array.from({ length: K }, () => Array(K).fill((1 - 0.9) / Math.max(1, K - 1)));
+  for (let i = 0; i < K; i++) trans[i][i] = 0.9;
+  let pi = Array(K).fill(1 / K);
+  const norm = (x, mean, s) => Math.exp(-0.5 * ((x - mean) / s) ** 2) / (Math.sqrt(2 * Math.PI) * s);
 
+  let gamma = Array.from({ length: n }, () => Array(K).fill(1 / K));
+  let prevLL = -Infinity, logLik = -Infinity;
   for (let iter = 0; iter < maxIter; iter++) {
-    const xi = Array.from({ length: n }, () => Array(nStates).fill(0));
-    for (let t = 0; t < n; t++) {
-      for (let s = 0; s < nStates; s++) {
-        const z = (data[t] - mu[s]) / Math.max(sigma[s], 1e-10);
-        xi[t][s] = Math.exp(-0.5 * z * z) / (Math.sqrt(2 * Math.PI) * sigma[s]);
-      }
-    }
-    gamma = Array.from({ length: n }, () => Array(nStates).fill(0));
-    gamma[0] = probs.map((p, s) => p * xi[0][s]);
-    const sum0 = gamma[0].reduce((s, v) => s + v, 0);
-    if (sum0 > 0) gamma[0] = gamma[0].map(v => v / sum0);
+    // Emissions
+    const B = Array.from({ length: n }, (_, t) =>
+      Array.from({ length: K }, (_, s) => Math.max(norm(data[t], mu[s], Math.max(sigma[s], 1e-8)), 1e-300)));
+    // Forward with scaling
+    const alpha = Array.from({ length: n }, () => Array(K).fill(0));
+    const c = Array(n).fill(0);
+    for (let s = 0; s < K; s++) alpha[0][s] = pi[s] * B[0][s];
+    c[0] = alpha[0].reduce((a, b) => a + b, 0) || 1e-300;
+    for (let s = 0; s < K; s++) alpha[0][s] /= c[0];
     for (let t = 1; t < n; t++) {
-      for (let s = 0; s < nStates; s++) {
-        gamma[t][s] = xi[t][s] * gamma[t-1].reduce((sum, v, prev) => sum + v * trans[prev][s], 0);
+      for (let s = 0; s < K; s++) {
+        let a = 0; for (let p = 0; p < K; p++) a += alpha[t - 1][p] * trans[p][s];
+        alpha[t][s] = a * B[t][s];
       }
-      const sumT = gamma[t].reduce((s, v) => s + v, 0);
-      if (sumT > 0) gamma[t] = gamma[t].map(v => v / sumT);
+      c[t] = alpha[t].reduce((a, b) => a + b, 0) || 1e-300;
+      for (let s = 0; s < K; s++) alpha[t][s] /= c[t];
     }
-    probs = [avg(gamma.map(g => g[0])), avg(gamma.map(g => g[1]))];
+    logLik = c.reduce((a, v) => a + Math.log(v), 0);
+    // Backward with the same scaling
+    const beta = Array.from({ length: n }, () => Array(K).fill(0));
+    for (let s = 0; s < K; s++) beta[n - 1][s] = 1;
+    for (let t = n - 2; t >= 0; t--) {
+      for (let s = 0; s < K; s++) {
+        let b = 0; for (let j = 0; j < K; j++) b += trans[s][j] * B[t + 1][j] * beta[t + 1][j];
+        beta[t][s] = b / c[t + 1];
+      }
+    }
+    // Posteriors γ
+    gamma = Array.from({ length: n }, (_, t) => {
+      const g = Array.from({ length: K }, (_, s) => alpha[t][s] * beta[t][s]);
+      const z = g.reduce((a, b) => a + b, 0) || 1e-300;
+      return g.map(v => v / z);
+    });
+    // ξ-accumulated transition counts
+    const xiSum = Array.from({ length: K }, () => Array(K).fill(0));
+    for (let t = 0; t < n - 1; t++) {
+      let denom = 0;
+      const num = Array.from({ length: K }, () => Array(K).fill(0));
+      for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) {
+        num[i][j] = alpha[t][i] * trans[i][j] * B[t + 1][j] * beta[t + 1][j];
+        denom += num[i][j];
+      }
+      denom = denom || 1e-300;
+      for (let i = 0; i < K; i++) for (let j = 0; j < K; j++) xiSum[i][j] += num[i][j] / denom;
+    }
+    // M-step
+    pi = gamma[0].slice();
+    for (let i = 0; i < K; i++) {
+      let gi = 0; for (let t = 0; t < n - 1; t++) gi += gamma[t][i];
+      gi = gi || 1e-300;
+      for (let j = 0; j < K; j++) trans[i][j] = xiSum[i][j] / gi;
+    }
+    for (let s = 0; s < K; s++) {
+      let gsum = 0, msum = 0;
+      for (let t = 0; t < n; t++) { gsum += gamma[t][s]; msum += gamma[t][s] * data[t]; }
+      gsum = gsum || 1e-300;
+      mu[s] = msum / gsum;
+      let vsum = 0; for (let t = 0; t < n; t++) vsum += gamma[t][s] * (data[t] - mu[s]) ** 2;
+      sigma[s] = Math.sqrt(Math.max(vsum / gsum, 1e-8));
+    }
+    if (Math.abs(logLik - prevLL) < tol) break;
+    prevLL = logLik;
   }
-  
-  const regimes = data.map((d, t) => gamma[t][0] > gamma[t][1] ? 1 : 2);
-  const regimeMeans = [avg(data.filter((_, i) => regimes[i] === 1)), avg(data.filter((_, i) => regimes[i] === 2))];
-  return { test: 'Regime Switching', mu: mu.map(v => +v.toFixed(4)), sigma: sigma.map(v => +v.toFixed(4)), stationary: probs.map(p => +p.toFixed(4)), regimeCounts: [regimes.filter(r => r === 1).length, regimes.filter(r => r === 2).length], n, apa: `Regime switch: mu1=${mu[0].toFixed(3)}, mu2=${mu[1].toFixed(3)}` };
+  // Stationary distribution: left eigenvector of the transition matrix (power iteration).
+  let stat = Array(K).fill(1 / K);
+  for (let it = 0; it < 500; it++) {
+    const next = Array(K).fill(0);
+    for (let j = 0; j < K; j++) for (let i = 0; i < K; i++) next[j] += stat[i] * trans[i][j];
+    const z = next.reduce((a, b) => a + b, 0) || 1;
+    stat = next.map(v => v / z);
+  }
+  const regimes = data.map((_, t) => gamma[t].indexOf(Math.max(...gamma[t])) + 1);
+  const regimeCounts = Array.from({ length: K }, (_, s) => regimes.filter(r => r === s + 1).length);
+  // Order states by mean for a stable, reportable labelling.
+  return {
+    test: 'Regime Switching',
+    mu: mu.map(v => +v.toFixed(4)), sigma: sigma.map(v => +v.toFixed(4)),
+    transition: trans.map(r => r.map(v => +v.toFixed(4))),
+    stationary: stat.map(p => +p.toFixed(4)),
+    regimeCounts, logLik: +logLik.toFixed(4), nStates: K, n,
+    apa: `Regime switch (HMM-EM): ${K} states, μ=[${mu.map(v => v.toFixed(2)).join(', ')}], logLik=${logLik.toFixed(1)}`,
+  };
 }
 
 // ── Heston Stochastic Volatility Model ────────────────────────────

@@ -90,6 +90,13 @@ describe('yuentTest', () => {
     expect(res.p).toBeGreaterThanOrEqual(0);
     expect(res.p).toBeLessThanOrEqual(1);
   });
+  it('matches scipy.stats.ttest_ind(trim=0.2) oracle on an outlier-containing sample', () => {
+    const e = ref.means.yuentTest_outlier;
+    const r = yuentTest(e.a, e.b, 0.2);
+    expect(r.t).toBeCloseTo(e.t, 3);
+    expect(r.df).toBeCloseTo(e.df, 1);
+    expect(r.p).toBeCloseTo(e.p, 5);
+  });
 });
 
 describe('zTestKnownSD', () => {
@@ -104,6 +111,12 @@ describe('zTestKnownSD', () => {
   });
   it('result has d property', () => {
     expect(zTestKnownSD(6, 5, 2, 50)).toHaveProperty('d');
+  });
+  it('matches a scipy.stats.norm oracle', () => {
+    const e = ref.means.zTestKnownSD_basic;
+    const r = zTestKnownSD(e.xbar, e.mu0, e.sigma, e.n);
+    expect(r.z).toBeCloseTo(e.z, 4); // r.z is toFixed(4)-rounded internally
+    expect(r.p).toBeCloseTo(e.p, 6);
   });
 });
 
@@ -121,6 +134,13 @@ describe('signTest', () => {
   it('pos + neg = total', () => {
     const res = signTest([1, -1, 2, -2, 3, 0, 4], 0);
     expect(res.pos + res.neg).toBe(res.total);
+  });
+  it('matches a scipy.stats.binomtest oracle', () => {
+    const e = ref.means.signTest_basic;
+    const r = signTest(e.a, e.mu0);
+    expect(r.pos).toBe(e.pos);
+    expect(r.neg).toBe(e.neg);
+    expect(r.p).toBeCloseTo(e.p, 6);
   });
 });
 
@@ -140,15 +160,56 @@ describe('cohensDGroup', () => {
   it('contract keys', () => expectKeys(cohensDGroup(g1, g2), ['test','d','se','label','n1','n2','apa']));
   it('null <3', () => expect(cohensDGroup([1,2], [3,4])).toBeNull());
   it('d finite', () => { const r = cohensDGroup(g1, g2); if (r) expect(Number.isFinite(r.d)).toBe(true); });
+  it('matches an independently hand-computed pooled-SD Cohen\'s d oracle', () => {
+    const e = ref.means.cohensDGroup_basic;
+    const r = cohensDGroup(e.a, e.b);
+    expect(r.d).toBeCloseTo(e.d, 6);
+  });
 });
 describe('equivalenceT', () => {
   const g1 = [10,12,14,16,18]; const g2 = [11,13,15,17,19];
   it('contract keys', () => expectKeys(equivalenceT(g1, g2, -3, 3), ['test','tLow','tHigh','equivalent','dL','dU','alpha','apa']));
   it('null dL>=dU', () => expect(equivalenceT(g1, g2, 3, -3)).toBeNull());
   it('equivalent is boolean', () => { const r = equivalenceT(g1, g2, -3, 3); if (r) expect(typeof r.equivalent).toBe('boolean'); });
+  it('reports one-sided t-distribution p-values and a real df-dependent critical value (not a fixed z=1.96)', () => {
+    const r = equivalenceT(g1, g2, -3, 3);
+    expectKeys(r, ['tCrit','pLow','pHigh','p','df']);
+    expect(r.pLow).toBeGreaterThanOrEqual(0); expect(r.pLow).toBeLessThanOrEqual(1);
+    expect(r.tCrit).not.toBeCloseTo(1.96, 1); // small-df TOST critical should differ from the old fixed z
+  });
+});
+describe('equivalenceT correctly classifies equivalent vs non-equivalent group pairs', () => {
+  it('declares equivalence for two nearly identical groups within wide bounds', () => {
+    const g1 = [10.0, 10.1, 9.9, 10.2, 9.8, 10.0, 10.1];
+    const g2 = [10.1, 10.0, 10.0, 9.9, 10.2, 10.1, 9.9];
+    const r = equivalenceT(g1, g2, -2, 2);
+    expect(r.equivalent).toBe(true);
+    expect(r.p).toBeLessThan(0.05);
+  });
+  it('rejects equivalence for two groups whose difference clearly exceeds the bounds', () => {
+    const g1 = [1, 2, 1.5, 2.5, 1, 2, 1.5];
+    const g2 = [20, 21, 19.5, 20.5, 20, 21, 19];
+    const r = equivalenceT(g1, g2, -2, 2);
+    expect(r.equivalent).toBe(false);
+  });
 });
 describe('sampleSizeT', () => {
   it('contract keys', () => expectKeys(sampleSizeT(0.5), ['test','nPerGroup','total','d','power','alpha','type','apa']));
   it('null d<=0', () => expect(sampleSizeT(0)).toBeNull());
   it('nPerGroup positive integer', () => { const r = sampleSizeT(0.5); if (r) { expect(r.nPerGroup).toBeGreaterThan(0); expect(Number.isInteger(r.nPerGroup)).toBe(true); } });
+  it('matches the well-known d=0.5, power=0.8 two-sample benchmark (~64/group)', () => {
+    const r = sampleSizeT(0.5, 0.8, 0.05, 'two-sample');
+    expect(r.nPerGroup).toBeGreaterThan(55);
+    expect(r.nPerGroup).toBeLessThan(75);
+  });
+  it('honors the power argument (previously silently ignored): higher power requires more N', () => {
+    const lo = sampleSizeT(0.5, 0.8, 0.05);
+    const hi = sampleSizeT(0.5, 0.95, 0.05);
+    expect(hi.nPerGroup).toBeGreaterThan(lo.nPerGroup);
+  });
+  it('honors the alpha argument (previously silently ignored): tighter alpha requires more N', () => {
+    const loose = sampleSizeT(0.5, 0.8, 0.05);
+    const tight = sampleSizeT(0.5, 0.8, 0.01);
+    expect(tight.nPerGroup).toBeGreaterThan(loose.nPerGroup);
+  });
 });

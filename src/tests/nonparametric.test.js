@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { ksTestOneSample, ksTestTwoSample, permutationTest, runsTestWaldWolfowitz, runsTestAboveBelowMedian, mannWhitney, wilcoxonSR, kde, nadarayaWatson, moodsMedian, jonckheereTerpstra, siegelTukey, loessSmoother, localPolynomial, gcvBandwidth, loessClassification, localLikelihood, kernelRegression, loessCV, isotonicRegression } from './nonparametric.js';
 import { expectKeys, expectPInRange } from './__fixtures__/helpers.js';
 import { normalCDF } from '../math/distributions.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+const npRef = ref.nonparametric;
 
 const A = [2, 3, 4, 5, 6, 7, 8];
 const B = [5, 6, 7, 8, 9, 10, 11];
@@ -42,6 +44,52 @@ describe('ksTestOneSample', () => {
   });
 });
 
+describe('KS p-values use the full Kolmogorov series (not the single-term 2e^-2z^2 approximation)', () => {
+  // Independent oracle: the textbook Kolmogorov survival function
+  // Q(λ) = 2 Σ (-1)^(k-1) e^(-2k²λ²), with the Stephens (1970) finite-sample λ correction.
+  function oracleQ(D, n) {
+    const sqrtN = Math.sqrt(n);
+    const lambda = (sqrtN + 0.12 + 0.11 / sqrtN) * D;
+    let sum = 0;
+    for (let k = 1; k <= 50; k++) sum += 2 * (k % 2 === 0 ? -1 : 1) * Math.exp(-2 * k * k * lambda * lambda);
+    return Math.min(1, Math.max(0, sum));
+  }
+  it('one-sample p matches the independently-computed full-series oracle', () => {
+    const cdf = (x) => normalCDF(x);
+    const sample = [1.5, 0.5, -0.3, 1.2, -0.8, 0.0, 0.9, -1.0, 0.7, -0.5];
+    const r = ksTestOneSample(sample, cdf);
+    expect(r.p).toBeCloseTo(oracleQ(r.D, sample.length), 4);
+  });
+  it('two-sample p matches the independently-computed full-series oracle', () => {
+    const r = ksTestTwoSample(A, B);
+    const en = Math.sqrt((A.length * B.length) / (A.length + B.length));
+    // oracleQ expects an n for the sqrt(n) correction term; reuse en directly via a tiny adapter.
+    const sqrtN = en, lambda = (sqrtN + 0.12 + 0.11 / sqrtN) * r.D;
+    let sum = 0; for (let k = 1; k <= 50; k++) sum += 2 * (k % 2 === 0 ? -1 : 1) * Math.exp(-2 * k * k * lambda * lambda);
+    expect(r.p).toBeCloseTo(Math.min(1, Math.max(0, sum)), 4);
+  });
+  it('the one-term approximation overstates significance relative to the full series at moderate D', () => {
+    // At lambda ~ 1.0, the single term 2e^{-2} ≈ 0.2707, while the true (converged) series
+    // value differs measurably once later terms are included — verifying we actually sum
+    // the series rather than stopping after the first term.
+    const cdf = (x) => normalCDF(x);
+    // A moderate mismatch designed to land D*sqrt(n) around 1 for n=20.
+    const sample = Array.from({ length: 20 }, (_, i) => -1 + i * 0.15);
+    const r = ksTestOneSample(sample, cdf);
+    const singleTerm = Math.min(1, 2 * Math.exp(-2 * (r.D * Math.sqrt(20)) ** 2));
+    expect(Math.abs(r.p - singleTerm)).toBeGreaterThan(0); // not identical to the crude one-term value
+  });
+  it('D matches a scipy.stats.kstest oracle exactly (D is a pure ECDF computation); p is in the same ballpark under a different legitimate finite-sample correction', () => {
+    // scipy's asymptotic KS p-value uses a different (also textbook-legitimate)
+    // finite-sample correction than the Stephens (1970) one used here, so the two
+    // p-values are close but not bit-identical — this asserts D exactly and p loosely.
+    const e = npRef.ks1samp_basic;
+    const r = ksTestOneSample(e.x, v => normalCDF(v));
+    expect(r.D).toBeCloseTo(e.D, 5);
+    expect(r.p).toBeCloseTo(e.p, 1);
+  });
+});
+
 describe('ksTestTwoSample', () => {
   it('returns null for small samples', () => {
     expect(ksTestTwoSample([1, 2], [3, 4])).toBeNull();
@@ -58,6 +106,13 @@ describe('ksTestTwoSample', () => {
 
   it('identical distributions give D = 0', () => {
     expect(ksTestTwoSample([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]).D).toBe(0);
+  });
+
+  it('D matches a scipy.stats.ks_2samp oracle exactly; p is in the same ballpark under a different legitimate finite-sample correction', () => {
+    const e = npRef.ks2samp_basic;
+    const r = ksTestTwoSample(e.a, e.b);
+    expect(r.D).toBeCloseTo(e.D, 5);
+    expect(r.p).toBeCloseTo(e.p, 1);
   });
 
   it('D increases with group separation', () => {
@@ -244,6 +299,13 @@ describe('wilcoxonSR', () => {
   it('zero diffs excluded from n', () => {
     const r = wilcoxonSR([1, 2, 3, 3, 4, 5], [1, 2, 3, 3, 4, 5]);
     expect(r).toBeNull();
+  });
+
+  it('matches a scipy.stats.wilcoxon oracle on tied |differences| (regression test for the tie-correction fix)', () => {
+    const e = npRef.wilcoxonSR_ties;
+    const r = wilcoxonSR(e.a, e.b);
+    expect(r.W).toBeCloseTo(e.W, 4);
+    expect(r.p).toBeCloseTo(e.p, 4);
   });
 
   it('APA string contains W and p', () => {

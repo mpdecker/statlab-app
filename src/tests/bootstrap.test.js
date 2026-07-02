@@ -61,6 +61,18 @@ describe('splitConformal', () => {
   it('contract keys', () => expectKeys(splitConformal([1,2,3,4,5,6,7,8,9,10],[1.1,2.2,3.3,4.4,5.5,6.6,7.7,8.8,9.9,10.1]), ['test', 'radius', 'alpha', 'nTrain', 'nCal', 'apa']));
   it('null <10', () => expect(splitConformal([1,2,3],[4,5])).toBeNull());
   it('radius positive', () => { const r = splitConformal([1,2,3,4,5,6,7,8,9,10],[1.1,2.2,3.3,4.4,5.5,6.6,7.7,8.8,9.9,10.1]); if (r) expect(r.radius).toBeGreaterThan(0); });
+  it('falls back to the constant model when no covariates are given', () => { const r = splitConformal([1,2,3,4,5,6,7,8,9,10],[1.1,2.2,3.3,4.4,5.5,6.6,7.7,8.8,9.9,10.1]); expect(r.model).toBe('mean'); });
+  it('uses a fitted linear model when covariates are supplied, shrinking the radius vs the mean model', () => {
+    let s = 17; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    const xTrain = Array.from({ length: 200 }, (_, i) => i);
+    const yTrain = xTrain.map(x => 3 * x + 5 + rnd() * 0.5);
+    const xCal = Array.from({ length: 200 }, (_, i) => 200 + i);
+    const yCal = xCal.map(x => 3 * x + 5 + rnd() * 0.5);
+    const withX = splitConformal(yTrain, yCal, { xTrain, xCal });
+    const withoutX = splitConformal(yTrain, yCal);
+    expect(withX.model).toBe('linear');
+    expect(withX.radius).toBeLessThan(withoutX.radius);
+  });
 });
 
 describe('conformalPvalues', () => {
@@ -73,6 +85,19 @@ describe('jackknifePlus', () => {
   it('contract keys', () => expectKeys(jackknifePlus([1,2,3,4,5,6,7,8,9,10],[2,4,6,8,10,12,14,16,18,20]), ['test', 'radius', 'alpha', 'n', 'apa']));
   it('null mismatch', () => expect(jackknifePlus([1,2,3],[4,5,6,7])).toBeNull());
   it('radius positive', () => { const r = jackknifePlus([1,2,3,4,5,6,7,8,9,10],[2,4,6,8,10,12,14,16,18,20]); if (r && r.radius) expect(r.radius).toBeGreaterThan(0); });
+  it('interval brackets the true intercept+slope prediction at the target (not a through-origin ratio)', () => {
+    // y = 2x - 5 + small noise: a through-origin fit (pred = (sumY/sumX)*x) would be badly biased
+    // here because the true relationship has a large negative intercept.
+    let s = 3; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    const X = Array.from({ length: 60 }, (_, i) => i + 1);
+    const y = X.map(x => 2 * x - 5 + rnd() * 0.2);
+    const target = 30;
+    const r = jackknifePlus(X, y, { xNew: target });
+    const truth = 2 * target - 5;
+    expect(r.lower).toBeLessThanOrEqual(truth + 1);
+    expect(r.upper).toBeGreaterThanOrEqual(truth - 1);
+    expect(r.upper - r.lower).toBeLessThan(10); // interval is tight around a near-noiseless line
+  });
 });
 
 describe('moderatedMediation computes the real index a*b_MW', () => {

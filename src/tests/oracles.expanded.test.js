@@ -21,6 +21,7 @@ describe('expanded regression oracles', () => {
     const r = welchANOVA(mkGroups());
     const e = ref.anova.welch_fixture_groups;
     expect(r.F).toBeCloseTo(e.F, 3);
+    expect(r.df2).toBeCloseTo(e.df2, 1);
     expect(r.p).toBeCloseTo(e.p, 6);
   });
 
@@ -60,5 +61,30 @@ describe('expanded regression oracles', () => {
     const e = ref.meta.two_studies;
     expect(r.dRE).toBeCloseTo(e.dRE, 2);
     expect(r.p).toBeCloseTo(e.p, 6);
+  });
+});
+
+describe('welchANOVA matches statsmodels anova_oneway(use_var="unequal") across k=2,3,4 (regression test for the df2 formula fix)', () => {
+  const mk = (arrs) => arrs.map((vals, i) => ({ name: String.fromCharCode(65 + i), vals }));
+  it('k=2 unequal variance', () => {
+    const e = ref.anova.welch_k2;
+    const r = welchANOVA(mk(e.groups));
+    expect(r.F).toBeCloseTo(e.F, 3);
+    expect(r.df2).toBeCloseTo(e.df2, 1);
+    expect(r.p).toBeCloseTo(e.p, 5);
+  });
+  it('k=3 unequal n and variance', () => {
+    const e = ref.anova.welch_k3_unequal;
+    const r = welchANOVA(mk(e.groups));
+    expect(r.F).toBeCloseTo(e.F, 3);
+    expect(r.df2).toBeCloseTo(e.df2, 1);
+    expect(r.p).toBeCloseTo(e.p, 5);
+  });
+  it('k=4 unequal n and variance', () => {
+    const e = ref.anova.welch_k4;
+    const r = welchANOVA(mk(e.groups));
+    expect(r.F).toBeCloseTo(e.F, 3);
+    expect(r.df2).toBeCloseTo(e.df2, 1);
+    expect(r.p).toBeCloseTo(e.p, 5);
   });
 });

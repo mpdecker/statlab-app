@@ -340,6 +340,21 @@ describe('repeatedMeasuresMANOVA', () => {
   it('contract keys', () => expectKeys(repeatedMeasuresMANOVA(d, ['y1','y2','y3']), ['test','totalSS','betweenSS','withinSS','k','n','apa']));
   it('null <2 responses', () => expect(repeatedMeasuresMANOVA(d, ['y1'])).toBeNull());
   it('k matches responses', () => { const r = repeatedMeasuresMANOVA(d, ['y1','y2','y3']); if (r) expect(r.k).toBe(3); });
+  it('reports an F test with GG correction', () => expectKeys(repeatedMeasuresMANOVA(d, ['y1','y2','y3']), ['test','F','p','dfCondition','dfError','ggEpsilon','pGG']));
+  it('detects a real within-subject condition effect (low p)', () => {
+    let s = 7; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    const dd = []; for (let i = 0; i < 30; i++) { const subj = rnd() * 2; dd.push({ y1: 10 + subj + rnd(), y2: 13 + subj + rnd(), y3: 16 + subj + rnd() }); }
+    const r = repeatedMeasuresMANOVA(dd, ['y1','y2','y3']);
+    expect(r.F).toBeGreaterThan(4);
+    expect(r.p).toBeLessThan(0.01);
+    expect(r.ggEpsilon).toBeLessThanOrEqual(1);
+  });
+  it('does not flag a condition effect when levels share a mean (high p)', () => {
+    let s = 99; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    const dd = []; for (let i = 0; i < 30; i++) { const subj = rnd() * 3; dd.push({ y1: 10 + subj + rnd(), y2: 10 + subj + rnd(), y3: 10 + subj + rnd() }); }
+    const r = repeatedMeasuresMANOVA(dd, ['y1','y2','y3']);
+    expect(r.p).toBeGreaterThan(0.05);
+  });
 });
 describe('transitionModel', () => {
   const d = []; for (let i = 0; i < 20; i++) d.push({ id: Math.floor(i/3), y: i * 2, x1: i % 3, x2: i % 2 });

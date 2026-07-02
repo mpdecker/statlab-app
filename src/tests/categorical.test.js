@@ -60,6 +60,12 @@ describe('chiGoF', () => {
   it('df = k-1', () => {
     expect(chiGoF([10, 20, 30], [20, 20, 20]).df).toBe(2);
   });
+  it('matches a scipy.stats.chisquare oracle', () => {
+    const e = cat.chiGoF_basic;
+    const r = chiGoF(e.observed, e.expected);
+    expect(r.chi2).toBeCloseTo(e.chi2, 6);
+    expect(r.p).toBeCloseTo(e.p, 6);
+  });
 });
 
 describe('fisherExact', () => {
@@ -288,6 +294,21 @@ describe('grubbsTest', () => {
     expect(res).toHaveProperty('G');
     expect(res).toHaveProperty('outlierIdx');
   });
+  it('matches the exact t-distribution Grubbs oracle (moderate significance)', () => {
+    const e = cat.grubbs_moderate;
+    const r = grubbsTest(e.vals);
+    expect(r.G).toBeCloseTo(e.G, 4);
+    expect(r.p).toBeCloseTo(e.p, 3);
+  });
+  it('reports a p-value far smaller than the old normal-approximation would give, on an extreme outlier', () => {
+    // Previously grubbsTest used a normal approximation that gave p≈0.033 here;
+    // the correct t(n-2)-distribution reference gives p≈1.4e-6 — a ~24,000x
+    // understatement of significance in the old code.
+    const e = cat.grubbs_extreme;
+    const r = grubbsTest(e.vals);
+    expect(r.G).toBeCloseTo(e.G, 4);
+    expect(r.p).toBeLessThan(0.0001);
+  });
 });
 
 describe('leveneTest', () => {
@@ -310,6 +331,12 @@ describe('leveneTest', () => {
     const res = leveneTest([[1, 2, 3, 4, 5], [10, 20, 30, 40, 50]]);
     expect(res.F).toBeGreaterThanOrEqual(0);
   });
+  it('matches a scipy.stats.levene(center="mean") oracle', () => {
+    const e = cat.levene_basic;
+    const r = leveneTest(e.groups);
+    expect(r.F).toBeCloseTo(e.F, 4); // r.F is toFixed(4)-rounded internally
+    expect(r.p).toBeCloseTo(e.p, 6);
+  });
 });
 
 describe('bartlettTest', () => {
@@ -331,6 +358,12 @@ describe('bartlettTest', () => {
     const groups = [[1,2,3,4,5], [2,4,6,8,10]];
     const r = bartlettTest(groups);
     expect(r.B).toBeGreaterThanOrEqual(0);
+  });
+  it('matches a scipy.stats.bartlett oracle', () => {
+    const e = cat.bartlett_basic;
+    const r = bartlettTest(e.groups);
+    expect(r.B).toBeCloseTo(e.B, 4); // r.B is toFixed(4)-rounded internally
+    expect(r.p).toBeCloseTo(e.p, 6);
   });
 });
 

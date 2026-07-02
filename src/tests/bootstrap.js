@@ -212,15 +212,36 @@ export function moderatedMediation(data, treatVar, mediator, moderator, outcomeV
   return { test: 'Moderated Mediation', a: +a.toFixed(4), bw: +bw.toFixed(4), bMW: +bw.toFixed(4), index: +(a * bw).toFixed(4), n, apa: `ModMed index = ${(a * bw).toFixed(3)}` };
 }
 
-// ── Split Conformal ───────────────────────────────────────────────
-export function splitConformal(yTrain, yCal, { alpha = 0.1 } = {}) {
+// ── Split Conformal (Lei et al. 2018; Vovk et al. 2005) ────────────
+// Fits a point predictor on the training fold, scores absolute residuals on a
+// disjoint calibration fold, and returns the finite-sample-corrected
+// (1-alpha) empirical quantile (⌈(1-α)(n+1)⌉-th order statistic) as the
+// conformal radius — the classical split-conformal guarantee. If covariate
+// arrays (xTrain/xCal) are supplied the model is OLS y = a + b·x fit on the
+// training fold; otherwise it falls back to the constant (mean) predictor.
+export function splitConformal(yTrain, yCal, { alpha = 0.1, xTrain = null, xCal = null } = {}) {
   if (!yTrain || !yCal || yTrain.length < 10 || yCal.length < 10) return null;
   const nCal = yCal.length;
-  const residuals = yCal.map((v, i) => Math.abs(v - (yTrain[i % yTrain.length] || 0)));
+  const useX = Array.isArray(xTrain) && Array.isArray(xCal) && xTrain.length === yTrain.length && xCal.length === nCal;
+  let predict, model;
+  if (useX) {
+    const mx = avg(xTrain), my = avg(yTrain);
+    let sxy = 0, sxx = 0;
+    for (let i = 0; i < xTrain.length; i++) { sxy += (xTrain[i] - mx) * (yTrain[i] - my); sxx += (xTrain[i] - mx) ** 2; }
+    const b = sxx > 1e-12 ? sxy / sxx : 0;
+    const a = my - b * mx;
+    predict = (x) => a + b * x;
+    model = 'linear';
+  } else {
+    const muHat = avg(yTrain);
+    predict = () => muHat;
+    model = 'mean';
+  }
+  const residuals = (useX ? yCal.map((v, i) => Math.abs(v - predict(xCal[i]))) : yCal.map(v => Math.abs(v - predict())));
   residuals.sort((a, b) => a - b);
-  const k = Math.floor((1 - alpha) * (nCal + 1));
-  const radius = k < nCal ? residuals[k] : residuals[nCal - 1];
-  return { test: 'Split Conformal', radius: +radius.toFixed(4), alpha, nTrain: yTrain.length, nCal: nCal, apa: `Conformal radius = ${radius.toFixed(3)}, α = ${alpha}` };
+  const k = Math.min(nCal - 1, Math.ceil((1 - alpha) * (nCal + 1)) - 1);
+  const radius = residuals[Math.max(0, k)];
+  return { test: 'Split Conformal', radius: +radius.toFixed(4), model, alpha, nTrain: yTrain.length, nCal, apa: `Conformal radius = ${radius.toFixed(3)} (${model} model), α = ${alpha}` };
 }
 
 // ── Conformal P-values ────────────────────────────────────────────
@@ -232,21 +253,37 @@ export function conformalPvalues(scores, testScore) {
   return { test: 'Conformal P-values', p: +p.toFixed(4), n, apa: `Conformal p = ${p.toFixed(3)}` };
 }
 
-// ── Jackknife+ ────────────────────────────────────────────────────
-export function jackknifePlus(X, y, { alpha = 0.1 } = {}) {
+// ── Jackknife+ (Barber, Candès, Ramdas & Tibshirani 2021) ──────────
+// For each i, fits an intercept+slope OLS model on all points except i,
+// records the leave-one-out residual R_i = |y_i − f_{-i}(x_i)|, and evaluates
+// f_{-i} at the target point (xNew, default = mean(X)). The predictive
+// interval is [ (1-α)-lower quantile of f_{-i}(xNew) − R_i , (1-α)-upper
+// quantile of f_{-i}(xNew) + R_i ] — the asymmetric min/max construction
+// that gives Jackknife+ its distribution-free coverage guarantee (unlike a
+// plain quantile of centered residuals around a single full-data fit).
+export function jackknifePlus(X, y, { alpha = 0.1, xNew = null } = {}) {
   if (!X || !y || X.length < 10 || X.length !== y.length) return null;
   const n = X.length;
-  const residuals = [];
+  const target = xNew != null ? xNew : avg(X);
+  const lower = [], upper = [];
   for (let i = 0; i < n; i++) {
-    const loo = X.filter((_, j) => j !== i);
-    const looY = y.filter((_, j) => j !== i);
-    const sumX = loo.reduce((s, v) => s + v, 0);
-    const sumY = looY.reduce((s, v) => s + v, 0);
-    const pred = sumX > 0 ? (sumY / sumX) * X[i] : avg(looY);
-    residuals.push(Math.abs(y[i] - pred));
+    const xi = X.filter((_, j) => j !== i);
+    const yi = y.filter((_, j) => j !== i);
+    const mx = avg(xi), my = avg(yi);
+    let sxy = 0, sxx = 0;
+    for (let j = 0; j < xi.length; j++) { sxy += (xi[j] - mx) * (yi[j] - my); sxx += (xi[j] - mx) ** 2; }
+    const b = sxx > 1e-12 ? sxy / sxx : 0;
+    const a = my - b * mx;
+    const residual = Math.abs(y[i] - (a + b * X[i]));
+    const predAtTarget = a + b * target;
+    lower.push(predAtTarget - residual);
+    upper.push(predAtTarget + residual);
   }
-  residuals.sort((a, b) => a - b);
-  const k = Math.floor((1 - alpha) * (n + 1));
-  const radius = k < n ? residuals[Math.min(k, n - 1)] : residuals[n - 1];
-  return { test: 'Jackknife+', radius: +radius.toFixed(4), alpha, n, apa: `Jackknife+ radius = ${radius.toFixed(3)}` };
+  lower.sort((a, b) => a - b);
+  upper.sort((a, b) => a - b);
+  const kLo = Math.max(0, Math.floor(alpha * (n + 1)) - 1);
+  const kHi = Math.min(n - 1, Math.ceil((1 - alpha) * (n + 1)) - 1);
+  const lo = lower[kLo], hi = upper[kHi];
+  const radius = Math.max(0, (hi - lo) / 2);
+  return { test: 'Jackknife+', lower: +lo.toFixed(4), upper: +hi.toFixed(4), radius: +radius.toFixed(4), target: +target.toFixed(4), alpha, n, apa: `Jackknife+ interval [${lo.toFixed(3)}, ${hi.toFixed(3)}] at x=${target.toFixed(2)}` };
 }

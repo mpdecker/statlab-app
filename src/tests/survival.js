@@ -735,6 +735,23 @@ export function aalenModel(obs, covNames) {
 }
 
 // ── Cure Model (Mixture) ────────────────────────────────────────────────────
+// Weighted Breslow baseline survival for the "uncured" partial-likelihood Cox fit:
+// Ŝ_0(t) = exp(-Σ_{t_k≤t} d_k / Σ_{j∈risk(t_k)} w_j·exp(Xβ_j)). Returns a step function.
+function _breslowS0(eventTimes, sorted, X, survBeta, weights) {
+  let cumHaz = 0;
+  const steps = [];
+  for (const t of eventTimes) {
+    let sumExp = 0, dCount = 0;
+    for (let i = 0; i < sorted.length; i++) {
+      if (sorted[i].time >= t) sumExp += weights[i] * Math.exp(survBeta.reduce((s, b, j) => s + b * X[i][j], 0));
+      if (sorted[i].time === t && sorted[i].event === 1) dCount++;
+    }
+    if (sumExp > 0) cumHaz += dCount / sumExp;
+    steps.push({ t, S0: Math.exp(-cumHaz) });
+  }
+  return (tq) => { let s = 1; for (const st of steps) { if (st.t <= tq) s = st.S0; else break; } return s; };
+}
+
 export function cureModel(obs, covNames, { maxIter = 50, tolerance = 1e-5 } = {}) {
   if (!obs || obs.length < 30 || !covNames || !covNames.length) return null;
   const sorted = [...obs].sort((a, b) => a.time - b.time);
@@ -750,6 +767,10 @@ export function cureModel(obs, covNames, { maxIter = 50, tolerance = 1e-5 } = {}
   let survBeta = Array(k).fill(0);
   let cureFrac = 0.5;
   let logLik = -Infinity;
+  // Baseline S_u(t) for the uncured partial-population Cox model, refreshed after
+  // each M-step and used by the *next* E-step (iteration 0 starts from S_u≡1, i.e.
+  // no survival information yet — the standard EM cold-start for mixture cure models).
+  let baselineS0 = () => 1;
 
   for (let iter = 0; iter < maxIter; iter++) {
     const probs = sorted.map((o, i) => {
@@ -757,13 +778,16 @@ export function cureModel(obs, covNames, { maxIter = 50, tolerance = 1e-5 } = {}
       return 1 / (1 + Math.exp(-eta));
     });
 
-    // E-step: posterior probability of being cured (only for censored obs)
+    // E-step (Sy & Taylor 2000): posterior cure probability for censored obs uses
+    // the survival function of the uncured subpopulation, P(cured | censored, t_i)
+    // = π_i / (π_i + (1-π_i)·S_u(t_i|X_i)), with S_u(t|X) = Ŝ_0(t)^{exp(Xβ)}.
     const isCured = sorted.map((o, i) => {
       if (o.event === 1) return 0;
       const pi = probs[i];
-      // For censored: P(cured | censored, t_i) = pi / (pi + (1-pi) * S_u(t_i))
-      // Approximate S_u(t_i) as KM or use simple ratio
-      return pi; // simplified: use current cure probability
+      const linPred = Math.exp(survBeta.reduce((s, b, j) => s + b * X[i][j], 0));
+      const Su = Math.pow(Math.max(baselineS0(o.time), 1e-12), linPred);
+      const denom = pi + (1 - pi) * Su;
+      return denom > 0 ? pi / denom : pi;
     });
 
     // M-step cure: logistic on uncured = isCured
@@ -824,6 +848,7 @@ export function cureModel(obs, covNames, { maxIter = 50, tolerance = 1e-5 } = {}
       survBeta = survBeta.map((b, j) => b - step[j]); // Newton ascent: −h⁻¹·grad
       if (Math.sqrt(step.reduce((s, v) => s + v * v, 0)) < 1e-6) break;
     }
+    baselineS0 = _breslowS0(eventTimes, sorted, X, survBeta, weights);
 
     if (Math.abs(cureFrac * n - (iter > 0 ? 0 : n)) < tolerance) break;
   }

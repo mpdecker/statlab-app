@@ -1,5 +1,5 @@
 import { avg, sampleSD, corr } from '../math/core.js';
-import { normalCDF, chiPVal } from '../math/distributions.js';
+import { normalCDF, normalINV, chiPVal } from '../math/distributions.js';
 import { tInv2 } from '../math/distributions.js';
 
 // Wilson score CI for a proportion
@@ -575,13 +575,23 @@ export function populationAttributableFraction(prevalence, or) {
 }
 
 // ── Cornfield Bounds ──────────────────────────────────────────────
+// ── Cornfield Bounds (Cornfield 1959; Schlesselman 1978) ───────────────────
+// The classic bound on unmeasured confounding: given an unmeasured binary
+// confounder present with probability `confounderPrevalence` among the
+// exposed (and absent among the unexposed), this is the minimum relative
+// risk that confounder would need with the OUTCOME to fully explain away the
+// observed exposure-disease OR: RR_CD,min = OR / (p·(OR−1) + 1). The
+// previous implementation accepted `confounderPrevalence` but never used it
+// — it just returned the ordinary Wald 95% CI lower bound of the OR, which
+// answers a different question (sampling uncertainty, not confounding).
 export function cornfieldBounds(a, b, c, d, confounderPrevalence) {
   if (![a, b, c, d].every(v => v > 0) || !Number.isFinite(confounderPrevalence) || confounderPrevalence <= 0 || confounderPrevalence >= 1) return null;
   const or = a * d / (b * c);
   const n = a + b + c + d;
-  const pD = (a + c) / n;
-  const minOr = Math.max(0.1, or / Math.exp(1.96 * Math.sqrt(1 / a + 1 / b + 1 / c + 1 / d)));
-  return { test: 'Cornfield Bounds', observedOR: +or.toFixed(4), lowerBound: +minOr.toFixed(4), confounderPrevalence, n, apa: `Cornfield: OR=${or.toFixed(2)}, lower bound=${minOr.toFixed(2)}` };
+  const minRR = or / (confounderPrevalence * (or - 1) + 1);
+  const seLogOR = Math.sqrt(1 / a + 1 / b + 1 / c + 1 / d);
+  const ciLow = +(or * Math.exp(-1.96 * seLogOR)).toFixed(4), ciHigh = +(or * Math.exp(1.96 * seLogOR)).toFixed(4);
+  return { test: 'Cornfield Bounds', observedOR: +or.toFixed(4), lowerBound: +minRR.toFixed(4), minConfounderRR: +minRR.toFixed(4), ciLow, ciHigh, confounderPrevalence, n, apa: `Cornfield: OR=${or.toFixed(2)}, confounder must have RR≥${minRR.toFixed(2)} with the outcome (at prevalence ${confounderPrevalence}) to explain it away` };
 }
 
 // ── Hosmer-Lemeshow ───────────────────────────────────────────────
@@ -693,12 +703,23 @@ export function fisherCombination(pValues) {
   return { test: 'Fisher Combination', chi2: +chi2.toFixed(4), df, p, nStages: pValues.length, apa: `Fisher: χ²(${df}) = ${chi2.toFixed(2)}, p = ${p.toFixed(4)}` };
 }
 
-// ── Adaptive Design ───────────────────────────────────────────────
-export function adaptiveDesign(n1, n2, target, method = 'OCP') {
+// ── Adaptive Design (combined-information power) ────────────────────────────
+// Replaces an ad hoc `1 - exp(-2·target²/(1/n1+1/n2))` expression — not a
+// recognized power/significance distribution and independent of α — with the
+// standard normal-approximation power formula Φ(δ - z_{α/2}), δ = target·
+// √(n1n2/(n1+n2)), using a real z-critical for the requested α. Note this is
+// the *fixed-design* two-stage-information analogue, not a true group-
+// sequential conditional-power recalculation (which needs an interim test
+// statistic and information fraction, not just n1/n2) — `method` is
+// currently accepted but not yet used to select an actual boundary/spending
+// function; see BASELINE.md for the follow-up scope.
+export function adaptiveDesign(n1, n2, target, method = 'OCP', alpha = 0.05) {
   if (!n1 || !n2 || !Number.isFinite(target)) return null;
   const total = n1 + n2;
-  const power = Math.max(0, Math.min(1, 1 - Math.exp(-2 * target * target / (1 / n1 + 1 / n2))));
-  return { test: 'Adaptive Design', n1, n2, total, power: +power.toFixed(4), method, apa: `Adaptive: n1=${n1}, n2=${n2}, power ≈ ${power.toFixed(2)}` };
+  const zCrit = normalINV(1 - alpha / 2);
+  const delta = Math.abs(target) * Math.sqrt((n1 * n2) / (n1 + n2));
+  const power = Math.max(0, Math.min(1, normalCDF(delta - zCrit)));
+  return { test: 'Adaptive Design', n1, n2, total, power: +power.toFixed(4), method, alpha, apa: `Adaptive: n1=${n1}, n2=${n2}, power ≈ ${power.toFixed(2)} (α=${alpha})` };
 }
 
 // ── Clinical Utility Index ────────────────────────────────────────

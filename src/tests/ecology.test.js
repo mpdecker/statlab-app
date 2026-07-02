@@ -26,10 +26,24 @@ describe('simperAnalysis', () => {
 });
 describe('adonis2', () => {
   const d = []; for (let i = 0; i < 20; i++) d.push({ sp1: Math.random() * 10, sp2: Math.random() * 5, sp3: Math.random() * 3, group: i < 10 ? 'A' : 'B' });
-  it('contract keys', () => expectKeys(adonis2(d, ['sp1','sp2','sp3'], 'group'), ['test','R2','F','ssTotal','ssGroup','nPerm','apa']));
+  it('contract keys', () => expectKeys(adonis2(d, ['sp1','sp2','sp3'], 'group'), ['test','R2','F','ssTotal','ssGroup','p','nPerm','apa']));
   it('null <2 species', () => expect(adonis2(d, ['sp1'], 'group')).toBeNull());
   it('R2 between 0 and 1', () => { const r = adonis2(d, ['sp1','sp2','sp3'], 'group'); if (r) { expect(r.R2).toBeGreaterThanOrEqual(0); expect(r.R2).toBeLessThanOrEqual(1); } });
   it('F positive', () => { const r = adonis2(d, ['sp1','sp2','sp3'], 'group'); if (r) expect(r.F).toBeGreaterThanOrEqual(0); });
+  it('permutation p is a valid probability', () => { const r = adonis2(d, ['sp1','sp2','sp3'], 'group', { nPerm: 199 }); expect(r.p).toBeGreaterThan(0); expect(r.p).toBeLessThanOrEqual(1); });
+  it('detects a real group separation (low p)', () => {
+    let s = 3; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+    const sep = []; for (let i = 0; i < 40; i++) { const g = i < 20 ? 'A' : 'B'; const shift = g === 'A' ? 0 : 8; sep.push({ sp1: shift + rnd() * 2, sp2: shift + rnd() * 2, sp3: shift + rnd() * 2, group: g }); }
+    const r = adonis2(sep, ['sp1','sp2','sp3'], 'group', { nPerm: 199 });
+    expect(r.p).toBeLessThan(0.05);
+    expect(r.R2).toBeGreaterThan(0.5);
+  });
+  it('does not flag separation when groups are exchangeable (high p)', () => {
+    let s = 5; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+    const nul = []; for (let i = 0; i < 40; i++) nul.push({ sp1: rnd() * 5, sp2: rnd() * 5, sp3: rnd() * 5, group: i % 2 === 0 ? 'A' : 'B' });
+    const r = adonis2(nul, ['sp1','sp2','sp3'], 'group', { nPerm: 199 });
+    expect(r.p).toBeGreaterThan(0.05);
+  });
 });
 describe('betadisper', () => {
   const d = []; for (let i = 0; i < 20; i++) d.push({ sp1: Math.random() * 10, sp2: Math.random() * 5, sp3: Math.random() * 3, group: i < 10 ? 'A' : 'B' });

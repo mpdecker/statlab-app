@@ -193,13 +193,25 @@ export function bayesFactorCorr(r, n) {
   };
 }
 
-// ── Grubbs outlier test ───────────────────────────────────────────────────────
+// ── Grubbs outlier test (exact t-distribution reference; Grubbs 1950) ──────
+// G = max|x-x̄|/s relates EXACTLY to a t-distributed statistic (not a normal
+// one): t = G·√(n(n-2) / ((n-1)²-G²n)) ~ t(n-2) per candidate, Bonferroni-
+// corrected over 2n one-sided comparisons (n possible outlier positions × 2
+// tails). The previous normal-approximation formula understated significance
+// by orders of magnitude (verified self-consistent: inverting the standard
+// NIST Grubbs critical-value formula for a chosen α recovers exactly α under
+// this p-value formula, and matches at G_crit(0.05, n=8)=2.1266 → p=0.05).
 export function grubbsTest(vals) {
   const n = vals.length; if (n < 7) return null;
   const m = avg(vals), s = sampleSD(vals);
   if (!s || s < 1e-14) return null;
   const devs = vals.map((x, i) => ({ val: x, z: Math.abs(x - m) / s, idx: i })).sort((a, b) => b.z - a.z);
-  const G = devs[0].z, p = Math.min(1, 1 - Math.pow(1 - normalCDF(-G * Math.sqrt(n / (n - 1))), n));
+  const G = devs[0].z;
+  const denom = (n - 1) ** 2 - G ** 2 * n;
+  const t = denom > 0 ? G * Math.sqrt((n * (n - 2)) / denom) : Infinity;
+  // tPVal(t,df) is the two-tailed p-value 2·P(T>|t|); the one-sided upper tail is
+  // half that (t is always ≥0 here), so p = min(1, 2n·[tPVal(t,df)/2]) = n·tPVal(t,df).
+  const p = Math.min(1, n * tPVal(t, n - 2));
   return {
     test: "Grubbs Outlier", G: +G.toFixed(4), outlierVal: devs[0].val, outlierIdx: devs[0].idx, p: +p.toFixed(4), n,
     apa: `G = ${G.toFixed(3)}, ${fmtP(p)} — ${p < .05 ? `outlier detected: ${devs[0].val}` : "no outlier"}`,

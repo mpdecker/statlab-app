@@ -9,3 +9,5 @@ dist/
 .claude/
 
 .vercel
+
+scripts/_fixtures_dump.json

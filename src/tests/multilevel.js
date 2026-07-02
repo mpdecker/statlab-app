@@ -1,5 +1,5 @@
 import { avg, sampleVar, sampleSD, fmtP } from '../math/core.js';
-import { tPVal, tInv2, chiPVal, normalCDF, lngamma } from '../math/distributions.js';
+import { tPVal, tInv2, chiPVal, normalCDF, lngamma, fPVal } from '../math/distributions.js';
 import { matTrans, matMul, matInv } from '../math/matrix.js';
 import { mleFit } from '../math/inference.js';
 
@@ -1036,22 +1036,50 @@ export function remlEstimate(X, y, clusterVar) {
   return { test: 'REML Estimation', sigma2: +sigma2R.toFixed(6), sigma2u: +sigma2u.toFixed(6), icc: +icc.toFixed(4), logLik: +logLik.toFixed(4), aic: +aic.toFixed(4), n, p, apa: `REML: σ²_e=${sigma2R.toFixed(4)}, σ²_u=${sigma2u.toFixed(4)}, ICC=${icc.toFixed(3)}` };
 }
 
-// ── Repeated Measures MANOVA ──────────────────────────────────────
+// ── Repeated Measures ANOVA (within-subjects, single factor) ──────
+// One within-subjects factor with k levels measured on n subjects. Partitions
+// SS_total = SS_subjects + SS_condition + SS_error and tests the condition
+// effect F = MS_condition / MS_error on (k−1, (n−1)(k−1)) df. Reports the
+// Greenhouse–Geisser sphericity correction (ε) and the corrected p-value.
 export function repeatedMeasuresMANOVA(data, responses, within = null, between = null) {
   if (!data || data.length < 10 || !responses || responses.length < 2) return null;
   const n = data.length;
   const Y = data.map(r => responses.map(v => +r[v]));
   const k = responses.length;
-  const grandMean = Y[0].map((_, j) => avg(Y.map(r => r[j])));
-  let withinSS = 0, totalSS = 0;
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < k; j++) {
-      totalSS += (Y[i][j] - grandMean[j]) ** 2;
-      withinSS += (Y[i][j] - avg(Y[i])) ** 2;
-    }
-  }
-  const betweenSS = totalSS - withinSS;
-  return { test: 'Repeated Measures MANOVA', totalSS: +totalSS.toFixed(4), betweenSS: +betweenSS.toFixed(4), withinSS: +withinSS.toFixed(4), k, n, apa: `RM MANOVA: ${k} measures, n=${n}` };
+  const colMean = Y[0].map((_, j) => avg(Y.map(r => r[j])));   // per-condition means
+  const rowMean = Y.map(r => avg(r));                           // per-subject means
+  const grand = avg(colMean);
+  let totalSS = 0;
+  for (let i = 0; i < n; i++) for (let j = 0; j < k; j++) totalSS += (Y[i][j] - grand) ** 2;
+  let ssSubjects = 0; for (let i = 0; i < n; i++) ssSubjects += k * (rowMean[i] - grand) ** 2;
+  let ssCondition = 0; for (let j = 0; j < k; j++) ssCondition += n * (colMean[j] - grand) ** 2;
+  const ssError = Math.max(totalSS - ssSubjects - ssCondition, 1e-12);
+  const dfCond = k - 1, dfErr = (n - 1) * (k - 1);
+  const msCond = ssCondition / dfCond, msErr = ssError / dfErr;
+  const F = msCond / msErr;
+  const p = fPVal(F, dfCond, dfErr);
+  // Greenhouse–Geisser epsilon from the k×k covariance matrix of the conditions.
+  const S = Array.from({ length: k }, (_, a) => Array.from({ length: k }, (_, b) => {
+    let s = 0; for (let i = 0; i < n; i++) s += (Y[i][a] - colMean[a]) * (Y[i][b] - colMean[b]);
+    return s / (n - 1);
+  }));
+  const sBar = S.flat().reduce((s, v) => s + v, 0) / (k * k);
+  const dBar = avg(S.map((r, i) => r[i]));
+  const rowMeans = S.map(r => avg(r));
+  const sumSq = S.flat().reduce((s, v) => s + v * v, 0);
+  const sumRowSq = rowMeans.reduce((s, v) => s + v * v, 0);
+  const ggDenom = (k - 1) * (sumSq - 2 * k * sumRowSq + k * k * sBar * sBar);
+  let epsilon = ggDenom > 1e-12 ? (k * k * (dBar - sBar) ** 2) / ggDenom : 1;
+  epsilon = Math.min(1, Math.max(1 / (k - 1), epsilon));
+  const pGG = fPVal(F, dfCond * epsilon, dfErr * epsilon);
+  return {
+    test: 'Repeated Measures ANOVA', totalSS: +totalSS.toFixed(4),
+    betweenSS: +ssCondition.toFixed(4), withinSS: +(ssSubjects + ssError).toFixed(4),
+    ssSubjects: +ssSubjects.toFixed(4), ssCondition: +ssCondition.toFixed(4), ssError: +ssError.toFixed(4),
+    dfCondition: dfCond, dfError: dfErr, F: +F.toFixed(4), p: +p.toFixed(4),
+    ggEpsilon: +epsilon.toFixed(4), pGG: +pGG.toFixed(4), k, n,
+    apa: `RM ANOVA: F(${dfCond}, ${dfErr}) = ${F.toFixed(2)}, ${fmtP(p)}; GG ε = ${epsilon.toFixed(2)}, ${fmtP(pGG)}`,
+  };
 }
 
 // ── Transition Model ──────────────────────────────────────────────

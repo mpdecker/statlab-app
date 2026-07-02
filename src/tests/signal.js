@@ -1,4 +1,5 @@
 import { avg } from '../math/core.js';
+import { chiCrit } from '../math/power.js';
 
 function nextPow2(n) {
   let p = 1;
@@ -371,12 +372,23 @@ export function crossWavelet(x, y, { nScales = 8 } = {}) {
   return { test: 'Cross-Wavelet', xwt: xwt.slice(0, 3).map(r => r.slice(0, 5)), n, apa: `Cross-wavelet: n = ${n}` };
 }
 
-// ── Wavelet Significance ──────────────────────────────────────────
+// ── Wavelet Significance (Torrence & Compo 1998, white-noise null) ────────
+// Wavelet power |W|² is asymptotically distributed as (background spectrum)
+// × χ²_2/2 under a white-noise null, so the correct significance threshold is
+// P_k·χ²_2(α)/2 — a real chi-square quantile, not the ad hoc log(1/α) the old
+// code used (which doesn't depend on the data's power level at all). Since
+// this function only receives the power matrix (not the raw series), the
+// white-noise background level P_k is estimated as the mean power across all
+// scales/times — the standard practical stand-in when no separate noise
+// model (e.g. AR(1) red noise) is fit.
 export function waveletSignificance(power, n, { alpha = 0.05 } = {}) {
   if (!power || !power.length) return null;
-  const sigLevel = Math.log(1 / alpha);
-  const mask = power.map(row => row.map(v => Math.abs(v) > sigLevel));
-  return { test: 'Wavelet Significance', significant: mask.slice(0, 3).map(r => r.slice(0, 5)), alpha, apa: `Wavelet sig: α = ${alpha}` };
+  const flat = power.flat();
+  const meanPower = avg(flat) || 1;
+  const chi2crit = chiCrit(alpha, 2);
+  const threshold = meanPower * chi2crit / 2;
+  const mask = power.map(row => row.map(v => Math.abs(v) > threshold));
+  return { test: 'Wavelet Significance', significant: mask.slice(0, 3).map(r => r.slice(0, 5)), threshold: +threshold.toFixed(6), alpha, apa: `Wavelet sig: α = ${alpha}, χ²₂ threshold = ${threshold.toFixed(3)}` };
 }
 
 // ── Wavelet Ridge ─────────────────────────────────────────────────

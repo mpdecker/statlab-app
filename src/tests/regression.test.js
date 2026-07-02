@@ -19,6 +19,7 @@ import {
 } from './regression.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
 import { expectKeys } from './__fixtures__/helpers.js';
+import { mkTabular } from './fixtures/core.js';
 
 const rr = ref.regression;
 
@@ -98,6 +99,18 @@ describe('spearman', () => {
     expect(res.rho).toBeGreaterThanOrEqual(-1);
     expect(res.rho).toBeLessThanOrEqual(1);
   });
+  it('matches a scipy.stats.spearmanr oracle (tied data)', () => {
+    const e = rr.spearman_basic;
+    const r = spearman(e.x, e.y);
+    expect(r.rho).toBeCloseTo(e.rho, 4); // r.rho is toFixed(4)-rounded internally
+    expect(r.p).toBeCloseTo(e.p, 6);
+  });
+  it('matches a scipy.stats.spearmanr oracle (no-ties data)', () => {
+    const e = rr.spearman_rank_basic;
+    const r = spearman(e.x, e.y);
+    expect(r.rho).toBeCloseTo(e.rho, 4);
+    expect(r.p).toBeCloseTo(e.p, 6);
+  });
 });
 
 describe('kendallTau', () => {
@@ -127,6 +140,12 @@ describe('kendallTau', () => {
     const res = kendallTau([1, 2, 3, 4, 5], [2, 4, 5, 4, 5]);
     expect(res.tau).toBeGreaterThanOrEqual(-1);
     expect(res.tau).toBeLessThanOrEqual(1);
+  });
+  it('matches a scipy.stats.kendalltau(method="asymptotic") oracle', () => {
+    const e = rr.kendall_basic;
+    const r = kendallTau(e.x, e.y);
+    expect(r.tau).toBeCloseTo(e.tau, 4); // r.tau is toFixed(4)-rounded internally
+    expect(r.p).toBeCloseTo(e.p, 3);
   });
 });
 
@@ -231,6 +250,22 @@ describe('multipleOLS', () => {
     expect(res).toHaveProperty('residuals');
     expect(res).toHaveProperty('fitted');
     expect(res).toHaveProperty('durbinWatson');
+  });
+
+  it('matches a statsmodels.OLS oracle on the shared tabular fixture', () => {
+    const rows = mkTabular(42, 72);
+    const Y = rows.map(r => r.y);
+    const X = rows.map(r => [r.x, r.m]);
+    const res = multipleOLS(Y, X, ['x', 'm']);
+    const e = rr.multipleOLS_tabular;
+    expect(res.coeffs[0].b).toBeCloseTo(e.b0, 4);
+    expect(res.coeffs[1].b).toBeCloseTo(e.b1, 4);
+    expect(res.coeffs[2].b).toBeCloseTo(e.b2, 4);
+    expect(res.coeffs[1].se).toBeCloseTo(e.se1, 4);
+    expect(res.coeffs[2].se).toBeCloseTo(e.se2, 4);
+    expect(res.r2).toBeCloseTo(e.r2, 3);
+    expect(res.F).toBeCloseTo(e.f, 2);
+    expect(res.pF).toBeLessThan(1e-15); // both ~3.8e-21; magnitude-only check (toBeCloseTo is meaningless this close to 0)
   });
 
   it('coeffs array has intercept + predictor entries', () => {
@@ -439,6 +474,19 @@ describe('mediation', () => {
     expect(res).toHaveProperty('a_path');
     expect(res).toHaveProperty('b_path');
     expect(res).toHaveProperty('c_total');
+  });
+
+  it('matches a statsmodels.OLS + Sobel-test oracle on the shared tabular fixture', () => {
+    const rows = mkTabular(42, 72);
+    const X = rows.map(r => r.x), M = rows.map(r => r.m), Y = rows.map(r => r.y);
+    const res = mediation(X, M, Y);
+    const e = rr.mediation_tabular;
+    expect(res.ab).toBeCloseTo(e.ab, 3);
+    expect(res.z_sobel).toBeCloseTo(e.z_sobel, 2);
+    expect(res.p_sobel).toBeCloseTo(e.p_sobel, 5);
+    expect(res.a_path).toBeCloseTo(e.a_path, 4);
+    expect(res.b_path).toBeCloseTo(e.b_path, 4);
+    expect(res.cp_direct).toBeCloseTo(e.cp_direct, 4);
   });
 
   it('ab indirect effect is a number', () => {

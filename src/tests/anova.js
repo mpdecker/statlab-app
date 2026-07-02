@@ -34,6 +34,13 @@ export function oneWayANOVA(groups) {
 }
 
 // ── Welch's ANOVA (robust to unequal variances) ───────────────────────────────
+// Welch (1951): F* = [Σwᵢ(X̄ᵢ-X̄')²/(k-1)] / [1 + 2(k-2)/(k²-1)·S], df2 = (k²-1)/(3S),
+// where S = Σ(1-wᵢ/W)²/(nᵢ-1). The previous code used a single `lam` term with
+// coefficient 2/(k²-1) for BOTH the F-statistic's denominator inflation (missing
+// the (k-2) factor) AND df2=3/lam (using coefficient 2 instead of 3) — for k=3 the
+// missing (k-2)=1 factor is invisible so F still matched a real oracle, but df2 was
+// wrong for every k, understating p by orders of magnitude. Verified against
+// statsmodels.stats.oneway.anova_oneway(..., use_var='unequal') at k=2,3,4.
 export function welchANOVA(groups) {
   const valid = groups.filter(g => g.vals.length >= 2);
   if (valid.length < 2) return null;
@@ -46,9 +53,11 @@ export function welchANOVA(groups) {
   if (!Ws || !ws.some(w => w > 0)) return null;
   const Xw = valid.reduce((s, g, i) => s + ws[i] * avg(g.vals), 0) / Ws;
   const F_num = valid.reduce((s, g, i) => s + ws[i] * (avg(g.vals) - Xw) ** 2, 0) / (k - 1);
-  const lam = valid.reduce((s, g, i) => s + (1 - ws[i] / Ws) ** 2 / (g.vals.length - 1), 0) * 2 / (k ** 2 - 1);
-  if (!lam || !Number.isFinite(lam)) return null;
-  const F_stat = F_num / (1 + lam), df2 = 3 / lam, p = fPVal(F_stat, k - 1, df2);
+  const S = valid.reduce((s, g, i) => s + (1 - ws[i] / Ws) ** 2 / (g.vals.length - 1), 0);
+  if (!S || !Number.isFinite(S)) return null;
+  const lamF = (2 * (k - 2) / (k ** 2 - 1)) * S;
+  const df2 = (k ** 2 - 1) / (3 * S);
+  const F_stat = F_num / (1 + lamF), p = fPVal(F_stat, k - 1, df2);
   return {
     test: "Welch's ANOVA", F: +F_stat.toFixed(4), df1: k - 1, df2: +df2.toFixed(1), p,
     gMeans: valid.map(g => ({ name: g.name, mean: +avg(g.vals).toFixed(4), sd: +sampleSD(g.vals).toFixed(4), n: g.vals.length })),
