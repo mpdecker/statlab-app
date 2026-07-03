@@ -5,6 +5,10 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Theil-Sen Slope ────────────────────────────────────────────────────────
+function _median(arr) {
+  const s = [...arr].sort((a, b) => a - b), m = s.length;
+  return m % 2 === 0 ? (s[m / 2 - 1] + s[m / 2]) / 2 : s[(m - 1) / 2];
+}
 export function theilSenSlope(x, y) {
   if (!x || !y || x.length < 10 || x.length !== y.length) return null;
   const n = x.length;
@@ -18,7 +22,12 @@ export function theilSenSlope(x, y) {
   slopes.sort((a, b) => a - b);
   const m = slopes.length;
   const slope = m % 2 === 0 ? (slopes[m / 2 - 1] + slopes[m / 2]) / 2 : slopes[Math.floor(m / 2)];
-  const intercept = avg(y) - slope * avg(x);
+  // The intercept must be robust too — median(y_i - slope·x_i), not mean(y) -
+  // slope·mean(x). The mean-based formula is not resistant to outliers (an
+  // outlying x/y pair pulls mean(x)/mean(y) directly), which defeats the point
+  // of using a robust slope estimator in the first place. Matches
+  // scipy.stats.theilslopes' convention.
+  const intercept = _median(x.map((xi, i) => y[i] - slope * xi));
   const fitted = x.map(xi => intercept + slope * xi);
   let ssRes = 0, ssTot = 0;
   const my = avg(y);

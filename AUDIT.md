@@ -90,6 +90,46 @@
 > independently verified correct against `statsmodels`/`scipy` during this pass with no changes needed.
 > Full suite: **4,826 tests pass**. Total across both oracle passes: **12 real correctness bugs found and
 > fixed**, none caught by any prior shape-only test.
+>
+> **Oracle-coverage expansion (2026-07-03, fifth pass).** Installed scikit-learn and networkx for additional
+> reference implementations, then extended oracle coverage into `inequality`, `info`, `robust`, `distance`,
+> `clustering` (hierarchical/DBSCAN), `network`, and `fitting`. **This surfaced 6 more real correctness
+> bugs**, including one of the most consequential findings of the whole campaign (betweenness centrality):
+> - `centralityMeasures`'s betweenness (network.js) — used "any node at `dist[t]-1`" as a stand-in for "a real
+>   predecessor of t on a shortest s→t path," which is not sufficient and **massively overcounted**: on a
+>   6-node test graph the hub node's raw score was 30 against a theoretical per-node maximum of 10 (5x too
+>   high), and nodes with a *true* betweenness of 0 got large nonzero scores. Rewritten with real Brandes'
+>   algorithm (predecessor sets + reverse-BFS dependency accumulation) — now matches
+>   `networkx.betweenness_centrality` exactly.
+> - `fitBeta` (fitting.js) — the Newton-Raphson MLE used the crude large-x asymptotic approximation
+>   `ψ(x)≈ln(x)−1/(2x)` in place of the real digamma function, badly wrong for the α,β≈1–10 range typical of
+>   Beta-fitted proportion data; it **diverged** to α≈290,000, β≈395,000 instead of the true MLE α≈3.88,
+>   β≈5.05. Fixed by implementing accurate `digamma`/`trigamma` (shift-then-asymptotic-series, verified to
+>   ~9 significant figures against `scipy.special.digamma`/`polygamma`) and adding Newton-step damping.
+> - `hierarchicalCluster`'s `'ward'` linkage (clustering.js) — fell through to plain centroid-to-centroid
+>   Euclidean distance (UPGMC) for any non-single/non-complete request, silently mislabeled as Ward's method
+>   (single/complete linkage already matched scipy exactly, which is what isolated the bug to `'ward'`
+>   specifically). Fixed with the real Ward variance-minimization criterion
+>   `d=√(2·(|A||B|/(|A|+|B|))·‖centroid_A−centroid_B‖²)` — now matches
+>   `scipy.cluster.hierarchy.linkage(method='ward')` exactly at every merge step.
+> - `dbscan` (clustering.js) — `visited` gated label assignment, not just neighbor re-expansion: a border
+>   point visited early in the outer scan (found non-core, left unlabeled) stayed permanently noise even when
+>   a later core point's BFS expansion reached it as a genuine neighbor. Fixed by decoupling "already
+>   expanded" from "already labeled" — now matches `sklearn.cluster.DBSCAN` exactly, including on a case
+>   specifically designed to trigger the bug (border point indexed before its cluster's core points).
+> - `theilSenSlope` (robust.js) — the intercept used `mean(y)−slope·mean(x)`, which is **not robust** to
+>   outliers (defeating the entire purpose of using Theil-Sen) — an outlying point pulled it from the correct
+>   value of 0.0 to −6.818. Fixed with the robust `median(y_i−slope·x_i)` formula, matching
+>   `scipy.stats.theilslopes`'s convention exactly.
+> - `theilIndex` (inequality.js) — the GE(1) weight term used raw `v_i` instead of `v_i/mean`, inflating the
+>   index by exactly a factor of the sample mean (~21.5x on a test dataset with mean 21.5). Fixed with the
+>   correct `(v_i/mean)·ln(v_i/mean)` term (and an explicit x·ln(x)→0 guard at v_i=0).
+>
+> `giniCoefficient`, `atkinsonIndex`, `shannonEntropy`, `mutualInformation`, `distanceCovariance`,
+> `distanceCorrelation`, `mahalanobisDistance`, `pageRank`, `closenessCentrality`, `fitWeibull`, and
+> hierarchical clustering's single/complete linkage were independently verified correct with no changes
+> needed. Full suite: **4,842 tests pass**. Total across all three oracle passes: **18 real correctness bugs
+> found and fixed**, none caught by any prior shape-only test.
 
 ## Verdict
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { shannonEntropy, mutualInformation, klDivergence, jensenShannonDivergence, aicc, bicWeights } from './info.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const d1 = [1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
 const d2 = [0, 1, 0, 1, 1, 0, 0, 1, 0, 1];
@@ -12,6 +13,11 @@ describe('shannonEntropy', () => {
   it('normalized in [0,1]', () => { const r = shannonEntropy(d1); expect(r.normalized).toBeGreaterThanOrEqual(0); expect(r.normalized).toBeLessThanOrEqual(1); });
   it('continuous with bins', () => { const r = shannonEntropy([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], { discrete: false, bins: 5 }); expect(r.type).toBe('continuous'); });
   it('contract keys', () => expectKeys(shannonEntropy(d1), ['test', 'entropy', 'type', 'base', 'normalized', 'n', 'apa']));
+  it('matches a scipy.stats.entropy(base=2) oracle', () => {
+    const e = ref.info.entropy_basic;
+    const r = shannonEntropy(e.data);
+    expect(r.entropy).toBeCloseTo(e.entropy, 4);
+  });
 });
 
 describe('mutualInformation', () => {
@@ -19,6 +25,11 @@ describe('mutualInformation', () => {
   it('MI >= 0', () => { const r = mutualInformation(d1, d2); expect(r.mi).toBeGreaterThanOrEqual(0); });
   it('normalized in [0,1]', () => { const r = mutualInformation(d1, d2); expect(r.normalized).toBeGreaterThanOrEqual(0); expect(r.normalized).toBeLessThanOrEqual(1.1); });
   it('contract keys', () => expectKeys(mutualInformation(d1, d2), ['test', 'mi', 'normalized', 'n', 'apa']));
+  it('matches a sklearn.metrics.mutual_info_score oracle (bits)', () => {
+    const e = ref.info.mi_basic;
+    const r = mutualInformation(e.x, e.y);
+    expect(r.mi).toBeCloseTo(e.mi, 4);
+  });
 });
 
 describe('klDivergence', () => {

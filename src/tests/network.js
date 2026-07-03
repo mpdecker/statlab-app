@@ -33,34 +33,44 @@ export function centralityMeasures(A) {
   const eMax = Math.max(...eigenCent, 1e-9);
   const eigenNorm = eigenCent.map(v => v / eMax);
 
+  // Betweenness centrality via Brandes' algorithm (Brandes 2001) — the
+  // previous code approximated a shortest-path predecessor with "any node v
+  // at distance[t]-1", which is not sufficient (many nodes can sit at the
+  // right distance level without actually lying on a shortest s→t path),
+  // and massively overcounted: on a 6-node test graph it gave node 2 a raw
+  // betweenness of 30 when the theoretical per-node maximum for n=6 is 10,
+  // and gave nodes with a TRUE betweenness of 0 large nonzero scores.
+  // Brandes correctly tracks real predecessor sets and accumulates
+  // dependency scores in reverse BFS order. Verified against
+  // networkx.betweenness_centrality.
   const between = Array(n).fill(0);
   for (let s = 0; s < n; s++) {
-    const dist = Array(n).fill(Infinity);
-    const paths = Array(n).fill(0);
-    dist[s] = 0;
-    paths[s] = 1;
+    const dist = Array(n).fill(-1);
+    const sigma = Array(n).fill(0);
+    const preds = Array.from({ length: n }, () => []);
+    const order = [];
+    dist[s] = 0; sigma[s] = 1;
     const q = [s];
     while (q.length) {
       const v = q.shift();
+      order.push(v);
       for (let w = 0; w < n; w++) {
         if (!A[v][w] || v === w) continue;
-        if (dist[w] === Infinity) {
-          dist[w] = dist[v] + 1;
-          paths[w] = paths[v];
-          q.push(w);
-        }
-        if (dist[w] === dist[v] + 1) paths[w] += paths[v];
+        if (dist[w] < 0) { dist[w] = dist[v] + 1; q.push(w); }
+        if (dist[w] === dist[v] + 1) { sigma[w] += sigma[v]; preds[w].push(v); }
       }
     }
-    for (let t = 0; t < n; t++) {
-      if (s === t) continue;
-      for (let v = 0; v < n; v++) {
-        if (dist[v] === dist[t] - 1 && paths[v] && paths[t]) {
-          between[v] += paths[s] * paths[t] / paths[v];
-        }
-      }
+    const delta = Array(n).fill(0);
+    for (let i = order.length - 1; i >= 0; i--) {
+      const w = order[i];
+      for (const v of preds[w]) delta[v] += (sigma[v] / sigma[w]) * (1 + delta[w]);
+      if (w !== s) between[w] += delta[w];
     }
   }
+  // Undirected graphs: the double loop over all (s,t) ordered pairs counts
+  // each shortest-path pair from both endpoints, so halve the total.
+  for (let i = 0; i < n; i++) between[i] /= 2;
+
   const norm = (n - 1) * (n - 2) / 2 || 1;
   const betweenNorm = between.map(b => +(b / norm).toFixed(4));
 

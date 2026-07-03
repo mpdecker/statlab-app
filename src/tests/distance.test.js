@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { distanceMatrix, distanceCovariance, distanceCorrelation, energyTest, partialDistanceCorr, mahalanobisDistance, gowerDistance } from './distance.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const y = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20];
@@ -15,12 +16,22 @@ describe('distanceCovariance', () => {
   it('contract keys', () => expectKeys(distanceCovariance(x, y), ['test', 'dCov', 'n', 'apa']));
   it('null mismatch', () => expect(distanceCovariance(x, [1, 2])).toBeNull());
   it('dCov >= 0', () => { const r = distanceCovariance(x, y); if (r) expect(r.dCov).toBeGreaterThanOrEqual(0); });
+  it('matches an independently-computed double-centering oracle', () => {
+    const e = ref.distance.dcov_basic;
+    const r = distanceCovariance(e.x, e.y);
+    expect(r.dCov).toBeCloseTo(e.dcov, 4);
+  });
 });
 
 describe('distanceCorrelation', () => {
   it('contract keys', () => expectKeys(distanceCorrelation(x, y), ['test', 'dCorr', 'dCov', 'n', 'apa']));
   it('dCorr in [0,1]', () => { const r = distanceCorrelation(x, y); expect(r.dCorr).toBeGreaterThanOrEqual(0); expect(r.dCorr).toBeLessThanOrEqual(1); });
   it('dCov non-negative', () => { const r = distanceCorrelation(x, y); expect(r.dCov).toBeGreaterThanOrEqual(0); });
+  it('matches an independently-computed distance-correlation oracle', () => {
+    const e = ref.distance.dcov_basic;
+    const r = distanceCorrelation(e.x, e.y);
+    expect(r.dCorr).toBeCloseTo(e.dcorr, 4);
+  });
 });
 
 describe('energyTest', () => {
@@ -38,6 +49,11 @@ describe('mahalanobisDistance', () => {
   it('contract keys', () => expectKeys(mahalanobisDistance([1,2,3], [4,5,6], [[1,0,0],[0,1,0],[0,0,1]]), ['test','distance','p','apa']));
   it('null <2', () => expect(mahalanobisDistance([1], [2])).toBeNull());
   it('distance >= 0', () => { const r = mahalanobisDistance([1,2,3], [4,5,6], [[1,0,0],[0,1,0],[0,0,1]]); if (r) expect(r.distance).toBeGreaterThanOrEqual(0); });
+  it('matches a scipy.spatial.distance.mahalanobis oracle', () => {
+    const e = ref.distance.mahalanobis_basic;
+    const r = mahalanobisDistance(e.x, e.y, e.cov);
+    expect(r.distance).toBeCloseTo(e.d, 4);
+  });
 });
 describe('gowerDistance', () => {
   it('contract keys', () => expectKeys(gowerDistance([1,2,3], [4,5,6]), ['test','distance','p','apa']));

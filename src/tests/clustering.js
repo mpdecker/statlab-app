@@ -138,7 +138,20 @@ function clusterDist(A, B, linkage = 'ward') {
     return m;
   }
   const mean = pts => pts[0].map((_, d) => avg(pts.map(x => x[d])));
-  return Math.sqrt(dist2(mean(A), mean(B)));
+  if (linkage === 'ward') {
+    // Ward's criterion is the increase in total within-cluster sum of squares
+    // from merging A and B: ΔESS = (|A||B|/(|A|+|B|))·‖centroid_A−centroid_B‖²,
+    // reported as d=√(2·ΔESS) (scipy's convention). The previous code fell
+    // through to plain centroid-to-centroid Euclidean distance for any
+    // non-single/non-complete linkage — i.e. it computed centroid (UPGMC)
+    // linkage regardless of the requested method, silently mislabeled as
+    // "ward". Verified against scipy.cluster.hierarchy.linkage(method='ward')
+    // (single/complete already matched scipy exactly; only ward diverged).
+    const nA = A.length, nB = B.length;
+    const d2 = dist2(mean(A), mean(B));
+    return Math.sqrt(2 * (nA * nB / (nA + nB)) * d2);
+  }
+  return Math.sqrt(dist2(mean(A), mean(B))); // 'centroid' / unrecognized linkage
 }
 
 /** Agglomerative hierarchical clustering (Ward/single/complete) */
@@ -293,6 +306,16 @@ export function dbscan(data, vars, eps = 0.5, minPts = 5) {
     if (neighbors[i].length + 1 >= minPts) corePoints[i] = true;
   }
 
+  // `visited` controls whether we've already expanded a point's OWN neighbor
+  // list into the seed queue — it must NOT gate label assignment. A point can
+  // be "visited" early (in the outer scan, found not to be core, so left
+  // unlabeled) and only later discovered to be a *border* point reachable
+  // from some other cluster's core point; that border point must still get
+  // labeled when the BFS reaches it. The previous code's `if (visited[q])
+  // continue;` skipped the label assignment too, permanently misclassifying
+  // such early-indexed border points as noise (verified against
+  // sklearn.cluster.DBSCAN on a case with a border point placed before its
+  // cluster's core points in array order).
   let clusterId = 0;
   for (let i = 0; i < n; i++) {
     if (visited[i]) continue;
@@ -302,11 +325,12 @@ export function dbscan(data, vars, eps = 0.5, minPts = 5) {
     labels[i] = clusterId;
     while (seeds.length) {
       const q = seeds.shift();
-      if (visited[q]) continue;
-      visited[q] = true;
-      if (corePoints[q] && neighbors[q].length + 1 >= minPts) {
-        for (const nb of neighbors[q]) {
-          if (!visited[nb]) seeds.push(nb);
+      if (!visited[q]) {
+        visited[q] = true;
+        if (corePoints[q]) {
+          for (const nb of neighbors[q]) {
+            if (!visited[nb]) seeds.push(nb);
+          }
         }
       }
       if (labels[q] === -1) labels[q] = clusterId;

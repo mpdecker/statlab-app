@@ -601,6 +601,135 @@ clustering['kmeans_basic'] = {'x': km_x, 'y': km_y, 'wcss': float(km_wcss)}
 
 ref['clustering'] = clustering
 
+# ── inequality ────────────────────────────────────────────────────────────────
+inequality = {}
+ineq_data = [10, 15, 20, 25, 30, 12, 18, 22, 28, 35]
+ineq_mean = np.mean(ineq_data)
+mad = np.mean([abs(a - b) for a in ineq_data for b in ineq_data])
+gini = mad / (2 * ineq_mean)
+theil = np.mean([(v / ineq_mean) * np.log(v / ineq_mean) for v in ineq_data])
+atk1 = 1 - np.prod([(v / ineq_mean) ** (1 / len(ineq_data)) for v in ineq_data])
+eps = 0.5
+atk_half = 1 - (np.mean([(v / ineq_mean) ** (1 - eps) for v in ineq_data])) ** (1 / (1 - eps))
+inequality['basic'] = {
+    'data': ineq_data, 'gini': float(gini), 'theil': float(theil),
+    'atkinson1': float(atk1), 'atkinson_half': float(atk_half),
+}
+ref['inequality'] = inequality
+
+# ── network ───────────────────────────────────────────────────────────────────
+network = {}
+import networkx as nx
+net_edges = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (0, 2), (2, 4)]
+G = nx.Graph()
+G.add_nodes_from(range(6))
+G.add_edges_from(net_edges)
+netA = nx.to_numpy_array(G)
+bc = nx.betweenness_centrality(G, normalized=True)
+ec = nx.eigenvector_centrality(G, max_iter=1000)
+ecMax = max(ec.values())
+pr = nx.pagerank(G, alpha=0.85)
+cc = nx.closeness_centrality(G)
+network['centrality_basic'] = {
+    'A': netA.tolist(),
+    'degree': [int(G.degree(i)) for i in range(6)],
+    'betweenness': [bc[i] for i in range(6)],
+    'eigenvector_normed': [ec[i] / ecMax for i in range(6)],
+    'pagerank': [pr[i] for i in range(6)],
+    'closeness': [cc[i] for i in range(6)],
+}
+ref['network'] = network
+
+# ── fitting ───────────────────────────────────────────────────────────────────
+fitting = {}
+from scipy.stats import weibull_min, gamma as sp_gamma, beta as sp_beta
+
+fit_sample = [2.1, 3.4, 1.8, 4.2, 5.0, 2.9, 3.7, 4.5, 1.5, 3.0, 2.2, 3.8, 1.9, 4.1, 2.6]
+wshape, _, wscale = weibull_min.fit(fit_sample, floc=0)
+fitting['weibull_basic'] = {'sample': fit_sample, 'shape': float(wshape), 'scale': float(wscale)}
+
+# Beta MLE: validates the digamma/trigamma fix (previously diverged to
+# alpha~290000/beta~395000 instead of the true MLE ~3.88/~5.05).
+beta_sample = [0.2, 0.35, 0.5, 0.65, 0.4, 0.55, 0.3, 0.45, 0.6, 0.25, 0.5, 0.7, 0.15, 0.4, 0.55]
+ba, bb, _, _ = sp_beta.fit(beta_sample, floc=0, fscale=1)
+fitting['beta_basic'] = {'sample': beta_sample, 'alpha': float(ba), 'beta': float(bb)}
+ref['fitting'] = fitting
+
+# ── info ──────────────────────────────────────────────────────────────────────
+info = {}
+from scipy.stats import entropy as sp_entropy
+from sklearn.metrics import mutual_info_score
+ent_data = [1, 1, 2, 2, 2, 3, 3, 1, 2, 3, 1, 2]
+_, counts = np.unique(ent_data, return_counts=True)
+h = sp_entropy(counts / counts.sum(), base=2)
+info['entropy_basic'] = {'data': ent_data, 'entropy': float(h)}
+
+mi_x = [1, 1, 2, 2, 3, 3, 1, 2, 3, 1, 2, 3]
+mi_y = [1, 2, 1, 2, 3, 3, 2, 1, 3, 1, 2, 3]
+mi_bits = mutual_info_score(mi_x, mi_y) / np.log(2)
+info['mi_basic'] = {'x': mi_x, 'y': mi_y, 'mi': float(mi_bits)}
+ref['info'] = info
+
+# ── robust ────────────────────────────────────────────────────────────────────
+robust = {}
+from scipy.stats import theilslopes
+ts_x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50]
+ts_y = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 25]
+rts = theilslopes(ts_y, ts_x)
+robust['theilsen_outlier'] = {'x': ts_x, 'y': ts_y, 'slope': float(rts.slope), 'intercept': float(rts.intercept)}
+ref['robust'] = robust
+
+# ── distance ──────────────────────────────────────────────────────────────────
+distance = {}
+
+def _dcov(xa, ya):
+    xa = np.asarray(xa, dtype=float); ya = np.asarray(ya, dtype=float)
+    a = np.abs(xa[:, None] - xa[None, :])
+    b = np.abs(ya[:, None] - ya[None, :])
+    A = a - a.mean(axis=0, keepdims=True) - a.mean(axis=1, keepdims=True) + a.mean()
+    B = b - b.mean(axis=0, keepdims=True) - b.mean(axis=1, keepdims=True) + b.mean()
+    return float(np.sqrt(max(0, (A * B).mean())))
+
+dc_x = [1, 3, 2, 5, 4, 7, 6, 9, 8, 10]
+dc_y = [2, 5, 3, 8, 6, 11, 9, 14, 12, 16]
+dcov = _dcov(dc_x, dc_y)
+dvarx = _dcov(dc_x, dc_x)
+dvary = _dcov(dc_y, dc_y)
+distance['dcov_basic'] = {'x': dc_x, 'y': dc_y, 'dcov': dcov, 'dcorr': dcov / np.sqrt(dvarx * dvary)}
+
+from scipy.spatial.distance import mahalanobis as sp_mahalanobis
+maha_x, maha_y = [2, 3, 4], [1, 1, 1]
+maha_cov = [[2, 0.5, 0.1], [0.5, 3, 0.2], [0.1, 0.2, 1.5]]
+maha_d = float(sp_mahalanobis(maha_x, maha_y, np.linalg.inv(maha_cov)))
+distance['mahalanobis_basic'] = {'x': maha_x, 'y': maha_y, 'cov': maha_cov, 'd': maha_d}
+ref['distance'] = distance
+
+# DBSCAN: a border point (index 0) placed BEFORE its cluster's core points in
+# array order — pins down the "visited gates labeling" bug (a point visited
+# early in the outer scan and found non-core stayed permanently unlabeled
+# even when later reached as a neighbor of a real core point's expansion).
+from sklearn.cluster import DBSCAN as SKDBSCAN
+db_x = [-0.28, 0.0, 0.1, 0.05, 0.15, 0.1, 0.0, 8.0]
+db_y = [0.0, 0.0, 0.0, 0.09, 0.09, -0.09, -0.09, 8.0]
+db_X = np.array([db_x, db_y]).T
+db_fit = SKDBSCAN(eps=0.3, min_samples=5).fit(db_X)
+clustering['dbscan_border'] = {'x': db_x, 'y': db_y, 'eps': 0.3, 'minPts': 5, 'labels': db_fit.labels_.tolist()}
+
+# Hierarchical clustering: single/complete linkage already matched scipy
+# exactly; 'ward' pins down the fix (was silently computing plain centroid/
+# UPGMC distance instead of the real Ward variance-minimization criterion).
+from scipy.cluster.hierarchy import linkage as sp_linkage
+hc_X = np.array([[1, 1], [1.5, 2], [3, 4], [5, 7], [3.5, 5], [4.5, 5], [3.5, 4.5]], dtype=float)
+hc_ward = sp_linkage(hc_X, method='ward')
+hc_complete = sp_linkage(hc_X, method='complete')
+hc_single = sp_linkage(hc_X, method='single')
+clustering['hclust_basic'] = {
+    'X': hc_X.tolist(),
+    'ward_heights': hc_ward[:, 2].tolist(),
+    'complete_heights': hc_complete[:, 2].tolist(),
+    'single_heights': hc_single[:, 2].tolist(),
+}
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

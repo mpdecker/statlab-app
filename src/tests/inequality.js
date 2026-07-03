@@ -31,13 +31,18 @@ export function lorenzCurve(data) {
 }
 
 // ── Theil Index (GE(1)) ───────────────────────────────────────────
+// GE(1) = (1/n)·Σ (v_i/mean)·ln(v_i/mean). The weight term was missing its
+// division by `mean` (used `v` instead of `v/mean`), inflating the index by
+// exactly a factor of `mean` — e.g. 21.5x too large on a dataset with mean
+// 21.5. x·ln(x)→0 as x→0+, so v_i=0 contributes 0 (guarded explicitly since
+// JS's 0*(-Infinity) is NaN, not 0).
 export function theilIndex(data, { groupVals = null, groupSizes = null } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
   const mean = avg(data);
   if (!mean) return null;
   let theil = 0;
-  for (const v of data) theil += v * Math.log(v / mean);
+  for (const v of data) { const r = v / mean; theil += r > 0 ? r * Math.log(r) : 0; }
   theil /= n;
   if (groupVals && groupSizes) {
     // Between-group component

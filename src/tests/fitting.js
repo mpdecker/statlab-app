@@ -1,5 +1,5 @@
 import { avg, sampleSD, sampleVar, fmtP } from '../math/core.js';
-import { lngamma, normalCDF, normalINV, chiPVal } from '../math/distributions.js';
+import { lngamma, normalCDF, normalINV, chiPVal, digamma, trigamma } from '../math/distributions.js';
 import { mulberry32 } from '../math/rng.js';
 
 function qqPoints(sorted, invFn) {
@@ -278,28 +278,38 @@ export function fitBeta(sample) {
   if (alpha <= 0.001) alpha = 0.001;
   if (beta <= 0.001) beta = 0.001;
 
-  for (let iter = 0; iter < 50; iter++) {
-    const digA = Math.log(alpha) - 1 / (2 * alpha);
-    const digB = Math.log(beta) - 1 / (2 * beta);
-    const dA = digA - Math.log(alpha + beta) + alpha / (alpha + beta);
-    const dB = digB - Math.log(alpha + beta) + beta / (alpha + beta);
-    const gA = avg(sample.map(x => Math.log(x)));
-    const gB = avg(sample.map(x => Math.log(1 - x)));
-    const gradA = n * (gA - digA + Math.log(alpha + beta) - alpha / (alpha + beta));
-    const gradB = n * (gB - digB + Math.log(alpha + beta) - beta / (alpha + beta));
-    const trigA = 1 / alpha + 1 / (2 * alpha * alpha);
-    const trigB = 1 / beta + 1 / (2 * beta * beta);
-    const hessAA = n * (trigA - 1 / (alpha + beta));
-    const hessBB = n * (trigB - 1 / (alpha + beta));
-    const hessAB = -n / (alpha + beta);
+  // Newton-Raphson on the Beta log-likelihood score equations
+  // ∂ℓ/∂α = n·[ψ(α+β) − ψ(α) + mean(ln x)] = 0,
+  // ∂ℓ/∂β = n·[ψ(α+β) − ψ(β) + mean(ln(1−x))] = 0,
+  // using the real digamma/trigamma functions. The previous code used the
+  // crude large-x asymptotic approximation ψ(x)≈ln(x)−1/(2x) directly (valid
+  // only for x≫1), which is badly wrong for the α,β≈1–10 range typical of
+  // Beta-fitted proportion data — the resulting wrong Hessian sent Newton's
+  // method to a wildly divergent step, e.g. α≈290000 instead of the true
+  // MLE α≈3.88 on a simple test sample (verified against scipy.stats.beta.fit).
+  const gA = avg(sample.map(x => Math.log(x)));
+  const gB = avg(sample.map(x => Math.log(1 - x)));
+  for (let iter = 0; iter < 100; iter++) {
+    const digAB = digamma(alpha + beta);
+    const gradA = n * (gA - digamma(alpha) + digAB);
+    const gradB = n * (gB - digamma(beta) + digAB);
+    const trigAB = trigamma(alpha + beta);
+    const hessAA = n * (trigAB - trigamma(alpha));
+    const hessBB = n * (trigAB - trigamma(beta));
+    const hessAB = n * trigAB;
     const detH = hessAA * hessBB - hessAB * hessAB;
-    if (Math.abs(detH) < 1e-10) break;
-    const stepA = (gradA * hessBB - gradB * hessAB) / detH;
-    const stepB = (gradB * hessAA - gradA * hessAB) / detH;
+    if (Math.abs(detH) < 1e-12) break;
+    let stepA = (gradA * hessBB - gradB * hessAB) / detH;
+    let stepB = (gradB * hessAA - gradA * hessAB) / detH;
+    // Damp any step that would more than halve or double a parameter, to
+    // avoid Newton overshoot when starting far from the optimum.
+    const maxStep = 0.5 * Math.max(alpha, beta, 1);
+    const stepNorm = Math.max(Math.abs(stepA), Math.abs(stepB));
+    if (stepNorm > maxStep) { stepA *= maxStep / stepNorm; stepB *= maxStep / stepNorm; }
     alpha -= stepA; beta -= stepB;
     if (alpha < 0.001) alpha = 0.001;
     if (beta < 0.001) beta = 0.001;
-    if (Math.abs(stepA) + Math.abs(stepB) < 1e-6) break;
+    if (Math.abs(stepA) + Math.abs(stepB) < 1e-8) break;
   }
   const logLik = n * (Math.log(Math.exp(-(alpha + beta)) + 1e-10) - alpha * Math.log(beta + 1e-10)) + (alpha - 1) * sample.reduce((s, x) => s + Math.log(x + 1e-10), 0) + (beta - 1) * sample.reduce((s, x) => s + Math.log(1 - x + 1e-10), 0);
   const seAlpha = Math.sqrt(alpha / n) / beta;
