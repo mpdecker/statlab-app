@@ -406,6 +406,17 @@ describe('logisticReg', () => {
     expect(Number.isFinite(slope.z)).toBe(true);
     expect(slope).toHaveProperty('sig');
   });
+
+  it('matches a statsmodels.GLM(family=Binomial) oracle', () => {
+    const e = rr.logit_basic;
+    const X = e.x1.map((_, i) => [e.x1[i], e.x2[i]]);
+    const res = logisticReg(e.y, X, ['x1', 'x2']);
+    res.coeffs.forEach((c, j) => {
+      expect(c.b).toBeCloseTo(e.coef[j], 3);
+      expect(c.se).toBeCloseTo(e.se[j], 3);
+      expect(c.p).toBeCloseTo(e.p[j], 3);
+    });
+  });
 });
 
 describe('ordinalLogisticRegression', () => {
@@ -447,6 +458,21 @@ describe('poissonRegression', () => {
     expect(pred.p).toBeLessThanOrEqual(1);
     expect(Number.isFinite(pred.z)).toBe(true);
     expect(pred).toHaveProperty('sig');
+  });
+
+  it('matches a statsmodels.GLM(family=Poisson) oracle, including McFaddenR2 (regression test for the null-vs-saturated-LL fix)', () => {
+    // McFaddenR2 previously divided by the SATURATED model's log-likelihood
+    // instead of the NULL (intercept-only) model's, which collapsed it to ~0
+    // for typical data via the result's own Math.max(0,...) clip.
+    const e = rr.poisson_basic;
+    const X = e.x1.map((_, i) => [e.x1[i], e.x2[i]]);
+    const res = poissonRegression(e.y, X, ['x1', 'x2']);
+    res.coeffs.forEach((c, j) => {
+      expect(c.b).toBeCloseTo(e.coef[j], 3);
+      expect(c.se).toBeCloseTo(e.se[j], 3);
+    });
+    expect(res.McFaddenR2).toBeCloseTo(e.mcfaddenR2, 3);
+    expect(res.McFaddenR2).toBeGreaterThan(0.05); // real signal, not the degenerate ~0 the bug produced
   });
 });
 

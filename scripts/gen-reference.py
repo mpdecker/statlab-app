@@ -27,6 +27,7 @@ import scipy.stats as st
 import statsmodels.api as sm
 from lifelines import CoxPHFitter, KaplanMeierFitter
 from lifelines.statistics import logrank_test
+from statsmodels.tsa.stattools import adfuller, acf as sm_acf, pacf as sm_pacf
 
 # Fixture data shared with the JS test suite (src/tests/fixtures/core.js), dumped via
 # `node scratch_dump_fixtures.mjs` so Python computes oracles on IDENTICAL inputs
@@ -198,6 +199,33 @@ regression['multipleOLS_tabular'] = {
     'b0': float(mreg.params[0]), 'b1': float(mreg.params[1]), 'b2': float(mreg.params[2]),
     'se1': float(mreg.bse[1]), 'se2': float(mreg.bse[2]), 'r2': float(mreg.rsquared),
     'f': float(mreg.fvalue), 'p_f': float(mreg.f_pvalue),
+}
+
+# Logistic regression (GLM, Binomial family) — explicit deterministic dataset.
+logit_x1 = [-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5, -1.2, -0.7, -0.2, 0.3, 0.8, 1.3, 1.8, -1.8, -0.9, 0.1, 0.6, 1.1, 1.6]
+logit_x2 = [0.8, -0.3, 1.1, -0.5, 0.2, -1.0, 0.6, 1.3, -0.8, 0.4, -1.2, 0.7, -0.1, 0.9, -0.6, 1.0, -0.4, 0.3, -0.9, 0.5]
+logit_y = [0, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1]
+Xl = sm.add_constant(np.column_stack([logit_x1, logit_x2]))
+mlogit = sm.GLM(logit_y, Xl, family=sm.families.Binomial()).fit()
+regression['logit_basic'] = {
+    'x1': logit_x1, 'x2': logit_x2, 'y': logit_y,
+    'coef': mlogit.params.tolist(), 'se': mlogit.bse.tolist(), 'p': mlogit.pvalues.tolist(),
+}
+
+# Poisson regression (GLM, Poisson family) — explicit deterministic dataset,
+# also validates the McFaddenR2 fix (previously used the SATURATED log-
+# likelihood instead of the NULL/intercept-only one, collapsing R² to ~0).
+pois_x1 = [-1.0, -0.5, 0.0, 0.5, 1.0, -0.8, -0.3, 0.2, 0.7, 1.2, -1.2, -0.6, -0.1, 0.4, 0.9, -0.9, -0.4, 0.1, 0.6, 1.1]
+pois_x2 = [0.5, -0.2, 0.8, -0.4, 0.1, 0.9, -0.6, 0.3, -0.8, 0.6, 0.2, -1.0, 0.7, -0.3, 0.4, -0.5, 1.0, -0.7, 0.2, -0.1]
+pois_y = [2, 1, 3, 1, 2, 4, 1, 2, 1, 3, 5, 0, 3, 1, 2, 4, 2, 1, 2, 1]
+Xp = sm.add_constant(np.column_stack([pois_x1, pois_x2]))
+mpois = sm.GLM(pois_y, Xp, family=sm.families.Poisson()).fit()
+mpoisNull = sm.GLM(pois_y, np.ones((len(pois_y), 1)), family=sm.families.Poisson()).fit()
+regression['poisson_basic'] = {
+    'x1': pois_x1, 'x2': pois_x2, 'y': pois_y,
+    'coef': mpois.params.tolist(), 'se': mpois.bse.tolist(),
+    'llf': float(mpois.llf), 'llnull': float(mpoisNull.llf),
+    'mcfaddenR2': float(1 - mpois.llf / mpoisNull.llf),
 }
 
 ref['regression'] = regression
@@ -471,6 +499,107 @@ wl = wl / np.linalg.norm(wl)
 multivariate['lda_basic'] = {'g1': lda_g1, 'g2': lda_g2, 'w': wl.tolist()}
 
 ref['multivariate'] = multivariate
+
+# ── bayesian ──────────────────────────────────────────────────────────────────
+bayesian = {}
+
+# Beta-Binomial conjugate posterior: exact quantile credible interval (via
+# scipy.stats.beta.ppf) — validates the betaQuantile bisection fix (previously a
+# symmetric normal approximation, wrong for this skewed posterior).
+postA, postB = 1 + 7, 1 + (20 - 7)
+bb = st.beta(postA, postB)
+bayesian['betaBinomial_basic'] = {
+    'successes': 7, 'trials': 20, 'priorAlpha': 1, 'priorBeta': 1,
+    'posteriorAlpha': postA, 'posteriorBeta': postB,
+    'posteriorMean': float(bb.mean()), 'posteriorSD': float(bb.std()),
+    'credible95': bb.ppf([0.025, 0.975]).tolist(),
+}
+
+# Gamma-Poisson conjugate posterior: exact quantile credible interval (via
+# scipy.stats.gamma.ppf) — validates the gammaQuantile bisection fix.
+counts_gp = [1, 2, 0, 3, 1, 2, 2, 1, 3, 0]
+postShape, postRate = 1 + sum(counts_gp), 1 + len(counts_gp)
+gp = st.gamma(postShape, scale=1 / postRate)
+bayesian['gammaPoisson_basic'] = {
+    'counts': counts_gp, 'priorShape': 1, 'priorRate': 1,
+    'posteriorShape': postShape, 'posteriorRate': postRate,
+    'posteriorMean': float(gp.mean()), 'posteriorSD': float(gp.std()),
+    'credible95': gp.ppf([0.025, 0.975]).tolist(),
+}
+
+# Normal-Normal conjugate posterior (known σ): closed-form exact (posterior is
+# itself Normal, so ±1.96·SD is the exact 95% interval — this oracle confirms
+# the posterior mean/SD formula itself, not just the interval).
+nn_data = [5, 6, 4, 7, 5, 6]
+priorMean, priorSD, knownSigma = 5, 2, 1.5
+priorPrec, dataPrec = 1 / priorSD ** 2, len(nn_data) / knownSigma ** 2
+postPrec = priorPrec + dataPrec
+nnPostSD = 1 / np.sqrt(postPrec)
+nnPostMean = (priorPrec * priorMean + dataPrec * np.mean(nn_data)) / postPrec
+bayesian['normalNormal_basic'] = {
+    'data': nn_data, 'priorMean': priorMean, 'priorSD': priorSD, 'knownSigma': knownSigma,
+    'posteriorMean': float(nnPostMean), 'posteriorSD': float(nnPostSD),
+}
+
+ref['bayesian'] = bayesian
+
+# ── timeseries ────────────────────────────────────────────────────────────────
+timeseries = {}
+
+# ADF unit-root test: validates the adfTest rewrite (previously discarded the
+# augmented/trended regression entirely, always reporting an unaugmented,
+# untrended statistic regardless of the `trend`/`maxLag` arguments).
+s = 7
+def _rnd():
+    global s
+    s = (1103515245 * s + 12345) & 0x7fffffff
+    return s / 0x7fffffff - 0.5
+x = 0.0
+adf_series = []
+for i in range(60):
+    x += _rnd() * 0.5 + 0.1
+    adf_series.append(x)
+r_ct0 = adfuller(adf_series, maxlag=0, regression='ct', autolag=None)
+r_c0 = adfuller(adf_series, maxlag=0, regression='c', autolag=None)
+r_ct3 = adfuller(adf_series, maxlag=3, regression='ct', autolag=None)
+timeseries['adf_basic'] = {
+    'series': adf_series,
+    'trend_lag0': {'tau': float(r_ct0[0]), 'p': float(r_ct0[1])},
+    'const_lag0': {'tau': float(r_c0[0]), 'p': float(r_c0[1])},
+    'trend_lag3': {'tau': float(r_ct3[0]), 'p': float(r_ct3[1])},
+}
+
+# ACF/PACF on an AR(1) series.
+s = 3
+x = 0.0
+ar1_series = []
+for i in range(50):
+    x = 0.6 * x + _rnd() * 2
+    ar1_series.append(x)
+a_vals = sm_acf(ar1_series, nlags=8, fft=False)
+p_vals = sm_pacf(ar1_series, nlags=8, method='ywm')
+timeseries['acf_pacf_basic'] = {'series': ar1_series, 'acf': a_vals.tolist(), 'pacf': p_vals.tolist()}
+
+ref['timeseries'] = timeseries
+
+# ── clustering ────────────────────────────────────────────────────────────────
+clustering = {}
+
+# k-means: 3 well-separated groups where the global-optimum WCSS is unambiguous
+# regardless of initialization/label permutation — validates the kmeans++ +
+# multi-restart + empty-cluster-reseeding fix (the naive uniform-random init
+# could, and for at least one fixed seed reliably did, starve a whole cluster,
+# WCSS off by ~260x from the true optimum on this exact dataset).
+from scipy.cluster.vq import kmeans2
+km_x = [1, 1.2, 0.8, 1.1, 8, 8.2, 7.8, 8.1, 1, 1.2, 0.9, 1.1]
+km_y = [1, 0.9, 1.1, 1.2, 8, 7.9, 8.1, 7.8, 8, 7.9, 8.1, 8.2]
+km_data = np.array([km_x, km_y]).T.astype(float)
+_, km_labels = kmeans2(km_data, 3, minit='++', seed=42)
+km_centroids = np.array([km_data[km_labels == i].mean(axis=0) for i in range(3)])
+km_wcss = sum(((km_data[km_labels == i] - km_centroids[i]) ** 2).sum() for i in range(3))
+clustering['kmeans_basic'] = {'x': km_x, 'y': km_y, 'wcss': float(km_wcss)}
+
+ref['clustering'] = clustering
 
 
 def _default(o):

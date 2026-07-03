@@ -80,7 +80,7 @@ export function tPDF(t, df) {
 // ── p-value functions ─────────────────────────────────────────────────────────
 export const tPVal   = (t, df)       => ibeta(df / 2, .5, df / (df + t * t));
 export const fPVal   = (F, df1, df2) => ibeta(df2 / 2, df1 / 2, df2 / (df2 + df1 * F));
-function lowerIncGamma(a, x) {
+export function lowerIncGamma(a, x) {
   if (x <= 0) return 0;
   const logA = lngamma(a);
   if (x < a + 1) {
