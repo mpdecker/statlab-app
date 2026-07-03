@@ -157,6 +157,14 @@
 > shape-only test since its randomized splitting procedure has no deterministic oracle to check against.
 > Full suite: **4,845 tests pass**. Total across all oracle passes: **19 real correctness bugs found and
 > fixed**, plus one module-portability defect uncovered as a side effect of writing the oracle test.
+>
+> **Oracle-coverage expansion (2026-07-03, seventh pass).** Extended coverage into `preprocessing.js`
+> (`standardize` in all three modes, `winsorize`, `iqrOutliers`, `madOutliers`) against
+> `scipy.stats.zscore`/`numpy.percentile`-based independent computations on a dataset with two injected
+> outliers. **All four functions matched their oracles exactly** — z-score (`ddof=1`), min-max, and
+> IQR-based robust standardization; percentile-based winsorization bounds and clipped values; Tukey-fence
+> IQR outlier bounds and flagged indices; and the modified-z-score MAD outlier formula (including the
+> `0.6745` constant) and flagged indices. No changes needed. Full suite: **4,851 tests pass**.
 
 ## Verdict
 

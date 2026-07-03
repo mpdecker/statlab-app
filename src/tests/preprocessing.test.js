@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { standardize, iqrOutliers, madOutliers, oneHotEncode, equalWidthBinning, winsorize, frequencyEncode, smote, adasyn, randomUnderSample } from './preprocessing.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 50];
 const dv = [{ cat: 'a', v: 1 }, { cat: 'b', v: 2 }, { cat: 'a', v: 3 }, { cat: 'c', v: 4 }];
@@ -86,4 +87,51 @@ describe('randomUnderSample', () => {
   it('contract keys', () => expectKeys(randomUnderSample(X, y), ['test','nOriginal','nNew','nMajorityRemoved','apa']));
   it('null <3', () => expect(randomUnderSample([[1]], [1])).toBeNull());
   it('nMajorityRemoved positive', () => { const r = randomUnderSample(X, y); if (r) expect(r.nMajorityRemoved).toBeGreaterThan(0); });
+});
+
+describe('standardize matches independent oracles (scipy.stats.zscore / numpy percentile)', () => {
+  const e = ref.preprocessing.basic;
+  it('zscore matches scipy.stats.zscore(ddof=1) exactly', () => {
+    const r = standardize(e.data, { method: 'zscore' });
+    e.zscore.forEach((v, i) => expect(r.values[i]).toBeCloseTo(v, 5));
+  });
+  it('minmax matches (x-min)/(max-min) exactly', () => {
+    const r = standardize(e.data, { method: 'minmax' });
+    e.minmax.forEach((v, i) => expect(r.values[i]).toBeCloseTo(v, 5));
+  });
+  it('robust matches (x-median)/IQR via numpy percentile exactly', () => {
+    const r = standardize(e.data, { method: 'robust' });
+    expect(r.median).toBeCloseTo(e.median, 4);
+    expect(r.iqr).toBeCloseTo(e.iqr, 4);
+    e.robust.forEach((v, i) => expect(r.values[i]).toBeCloseTo(v, 5));
+  });
+});
+
+describe('winsorize matches numpy percentile clipping exactly', () => {
+  it('quantile bounds and clipped values match', () => {
+    const e = ref.preprocessing.basic;
+    const r = winsorize(e.data, { lower: 0.1, upper: 0.1 });
+    expect(r.lowerQuantile).toBeCloseTo(e.winsorLo, 4);
+    expect(r.upperQuantile).toBeCloseTo(e.winsorHi, 4);
+    e.winsorized.forEach((v, i) => expect(r.values[i]).toBeCloseTo(v, 5));
+  });
+});
+
+describe('iqrOutliers matches numpy-percentile Tukey fences exactly', () => {
+  it('bounds and flagged indices match', () => {
+    const e = ref.preprocessing.basic;
+    const r = iqrOutliers(e.data);
+    expect(r.lowerBound).toBeCloseTo(e.iqrLower, 4);
+    expect(r.upperBound).toBeCloseTo(e.iqrUpper, 4);
+    expect(r.outliers.map(o => o.index)).toEqual(e.iqrOutlierIdx);
+  });
+});
+
+describe('madOutliers matches the standard modified z-score formula exactly', () => {
+  it('MAD and flagged indices match', () => {
+    const e = ref.preprocessing.basic;
+    const r = madOutliers(e.data);
+    expect(r.mad).toBeCloseTo(e.mad, 4);
+    expect(r.outliers.map(o => o.index)).toEqual(e.madOutlierIdx);
+  });
 });

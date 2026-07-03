@@ -776,6 +776,40 @@ sk_lof.fit_predict(lof_X)
 outlier['lof_basic'] = {'X': lof_X.tolist(), 'k': 5, 'lof': (-sk_lof.negative_outlier_factor_).tolist()}
 ref['outlier'] = outlier
 
+# ── preprocessing ─────────────────────────────────────────────────────────────
+from scipy.stats import zscore as sp_zscore
+preprocessing = {}
+prep_data = [12.1, 15.3, 11.8, 14.2, 13.5, 50.2, 12.9, 13.1, 14.8, 12.5,
+             13.9, 15.1, 11.5, 60.3, 14.4, 13.2, 12.7, 15.6, 13.8, 12.3]
+prep_arr = np.array(prep_data)
+preprocessing['basic'] = {
+    'data': prep_data,
+    'zscore': sp_zscore(prep_arr, ddof=1).tolist(),
+    'minmax': ((prep_arr - prep_arr.min()) / (prep_arr.max() - prep_arr.min())).tolist(),
+}
+_med = float(np.percentile(prep_arr, 50, method='linear'))
+_q1 = float(np.percentile(prep_arr, 25, method='linear'))
+_q3 = float(np.percentile(prep_arr, 75, method='linear'))
+_iqr = _q3 - _q1
+preprocessing['basic']['robust'] = ((prep_arr - _med) / _iqr).tolist()
+preprocessing['basic']['median'] = _med
+preprocessing['basic']['iqr'] = _iqr
+_wlo = float(np.percentile(prep_arr, 10, method='linear'))
+_whi = float(np.percentile(prep_arr, 90, method='linear'))
+preprocessing['basic']['winsorized'] = np.clip(prep_arr, _wlo, _whi).tolist()
+preprocessing['basic']['winsorLo'] = _wlo
+preprocessing['basic']['winsorHi'] = _whi
+_lower = _q1 - 1.5 * _iqr
+_upper = _q3 + 1.5 * _iqr
+preprocessing['basic']['iqrLower'] = _lower
+preprocessing['basic']['iqrUpper'] = _upper
+preprocessing['basic']['iqrOutlierIdx'] = np.where((prep_arr < _lower) | (prep_arr > _upper))[0].tolist()
+_absdev = np.abs(prep_arr - _med)
+_mad = float(np.percentile(_absdev, 50, method='linear'))
+preprocessing['basic']['mad'] = _mad
+preprocessing['basic']['madOutlierIdx'] = np.where(np.abs(0.6745 * (prep_arr - _med) / _mad) > 3.5)[0].tolist()
+ref['preprocessing'] = preprocessing
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
