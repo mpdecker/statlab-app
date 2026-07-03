@@ -232,6 +232,33 @@
 > `statsmodels.stats.weightstats.DescrStatsW` and numpy formulas, no changes needed. Full suite: **4,881
 > tests pass**. Total across all oracle passes: **22 real correctness bugs found and fixed**, plus one
 > module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, thirteenth pass).** Extended coverage into `spatial.js`,
+> `spc.js`, `compositional.js`, and `doseResponse.js`, finding **2 more real bugs**, one of them severe:
+> - `gearysC` (spatial.js) — the denominator divided the sum-of-squares by `(n-1)` *and* the final ratio
+>   separately multiplied by `(n-1)` again, inflating Geary's C by an extra factor of exactly `(n-1)`. On a
+>   12-point test dataset this gave C=8.1669 instead of the correct C=0.7424 (verified by independent numpy
+>   recomputation of the textbook formula) — a result so far outside Geary's C's ~0–2 typical range, and so
+>   inconsistent with the same dataset's positive Moran's I, that it should have been an obvious red flag.
+>   Fixed by removing the extra `/(n-1)` from the denominator.
+> - `fourPL` (doseResponse.js) — the worse of the two: its hand-rolled Levenberg-Marquardt "solve
+>   (JᵀJ+λI)Δ=Jᵀr via Cholesky-like" step only ever did a single forward-substitution pass using the
+>   lower-triangular part of `JᵀJ`, silently ignoring every upper-triangular (off-diagonal, j>i) entry —
+>   not a valid solve for a general symmetric matrix at all. Fixing just the linear algebra (via the
+>   already-imported `matInv`) was not sufficient on its own: with no line search, the very first
+>   (near-undamped) step could overshoot into a bad local optimum, and the fixed-but-still-fragile loop
+>   converged to SSE=66.55 — *worse* than the original bug's SSE=45.64 — on a standard 8-point dose-response
+>   dataset, versus scipy.optimize.curve_fit's global optimum of SSE=3.37. Replaced the entire bespoke
+>   optimizer with the codebase's shared, already-proven `mleFit` (Newton-Raphson + guaranteed-descent
+>   backtracking line search, already used successfully for GARCH and GEV/GPD MLE elsewhere). The rewritten
+>   fit now matches `scipy.optimize.curve_fit` exactly on every parameter, including the asymptotic
+>   `seLogEC50` standard error (0.01604 both ways).
+>
+> `moransI`, `spc.js`'s control-chart constants (A2/D3/D4/B3/B4, verified against the standard Montgomery
+> textbook tables) and Cp/Cpk formulas, and `compositional.js`'s CLR/ILR/ALR transforms (ILR's isometry
+> invariant — `‖ILR(x)‖ = ‖CLR(x)‖` — verified to hold exactly) were all independently checked correct, no
+> changes needed. Full suite: **4,884 tests pass**. Total across all oracle passes: **24 real correctness
+> bugs found and fixed**, plus one module-portability defect.
 
 ## Verdict
 

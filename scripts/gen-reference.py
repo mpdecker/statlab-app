@@ -1096,6 +1096,74 @@ pk['basic'] = {
 }
 ref['pk'] = pk
 
+# ── spatial ───────────────────────────────────────────────────────────────────
+spatial = {}
+sp_points = [(0, 0, 5), (1, 0, 6), (2, 0, 8), (0, 1, 4), (1, 1, 7), (2, 1, 9),
+             (0, 2, 3), (1, 2, 5), (2, 2, 8), (3, 0, 10), (3, 1, 11), (3, 2, 9)]
+_spn = len(sp_points)
+_spcoords = np.array([(p[0], p[1]) for p in sp_points])
+_spval = np.array([p[2] for p in sp_points], dtype=float)
+_spdist = np.zeros((_spn, _spn))
+for _i in range(_spn):
+    for _j in range(_spn):
+        if _i != _j:
+            _spdist[_i, _j] = np.sqrt(np.sum((_spcoords[_i] - _spcoords[_j]) ** 2))
+_spW = np.zeros((_spn, _spn))
+for _i in range(_spn):
+    for _j in range(_spn):
+        if _i != _j:
+            _spW[_i, _j] = 1 / max(_spdist[_i, _j], 1e-6)
+for _i in range(_spn):
+    _rs = _spW[_i].sum()
+    if _rs > 0:
+        _spW[_i] /= _rs
+_spMean = _spval.mean()
+_spz = _spval - _spMean
+_spS0 = _spW.sum()
+_spNum = float(np.sum(_spW * np.outer(_spz, _spz)))
+_spDen = float(np.sum(_spz ** 2))
+_moranI = (_spn * _spNum) / (_spS0 * _spDen)
+# Geary's C — the correct textbook formula: (n-1)/(2*S0) * sum_ij w_ij(xi-xj)^2 / sum_i(xi-xbar)^2.
+# This pins down the /(n-1) double-counting bug (the buggy code divided the
+# denominator by (n-1) AND multiplied the whole ratio by (n-1) again, inflating
+# C by an extra factor of (n-1)).
+_gearyNum = 0.0
+for _i in range(_spn):
+    for _j in range(_spn):
+        _gearyNum += _spW[_i, _j] * (_spval[_i] - _spval[_j]) ** 2
+_gearyRawSS = float(np.sum((_spval - _spMean) ** 2))
+_gearyC = ((_spn - 1) / (2 * _spS0)) * _gearyNum / _gearyRawSS
+spatial['basic'] = {
+    'points': [{'x': p[0], 'y': p[1], 'val': p[2]} for p in sp_points],
+    'moransI': float(_moranI), 'gearysC': float(_gearyC),
+}
+ref['spatial'] = spatial
+
+# ── doseResponse ──────────────────────────────────────────────────────────────
+from scipy.optimize import curve_fit as _curve_fit
+doseResponse = {}
+dr_dose = [0.1, 0.3, 1, 3, 10, 30, 100, 300]
+dr_response = [2, 3, 8, 25, 55, 78, 92, 96]
+_drlogdose = np.log10(np.array(dr_dose))
+_drresp = np.array(dr_response, dtype=float)
+
+
+def _fourpl(x, bottom, top, logec50, hill):
+    return bottom + (top - bottom) / (1 + 10 ** ((logec50 - x) * hill))
+
+
+_drp0 = [_drresp.min(), _drresp.max(), _drlogdose.mean(), 1]
+_dr_popt, _dr_pcov = _curve_fit(_fourpl, _drlogdose, _drresp, p0=_drp0, maxfev=10000)
+_dr_fitted = _fourpl(_drlogdose, *_dr_popt)
+_dr_sse = float(np.sum((_drresp - _dr_fitted) ** 2))
+doseResponse['fourpl_basic'] = {
+    'dose': dr_dose, 'response': dr_response,
+    'bottom': float(_dr_popt[0]), 'top': float(_dr_popt[1]),
+    'logEC50': float(_dr_popt[2]), 'hill': float(_dr_popt[3]),
+    'sse': _dr_sse, 'seLogEC50': float(np.sqrt(_dr_pcov[2, 2])),
+}
+ref['doseResponse'] = doseResponse
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

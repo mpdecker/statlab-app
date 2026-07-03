@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
 import { moransI, gearysC, semivariogram, ordinaryKriging, idw, ripleysK, spatialErrorModel, spatialLagModel } from './spatial.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const pts = [];
 for (let i = 0; i < 30; i++) pts.push({ x: i * 0.7 + Math.random() * 0.3, y: i * 0.4 + Math.random() * 0.3, v: 10 + i * 2 + Math.random() * 5 });
@@ -16,6 +17,19 @@ describe('gearysC', () => {
   it('contract keys', () => expectKeys(gearysC(pts, 'v'), ['test', 'C', 'z', 'p', 'n', 'apa']));
   it('null for <10', () => expect(gearysC(pts.slice(0, 5), 'v')).toBeNull());
   it('C >= 0', () => { const r = gearysC(pts, 'v'); if (r) expect(r.C).toBeGreaterThanOrEqual(0); });
+});
+
+describe('moransI and gearysC match an independent numpy recomputation of the row-standardized inverse-distance formula (regression test for the Geary\'s C (n-1) double-counting fix)', () => {
+  it('moransI matches', () => {
+    const e = ref.spatial.basic;
+    const r = moransI(e.points, 'val');
+    expect(r.I).toBeCloseTo(e.moransI, 4);
+  });
+  it('gearysC matches the correct textbook formula, not the buggy (n-1)x-inflated value', () => {
+    const e = ref.spatial.basic;
+    const r = gearysC(e.points, 'val');
+    expect(r.C).toBeCloseTo(e.gearysC, 4);
+  });
 });
 
 describe('semivariogram', () => {
