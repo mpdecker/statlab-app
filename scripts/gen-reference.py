@@ -869,6 +869,27 @@ missing['regression_impute_basic'] = {
 }
 ref['missing'] = missing
 
+# ── circular ──────────────────────────────────────────────────────────────────
+from scipy.stats import circmean as sp_circmean, circvar as sp_circvar
+circular = {}
+circ_deg = [10, 25, 40, 355, 5, 15, 350, 30, 20, 8]
+circ_rad = np.radians(circ_deg)
+_cn = len(circ_rad)
+_cs = float(np.sum(np.sin(circ_rad)))
+_cc = float(np.sum(np.cos(circ_rad)))
+_cR = np.sqrt(_cs ** 2 + _cc ** 2) / _cn
+_cz = _cn * _cR * _cR
+_cp = float(np.exp(-_cz) * (1 + (2 * _cz - _cz * _cz) / (4 * _cn)))
+circular['basic'] = {
+    'anglesDeg': circ_deg,
+    'mean': float(sp_circmean(circ_rad, high=np.pi, low=-np.pi)),
+    'variance': float(sp_circvar(circ_rad)),
+    'resultant': float(_cR),
+    'rayleighZ': float(_cz),
+    'rayleighP': max(0.0, _cp),
+}
+ref['circular'] = circular
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

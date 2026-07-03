@@ -187,6 +187,12 @@
 >   `meanImpute` was independently spot-checked correct.
 > Full suite: **4,855 tests pass**. Total across all oracle passes: **20 real correctness bugs found and
 > fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, tenth pass).** Extended coverage into `circular.js`
+> (`circularMean`, `circularVariance`, `rayleighTest`) against `scipy.stats.circmean`/`circvar` and an
+> independent recomputation of the Rayleigh z/p formula. **All three matched their oracles exactly** —
+> circular mean and resultant length, circular variance, and the Rayleigh test statistic and (clamped)
+> p-value. No changes needed. Full suite: **4,858 tests pass**.
 
 ## Verdict
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { circularMean, circularVariance, rayleighTest, watsonU2, vonMisesMLE, circularCorrelation, circularLinearRegression } from './circular.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const angles = [0.1, 0.3, 0.5, 0.4, 0.35, 0.2, 0.45, 0.38, 0.32, 0.48, 0.15, 0.42];
 const uniformA = [0.1, 1.2, 2.5, 3.8, 4.9, 5.6, 0.8, 2.1, 4.2, 5.9, 1.8, 3.5];
@@ -45,6 +46,24 @@ describe('circularLinearRegression', () => {
   it('null <10', () => expect(circularLinearRegression([1, 2, 3], [4, 5, 6])).toBeNull());
   it('contract keys', () => expectKeys(circularLinearRegression(angles, angles.map((_, i) => i)), ['test', 'coefficients', 'rSquared', 'n', 'apa']));
   it('rSquared between 0 and 1', () => { const r = circularLinearRegression(angles, angles.map((_, i) => i)); if (r) { expect(r.rSquared).toBeGreaterThanOrEqual(0); expect(r.rSquared).toBeLessThanOrEqual(1); } });
+});
+
+describe('circularMean, circularVariance, and rayleighTest match scipy.stats exactly', () => {
+  const e = ref.circular.basic;
+  it('circularMean matches scipy.stats.circmean', () => {
+    const r = circularMean(e.anglesDeg, { degrees: true });
+    expect(r.mean).toBeCloseTo(e.mean, 4);
+    expect(r.resultant).toBeCloseTo(e.resultant, 4);
+  });
+  it('circularVariance matches scipy.stats.circvar', () => {
+    const r = circularVariance(e.anglesDeg, { degrees: true });
+    expect(r.variance).toBeCloseTo(e.variance, 4);
+  });
+  it('rayleighTest z and (clamped) p match the independent Zar-formula computation', () => {
+    const r = rayleighTest(e.anglesDeg, { degrees: true });
+    expect(r.z).toBeCloseTo(e.rayleighZ, 3);
+    expect(r.p).toBeCloseTo(e.rayleighP, 3);
+  });
 });
 
 describe('circularLinearRegression computes a real p-value', () => {
