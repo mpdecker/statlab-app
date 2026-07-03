@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { pls1, pls2, vipScores, rda, dbRDA, sPLSRegression, sparsePLS } from './pls.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const X = Array.from({length:15},(_,i)=>[i,i*0.5,Math.sin(i)]);
 const y = X.map(r=>r[0]*2+r[1]+5);
@@ -77,6 +78,24 @@ describe('pls2 is real NIPALS that predicts Y', () => {
     const r = pls2(X, Y, 3);
     expect(r.rSquared).toBeGreaterThan(0.9);
     expect(r.fitted.length).toBe(X.length);
+  });
+});
+
+describe('pls1 matches sklearn.cross_decomposition.PLSRegression (regression test for the missing mean-centering fix)', () => {
+  it('R^2 and fitted values match the sklearn oracle exactly', () => {
+    const e = ref.pls.pls1_basic;
+    const r = pls1(e.X, e.y, 2);
+    expect(r.rSquared).toBeCloseTo(e.rSquared, 3);
+    e.fitted.forEach((f, i) => expect(r.fitted[i]).toBeCloseTo(f, 2));
+  });
+});
+
+describe('pls2 matches sklearn.cross_decomposition.PLSRegression (multi-response)', () => {
+  it('R^2 and fitted values match the sklearn oracle exactly', () => {
+    const e = ref.pls.pls2_basic;
+    const r = pls2(e.X, e.Y, 2);
+    expect(r.rSquared).toBeCloseTo(e.rSquared, 3);
+    e.fitted.forEach((row, i) => row.forEach((f, j) => expect(r.fitted[i][j]).toBeCloseTo(f, 2)));
   });
 });
 

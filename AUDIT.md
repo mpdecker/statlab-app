@@ -130,6 +130,33 @@
 > hierarchical clustering's single/complete linkage were independently verified correct with no changes
 > needed. Full suite: **4,842 tests pass**. Total across all three oracle passes: **18 real correctness bugs
 > found and fixed**, none caught by any prior shape-only test.
+>
+> **Oracle-coverage expansion (2026-07-03, sixth pass).** Extended coverage into `pls.js` and `outlier.js`
+> using `scikit-learn` as the reference implementation, and found two more defects — one a numeric-
+> correctness bug, the other a module-loading defect that oracle testing incidentally exposed:
+> - `pls1` (pls.js) — never mean-centered `X` or `y` before running NIPALS, unlike its sibling `pls2` (which
+>   does center). This isn't a cosmetic difference: standard PLS regression is only well-defined on centered
+>   data, so `pls1` returned badly wrong fitted values (e.g. ≈7.9 for a point whose true response was ≈4.1)
+>   and an inflated R² (0.9524 vs the correct 0.9762). Fixed by centering `X` and `y` before the NIPALS loop,
+>   exactly like `pls2`; the fitted values and R² now match
+>   `sklearn.cross_decomposition.PLSRegression(scale=False)` exactly.
+> - `pls.js` module load failure — the file `import`s `corr` from `math/core.js` **and** separately declares
+>   a local `function corr(a, b) {...}`, a duplicate top-level binding. This is a hard `SyntaxError`
+>   ("Identifier 'corr' has already been declared") under native ES module semantics — confirmed by loading
+>   the file with plain `node`, which refused to run it. It only "worked" under Vitest because esbuild's
+>   bundling transform silently shadows the import instead of erroring, masking the defect in every test run
+>   to date. Given this codebase's planned extraction to an npm package (see `EXTRACTION-PLAN.md`), a
+>   consumer using a spec-compliant native loader (Node without a bundler, browsers, Deno) would have hit an
+>   immediate crash. Fixed by deleting the redundant local `corr` (mathematically it only differed from the
+>   imported one by a constant `(n-1)/n` scale factor that cancels out in `sparsePLS`'s final normalization,
+>   so this is a no-op for existing behavior) and its now-unused `sampleVar` import.
+>
+> `pls2` and `localOutlierFactor` were independently verified correct — `pls2`'s fitted values match
+> `sklearn.cross_decomposition.PLSRegression` exactly, and `localOutlierFactor`'s LOF scores match
+> `sklearn.neighbors.LocalOutlierFactor` exactly on a tie-free dataset. `isolationForest` was left as a
+> shape-only test since its randomized splitting procedure has no deterministic oracle to check against.
+> Full suite: **4,845 tests pass**. Total across all oracle passes: **19 real correctness bugs found and
+> fixed**, plus one module-portability defect uncovered as a side effect of writing the oracle test.
 
 ## Verdict
 

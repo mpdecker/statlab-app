@@ -730,6 +730,52 @@ clustering['hclust_basic'] = {
     'single_heights': hc_single[:, 2].tolist(),
 }
 
+# ── pls ───────────────────────────────────────────────────────────────────────
+from sklearn.cross_decomposition import PLSRegression
+pls = {}
+pls_X = np.array([
+    [1.2, 2.1, 0.5], [2.3, 1.8, 1.1], [0.8, 3.2, 0.3], [3.1, 0.9, 2.0],
+    [1.9, 2.6, 1.4], [2.7, 1.2, 0.9], [0.5, 3.8, 0.2], [3.4, 0.6, 2.3],
+    [1.4, 2.9, 0.7], [2.0, 2.0, 1.0], [2.9, 1.1, 1.8], [0.9, 3.5, 0.4],
+    [3.2, 0.8, 2.1], [1.6, 2.4, 0.8], [2.5, 1.5, 1.3],
+])
+pls_y = np.array([4.1, 5.6, 2.3, 7.2, 5.1, 5.9, 1.8, 7.6, 4.0, 4.8, 6.5, 2.2, 7.3, 4.2, 5.3])
+sk_pls1 = PLSRegression(n_components=2, scale=False).fit(pls_X, pls_y)
+pls1_fitted = sk_pls1.predict(pls_X).ravel()
+pls1_ssres = float(np.sum((pls_y - pls1_fitted) ** 2))
+pls1_sstot = float(np.sum((pls_y - pls_y.mean()) ** 2))
+pls['pls1_basic'] = {
+    'X': pls_X.tolist(), 'y': pls_y.tolist(),
+    'rSquared': 1 - pls1_ssres / pls1_sstot,
+    'fitted': pls1_fitted.tolist(),
+}
+
+pls_Y2 = np.column_stack([pls_y, pls_y * 0.5 + 2])
+sk_pls2 = PLSRegression(n_components=2, scale=False).fit(pls_X, pls_Y2)
+pls2_fitted = sk_pls2.predict(pls_X)
+pls2_ssres = float(np.sum((pls_Y2 - pls2_fitted) ** 2))
+pls2_sstot = float(np.sum((pls_Y2 - pls_Y2.mean(axis=0)) ** 2))
+pls['pls2_basic'] = {
+    'X': pls_X.tolist(), 'Y': pls_Y2.tolist(),
+    'rSquared': 1 - pls2_ssres / pls2_sstot,
+    'fitted': pls2_fitted.tolist(),
+}
+ref['pls'] = pls
+
+# ── outlier ───────────────────────────────────────────────────────────────────
+from sklearn.neighbors import LocalOutlierFactor
+outlier = {}
+lof_X = np.array([
+    [0, 0], [0.11, 0.09], [-0.08, 0.13], [0.12, -0.07], [-0.09, -0.11],
+    [0.19, 0.02], [0.03, 0.21], [-0.21, 0.01], [0.01, -0.19], [0.16, 0.14],
+    [10, 10],
+    [0.06, -0.04],
+], dtype=float)
+sk_lof = LocalOutlierFactor(n_neighbors=5)
+sk_lof.fit_predict(lof_X)
+outlier['lof_basic'] = {'X': lof_X.tolist(), 'k': 5, 'lof': (-sk_lof.negative_outlier_factor_).tolist()}
+ref['outlier'] = outlier
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
