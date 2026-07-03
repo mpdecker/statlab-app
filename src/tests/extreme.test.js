@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { gevMLE, gpdMLE, returnLevel, blockMaxima, hillEstimator, peaksOverThreshold, thresholdSelection } from './extreme.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const data = []; for (let i = 0; i < 50; i++) data.push(10 + (i * 7 + 3) % 23 * 0.8 + Math.max(0, i - 40) * 3);
 
@@ -69,6 +70,36 @@ describe('gevMLE is a real GEV maximum-likelihood fit', () => {
     const r = gevMLE(data);
     expect(Math.abs(r.xi - 0.25)).toBeLessThan(0.15);
     expect(Math.abs(r.sigma - 2)).toBeLessThan(0.6);
+  });
+});
+
+describe('gevMLE matches scipy.stats.genextreme.fit exactly', () => {
+  it('mu, sigma, and xi match (note scipy shape c = -xi)', () => {
+    const e = ref.extreme.gev_basic;
+    const r = gevMLE(e.data);
+    expect(r.mu).toBeCloseTo(e.mu, 3);
+    expect(r.sigma).toBeCloseTo(e.sigma, 3);
+    expect(r.xi).toBeCloseTo(e.xi, 3);
+  });
+});
+
+describe('gpdMLE matches scipy.stats.genpareto.fit exactly', () => {
+  it('sigma and xi match at the mean+SD threshold', () => {
+    const e = ref.extreme.gpd_basic;
+    const r = gpdMLE(ref.extreme.gev_basic.data, e.threshold);
+    expect(r.sigma).toBeCloseTo(e.sigma, 3);
+    expect(r.xi).toBeCloseTo(e.xi, 3);
+  });
+});
+
+describe('hillEstimator matches the independent order-statistic formula exactly', () => {
+  it('alpha, xi, threshold, and k match', () => {
+    const e = ref.extreme.hill_basic;
+    const r = hillEstimator(ref.extreme.gev_basic.data);
+    expect(r.k).toBe(e.k);
+    expect(r.threshold).toBeCloseTo(e.threshold, 4);
+    expect(r.alpha).toBeCloseTo(e.alpha, 3);
+    expect(r.se).toBeCloseTo(e.se, 3);
   });
 });
 

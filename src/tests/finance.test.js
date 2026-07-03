@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { capmBeta, sharpeRatio, sortinoRatio, maxDrawdown, historicalVaR, parametricVaR, rollingWindow, famaFrench3F, carhart4F, egarch, tgarch, treynorRatio, blackScholes, impliedVolatility, optionGreeks, binomialTree, monteCarloPricing, varReduction, monteCarloOption, greeks } from './finance.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const stock = [0.01, -0.02, 0.03, 0.015, -0.005, 0.02, 0.01, -0.01, 0.005, 0.025, -0.015, 0.03];
 const market = [0.005, -0.01, 0.02, 0.01, -0.002, 0.015, 0.008, -0.005, 0.003, 0.018, -0.01, 0.02];
@@ -138,6 +139,53 @@ describe('blackScholes / greeks accuracy (vs exact normal CDF)', () => {
   it('call delta equals N(d1)', () => {
     // d1 = 0.35 → N(0.35) = 0.63683
     expect(optionGreeks(100, 100, 1, 0.05, 0.2).delta).toBeCloseTo(0.6368, 3);
+  });
+});
+
+describe('capmBeta and sharpeRatio match independent numpy/scipy oracles exactly', () => {
+  it('capmBeta matches a covariance-based OLS regression', () => {
+    const e = ref.finance.capm_basic;
+    const r = capmBeta(e.stockR, e.marketR);
+    expect(r.beta).toBeCloseTo(e.beta, 3);
+    expect(r.alpha).toBeCloseTo(e.alpha, 5);
+    expect(r.rSquared).toBeCloseTo(e.rSquared, 3);
+  });
+  it('sharpeRatio matches mean/SD*sqrt(252) exactly', () => {
+    const e = ref.finance.sharpe_basic;
+    const r = sharpeRatio(e.returns);
+    expect(r.sharpe).toBeCloseTo(e.sharpe, 3);
+  });
+});
+
+describe('maxDrawdown and historicalVaR match independent numpy oracles exactly', () => {
+  it('maxDrawdown matches the cummax-based peak/trough computation', () => {
+    const e = ref.finance.maxdd_basic;
+    const r = maxDrawdown(e.returns);
+    expect(r.maxDrawdown).toBeCloseTo(e.maxDrawdown, 2);
+    expect(r.troughIndex).toBe(e.troughIndex);
+  });
+  it('historicalVaR matches the independent sorted-quantile computation', () => {
+    const e = ref.finance.var_basic;
+    const r = historicalVaR(e.returns);
+    expect(r.var).toBeCloseTo(e.var, 4);
+    expect(r.cvar).toBeCloseTo(e.cvar, 4);
+  });
+});
+
+describe('blackScholes and binomialTree agree with an independent CRR/BS implementation', () => {
+  it('call and put prices match on a non-ATM example', () => {
+    const e = ref.finance.bs_basic;
+    const call = blackScholes(e.spot, e.strike, e.time, e.rate, e.sigma, 'call');
+    const put = blackScholes(e.spot, e.strike, e.time, e.rate, e.sigma, 'put');
+    expect(call.price).toBeCloseTo(e.call, 3);
+    expect(put.price).toBeCloseTo(e.put, 3);
+  });
+  it('binomialTree converges to the same prices at 200 steps', () => {
+    const eb = ref.finance.binom_basic;
+    const call = binomialTree(100, 105, 0.5, 0.03, 0.25, eb.steps, 'call');
+    const put = binomialTree(100, 105, 0.5, 0.03, 0.25, eb.steps, 'put');
+    expect(call.price).toBeCloseTo(eb.call, 2);
+    expect(put.price).toBeCloseTo(eb.put, 2);
   });
 });
 

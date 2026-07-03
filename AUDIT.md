@@ -193,6 +193,21 @@
 > independent recomputation of the Rayleigh z/p formula. **All three matched their oracles exactly** —
 > circular mean and resultant length, circular variance, and the Rayleigh test statistic and (clamped)
 > p-value. No changes needed. Full suite: **4,858 tests pass**.
+>
+> **Oracle-coverage expansion (2026-07-03, eleventh pass).** Extended coverage across four more modules in
+> one batch — `extreme.js`, `ecology.js`, `genetics.js`, `finance.js` — against `scipy.stats`
+> (`genextreme`/`genpareto`/`entropy`/`norm`), `sklearn.linear_model.Ridge`, and independent numpy
+> recomputations. **All functions checked matched their oracles exactly, no bugs found**:
+> - `extreme.js`: `gevMLE` (mu/sigma/xi vs `genextreme.fit`, noting scipy's shape convention `c = -xi`),
+>   `gpdMLE` (sigma/xi vs `genpareto.fit`), `hillEstimator` (alpha/xi/threshold/k vs the order-statistic
+>   formula).
+> - `ecology.js`: `shannonDiversity` (vs `scipy.stats.entropy`), `simpsonDiversity`, `chao1Richness` (bias-
+>   corrected formula).
+> - `genetics.js`: `polygenicPrediction` (ridge regression vs `sklearn.linear_model.Ridge(alpha=0.1,
+>   fit_intercept=False)`), `mendelianRandomization` (delta-method SE formula).
+> - `finance.js`: `capmBeta`, `sharpeRatio`, `maxDrawdown`, `historicalVaR`, `blackScholes` (call/put),
+>   `binomialTree` (CRR, 200 steps, converges to the same Black-Scholes price).
+> Full suite: **4,872 tests pass**.
 
 ## Verdict
 

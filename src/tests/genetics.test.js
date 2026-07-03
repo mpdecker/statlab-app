@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { prsScore, aceHeritability, ldPruning, polygenicPrediction, manhattanData, heritabilityGCTA, ldScoreRegression, mendelianRandomization } from './genetics.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const g = [[0, 1, 2], [1, 0, 1], [2, 1, 0], [0, 2, 1], [1, 1, 2], [0, 0, 1]];
 
@@ -55,6 +56,23 @@ describe('mendelianRandomization', () => {
   it('contract keys', () => expectKeys(mendelianRandomization(0.5, 0.1, 0.3, 0.05), ['test','estimate','se','apa']));
   it('null zero instrument', () => expect(mendelianRandomization(0.5, 0.1, 0, 0.05)).toBeNull());
   it('estimate finite', () => { const r = mendelianRandomization(0.5, 0.1, 0.3, 0.05); if (r) expect(Number.isFinite(r.estimate)).toBe(true); });
+});
+
+describe('polygenicPrediction matches sklearn.linear_model.Ridge(fit_intercept=False) exactly', () => {
+  it('R^2 matches on a 12x5 genotype matrix with alpha=0.1', () => {
+    const e = ref.genetics.polygenic_basic;
+    const r = polygenicPrediction(e.y, e.X);
+    expect(r.rSquared).toBeCloseTo(e.rSquared, 4);
+  });
+});
+
+describe('mendelianRandomization matches the standard delta-method formula exactly', () => {
+  it('estimate and SE match', () => {
+    const e = ref.genetics.mr_basic;
+    const r = mendelianRandomization(e.betaYX, e.seYX, e.betaZX, e.seZX);
+    expect(r.estimate).toBeCloseTo(e.estimate, 4);
+    expect(r.se).toBeCloseTo(e.se, 4);
+  });
 });
 
 describe('genetics edge cases', () => {
