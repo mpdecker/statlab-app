@@ -1,6 +1,32 @@
 import { avg, sampleSD, corr, fmtP } from '../math/core.js';
 import { mulberry32, boxMullerN } from '../math/rng.js';
 import { matInv } from '../math/matrix.js';
+import { ibeta, lowerIncGamma } from '../math/distributions.js';
+
+// Exact quantile (inverse CDF) of Beta(a,b) via bisection on the regularized
+// incomplete beta CDF `ibeta`. Used for exact (skew-aware) credible intervals
+// instead of a symmetric ±1.96·SD normal approximation, which can be
+// meaningfully wrong for skewed posteriors (small counts/trials).
+function betaQuantile(p, a, b) {
+  let lo = 0, hi = 1;
+  for (let i = 0; i < 100; i++) {
+    const mid = (lo + hi) / 2;
+    if (ibeta(a, b, mid) < p) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+// Exact quantile of Gamma(shape, rate) via bisection on the regularized lower
+// incomplete gamma CDF: CDF(x) = lowerIncGamma(shape, rate·x).
+function gammaQuantile(p, shape, rate) {
+  let lo = 0, hi = Math.max(10, (shape / rate) * 20);
+  while (lowerIncGamma(shape, rate * hi) < p) hi *= 2;
+  for (let i = 0; i < 100; i++) {
+    const mid = (lo + hi) / 2;
+    if (lowerIncGamma(shape, rate * mid) < p) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
 
 export function mcmc(logPosterior, initialParams, { nIter = 10000, nBurnin = 2000, stepSize = null } = {}) {
   if (!logPosterior || !initialParams || initialParams.length < 1) return null;
@@ -172,12 +198,16 @@ export function betaBinomialPosterior(successes, trials, priorAlpha = 1, priorBe
   const postMean = postAlpha / (postAlpha + postBetaPrior);
   const postVar = (postAlpha * postBetaPrior) / ((postAlpha + postBetaPrior) ** 2 * (postAlpha + postBetaPrior + 1));
   const postSD = Math.sqrt(postVar);
+  // Exact 95% credible interval from the Beta(postAlpha, postBeta) quantiles
+  // (previously a symmetric normal approximation, which is measurably wrong for
+  // skewed posteriors — e.g. small trial counts — and can even fall outside [0,1]).
+  const credible95 = [betaQuantile(0.025, postAlpha, postBetaPrior), betaQuantile(0.975, postAlpha, postBetaPrior)];
   return {
     posteriorAlpha: +postAlpha.toFixed(4),
     posteriorBeta: +postBetaPrior.toFixed(4),
     posteriorMean: +postMean.toFixed(6),
     posteriorSD: +postSD.toFixed(6),
-    credible95: [+Math.max(0, postMean - 1.96 * postSD).toFixed(6), +Math.min(1, postMean + 1.96 * postSD).toFixed(6)],
+    credible95: credible95.map(v => +v.toFixed(6)),
     successes, trials,
   };
 }
@@ -191,12 +221,16 @@ export function gammaPoissonPosterior(counts, priorShape = 1, priorRate = 1) {
   const postMean = postShape / postRate;
   const postVar = postShape / (postRate * postRate);
   const postSD = Math.sqrt(postVar);
+  // Exact 95% credible interval from the Gamma(postShape, postRate) quantiles
+  // (previously a symmetric normal approximation, wrong for the right-skewed
+  // Gamma posterior typical with small counts).
+  const credible95 = [gammaQuantile(0.025, postShape, postRate), gammaQuantile(0.975, postShape, postRate)];
   return {
     posteriorShape: +postShape.toFixed(4),
     posteriorRate: +postRate.toFixed(4),
     posteriorMean: +postMean.toFixed(6),
     posteriorSD: +postSD.toFixed(6),
-    credible95: [+Math.max(0, postMean - 1.96 * postSD).toFixed(6), +(postMean + 1.96 * postSD).toFixed(6)],
+    credible95: credible95.map(v => +v.toFixed(6)),
     n, sumX,
   };
 }

@@ -53,9 +53,43 @@
 > All eight are fixed, each with a regression test citing the specific oracle. Full suite: **4,816 tests
 > pass**. `cointegration`, `sur`/`threeSLS`, and the earlier `coxPH` sign-bug fix were independently
 > re-validated against MacKinnon tables / documented scope / lifelines respectively during this pass and
-> found already correct. Not exhaustive — bayesian.js, timeseries.js (beyond univariate), clustering.js, and
-> most of the "signature-scanned only" modules from the original audit still lack independent oracles; that
-> remains future work.
+> found already correct. Not exhaustive — timeseries.js (beyond ADF/ACF/PACF), clustering.js (beyond kmeans),
+> discrete.js, and most of the "signature-scanned only" modules from the original audit still lack
+> independent oracles; that remains future work.
+>
+> **Oracle-coverage expansion (2026-07-03, fourth pass).** Extended oracle coverage into `bayesian`,
+> `timeseries` (ADF/ACF/PACF), GLMs in `regression` (logistic/Poisson), and `clustering` (kmeans). **This
+> surfaced 4 more real correctness bugs**, one of them severe:
+> - `adfTest` (timeseries.js) — the most serious finding of either oracle pass. Three compounding defects:
+>   (1) the core regression used the **contemporaneous** level `y_t` as the regressor instead of the
+>   **lagged** level `y_{t-1}`, which is a fundamental ADF specification error (the null distribution
+>   requires regressing on a predetermined value); (2) a properly augmented/trended regression was computed
+>   and then **discarded** — the function always reported an unaugmented, untrended statistic regardless of
+>   the `trend`/`maxLag` arguments (verified: identical `tauStat` across three calls with different options);
+>   (3) the p-value was a crude 4-bucket lookup, not a real distribution. Rewritten from scratch with a
+>   correct lagged-level design matrix, real coefficient SEs via `(X'X)⁻¹`, and a dense MacKinnon reference
+>   table (19 points from `statsmodels.tsa.adfvalues.mackinnonp`) interpolated in normal-quantile space.
+>   Two existing tests had encoded the *buggy* output as "expected" (a near-perfect trend line asserted
+>   non-stationary, a singular constant series asserted non-null) — both corrected and re-verified against
+>   `statsmodels.tsa.stattools.adfuller`.
+> - `kmeans` (clustering.js) — naive uniform-random initialization (no k-means++, no restarts, no empty-
+>   cluster handling) could permanently starve a cluster; on a trivial 3-well-separated-blob test case it
+>   converged to WCSS≈97.7 with one cluster silently empty, vs the true global optimum ≈0.375 (a ~260x gap).
+>   Fixed with k-means++ seeding, empty-cluster reseeding, and 10 restarts (keeping the best run) — now
+>   matches `scipy.cluster.vq.kmeans2`'s WCSS exactly.
+> - `poissonRegression`'s `McFaddenR2` (regression.js) — divided by the **saturated** (perfect-fit) model's
+>   log-likelihood instead of the **null** (intercept-only) model's, which isn't the definition of McFadden's
+>   R² and collapsed the result to 0 for typical data via the function's own clamp. Fixed with a proper
+>   closed-form null-model log-likelihood (μ̂₀=ȳ); now matches `statsmodels.GLM`'s McFadden R² exactly.
+> - `betaBinomialPosterior`/`gammaPoissonPosterior` (bayesian.js) — `credible95` used a symmetric ±1.96·SD
+>   normal approximation for what are meaningfully skewed posteriors (Beta/Gamma), giving intervals visibly
+>   off from the true quantile interval. Fixed with exact quantile inversion (bisection on the existing
+>   `ibeta`/`lowerIncGamma` CDF primitives) — now matches `scipy.stats.beta`/`gamma`.ppf exactly.
+>
+> `logisticReg`, `poissonRegression`'s coefficients, `acf`, `pacf`, and `normalNormalPosterior` were
+> independently verified correct against `statsmodels`/`scipy` during this pass with no changes needed.
+> Full suite: **4,826 tests pass**. Total across both oracle passes: **12 real correctness bugs found and
+> fixed**, none caught by any prior shape-only test.
 
 ## Verdict
 

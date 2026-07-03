@@ -637,18 +637,26 @@ export function poissonRegression(y, Xraw, names = [], maxIter = 60) {
   }
 
   const fitted = [], pearsonPieces = [], devPieces = [];
-  let llSat = 0;
   let ll = 0;
+  const logFacTerms = [];
   for (let i = 0; i < n; i++) {
     const eta = Math.min(30, Math.max(-30, X[i].reduce((s, x, j) => s + x * beta[j], 0)));
     const mu = Math.exp(eta);
     fitted.push(mu);
-    ll += -mu + y[i] * eta - logFac(Math.floor(Math.abs(y[i] + 1e-9)));
+    const lft = logFac(Math.floor(Math.abs(y[i] + 1e-9)));
+    logFacTerms.push(lft);
+    ll += -mu + y[i] * eta - lft;
     pearsonPieces.push((y[i] - mu) ** 2 / (mu || 1e-10));
     if (y[i] === 0) devPieces.push(2 * mu);
     else devPieces.push(2 * (y[i] * Math.log(Math.max(y[i], 1) / mu) - (y[i] - mu)));
-    llSat += -y[i] + y[i] * Math.log(Math.max(y[i], 1)) - logFac(Math.floor(Math.abs(y[i] + 1e-9)));
   }
+  // McFadden's pseudo-R² compares the fitted model to the NULL (intercept-only)
+  // model, not the saturated (perfect-fit) model. The intercept-only Poisson MLE
+  // is μ̂₀=ȳ in closed form. The previous code used the saturated log-likelihood
+  // in the denominator, which is a different (and not usually named) quantity —
+  // for typical data it makes R² collapse to 0 via the Math.max(0,...) clip.
+  const yMean = y.reduce((s, v) => s + v, 0) / n;
+  const llNull = y.reduce((s, yi, i) => s + (-yMean + yi * Math.log(Math.max(yMean, 1e-10)) - logFacTerms[i]), 0);
 
   const pearsonChi = pearsonPieces.reduce((s, x) => s + x, 0);
   const dispersion = pearsonChi / Math.max(n - pPlus1, 1);
@@ -668,7 +676,7 @@ export function poissonRegression(y, Xraw, names = [], maxIter = 60) {
   const deviance = devPieces.reduce((s, x) => s + x, 0);
   const dof = n - pPlus1;
   const AIC = -2 * ll + 2 * pPlus1;
-  const McFaddenR2 = Math.abs(llSat) > 1e-14 ? Math.max(0, Math.min(1, 1 - ll / llSat)) : 0;
+  const McFaddenR2 = Math.abs(llNull) > 1e-14 ? Math.max(0, Math.min(1, 1 - ll / llNull)) : 0;
 
   return {
     test: 'Poisson Regression',

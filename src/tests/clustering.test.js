@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { kmeans, hierarchicalCluster, latentClassAnalysis, silhouetteScore, dbscan, gaussianMixture, calinskiHarabasz, daviesBouldin, optimalK, affinityMatrix, normalizedLaplacian, spectralEmbedding, eigengap, spectralClustering } from './clustering.js';
 import { clusterRows } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const rows = clusterRows(60);
 
@@ -32,6 +33,20 @@ describe('kmeans', () => {
 
   it('WCSS non-negative', () => {
     expect(kmeans(rows, ['x', 'y'], 2).wcss).toBeGreaterThanOrEqual(0);
+  });
+
+  it('reaches the global-optimum WCSS on well-separated clusters, matching a scipy.cluster.vq.kmeans2 oracle (regression test for the empty-cluster/bad-init bug)', () => {
+    // Naive uniform-random initialization (no k-means++, no restarts, no
+    // empty-cluster reseeding) could permanently starve a cluster for some
+    // seeds — on this exact dataset it gave WCSS≈97.7 instead of the true
+    // optimum ≈0.375 (~260x worse), with one cluster silently empty.
+    const e = ref.clustering.kmeans_basic;
+    const data = e.x.map((_, i) => ({ x: e.x[i], y: e.y[i] }));
+    const r = kmeans(data, ['x', 'y'], 3);
+    expect(r.wcss).toBeCloseTo(e.wcss, 2);
+    // All three clusters must actually be used (no empty/dead cluster).
+    const counts = [0, 1, 2].map(k => r.labels.filter(l => l === k).length);
+    counts.forEach(c => expect(c).toBeGreaterThan(0));
   });
 
   it('silhouette in [-1, 1] when defined', () => {

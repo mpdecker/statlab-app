@@ -22,6 +22,8 @@ import {
   bmaRegression, posteriorInclusionProbs, bmaPredict, bmaSummary,
 } from './bayesian.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+const bRef = ref.bayesian;
 
 const samples100 = Array.from({ length: 100 }, (_, i) => i * 0.1);
 
@@ -203,6 +205,13 @@ describe('normalNormalPosterior', () => {
     expect(Array.isArray(r.credible95)).toBe(true);
     expect(r.credible95.length).toBe(2);
   });
+
+  it('matches a closed-form conjugate-update oracle', () => {
+    const e = bRef.normalNormal_basic;
+    const r = normalNormalPosterior(e.data, e.priorMean, e.priorSD, e.knownSigma);
+    expect(r.posteriorMean).toBeCloseTo(e.posteriorMean, 5);
+    expect(r.posteriorSD).toBeCloseTo(e.posteriorSD, 5);
+  });
 });
 
 describe('normalInverseGammaPosterior', () => {
@@ -308,6 +317,17 @@ describe('betaBinomialPosterior', () => {
     expect(r.posteriorAlpha).toBeCloseTo(1, 4);
     expect(r.posteriorBeta).toBeCloseTo(11, 4);
   });
+
+  it('matches a scipy.stats.beta.ppf exact-quantile oracle (regression test for the normal-approximation-CI fix)', () => {
+    // credible95 previously used a symmetric ±1.96·SD normal approximation,
+    // measurably wrong for this skewed Beta(8,14) posterior.
+    const e = bRef.betaBinomial_basic;
+    const r = betaBinomialPosterior(e.successes, e.trials, e.priorAlpha, e.priorBeta);
+    expect(r.posteriorMean).toBeCloseTo(e.posteriorMean, 6);
+    expect(r.posteriorSD).toBeCloseTo(e.posteriorSD, 6);
+    expect(r.credible95[0]).toBeCloseTo(e.credible95[0], 4);
+    expect(r.credible95[1]).toBeCloseTo(e.credible95[1], 4);
+  });
 });
 
 describe('gammaPoissonPosterior', () => {
@@ -356,6 +376,15 @@ describe('gammaPoissonPosterior', () => {
     const r = gammaPoissonPosterior(poissonCounts);
     expect(r.credible95[0]).toBeGreaterThanOrEqual(0);
     expect(r.credible95[1]).toBeGreaterThan(r.credible95[0]);
+  });
+
+  it('matches a scipy.stats.gamma.ppf exact-quantile oracle (regression test for the normal-approximation-CI fix)', () => {
+    const e = bRef.gammaPoisson_basic;
+    const r = gammaPoissonPosterior(e.counts, e.priorShape, e.priorRate);
+    expect(r.posteriorMean).toBeCloseTo(e.posteriorMean, 6);
+    expect(r.posteriorSD).toBeCloseTo(e.posteriorSD, 6);
+    expect(r.credible95[0]).toBeCloseTo(e.credible95[0], 4);
+    expect(r.credible95[1]).toBeCloseTo(e.credible95[1], 4);
   });
 });
 

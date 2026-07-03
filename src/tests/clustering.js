@@ -33,7 +33,64 @@ function _silhouette(X, labels, k) {
   return count ? total / count : 0;
 }
 
-/** k-means (Lloyd) on numeric columns; seeded init for reproducibility */
+/** k-means (Lloyd) on numeric columns; k-means++ seeded init, multi-restart */
+
+// k-means++ initialization (Arthur & Vassilvitskii 2007): first centroid
+// uniform-random, each subsequent centroid sampled with probability
+// proportional to its squared distance from the nearest already-chosen
+// centroid. This spreads initial centroids across clusters — a plain uniform
+// random pick can (and, for some seeds, reliably does) place two initial
+// centroids inside the same true cluster, starving another cluster and
+// leaving it permanently empty under Lloyd's algorithm (see below).
+function _kmeansPlusPlusInit(X, k, rng) {
+  const n = X.length;
+  const centroids = [[...X[Math.floor(rng() * n)]]];
+  while (centroids.length < k) {
+    const d2 = X.map(x => Math.min(...centroids.map(c => dist2(x, c))));
+    const total = d2.reduce((s, v) => s + v, 0);
+    if (total <= 1e-12) { centroids.push([...X[Math.floor(rng() * n)]]); continue; }
+    let r = rng() * total, idx = n - 1;
+    for (let i = 0; i < n; i++) { r -= d2[i]; if (r <= 0) { idx = i; break; } }
+    centroids.push([...X[idx]]);
+  }
+  return centroids;
+}
+
+function _kmeansOnce(X, k, maxIter, rng) {
+  const n = X.length, p = X[0].length;
+  let centroids = _kmeansPlusPlusInit(X, k, rng);
+  let labels = Array(n).fill(0);
+  for (let iter = 0; iter < maxIter; iter++) {
+    labels = X.map(x => {
+      let best = 0, bd = Infinity;
+      centroids.forEach((c, j) => { const d = dist2(x, c); if (d < bd) { bd = d; best = j; } });
+      return best;
+    });
+    const newC = Array.from({ length: k }, () => Array(p).fill(0));
+    const counts = Array(k).fill(0);
+    X.forEach((x, i) => { counts[labels[i]]++; x.forEach((v, j) => { newC[labels[i]][j] += v; }); });
+    let moved = false;
+    for (let j = 0; j < k; j++) {
+      if (!counts[j]) {
+        // Empty cluster: reseed its centroid at the point currently farthest
+        // from its own cluster's centroid (the point Lloyd's algorithm is
+        // fitting worst), instead of leaving a dead centroid nothing can ever
+        // be reassigned to (which silently reduces the effective k forever).
+        let farI = 0, farD = -1;
+        X.forEach((x, i) => { const d = dist2(x, centroids[labels[i]]); if (d > farD) { farD = d; farI = i; } });
+        centroids[j] = [...X[farI]];
+        moved = true;
+        continue;
+      }
+      const nc = newC[j].map(v => v / counts[j]);
+      if (dist2(nc, centroids[j]) > 1e-8) moved = true;
+      centroids[j] = nc;
+    }
+    if (!moved) break;
+  }
+  const wcss = X.reduce((s, x, i) => s + dist2(x, centroids[labels[i]]), 0);
+  return { centroids, labels, wcss };
+}
 
 // ── k-Means ───────────────────────────────────────────────────────
 export function kmeans(data, vars, k = 3, maxIter = 100, seed = 42) {
@@ -44,46 +101,17 @@ export function kmeans(data, vars, k = 3, maxIter = 100, seed = 42) {
   k = Math.max(2, Math.min(8, Math.floor(k)));
   if (n < k + 2 || p < 1) return null;
 
+  // Multiple restarts (keep the lowest-WCSS run): Lloyd's algorithm only finds a
+  // local optimum, and even k-means++ doesn't guarantee the global one on every
+  // draw — restarting is the standard mitigation (as in scikit-learn's n_init).
   const rng = lcg(seed);
-  const used = new Set();
-  const centroids = [];
-  let guard = 0;
-  while (centroids.length < k && guard++ < n * 4) {
-    const idx = Math.floor(rng() * n);
-    if (used.has(idx)) continue;
-    used.add(idx);
-    centroids.push([...X[idx]]);
+  let best = null;
+  const nInit = 10;
+  for (let r = 0; r < nInit; r++) {
+    const run = _kmeansOnce(X, k, maxIter, rng);
+    if (!best || run.wcss < best.wcss) best = run;
   }
-  if (centroids.length < k) return null;
-
-  let labels = Array(n).fill(0);
-  for (let iter = 0; iter < maxIter; iter++) {
-    labels = X.map(x => {
-      let best = 0;
-      let bd = Infinity;
-      centroids.forEach((c, j) => {
-        const d = dist2(x, c);
-        if (d < bd) { bd = d; best = j; }
-      });
-      return best;
-    });
-    const newC = Array.from({ length: k }, () => Array(p).fill(0));
-    const counts = Array(k).fill(0);
-    X.forEach((x, i) => {
-      counts[labels[i]]++;
-      x.forEach((v, j) => { newC[labels[i]][j] += v; });
-    });
-    let moved = false;
-    for (let j = 0; j < k; j++) {
-      if (!counts[j]) continue;
-      const nc = newC[j].map(v => v / counts[j]);
-      if (dist2(nc, centroids[j]) > 1e-8) moved = true;
-      centroids[j] = nc;
-    }
-    if (!moved) break;
-  }
-
-  const wcss = X.reduce((s, x, i) => s + dist2(x, centroids[labels[i]]), 0);
+  const { centroids, labels, wcss } = best;
   const sil = _silhouette(X, labels, k);
 
   return {

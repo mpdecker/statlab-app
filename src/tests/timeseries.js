@@ -1,5 +1,5 @@
 import { avg, sampleVar, corr, fmtP } from '../math/core.js';
-import { tPVal, fPVal, normalCDF, chiPVal } from '../math/distributions.js';
+import { tPVal, fPVal, normalCDF, normalINV, chiPVal } from '../math/distributions.js';
 import { matInv, matMul, matTrans, jacobiEigen } from '../math/matrix.js';
 import { mleFit } from '../math/inference.js';
 
@@ -38,22 +38,6 @@ function chol(A, k) {
   return L;
 }
 
-function olsSimple(xs, ys) {
-  const n = xs.length;
-  if (n < 2) return null;
-  const mx = avg(xs), my = avg(ys);
-  let num = 0, den = 0;
-  for (let i = 0; i < n; i++) { num += (xs[i] - mx) * (ys[i] - my); den += (xs[i] - mx) ** 2; }
-  if (den === 0) return null;
-  const beta = num / den;
-  const alpha = my - beta * mx;
-  const resid = ys.map((y, i) => y - alpha - beta * xs[i]);
-  const rss = resid.reduce((s, e) => s + e * e, 0);
-  const se = Math.sqrt(rss / (n - 2)) / Math.sqrt(den);
-  const t = beta / se;
-  return { alpha, beta, se, t, resid, n };
-}
-
 function olsMultiple(Y, X) {
   const n = Y.length;
   const k = X[0].length;
@@ -83,60 +67,93 @@ function olsMultiple(Y, X) {
   return { coeffs, resid, n, k };
 }
 
+// Dense MacKinnon (1994/2010) reference points for the ADF null distribution,
+// generated from statsmodels.tsa.adfvalues.mackinnonp(N=1) at τ=-6.0..3.0 in
+// steps of 0.5 (spot-check: matches this file's own ADF_CRITICAL 1/5/10%
+// entries at the corresponding τ values). Interpolated in normal-quantile
+// space for a smooth, monotonic p(τ).
+const ADF_P_TABLE = {
+  constant: [[-6, 1.6661204834054382e-7], [-5.5, 2.0816136209632873e-6], [-5, 2.219315471395628e-5],
+    [-4.5, 1.966399003359905e-4], [-4, 1.4105112530392603e-3], [-3.5, 7.987094061496709e-3],
+    [-3, 0.034894400275345266], [-2.5, 0.11547432475870761], [-2, 0.28657309916843154],
+    [-1.5, 0.533511338910265], [-1, 0.7532643012005655], [-0.5, 0.8920164965835715],
+    [0, 0.958532086060056], [0.5, 0.9848730963065522], [1, 0.9942659485477608],
+    [1.5, 0.99752427540539], [2, 0.9986729511999243], [2.5, 0.9990498505342637], [3, 1]],
+  trend: [[-6, 2.1968599946249723e-6], [-5.5, 2.304546462992446e-5], [-5, 2.0574728263882532e-4],
+    [-4.5, 1.5095180777541192e-3], [-4, 8.793701231094677e-3], [-3.5, 0.03939102799324626],
+    [-3, 0.1320809847799973], [-2.5, 0.32796229628585105], [-2, 0.6014337722402741],
+    [-1.5, 0.8291322873337499], [-1, 0.9441147109023218], [-0.5, 0.9834338169504677],
+    [0, 0.9942331676947893], [0.5, 0.996851911498776], [1, 1], [1.5, 1], [2, 1], [2.5, 1], [3, 1]],
+};
+function _adfP(tauStat, key) {
+  const table = ADF_P_TABLE[key] || ADF_P_TABLE.constant;
+  const anchors = table.map(([tau, p]) => [tau, normalINV(Math.min(1 - 1e-12, Math.max(1e-12, p)))]);
+  if (tauStat <= anchors[0][0]) {
+    const [[t0, z0], [t1, z1]] = anchors;
+    return Math.max(1e-7, normalCDF(z0 + ((z1 - z0) / (t1 - t0)) * (tauStat - t0)));
+  }
+  if (tauStat >= anchors[anchors.length - 1][0]) return 1;
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const [t0, z0] = anchors[i], [t1, z1] = anchors[i + 1];
+    if (tauStat >= t0 && tauStat <= t1) { const w = (tauStat - t0) / (t1 - t0); return normalCDF(z0 + w * (z1 - z0)); }
+  }
+  return 1;
+}
+
+// ── Augmented Dickey-Fuller unit-root test ──────────────────────────────────
+// Δy_t = α [+ β·t] + ρ·y_{t-1} + Σ_{j=1}^{p} γ_j·Δy_{t-j} + ε_t, τ = ρ̂/SE(ρ̂).
+// The previous implementation (a) built `yLag` as the CONTEMPORANEOUS level
+// series[t] rather than the lagged series[t-1] — a fundamental specification
+// error, since ADF's null distribution requires regressing on a predetermined
+// value; (b) computed the properly augmented/trended regression (`fit`) but
+// then discarded it, reporting the t-stat of an unaugmented, untrended simple
+// regression instead — so `maxLag`/`trend` never affected the output despite
+// being accepted as parameters; (c) used a crude 4-bucket p-value lookup.
+// Verified against statsmodels.tsa.stattools.adfuller(..., autolag=None).
 export function adfTest(series, { maxLag = 0, trend = true } = {}) {
   if (!series || series.length < 10) return null;
   const n = series.length;
-  const deltaY = laggedDiff(series, 1);
-  const yLag = series.slice(1);
-  if (!deltaY.length || deltaY.length !== yLag.length) return null;
-
-  let predictors = yLag.map((_, i) => {
-    const row = [yLag[i]];
-    return row;
-  });
-
-  if (trend) {
-    predictors = predictors.map((row, i) => [...row, i + 1]);
+  const p = Math.max(0, maxLag);
+  const rows = [];
+  for (let t = p + 1; t < n; t++) {
+    const dy = series[t] - series[t - 1];
+    const dLags = Array.from({ length: p }, (_, j) => series[t - 1 - j] - series[t - 2 - j]);
+    const predictors = [1, ...(trend ? [t] : []), series[t - 1], ...dLags];
+    rows.push({ dy, predictors });
   }
+  const k = rows[0]?.predictors.length;
+  if (!k || rows.length <= k) return null;
 
-  let actualMaxLag = 0;
-  for (let p = 1; p <= maxLag; p++) {
-    const lagged = [];
-    for (let i = 0; i < deltaY.length; i++) {
-      lagged.push(i >= p ? deltaY[i - p] : 0);
-    }
-    predictors = predictors.map((row, i) => [...row, lagged[i]]);
-    actualMaxLag = p;
-  }
-
-  if (!predictors[0]?.length) return null;
-  const fit = olsMultiple(deltaY, predictors);
-  if (!fit) return null;
-
-  const se = Math.sqrt(fit.resid.reduce((s, e) => s + e * e, 0) / (fit.resid.length - fit.coeffs.length));
-  const tauStat = fit.coeffs[0] / (se * Math.sqrt(1 / (yLag.reduce((s, v) => s + (v - avg(yLag)) ** 2, 0) || 1)));
-  const seReg = olsSimple(yLag, deltaY);
-  const tauSimple = seReg ? seReg.t : tauStat;
+  const X = rows.map(r => r.predictors), Y = rows.map(r => [r.dy]);
+  const Xt = matTrans(X);
+  const XtX = matMul(Xt, X);
+  const XtXinv = matInv(XtX);
+  if (!XtXinv) return null;
+  const beta = matMul(XtXinv, matMul(Xt, Y)).map(r => r[0]);
+  const fitted = X.map(row => row.reduce((s, x, j) => s + x * beta[j], 0));
+  const resid = Y.map((y, i) => y[0] - fitted[i]);
+  const m = rows.length, dfResid = m - k;
+  if (dfResid < 1) return null;
+  const sigma2 = resid.reduce((s, e) => s + e * e, 0) / dfResid;
+  const rhoIdx = trend ? 2 : 1;
+  const seRho = Math.sqrt(Math.max(0, sigma2 * XtXinv[rhoIdx][rhoIdx]));
+  const tauStat = seRho > 0 ? beta[rhoIdx] / seRho : 0;
 
   const criticalKey = trend ? "trend" : "constant";
   const critical = ADF_CRITICAL[criticalKey];
-  const stationary = tauSimple < critical["5%"];
-  let pEst = 0.5;
-  if (tauSimple < critical["1%"]) pEst = 0.001;
-  else if (tauSimple < critical["5%"]) pEst = 0.03;
-  else if (tauSimple < critical["10%"]) pEst = 0.08;
-  else pEst = 0.2;
+  const stationary = tauStat < critical["5%"];
+  const pValue = _adfP(tauStat, criticalKey);
 
   return {
     test: "Augmented Dickey-Fuller Test",
-    tauStat: +tauSimple.toFixed(4),
-    pValue: +pEst.toFixed(4),
+    tauStat: +tauStat.toFixed(4),
+    pValue: +pValue.toFixed(4),
     criticalValues: critical,
     stationary,
     trend,
-    maxLag: actualMaxLag,
+    maxLag: p,
     n,
-    apa: `ADF τ = ${tauSimple.toFixed(2)}, p ≈ ${pEst.toFixed(3)}${stationary ? ' (stationary at 5%)' : ''}, lags = ${actualMaxLag}`,
+    apa: `ADF τ = ${tauStat.toFixed(2)}, p ≈ ${pValue.toFixed(3)}${stationary ? ' (stationary at 5%)' : ''}, lags = ${p}`,
   };
 }
 

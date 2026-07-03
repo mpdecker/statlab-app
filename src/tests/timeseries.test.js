@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { adfTest, acf, pacf, arima, autoArima, simpleExpSmooth, holtsLinearSmooth, holtWinters, seasonalDecompose, varModel, grangerCausality, chowTest, garch, egarch, stateSpace, kalmanFilter, johansenTest, structuralBreak, bottomUpReconciliation, topDownReconciliation, middleOutReconciliation, minTReconciliation, forecastAccuracy, markovSwitchingAR, regimeVolatility, transitionMatrix, filteredProbabilities, expectedDuration, peltChangePoint, binarySegmentation, singleChangepoint, changepointPenalty, segmentedMeans, rollingOriginCV, slidingWindow, gapValidation, tsFeatures, forecastReconciliation, mase, smape, theilU, dieboldMariano, encompassingTest, varmax, cointegrationRank, vecm, impulseResponseCI, fevdDecomposition, dccGarch, bekkGarch, cccGarch, mgarchForecast, mgarchDiagnostics } from './timeseries.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+const tsRef = ref.timeseries;
 
 const stationarySeries = [
   1.2, 0.8, 1.5, 1.1, 0.9, 1.3, 1.0, 1.4, 0.7, 1.6,
@@ -26,8 +28,26 @@ describe('adfTest', () => {
     expect(r.n).toBe(stationarySeries.length);
   });
 
-  it('trending series identified as non-stationary', () => {
-    expect(adfTest(trendSeries, { trend: true }).stationary).toBe(false);
+  it('a near-perfectly linear series is trend-stationary once detrended (matches statsmodels adfuller)', () => {
+    // trendSeries is (almost) a deterministic straight line with tiny rounding
+    // noise — with the trend term included, ADF correctly detects that the
+    // DETRENDED residuals have essentially no unit-root behavior left, so this
+    // rejects the null (stationary around the trend). Verified against
+    // statsmodels.tsa.stattools.adfuller(trendSeries, regression='ct',
+    // autolag=None): tau≈-7.07, p≈9.6e-9 — a previous version of this test
+    // asserted the opposite, which matched a bug where `trend`/`maxLag` never
+    // actually affected the computed statistic (see adfTest's docstring).
+    const r = adfTest(trendSeries, { trend: true });
+    expect(r.tauStat).toBeCloseTo(-7.0745, 2);
+    expect(r.stationary).toBe(true);
+  });
+
+  it('a genuine random walk with drift is NOT detected as trend-stationary', () => {
+    let x = 0; const rw = [];
+    let s = 5; const rnd = () => { s = (1103515245 * s + 12345) & 0x7fffffff; return s / 0x7fffffff - 0.5; };
+    for (let i = 0; i < 40; i++) { x += 0.5 + rnd() * 2; rw.push(x); }
+    const r = adfTest(rw, { trend: true });
+    expect(r.stationary).toBe(false);
   });
 
   it('accepts maxLag and trend options', () => {
@@ -52,10 +72,31 @@ describe('adfTest', () => {
     expect(Number.isFinite(r.tauStat)).toBe(true);
   });
 
-  it('constant series: non-stationary', () => {
+  it('matches a statsmodels.tsa.stattools.adfuller oracle across trend/lag specifications', () => {
+    const e = tsRef.adf_basic;
+    const rCt0 = adfTest(e.series, { trend: true, maxLag: 0 });
+    expect(rCt0.tauStat).toBeCloseTo(e.trend_lag0.tau, 3);
+    expect(rCt0.pValue).toBeCloseTo(e.trend_lag0.p, 1);
+    const rC0 = adfTest(e.series, { trend: false, maxLag: 0 });
+    expect(rC0.tauStat).toBeCloseTo(e.const_lag0.tau, 3);
+    expect(rC0.pValue).toBeCloseTo(e.const_lag0.p, 1);
+    const rCt3 = adfTest(e.series, { trend: true, maxLag: 3 });
+    expect(rCt3.tauStat).toBeCloseTo(e.trend_lag3.tau, 3);
+    expect(rCt3.pValue).toBeCloseTo(e.trend_lag3.p, 1);
+    // The three specifications must actually differ — the bug this fixes made
+    // trend/maxLag no-ops, so tauStat was identical across all three calls.
+    expect(rCt0.tauStat).not.toBeCloseTo(rC0.tauStat, 1);
+    expect(rCt0.tauStat).not.toBeCloseTo(rCt3.tauStat, 1);
+  });
+
+  it('a perfectly constant series is a singular design (y_{t-1} collinear with the intercept) and returns null', () => {
+    // With zero variation, y_{t-1} is identical to the intercept column, so
+    // (X'X) is singular and the ADF regression is genuinely undefined — null is
+    // the honest answer here (same convention as every other matInv-based
+    // function in this codebase), not a fabricated statistic.
     const constant = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5];
     const r = adfTest(constant);
-    expect(r).not.toBeNull();
+    expect(r).toBeNull();
   });
 });
 
@@ -103,6 +144,12 @@ describe('acf', () => {
     const r = acf(c, 3);
     for (let i = 1; i < r.length; i++) expect(r[i].autocorrelation).toBe(0);
   });
+
+  it('matches a statsmodels.tsa.stattools.acf oracle on an AR(1) series', () => {
+    const e = tsRef.acf_pacf_basic;
+    const r = acf(e.series, 8);
+    r.forEach((row, i) => expect(row.autocorrelation).toBeCloseTo(e.acf[i], 5));
+  });
 });
 
 describe('pacf', () => {
@@ -125,6 +172,12 @@ describe('pacf', () => {
     const a = acf(stationarySeries, 5);
     const p = pacf(stationarySeries, 5);
     if (a?.[1] && p?.[1]) expect(p[1].partialAutocorrelation).toBeCloseTo(a[1].autocorrelation, 2);
+  });
+
+  it('matches a statsmodels.tsa.stattools.pacf(method="ywm") oracle on an AR(1) series', () => {
+    const e = tsRef.acf_pacf_basic;
+    const r = pacf(e.series, 8);
+    r.forEach((row, i) => expect(row.partialAutocorrelation).toBeCloseTo(e.pacf[i], 4));
   });
 });
 
