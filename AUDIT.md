@@ -208,6 +208,30 @@
 > - `finance.js`: `capmBeta`, `sharpeRatio`, `maxDrawdown`, `historicalVaR`, `blackScholes` (call/put),
 >   `binomialTree` (CRR, 200 steps, converges to the same Black-Scholes price).
 > Full suite: **4,872 tests pass**.
+>
+> **Oracle-coverage expansion (2026-07-03, twelfth pass).** Extended coverage into `reliability.js`,
+> `survey.js`, and `pk.js`, finding **2 more real bugs**:
+> - `weibullAnalysis` (reliability.js) — MTBF used `eta * exp(log(1 + 1/beta))`, a no-op identity that
+>   simplifies to `eta * (1 + 1/beta)`, instead of the correct Weibull mean `eta * Γ(1 + 1/beta)`. The
+>   `Math.exp(Math.log(x))` pattern is a strong signal a gamma-function call was intended but never actually
+>   implemented. On the test dataset this overestimated MTBF by 47% (27.88 vs the correct 18.98, verified
+>   against `scipy.special.gamma`). Fixed using the already-available `lngamma` from `math/distributions.js`.
+> - `warrantyPrediction` (reliability.js) — looked up the Kaplan-Meier survival step at the *first* observed
+>   failure time **at or after** the warranty month, instead of the step in effect **at** that month (the
+>   last failure time at-or-before it). This incorrectly folded post-warranty failures into the claim-rate
+>   estimate — on the test data, 66.7% instead of the correct 58.3% (verified exactly against
+>   `lifelines.KaplanMeierFitter`). Fixed by selecting the last step with `time <= monthsInWarranty`.
+> - `terminalHalfLife` (pk.js) — also fixed in this pass: R² was computed by exponentiating the fitted
+>   log-linear values back to the raw concentration scale and comparing there, instead of on the log scale
+>   the regression was actually fit on. This is a different quantity than "goodness of fit of the log-linear
+>   regression," the standard PK convention — 0.9956 (buggy, raw-scale) vs the correct 0.9989 (log-scale,
+>   verified against `numpy.polyfit` on the same data). Fixed to compute residuals/R² on the log scale.
+>
+> `reliabilityGrowth`, `aucTrapezoidal`, `aucLinearLog`, and survey's `weightedMean`/`weightedVar`/
+> `designEffect`/`effectiveSampleSize`/`weightedCorrelation` were independently verified correct against
+> `statsmodels.stats.weightstats.DescrStatsW` and numpy formulas, no changes needed. Full suite: **4,881
+> tests pass**. Total across all oracle passes: **22 real correctness bugs found and fixed**, plus one
+> module-portability defect.
 
 ## Verdict
 

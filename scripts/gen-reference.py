@@ -1014,6 +1014,88 @@ finance['binom_basic'] = {
 }
 ref['finance'] = finance
 
+# ── reliability ───────────────────────────────────────────────────────────────
+from scipy.special import gamma as sp_gamma_fn
+reliability = {}
+rel_data = [12.5, 18.3, 22.1, 8.7, 15.6, 30.2, 25.4, 19.8, 11.2, 27.6, 14.3, 21.9]
+_rel_arr = np.sort(np.array(rel_data))
+_rel_n = len(_rel_arr)
+_rel_logT = np.log(np.maximum(_rel_arr, 1e-10))
+_rel_F = (np.arange(_rel_n) + 0.5) / _rel_n
+_rel_logLog = np.log(-np.log(1 - _rel_F))
+_rel_num = np.sum((_rel_logT - _rel_logT.mean()) * (_rel_logLog - _rel_logLog.mean()))
+_rel_den = np.sum((_rel_logT - _rel_logT.mean()) ** 2)
+_rel_beta = max(0.5, _rel_num / _rel_den)
+_rel_eta = float(np.exp(_rel_logT.mean() - _rel_logLog.mean() / _rel_beta))
+# Weibull MTBF = eta * Gamma(1 + 1/beta) — pins down the missing-gamma-function
+# bug (the buggy code computed eta*(1+1/beta) via a no-op exp(log(x)) instead
+# of actually calling the gamma function).
+reliability['weibull_basic'] = {'data': rel_data, 'beta': float(_rel_beta), 'eta': _rel_eta, 'mtbf': _rel_eta * float(sp_gamma_fn(1 + 1 / _rel_beta))}
+
+# Kaplan-Meier survival at t=12 via lifelines — pins down the "find first step
+# >= t" bug (was using the NEXT event after the warranty period instead of the
+# LAST event at-or-before it, incorrectly counting post-warranty failures).
+from lifelines import KaplanMeierFitter as _KMF
+rel_failures = [3, 5, 5, 8, 10, 10, 10, 15, 18, 20, 22, 25]
+_kmf = _KMF()
+_kmf.fit(rel_failures, event_observed=[1] * len(rel_failures))
+_survival12 = float(_kmf.survival_function_at_times(12).values[0])
+reliability['warranty_basic'] = {'failures': rel_failures, 'monthsInWarranty': 12, 'claimRate': 1 - _survival12}
+ref['reliability'] = reliability
+
+# ── survey ────────────────────────────────────────────────────────────────────
+from statsmodels.stats.weightstats import DescrStatsW
+survey = {}
+surv_values = [12, 15, 18, 22, 9, 14, 20, 17, 11, 25]
+surv_weights = [1.2, 0.8, 1.5, 0.9, 1.1, 1.3, 0.7, 1.0, 1.4, 0.6]
+surv_y = [22, 18, 25, 30, 15, 19, 27, 23, 16, 33]
+_sv, _sw = np.array(surv_values, dtype=float), np.array(surv_weights)
+_ssumW, _ssumWSq = float(_sw.sum()), np.sum(_sw ** 2)
+_smuW = np.sum(_sw * _sv) / _ssumW
+_svar = np.sum(_sw * (_sv - _smuW) ** 2) / (_ssumW - _ssumWSq / _ssumW)
+_sdeff = len(_sw) * _ssumWSq / _ssumW ** 2
+_sy = np.array(surv_y, dtype=float)
+_smx, _smy = np.sum(_sw * _sv) / _ssumW, np.sum(_sw * _sy) / _ssumW
+_scov = np.sum(_sw * (_sv - _smx) * (_sy - _smy))
+_svx, _svy = np.sum(_sw * (_sv - _smx) ** 2), np.sum(_sw * (_sy - _smy) ** 2)
+survey['basic'] = {
+    'values': surv_values, 'weights': surv_weights, 'y': surv_y,
+    'mean': float(_smuW), 'variance': float(_svar), 'sd': float(np.sqrt(_svar)),
+    'deff': float(_sdeff), 'nEff': float(len(_sw) / _sdeff),
+    'corr': float(_scov / np.sqrt(_svx * _svy)),
+}
+ref['survey'] = survey
+
+# ── pk ────────────────────────────────────────────────────────────────────────
+pk = {}
+pk_time = [0, 0.5, 1, 2, 4, 6, 8, 12, 24]
+pk_conc = [0, 8.5, 12.3, 15.1, 11.2, 7.8, 5.4, 2.6, 0.4]
+_pt, _pc = np.array(pk_time, dtype=float), np.array(pk_conc, dtype=float)
+_aucTrap = float(np.trapezoid(_pc, _pt))
+_aucLL = 0.0
+for _i in range(1, len(_pt)):
+    _dt = _pt[_i] - _pt[_i - 1]
+    _c1, _c2 = _pc[_i - 1], _pc[_i]
+    if _c2 >= _c1 or _c1 <= 0 or _c2 <= 0:
+        _aucLL += _dt * (_c1 + _c2) / 2
+    else:
+        _aucLL += _dt * (_c1 - _c2) / np.log(_c1 / _c2)
+_t3, _c3 = _pt[-3:], _pc[-3:]
+_logc3 = np.log(_c3)
+_slope, _intercept = np.polyfit(_t3, _logc3, 1)
+_k = -_slope
+_halflife = np.log(2) / _k
+_predLog = _slope * _t3 + _intercept
+_ssres = np.sum((_logc3 - _predLog) ** 2)
+_sstot = np.sum((_logc3 - _logc3.mean()) ** 2)
+_r2log = 1 - _ssres / _sstot
+pk['basic'] = {
+    'time': pk_time, 'concentration': pk_conc,
+    'aucTrapezoidal': _aucTrap, 'aucLinearLog': float(_aucLL),
+    'halfLife': float(_halflife), 'k': float(_k), 'rSquared': float(_r2log),
+}
+ref['pk'] = pk
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
