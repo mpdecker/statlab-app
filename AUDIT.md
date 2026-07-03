@@ -172,6 +172,21 @@
 > zero-true-positive confusion matrix, PSNR's MSE-based dB formula on a 15-value signal pair, and box IoU
 > across partial overlap, no overlap, and containment cases. No changes needed. Full suite: **4,854 tests
 > pass**.
+>
+> **Oracle-coverage expansion (2026-07-03, ninth pass).** Extended coverage into `missing.js` and found
+> another real bug:
+> - `regressionImpute` — computed each predictor's coefficient via **simple (marginal) regression against
+>   the target alone**, ignoring correlation between predictors, instead of real multiple regression. Worse,
+>   the intercept formula was `avg(target) - otherVars.reduce((s, v, j) => s + avg(X_j) * 0, 0)` — the
+>   trailing `* 0` zeroed out the entire reduce term, so the intercept was always just the target's raw mean,
+>   never adjusted for predictor levels. Combined, predictions could land wildly outside the plausible range:
+>   on a test case with two correlated predictors, the buggy code predicted a missing value of **≈39** where
+>   the true regression prediction was **≈10.8** (a value in the same range as the other observations).
+>   Fixed by computing real multiple OLS via centered normal equations (`(XᵀX)⁻¹XᵀY` using the already-
+>   imported `matInv`); the fix now matches `sklearn.linear_model.LinearRegression` exactly (10.8 both ways).
+>   `meanImpute` was independently spot-checked correct.
+> Full suite: **4,855 tests pass**. Total across all oracle passes: **20 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 

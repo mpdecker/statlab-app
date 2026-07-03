@@ -849,6 +849,26 @@ metrics['iou_basic'] = [
 ]
 ref['metrics'] = metrics
 
+# ── missing ───────────────────────────────────────────────────────────────────
+from sklearn.linear_model import LinearRegression
+missing = {}
+# x1 missing at row 10, predicted from correlated (x2, y) predictors — pins down
+# the regressionImpute fix (was a broken intercept=avg(target)*0-term plus
+# per-predictor SIMPLE regression instead of real multiple OLS, giving wildly
+# out-of-range predictions e.g. ~39 instead of ~10.8 for this data).
+mi_X = np.array([
+    [5, 45], [6, 52], [4, 38], [7, 61], [4.5, 41.5],
+    [5.5, 48.5], [6.5, 57.5], [3.5, 34.5], [6.2, 54.6], [5.2, 46.6],
+])
+mi_y = np.array([10, 12, 8, 15, 9, 11, 14, 7, 13, 10.5])
+mi_lr = LinearRegression().fit(mi_X, mi_y)
+mi_pred = float(mi_lr.predict(np.array([[5.8, 49]]))[0])
+missing['regression_impute_basic'] = {
+    'x2': mi_X[:, 0].tolist(), 'y': mi_X[:, 1].tolist(), 'x1': mi_y.tolist(),
+    'queryX2': 5.8, 'queryY': 49.0, 'predictedX1': mi_pred,
+}
+ref['missing'] = missing
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

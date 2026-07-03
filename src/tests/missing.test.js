@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { missingnessPattern, littlesMCAR, meanImpute, regressionImpute, emImpute, mice, rubinPool, fmi, completeCases } from './missing.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const completeData = [
   { x: 1, y: 2, z: 3 },
@@ -125,6 +126,14 @@ describe('regressionImpute', () => {
   it('returns same-length array', () => {
     const r = regressionImpute(missingData, ['x', 'y', 'z']);
     expect(r.length).toBe(5);
+  });
+
+  it('predicts via real multiple OLS matching sklearn.linear_model.LinearRegression exactly (regression test for the broken intercept/simple-regression fix)', () => {
+    const e = ref.missing.regression_impute_basic;
+    const rows = e.x2.map((x2, i) => ({ x1: e.x1[i], x2, y: e.y[i] }));
+    rows.push({ x1: null, x2: e.queryX2, y: e.queryY });
+    const r = regressionImpute(rows, ['x1', 'x2', 'y']);
+    expect(r[rows.length - 1].x1).toBeCloseTo(e.predictedX1, 4);
   });
 });
 
