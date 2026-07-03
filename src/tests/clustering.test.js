@@ -122,6 +122,21 @@ describe('hierarchicalCluster', () => {
   it('apa references linkage', () => {
     expect(hierarchicalCluster(rows, ['x', 'y'], 'complete').apa).toMatch(/complete/i);
   });
+
+  it('matches a scipy.cluster.hierarchy.linkage oracle for single/complete/ward merge heights (regression test for the mislabeled ward linkage)', () => {
+    // 'ward' previously fell through to plain centroid-to-centroid Euclidean
+    // distance (i.e. centroid/UPGMC linkage) instead of the real Ward
+    // variance-minimization criterion — single/complete already matched scipy
+    // exactly, which is what isolated the bug to 'ward' specifically.
+    const e = ref.clustering.hclust_basic;
+    const data = e.X.map(([x, y]) => ({ x, y }));
+    const rSingle = hierarchicalCluster(data, ['x', 'y'], 'single');
+    rSingle.mergeHeights.forEach((h, i) => expect(h).toBeCloseTo(e.single_heights[i], 3));
+    const rComplete = hierarchicalCluster(data, ['x', 'y'], 'complete');
+    rComplete.mergeHeights.forEach((h, i) => expect(h).toBeCloseTo(e.complete_heights[i], 3));
+    const rWard = hierarchicalCluster(data, ['x', 'y'], 'ward');
+    rWard.mergeHeights.forEach((h, i) => expect(h).toBeCloseTo(e.ward_heights[i], 3));
+  });
 });
 
 describe('latentClassAnalysis', () => {
@@ -245,6 +260,17 @@ describe('dbscan', () => {
     const r = dbscan(rows, ['x', 'y'], 0.5, 3);
     expect(typeof r.apa).toBe('string');
     expect(r.apa.length).toBeGreaterThan(0);
+  });
+
+  it('matches a sklearn.cluster.DBSCAN oracle when a border point is indexed before its cluster\'s core points (regression test for the visited/labeling bug)', () => {
+    // A point visited early in the outer scan and found not to be core stayed
+    // permanently unlabeled (noise) even when a later core point's BFS
+    // expansion reached it as a genuine border member — because `visited`
+    // gated label assignment, not just re-expansion.
+    const e = ref.clustering.dbscan_border;
+    const data = e.x.map((_, i) => ({ x: e.x[i], y: e.y[i] }));
+    const r = dbscan(data, ['x', 'y'], e.eps, e.minPts);
+    expect(r.labels).toEqual(e.labels);
   });
 });
 

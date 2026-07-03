@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { shannonDiversity, simpsonDiversity, chao1Richness, speciesAccumulation, rarefaction, indicatorSpecies, simperAnalysis, adonis2, betadisper } from './ecology.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const c = [5, 3, 2, 1, 1, 0, 0, 0];
 
@@ -9,6 +10,24 @@ describe('simpsonDiversity', () => { it('contract keys', () => expectKeys(simpso
 describe('chao1Richness', () => { it('contract keys', () => expectKeys(chao1Richness(c), ['test','chao1','sobs','singletons','doubletons','apa'])); it('chao1 >= sobs', () => { const r = chao1Richness(c); if (r) expect(r.chao1).toBeGreaterThanOrEqual(r.sobs); }); it('estimate positive', () => { const r = chao1Richness(c); if (r) expect(r.chao1).toBeGreaterThan(0); }); });
 describe('speciesAccumulation', () => { it('contract keys', () => expectKeys(speciesAccumulation(['A','B','A','C','B','D']), ['test','curve','n','apa'])); it('curve array non-empty', () => { const r = speciesAccumulation(['A','B','A','C','B','D']); if (r) { expect(Array.isArray(r.curve)).toBe(true); expect(r.curve.length).toBeGreaterThan(0); } }); it('curve non-decreasing', () => { const r = speciesAccumulation(['A','B','A','C','B','D']); if (r && r.curve) { for (let i = 1; i < r.curve.length; i++) expect(r.curve[i]).toBeGreaterThanOrEqual(r.curve[i-1]); } }); });
 describe('rarefaction', () => { it('contract keys', () => expectKeys(rarefaction(['A','B','A','C','B','D'], 4), ['test','expectedSpecies','sampleSize','nObserved','sobs','apa'])); it('expectedSpecies positive', () => { const r = rarefaction(['A','B','A','C','B','D'], 4); if (r && r.expectedSpecies !== undefined) expect(Number.isFinite(r.expectedSpecies)).toBe(true); }); it('expectedSpecies finite', () => { const r = rarefaction(['A','B','A','C','B','D'], 4); if (r) expect(Number.isFinite(r.expectedSpecies)).toBe(true); }); });
+
+describe('shannonDiversity, simpsonDiversity, and chao1Richness match independent oracles exactly', () => {
+  const e = ref.ecology.basic;
+  it('shannon matches scipy.stats.entropy', () => {
+    const r = shannonDiversity(e.counts);
+    expect(r.shannon).toBeCloseTo(e.shannon, 4);
+    expect(r.evenness).toBeCloseTo(e.evenness, 4);
+  });
+  it('simpson matches the independent 1-sum(p^2) computation', () => {
+    const r = simpsonDiversity(e.counts);
+    expect(r.simpson).toBeCloseTo(e.simpson, 4);
+    expect(r.invSimpson).toBeCloseTo(e.invSimpson, 1);
+  });
+  it('chao1 matches the independent bias-corrected formula', () => {
+    const r = chao1Richness(e.counts);
+    expect(Number(r.chao1)).toBe(e.chao1);
+  });
+});
 
 describe('indicatorSpecies', () => {
   const d = []; for (let i = 0; i < 20; i++) d.push({ site: Math.floor(i/4), species: i % 5 === 0 ? 'A' : i % 5 === 1 ? 'B' : 'C', group: i < 10 ? 'Ctrl' : 'Trt' });

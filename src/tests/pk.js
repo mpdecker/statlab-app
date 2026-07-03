@@ -102,10 +102,10 @@ export function terminalHalfLife(time, concentration, { nPoints = 3 } = {}) {
   const k = Math.max(0, -slope);
   const halfLife = k > 0 ? Math.log(2) / k : null;
   const intc = (sxx * sy - sx * sxy) / denom;
-  const fitted = termTime.map(t => Math.exp(intc + slope * t));
+  const fittedLog = termTime.map(t => intc + slope * t);
   let ssRes = 0, ssTot = 0;
-  const my = avg(termConc);
-  for (let i = 0; i < np; i++) { ssRes += (termConc[i] - fitted[i]) ** 2; ssTot += (termConc[i] - my) ** 2; }
+  const myLog = avg(logC);
+  for (let i = 0; i < np; i++) { ssRes += (logC[i] - fittedLog[i]) ** 2; ssTot += (logC[i] - myLog) ** 2; }
   const rSq = ssTot > 0 ? 1 - ssRes / ssTot : 0;
 
   return {

@@ -90,6 +90,148 @@
 > independently verified correct against `statsmodels`/`scipy` during this pass with no changes needed.
 > Full suite: **4,826 tests pass**. Total across both oracle passes: **12 real correctness bugs found and
 > fixed**, none caught by any prior shape-only test.
+>
+> **Oracle-coverage expansion (2026-07-03, fifth pass).** Installed scikit-learn and networkx for additional
+> reference implementations, then extended oracle coverage into `inequality`, `info`, `robust`, `distance`,
+> `clustering` (hierarchical/DBSCAN), `network`, and `fitting`. **This surfaced 6 more real correctness
+> bugs**, including one of the most consequential findings of the whole campaign (betweenness centrality):
+> - `centralityMeasures`'s betweenness (network.js) — used "any node at `dist[t]-1`" as a stand-in for "a real
+>   predecessor of t on a shortest s→t path," which is not sufficient and **massively overcounted**: on a
+>   6-node test graph the hub node's raw score was 30 against a theoretical per-node maximum of 10 (5x too
+>   high), and nodes with a *true* betweenness of 0 got large nonzero scores. Rewritten with real Brandes'
+>   algorithm (predecessor sets + reverse-BFS dependency accumulation) — now matches
+>   `networkx.betweenness_centrality` exactly.
+> - `fitBeta` (fitting.js) — the Newton-Raphson MLE used the crude large-x asymptotic approximation
+>   `ψ(x)≈ln(x)−1/(2x)` in place of the real digamma function, badly wrong for the α,β≈1–10 range typical of
+>   Beta-fitted proportion data; it **diverged** to α≈290,000, β≈395,000 instead of the true MLE α≈3.88,
+>   β≈5.05. Fixed by implementing accurate `digamma`/`trigamma` (shift-then-asymptotic-series, verified to
+>   ~9 significant figures against `scipy.special.digamma`/`polygamma`) and adding Newton-step damping.
+> - `hierarchicalCluster`'s `'ward'` linkage (clustering.js) — fell through to plain centroid-to-centroid
+>   Euclidean distance (UPGMC) for any non-single/non-complete request, silently mislabeled as Ward's method
+>   (single/complete linkage already matched scipy exactly, which is what isolated the bug to `'ward'`
+>   specifically). Fixed with the real Ward variance-minimization criterion
+>   `d=√(2·(|A||B|/(|A|+|B|))·‖centroid_A−centroid_B‖²)` — now matches
+>   `scipy.cluster.hierarchy.linkage(method='ward')` exactly at every merge step.
+> - `dbscan` (clustering.js) — `visited` gated label assignment, not just neighbor re-expansion: a border
+>   point visited early in the outer scan (found non-core, left unlabeled) stayed permanently noise even when
+>   a later core point's BFS expansion reached it as a genuine neighbor. Fixed by decoupling "already
+>   expanded" from "already labeled" — now matches `sklearn.cluster.DBSCAN` exactly, including on a case
+>   specifically designed to trigger the bug (border point indexed before its cluster's core points).
+> - `theilSenSlope` (robust.js) — the intercept used `mean(y)−slope·mean(x)`, which is **not robust** to
+>   outliers (defeating the entire purpose of using Theil-Sen) — an outlying point pulled it from the correct
+>   value of 0.0 to −6.818. Fixed with the robust `median(y_i−slope·x_i)` formula, matching
+>   `scipy.stats.theilslopes`'s convention exactly.
+> - `theilIndex` (inequality.js) — the GE(1) weight term used raw `v_i` instead of `v_i/mean`, inflating the
+>   index by exactly a factor of the sample mean (~21.5x on a test dataset with mean 21.5). Fixed with the
+>   correct `(v_i/mean)·ln(v_i/mean)` term (and an explicit x·ln(x)→0 guard at v_i=0).
+>
+> `giniCoefficient`, `atkinsonIndex`, `shannonEntropy`, `mutualInformation`, `distanceCovariance`,
+> `distanceCorrelation`, `mahalanobisDistance`, `pageRank`, `closenessCentrality`, `fitWeibull`, and
+> hierarchical clustering's single/complete linkage were independently verified correct with no changes
+> needed. Full suite: **4,842 tests pass**. Total across all three oracle passes: **18 real correctness bugs
+> found and fixed**, none caught by any prior shape-only test.
+>
+> **Oracle-coverage expansion (2026-07-03, sixth pass).** Extended coverage into `pls.js` and `outlier.js`
+> using `scikit-learn` as the reference implementation, and found two more defects — one a numeric-
+> correctness bug, the other a module-loading defect that oracle testing incidentally exposed:
+> - `pls1` (pls.js) — never mean-centered `X` or `y` before running NIPALS, unlike its sibling `pls2` (which
+>   does center). This isn't a cosmetic difference: standard PLS regression is only well-defined on centered
+>   data, so `pls1` returned badly wrong fitted values (e.g. ≈7.9 for a point whose true response was ≈4.1)
+>   and an inflated R² (0.9524 vs the correct 0.9762). Fixed by centering `X` and `y` before the NIPALS loop,
+>   exactly like `pls2`; the fitted values and R² now match
+>   `sklearn.cross_decomposition.PLSRegression(scale=False)` exactly.
+> - `pls.js` module load failure — the file `import`s `corr` from `math/core.js` **and** separately declares
+>   a local `function corr(a, b) {...}`, a duplicate top-level binding. This is a hard `SyntaxError`
+>   ("Identifier 'corr' has already been declared") under native ES module semantics — confirmed by loading
+>   the file with plain `node`, which refused to run it. It only "worked" under Vitest because esbuild's
+>   bundling transform silently shadows the import instead of erroring, masking the defect in every test run
+>   to date. Given this codebase's planned extraction to an npm package (see `EXTRACTION-PLAN.md`), a
+>   consumer using a spec-compliant native loader (Node without a bundler, browsers, Deno) would have hit an
+>   immediate crash. Fixed by deleting the redundant local `corr` (mathematically it only differed from the
+>   imported one by a constant `(n-1)/n` scale factor that cancels out in `sparsePLS`'s final normalization,
+>   so this is a no-op for existing behavior) and its now-unused `sampleVar` import.
+>
+> `pls2` and `localOutlierFactor` were independently verified correct — `pls2`'s fitted values match
+> `sklearn.cross_decomposition.PLSRegression` exactly, and `localOutlierFactor`'s LOF scores match
+> `sklearn.neighbors.LocalOutlierFactor` exactly on a tie-free dataset. `isolationForest` was left as a
+> shape-only test since its randomized splitting procedure has no deterministic oracle to check against.
+> Full suite: **4,845 tests pass**. Total across all oracle passes: **19 real correctness bugs found and
+> fixed**, plus one module-portability defect uncovered as a side effect of writing the oracle test.
+>
+> **Oracle-coverage expansion (2026-07-03, seventh pass).** Extended coverage into `preprocessing.js`
+> (`standardize` in all three modes, `winsorize`, `iqrOutliers`, `madOutliers`) against
+> `scipy.stats.zscore`/`numpy.percentile`-based independent computations on a dataset with two injected
+> outliers. **All four functions matched their oracles exactly** — z-score (`ddof=1`), min-max, and
+> IQR-based robust standardization; percentile-based winsorization bounds and clipped values; Tukey-fence
+> IQR outlier bounds and flagged indices; and the modified-z-score MAD outlier formula (including the
+> `0.6745` constant) and flagged indices. No changes needed. Full suite: **4,851 tests pass**.
+>
+> **Oracle-coverage expansion (2026-07-03, eighth pass).** Extended coverage into `metrics.js`
+> (`matthewsCorrelation`, `psnr`, `iou`) against `sklearn.metrics.matthews_corrcoef` and independent
+> numpy formula recomputations. **All three matched their oracles exactly** — MCC on both a normal and a
+> zero-true-positive confusion matrix, PSNR's MSE-based dB formula on a 15-value signal pair, and box IoU
+> across partial overlap, no overlap, and containment cases. No changes needed. Full suite: **4,854 tests
+> pass**.
+>
+> **Oracle-coverage expansion (2026-07-03, ninth pass).** Extended coverage into `missing.js` and found
+> another real bug:
+> - `regressionImpute` — computed each predictor's coefficient via **simple (marginal) regression against
+>   the target alone**, ignoring correlation between predictors, instead of real multiple regression. Worse,
+>   the intercept formula was `avg(target) - otherVars.reduce((s, v, j) => s + avg(X_j) * 0, 0)` — the
+>   trailing `* 0` zeroed out the entire reduce term, so the intercept was always just the target's raw mean,
+>   never adjusted for predictor levels. Combined, predictions could land wildly outside the plausible range:
+>   on a test case with two correlated predictors, the buggy code predicted a missing value of **≈39** where
+>   the true regression prediction was **≈10.8** (a value in the same range as the other observations).
+>   Fixed by computing real multiple OLS via centered normal equations (`(XᵀX)⁻¹XᵀY` using the already-
+>   imported `matInv`); the fix now matches `sklearn.linear_model.LinearRegression` exactly (10.8 both ways).
+>   `meanImpute` was independently spot-checked correct.
+> Full suite: **4,855 tests pass**. Total across all oracle passes: **20 real correctness bugs found and
+> fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, tenth pass).** Extended coverage into `circular.js`
+> (`circularMean`, `circularVariance`, `rayleighTest`) against `scipy.stats.circmean`/`circvar` and an
+> independent recomputation of the Rayleigh z/p formula. **All three matched their oracles exactly** —
+> circular mean and resultant length, circular variance, and the Rayleigh test statistic and (clamped)
+> p-value. No changes needed. Full suite: **4,858 tests pass**.
+>
+> **Oracle-coverage expansion (2026-07-03, eleventh pass).** Extended coverage across four more modules in
+> one batch — `extreme.js`, `ecology.js`, `genetics.js`, `finance.js` — against `scipy.stats`
+> (`genextreme`/`genpareto`/`entropy`/`norm`), `sklearn.linear_model.Ridge`, and independent numpy
+> recomputations. **All functions checked matched their oracles exactly, no bugs found**:
+> - `extreme.js`: `gevMLE` (mu/sigma/xi vs `genextreme.fit`, noting scipy's shape convention `c = -xi`),
+>   `gpdMLE` (sigma/xi vs `genpareto.fit`), `hillEstimator` (alpha/xi/threshold/k vs the order-statistic
+>   formula).
+> - `ecology.js`: `shannonDiversity` (vs `scipy.stats.entropy`), `simpsonDiversity`, `chao1Richness` (bias-
+>   corrected formula).
+> - `genetics.js`: `polygenicPrediction` (ridge regression vs `sklearn.linear_model.Ridge(alpha=0.1,
+>   fit_intercept=False)`), `mendelianRandomization` (delta-method SE formula).
+> - `finance.js`: `capmBeta`, `sharpeRatio`, `maxDrawdown`, `historicalVaR`, `blackScholes` (call/put),
+>   `binomialTree` (CRR, 200 steps, converges to the same Black-Scholes price).
+> Full suite: **4,872 tests pass**.
+>
+> **Oracle-coverage expansion (2026-07-03, twelfth pass).** Extended coverage into `reliability.js`,
+> `survey.js`, and `pk.js`, finding **2 more real bugs**:
+> - `weibullAnalysis` (reliability.js) — MTBF used `eta * exp(log(1 + 1/beta))`, a no-op identity that
+>   simplifies to `eta * (1 + 1/beta)`, instead of the correct Weibull mean `eta * Γ(1 + 1/beta)`. The
+>   `Math.exp(Math.log(x))` pattern is a strong signal a gamma-function call was intended but never actually
+>   implemented. On the test dataset this overestimated MTBF by 47% (27.88 vs the correct 18.98, verified
+>   against `scipy.special.gamma`). Fixed using the already-available `lngamma` from `math/distributions.js`.
+> - `warrantyPrediction` (reliability.js) — looked up the Kaplan-Meier survival step at the *first* observed
+>   failure time **at or after** the warranty month, instead of the step in effect **at** that month (the
+>   last failure time at-or-before it). This incorrectly folded post-warranty failures into the claim-rate
+>   estimate — on the test data, 66.7% instead of the correct 58.3% (verified exactly against
+>   `lifelines.KaplanMeierFitter`). Fixed by selecting the last step with `time <= monthsInWarranty`.
+> - `terminalHalfLife` (pk.js) — also fixed in this pass: R² was computed by exponentiating the fitted
+>   log-linear values back to the raw concentration scale and comparing there, instead of on the log scale
+>   the regression was actually fit on. This is a different quantity than "goodness of fit of the log-linear
+>   regression," the standard PK convention — 0.9956 (buggy, raw-scale) vs the correct 0.9989 (log-scale,
+>   verified against `numpy.polyfit` on the same data). Fixed to compute residuals/R² on the log scale.
+>
+> `reliabilityGrowth`, `aucTrapezoidal`, `aucLinearLog`, and survey's `weightedMean`/`weightedVar`/
+> `designEffect`/`effectiveSampleSize`/`weightedCorrelation` were independently verified correct against
+> `statsmodels.stats.weightstats.DescrStatsW` and numpy formulas, no changes needed. Full suite: **4,881
+> tests pass**. Total across all oracle passes: **22 real correctness bugs found and fixed**, plus one
+> module-portability defect.
 
 ## Verdict
 

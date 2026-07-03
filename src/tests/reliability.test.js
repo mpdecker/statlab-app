@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
 import { weibullAnalysis, reliabilityGrowth, acceleratedLife, warrantyPrediction, weibullBayes, repairableSystems, competingRisksReliability } from './reliability.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const data = [120, 250, 380, 510, 720, 890, 1050, 1300, 1600, 2100];
 const cumF = [1, 3, 5, 8, 12, 16, 22, 30, 38, 45];
@@ -43,6 +44,24 @@ describe('repairableSystems', () => {
   it('null <3', () => expect(repairableSystems([1,2], 10)).toBeNull());
   it('mtbf positive', () => { const r = repairableSystems(failures, 600); if (r) expect(r.mtbf).toBeGreaterThan(0) });
 });
+describe('weibullAnalysis MTBF matches eta*Gamma(1+1/beta) exactly (regression test for the missing gamma-function fix)', () => {
+  it('MTBF uses the real gamma function, not eta*(1+1/beta)', () => {
+    const e = ref.reliability.weibull_basic;
+    const r = weibullAnalysis(e.data);
+    expect(r.beta).toBeCloseTo(e.beta, 3);
+    expect(r.eta).toBeCloseTo(e.eta, 3);
+    expect(r.mtbf).toBeCloseTo(e.mtbf, 2);
+  });
+});
+
+describe('warrantyPrediction matches lifelines.KaplanMeierFitter exactly (regression test for the step-selection fix)', () => {
+  it('claim rate uses the KM step at-or-before the warranty month, not the next one after it', () => {
+    const e = ref.reliability.warranty_basic;
+    const r = warrantyPrediction(e.failures, e.monthsInWarranty);
+    expect(r.expectedClaimRate).toBeCloseTo(e.claimRate, 3);
+  });
+});
+
 describe('competingRisksReliability', () => {
   const times = [12, 34, 56, 78, 90, 120, 150, 200];
   const causes = [1, 2, 1, 1, 2, 1, 2, 2];

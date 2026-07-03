@@ -1,5 +1,5 @@
 import { avg, sampleVar } from '../math/core.js';
-import { normalCDF } from '../math/distributions.js';
+import { normalCDF, lngamma } from '../math/distributions.js';
 
 // ── Weibull Analysis ──────────────────────────────────────────────
 export function weibullAnalysis(data, { confidence = 0.95 } = {}) {
@@ -13,7 +13,7 @@ export function weibullAnalysis(data, { confidence = 0.95 } = {}) {
   for (let i = 0; i < n; i++) { num += (logT[i] - avg(logT)) * (logLog[i] - avg(logLog)); den += (logT[i] - avg(logT)) ** 2; }
   const beta = den > 0 ? Math.max(0.5, num / den) : 1;
   const eta = Math.exp(avg(logT) - avg(logLog) / beta);
-  const mtbf = eta * Math.exp(Math.log(1 + 1 / beta) || 0);
+  const mtbf = eta * Math.exp(lngamma(1 + 1 / beta));
   return { test: 'Weibull Analysis', beta: +beta.toFixed(4), eta: +eta.toFixed(4), mtbf: +mtbf.toFixed(4), n, apa: `Weibull: beta=${beta.toFixed(2)}, eta=${eta.toFixed(1)}, MTBF=${mtbf.toFixed(1)}` };
 }
 
@@ -62,7 +62,9 @@ export function warrantyPrediction(failureData, monthsInWarranty = 12, { confide
     kmEst.push({ time: t, hazard: +hazard.toFixed(4), survival: +survival.toFixed(4) });
     atRisk -= failed;
   }
-  const warrantyClaim = 1 - (kmEst.find(k => k.time >= monthsInWarranty)?.survival || kmEst[kmEst.length - 1]?.survival || 1);
+  const stepsAtOrBefore = kmEst.filter(k => k.time <= monthsInWarranty);
+  const survivalAtWarranty = stepsAtOrBefore.length ? stepsAtOrBefore[stepsAtOrBefore.length - 1].survival : 1;
+  const warrantyClaim = 1 - survivalAtWarranty;
   return { test: 'Warranty Prediction', expectedClaimRate: +warrantyClaim.toFixed(4), warrantyMonths: monthsInWarranty, n, apa: `Warranty: ${(warrantyClaim * 100).toFixed(1)}% claim rate over ${monthsInWarranty}mo` };
 }
 

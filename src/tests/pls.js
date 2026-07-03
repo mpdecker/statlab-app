@@ -1,4 +1,4 @@
-import { avg, sampleVar, corr } from '../math/core.js';
+import { avg, corr } from '../math/core.js';
 import { jacobiEigen, matInv } from '../math/matrix.js';
 
 // ── PLS1 ──────────────────────────────────────────────────────────
@@ -11,8 +11,9 @@ export function pls1(X, y, nComponents = 2) {
   const weights = [];      // normalised weight vector per component (for VIP)
   const ssExplained = [];  // y-SS explained per component  = b²·(tᵀt)
   const ybar = avg(y);
-  let Xres = X.map(r => [...r]);
-  let yres = [...y];
+  const xMean = X[0].map((_, j) => avg(X.map(r => r[j])));
+  let Xres = X.map(r => r.map((v, j) => v - xMean[j]));
+  let yres = y.map(v => v - ybar);
   let fitted = Array(n).fill(ybar);
   for (let h = 0; h < comps; h++) {
     const wh = Xres[0].map((_, j) => yres.reduce((s, yi, i) => s + yi * Xres[i][j], 0));
@@ -190,4 +191,3 @@ export function sparsePLS(X, y, { nComp = 2, keepX = null } = {}) {
   const loadings = raw.map(v => +(v / norm).toFixed(4));
   return { test: 'Sparse PLS', loadings, keepX: keep, nComp, n: X.length, p, apa: `Sparse PLS: ${keep}/${p} vars selected` };
 }
-function corr(a, b) { const n = a.length; return n > 0 ? (a.reduce((s, v, i) => s + (v - avg(a)) * (b[i] - avg(b)), 0) / n) / Math.sqrt(sampleVar(a) * sampleVar(b) + 1e-10) : 0; }

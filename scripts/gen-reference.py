@@ -601,6 +601,501 @@ clustering['kmeans_basic'] = {'x': km_x, 'y': km_y, 'wcss': float(km_wcss)}
 
 ref['clustering'] = clustering
 
+# ── inequality ────────────────────────────────────────────────────────────────
+inequality = {}
+ineq_data = [10, 15, 20, 25, 30, 12, 18, 22, 28, 35]
+ineq_mean = np.mean(ineq_data)
+mad = np.mean([abs(a - b) for a in ineq_data for b in ineq_data])
+gini = mad / (2 * ineq_mean)
+theil = np.mean([(v / ineq_mean) * np.log(v / ineq_mean) for v in ineq_data])
+atk1 = 1 - np.prod([(v / ineq_mean) ** (1 / len(ineq_data)) for v in ineq_data])
+eps = 0.5
+atk_half = 1 - (np.mean([(v / ineq_mean) ** (1 - eps) for v in ineq_data])) ** (1 / (1 - eps))
+inequality['basic'] = {
+    'data': ineq_data, 'gini': float(gini), 'theil': float(theil),
+    'atkinson1': float(atk1), 'atkinson_half': float(atk_half),
+}
+ref['inequality'] = inequality
+
+# ── network ───────────────────────────────────────────────────────────────────
+network = {}
+import networkx as nx
+net_edges = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (0, 2), (2, 4)]
+G = nx.Graph()
+G.add_nodes_from(range(6))
+G.add_edges_from(net_edges)
+netA = nx.to_numpy_array(G)
+bc = nx.betweenness_centrality(G, normalized=True)
+ec = nx.eigenvector_centrality(G, max_iter=1000)
+ecMax = max(ec.values())
+pr = nx.pagerank(G, alpha=0.85)
+cc = nx.closeness_centrality(G)
+network['centrality_basic'] = {
+    'A': netA.tolist(),
+    'degree': [int(G.degree(i)) for i in range(6)],
+    'betweenness': [bc[i] for i in range(6)],
+    'eigenvector_normed': [ec[i] / ecMax for i in range(6)],
+    'pagerank': [pr[i] for i in range(6)],
+    'closeness': [cc[i] for i in range(6)],
+}
+ref['network'] = network
+
+# ── fitting ───────────────────────────────────────────────────────────────────
+fitting = {}
+from scipy.stats import weibull_min, gamma as sp_gamma, beta as sp_beta
+
+fit_sample = [2.1, 3.4, 1.8, 4.2, 5.0, 2.9, 3.7, 4.5, 1.5, 3.0, 2.2, 3.8, 1.9, 4.1, 2.6]
+wshape, _, wscale = weibull_min.fit(fit_sample, floc=0)
+fitting['weibull_basic'] = {'sample': fit_sample, 'shape': float(wshape), 'scale': float(wscale)}
+
+# Beta MLE: validates the digamma/trigamma fix (previously diverged to
+# alpha~290000/beta~395000 instead of the true MLE ~3.88/~5.05).
+beta_sample = [0.2, 0.35, 0.5, 0.65, 0.4, 0.55, 0.3, 0.45, 0.6, 0.25, 0.5, 0.7, 0.15, 0.4, 0.55]
+ba, bb, _, _ = sp_beta.fit(beta_sample, floc=0, fscale=1)
+fitting['beta_basic'] = {'sample': beta_sample, 'alpha': float(ba), 'beta': float(bb)}
+ref['fitting'] = fitting
+
+# ── info ──────────────────────────────────────────────────────────────────────
+info = {}
+from scipy.stats import entropy as sp_entropy
+from sklearn.metrics import mutual_info_score
+ent_data = [1, 1, 2, 2, 2, 3, 3, 1, 2, 3, 1, 2]
+_, counts = np.unique(ent_data, return_counts=True)
+h = sp_entropy(counts / counts.sum(), base=2)
+info['entropy_basic'] = {'data': ent_data, 'entropy': float(h)}
+
+mi_x = [1, 1, 2, 2, 3, 3, 1, 2, 3, 1, 2, 3]
+mi_y = [1, 2, 1, 2, 3, 3, 2, 1, 3, 1, 2, 3]
+mi_bits = mutual_info_score(mi_x, mi_y) / np.log(2)
+info['mi_basic'] = {'x': mi_x, 'y': mi_y, 'mi': float(mi_bits)}
+ref['info'] = info
+
+# ── robust ────────────────────────────────────────────────────────────────────
+robust = {}
+from scipy.stats import theilslopes
+ts_x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 50]
+ts_y = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 25]
+rts = theilslopes(ts_y, ts_x)
+robust['theilsen_outlier'] = {'x': ts_x, 'y': ts_y, 'slope': float(rts.slope), 'intercept': float(rts.intercept)}
+ref['robust'] = robust
+
+# ── distance ──────────────────────────────────────────────────────────────────
+distance = {}
+
+def _dcov(xa, ya):
+    xa = np.asarray(xa, dtype=float); ya = np.asarray(ya, dtype=float)
+    a = np.abs(xa[:, None] - xa[None, :])
+    b = np.abs(ya[:, None] - ya[None, :])
+    A = a - a.mean(axis=0, keepdims=True) - a.mean(axis=1, keepdims=True) + a.mean()
+    B = b - b.mean(axis=0, keepdims=True) - b.mean(axis=1, keepdims=True) + b.mean()
+    return float(np.sqrt(max(0, (A * B).mean())))
+
+dc_x = [1, 3, 2, 5, 4, 7, 6, 9, 8, 10]
+dc_y = [2, 5, 3, 8, 6, 11, 9, 14, 12, 16]
+dcov = _dcov(dc_x, dc_y)
+dvarx = _dcov(dc_x, dc_x)
+dvary = _dcov(dc_y, dc_y)
+distance['dcov_basic'] = {'x': dc_x, 'y': dc_y, 'dcov': dcov, 'dcorr': dcov / np.sqrt(dvarx * dvary)}
+
+from scipy.spatial.distance import mahalanobis as sp_mahalanobis
+maha_x, maha_y = [2, 3, 4], [1, 1, 1]
+maha_cov = [[2, 0.5, 0.1], [0.5, 3, 0.2], [0.1, 0.2, 1.5]]
+maha_d = float(sp_mahalanobis(maha_x, maha_y, np.linalg.inv(maha_cov)))
+distance['mahalanobis_basic'] = {'x': maha_x, 'y': maha_y, 'cov': maha_cov, 'd': maha_d}
+ref['distance'] = distance
+
+# DBSCAN: a border point (index 0) placed BEFORE its cluster's core points in
+# array order — pins down the "visited gates labeling" bug (a point visited
+# early in the outer scan and found non-core stayed permanently unlabeled
+# even when later reached as a neighbor of a real core point's expansion).
+from sklearn.cluster import DBSCAN as SKDBSCAN
+db_x = [-0.28, 0.0, 0.1, 0.05, 0.15, 0.1, 0.0, 8.0]
+db_y = [0.0, 0.0, 0.0, 0.09, 0.09, -0.09, -0.09, 8.0]
+db_X = np.array([db_x, db_y]).T
+db_fit = SKDBSCAN(eps=0.3, min_samples=5).fit(db_X)
+clustering['dbscan_border'] = {'x': db_x, 'y': db_y, 'eps': 0.3, 'minPts': 5, 'labels': db_fit.labels_.tolist()}
+
+# Hierarchical clustering: single/complete linkage already matched scipy
+# exactly; 'ward' pins down the fix (was silently computing plain centroid/
+# UPGMC distance instead of the real Ward variance-minimization criterion).
+from scipy.cluster.hierarchy import linkage as sp_linkage
+hc_X = np.array([[1, 1], [1.5, 2], [3, 4], [5, 7], [3.5, 5], [4.5, 5], [3.5, 4.5]], dtype=float)
+hc_ward = sp_linkage(hc_X, method='ward')
+hc_complete = sp_linkage(hc_X, method='complete')
+hc_single = sp_linkage(hc_X, method='single')
+clustering['hclust_basic'] = {
+    'X': hc_X.tolist(),
+    'ward_heights': hc_ward[:, 2].tolist(),
+    'complete_heights': hc_complete[:, 2].tolist(),
+    'single_heights': hc_single[:, 2].tolist(),
+}
+
+# ── pls ───────────────────────────────────────────────────────────────────────
+from sklearn.cross_decomposition import PLSRegression
+pls = {}
+pls_X = np.array([
+    [1.2, 2.1, 0.5], [2.3, 1.8, 1.1], [0.8, 3.2, 0.3], [3.1, 0.9, 2.0],
+    [1.9, 2.6, 1.4], [2.7, 1.2, 0.9], [0.5, 3.8, 0.2], [3.4, 0.6, 2.3],
+    [1.4, 2.9, 0.7], [2.0, 2.0, 1.0], [2.9, 1.1, 1.8], [0.9, 3.5, 0.4],
+    [3.2, 0.8, 2.1], [1.6, 2.4, 0.8], [2.5, 1.5, 1.3],
+])
+pls_y = np.array([4.1, 5.6, 2.3, 7.2, 5.1, 5.9, 1.8, 7.6, 4.0, 4.8, 6.5, 2.2, 7.3, 4.2, 5.3])
+sk_pls1 = PLSRegression(n_components=2, scale=False).fit(pls_X, pls_y)
+pls1_fitted = sk_pls1.predict(pls_X).ravel()
+pls1_ssres = float(np.sum((pls_y - pls1_fitted) ** 2))
+pls1_sstot = float(np.sum((pls_y - pls_y.mean()) ** 2))
+pls['pls1_basic'] = {
+    'X': pls_X.tolist(), 'y': pls_y.tolist(),
+    'rSquared': 1 - pls1_ssres / pls1_sstot,
+    'fitted': pls1_fitted.tolist(),
+}
+
+pls_Y2 = np.column_stack([pls_y, pls_y * 0.5 + 2])
+sk_pls2 = PLSRegression(n_components=2, scale=False).fit(pls_X, pls_Y2)
+pls2_fitted = sk_pls2.predict(pls_X)
+pls2_ssres = float(np.sum((pls_Y2 - pls2_fitted) ** 2))
+pls2_sstot = float(np.sum((pls_Y2 - pls_Y2.mean(axis=0)) ** 2))
+pls['pls2_basic'] = {
+    'X': pls_X.tolist(), 'Y': pls_Y2.tolist(),
+    'rSquared': 1 - pls2_ssres / pls2_sstot,
+    'fitted': pls2_fitted.tolist(),
+}
+ref['pls'] = pls
+
+# ── outlier ───────────────────────────────────────────────────────────────────
+from sklearn.neighbors import LocalOutlierFactor
+outlier = {}
+lof_X = np.array([
+    [0, 0], [0.11, 0.09], [-0.08, 0.13], [0.12, -0.07], [-0.09, -0.11],
+    [0.19, 0.02], [0.03, 0.21], [-0.21, 0.01], [0.01, -0.19], [0.16, 0.14],
+    [10, 10],
+    [0.06, -0.04],
+], dtype=float)
+sk_lof = LocalOutlierFactor(n_neighbors=5)
+sk_lof.fit_predict(lof_X)
+outlier['lof_basic'] = {'X': lof_X.tolist(), 'k': 5, 'lof': (-sk_lof.negative_outlier_factor_).tolist()}
+ref['outlier'] = outlier
+
+# ── preprocessing ─────────────────────────────────────────────────────────────
+from scipy.stats import zscore as sp_zscore
+preprocessing = {}
+prep_data = [12.1, 15.3, 11.8, 14.2, 13.5, 50.2, 12.9, 13.1, 14.8, 12.5,
+             13.9, 15.1, 11.5, 60.3, 14.4, 13.2, 12.7, 15.6, 13.8, 12.3]
+prep_arr = np.array(prep_data)
+preprocessing['basic'] = {
+    'data': prep_data,
+    'zscore': sp_zscore(prep_arr, ddof=1).tolist(),
+    'minmax': ((prep_arr - prep_arr.min()) / (prep_arr.max() - prep_arr.min())).tolist(),
+}
+_med = float(np.percentile(prep_arr, 50, method='linear'))
+_q1 = float(np.percentile(prep_arr, 25, method='linear'))
+_q3 = float(np.percentile(prep_arr, 75, method='linear'))
+_iqr = _q3 - _q1
+preprocessing['basic']['robust'] = ((prep_arr - _med) / _iqr).tolist()
+preprocessing['basic']['median'] = _med
+preprocessing['basic']['iqr'] = _iqr
+_wlo = float(np.percentile(prep_arr, 10, method='linear'))
+_whi = float(np.percentile(prep_arr, 90, method='linear'))
+preprocessing['basic']['winsorized'] = np.clip(prep_arr, _wlo, _whi).tolist()
+preprocessing['basic']['winsorLo'] = _wlo
+preprocessing['basic']['winsorHi'] = _whi
+_lower = _q1 - 1.5 * _iqr
+_upper = _q3 + 1.5 * _iqr
+preprocessing['basic']['iqrLower'] = _lower
+preprocessing['basic']['iqrUpper'] = _upper
+preprocessing['basic']['iqrOutlierIdx'] = np.where((prep_arr < _lower) | (prep_arr > _upper))[0].tolist()
+_absdev = np.abs(prep_arr - _med)
+_mad = float(np.percentile(_absdev, 50, method='linear'))
+preprocessing['basic']['mad'] = _mad
+preprocessing['basic']['madOutlierIdx'] = np.where(np.abs(0.6745 * (prep_arr - _med) / _mad) > 3.5)[0].tolist()
+ref['preprocessing'] = preprocessing
+
+# ── metrics ───────────────────────────────────────────────────────────────────
+from sklearn.metrics import matthews_corrcoef
+metrics = {}
+
+
+def _mcc_from_counts(tp, fp, tn, fn):
+    y_true = [1] * tp + [1] * fn + [0] * fp + [0] * tn
+    y_pred = [1] * tp + [0] * fn + [1] * fp + [0] * tn
+    return float(matthews_corrcoef(y_true, y_pred))
+
+
+metrics['mcc_basic'] = [
+    {'tp': 45, 'fp': 5, 'tn': 40, 'fn': 10, 'mcc': _mcc_from_counts(45, 5, 40, 10)},
+    {'tp': 0, 'fp': 5, 'tn': 40, 'fn': 10, 'mcc': _mcc_from_counts(0, 5, 40, 10)},
+]
+
+_img1 = np.array([100, 120, 130, 140, 150, 160, 170, 180, 190, 200, 110, 125, 135, 145, 155], dtype=float)
+_img2 = np.array([102, 118, 133, 138, 151, 163, 168, 182, 188, 199, 113, 122, 138, 144, 157], dtype=float)
+_mse = float(np.mean((_img1 - _img2) ** 2))
+metrics['psnr_basic'] = {'img1': _img1.tolist(), 'img2': _img2.tolist(), 'psnr': 10 * np.log10(255 ** 2 / _mse)}
+
+
+def _iou_box(b1, b2):
+    x1, y1 = max(b1[0], b2[0]), max(b1[1], b2[1])
+    x2, y2 = min(b1[2], b2[2]), min(b1[3], b2[3])
+    inter = max(0, x2 - x1) * max(0, y2 - y1)
+    a1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
+    a2 = (b2[2] - b2[0]) * (b2[3] - b2[1])
+    union = a1 + a2 - inter
+    return inter / union if union > 0 else 0
+
+
+metrics['iou_basic'] = [
+    {'box1': [0, 0, 10, 10], 'box2': [5, 5, 15, 15], 'iou': _iou_box([0, 0, 10, 10], [5, 5, 15, 15])},
+    {'box1': [0, 0, 10, 10], 'box2': [20, 20, 30, 30], 'iou': _iou_box([0, 0, 10, 10], [20, 20, 30, 30])},
+    {'box1': [0, 0, 10, 10], 'box2': [2, 2, 8, 8], 'iou': _iou_box([0, 0, 10, 10], [2, 2, 8, 8])},
+]
+ref['metrics'] = metrics
+
+# ── missing ───────────────────────────────────────────────────────────────────
+from sklearn.linear_model import LinearRegression
+missing = {}
+# x1 missing at row 10, predicted from correlated (x2, y) predictors — pins down
+# the regressionImpute fix (was a broken intercept=avg(target)*0-term plus
+# per-predictor SIMPLE regression instead of real multiple OLS, giving wildly
+# out-of-range predictions e.g. ~39 instead of ~10.8 for this data).
+mi_X = np.array([
+    [5, 45], [6, 52], [4, 38], [7, 61], [4.5, 41.5],
+    [5.5, 48.5], [6.5, 57.5], [3.5, 34.5], [6.2, 54.6], [5.2, 46.6],
+])
+mi_y = np.array([10, 12, 8, 15, 9, 11, 14, 7, 13, 10.5])
+mi_lr = LinearRegression().fit(mi_X, mi_y)
+mi_pred = float(mi_lr.predict(np.array([[5.8, 49]]))[0])
+missing['regression_impute_basic'] = {
+    'x2': mi_X[:, 0].tolist(), 'y': mi_X[:, 1].tolist(), 'x1': mi_y.tolist(),
+    'queryX2': 5.8, 'queryY': 49.0, 'predictedX1': mi_pred,
+}
+ref['missing'] = missing
+
+# ── circular ──────────────────────────────────────────────────────────────────
+from scipy.stats import circmean as sp_circmean, circvar as sp_circvar
+circular = {}
+circ_deg = [10, 25, 40, 355, 5, 15, 350, 30, 20, 8]
+circ_rad = np.radians(circ_deg)
+_cn = len(circ_rad)
+_cs = float(np.sum(np.sin(circ_rad)))
+_cc = float(np.sum(np.cos(circ_rad)))
+_cR = np.sqrt(_cs ** 2 + _cc ** 2) / _cn
+_cz = _cn * _cR * _cR
+_cp = float(np.exp(-_cz) * (1 + (2 * _cz - _cz * _cz) / (4 * _cn)))
+circular['basic'] = {
+    'anglesDeg': circ_deg,
+    'mean': float(sp_circmean(circ_rad, high=np.pi, low=-np.pi)),
+    'variance': float(sp_circvar(circ_rad)),
+    'resultant': float(_cR),
+    'rayleighZ': float(_cz),
+    'rayleighP': max(0.0, _cp),
+}
+ref['circular'] = circular
+
+# ── extreme ───────────────────────────────────────────────────────────────────
+from scipy.stats import genextreme, genpareto
+extreme = {}
+extreme_data = [1.430425, -0.544022, 0.353024, -0.381017, 0.021509, 1.702118, 1.920373, 2.609847, 1.414803, 0.11226, 0.719339, 4.677971, -0.512223, -1.51188, 0.641956, -0.033861, 0.427944, 0.638555, -0.442806, 0.390248, 0.956397, -0.630286, -1.162667, -0.781356, 0.454279, 1.615897, -0.292383, 0.568151, 2.593479, 1.064529, 3.036711, -0.930432, 0.673868, 0.122136, 1.588514, 0.275576, 0.476145, -0.483809, 2.600869, 0.626737, -0.396558, -0.30722, -0.082611, 0.25302, 1.773156, 2.832366, 0.353789, -0.102059, -0.955325, -0.075076, 0.662246, -1.353471, 0.52578, 0.289986, 1.497032, -0.181858, 2.180141, -0.577765, 0.548613, 1.832232, -0.191441, 0.457438, 0.123122, -0.562056, -0.638401, 2.902185, 1.186642, 1.550484, -0.093415, -0.313478, -0.399448, 2.183227, -0.492675, -0.970975, 0.053495, 3.602401, 0.507682, 2.906724, 0.473554, 0.37307, -0.532755, 1.217979, 0.377006, 3.858274, 1.057695, -0.099942, 0.663579, 0.183853, 0.383242, -0.224237, -0.880401, 1.412519, 0.544013, -0.427674, 2.04575, -0.280587, 0.733508, 1.148443, 0.031826, -0.383253, -0.137564, -0.101294, -0.916293, -1.915699, 0.488753, -1.771813, -1.132518, 0.337387, -0.617498, 1.287479, -0.585852, 1.136081, -1.862622, 0.730377, -0.442359, 0.020993, -0.217872, 2.825512, 0.236596, -0.317292, -0.879174, 0.864402, 0.187868, -0.391083, 0.389756, 2.284217, 0.079541, -0.102903, 1.418905, -0.798746, -0.988685, -0.336949, 0.585883, -0.05011, 0.028774, 0.465844, -0.253288, -0.116963, -0.079505, -0.073471, 0.633726, 0.369466, -0.740436, -0.579118, -0.979869, -0.648532, 0.530168, -1.360898, -0.44352, -0.090594, -0.433662, 1.689541, -0.062451, 0.525729, 2.317413, -0.808877, 4.101752, 1.212702, 2.076632, -0.013031, 1.951963, -0.382793, 0.490731, 3.947101, -0.330944, 3.150567, -0.372484, -0.889765, -0.876247, 0.574534, -0.938971, 3.500365, 0.844273, 0.982542, 2.552774, -0.592055, 0.045015, 0.821733, 0.920998, -0.223945, 0.044861, 1.018674, -1.659643, 3.110765, 1.592429, 0.10387, -0.340515, 1.945073, 0.75908, 1.584641, 4.031888, 0.814517, 0.791454, -0.368353, -0.692682, -0.352792, 0.18796, 3.313843, 0.219225, 0.804818]
+_ext = np.array(extreme_data)
+_gev_c, _gev_loc, _gev_scale = genextreme.fit(_ext)
+extreme['gev_basic'] = {'data': extreme_data, 'mu': float(_gev_loc), 'sigma': float(_gev_scale), 'xi': float(-_gev_c)}
+
+_thresh = float(_ext.mean() + _ext.std(ddof=0))
+_exceed = (_ext[_ext > _thresh] - _thresh)
+_gpd_c, _gpd_loc, _gpd_scale = genpareto.fit(_exceed, floc=0)
+extreme['gpd_basic'] = {'threshold': _thresh, 'sigma': float(_gpd_scale), 'xi': float(_gpd_c)}
+
+_n = len(_ext)
+_sorted_desc = np.sort(_ext)[::-1]
+_k = int(np.floor(np.sqrt(_n)))
+_hill_thresh = float(_sorted_desc[_k - 1])
+_sumlog = float(np.sum(np.log(_sorted_desc[:_k] / _hill_thresh)))
+_hill_alpha = _k / _sumlog
+extreme['hill_basic'] = {'k': _k, 'threshold': _hill_thresh, 'alpha': _hill_alpha, 'xi': 1 / _hill_alpha, 'se': _hill_alpha / np.sqrt(_k)}
+ref['extreme'] = extreme
+
+# ── ecology ───────────────────────────────────────────────────────────────────
+ecology = {}
+eco_counts = [45, 23, 12, 8, 5, 3, 2, 1, 1, 1]
+eco_arr = np.array(eco_counts)
+eco_p = eco_arr / eco_arr.sum()
+_eco_H = float(st.entropy(eco_p))
+_eco_D = float(1 - np.sum(eco_p ** 2))
+_eco_Sobs = int((eco_arr > 0).sum())
+_eco_f1 = int((eco_arr == 1).sum())
+_eco_f2 = int((eco_arr == 2).sum())
+_eco_chao1 = _eco_Sobs + _eco_f1 * (_eco_f1 - 1) / (2 * (_eco_f2 + 1))
+ecology['basic'] = {
+    'counts': eco_counts,
+    'shannon': _eco_H, 'evenness': _eco_H / np.log(_eco_Sobs),
+    'simpson': _eco_D, 'invSimpson': 1 / (1 - _eco_D),
+    'chao1': round(_eco_chao1), 'sobs': _eco_Sobs, 'singletons': _eco_f1, 'doubletons': _eco_f2,
+}
+ref['ecology'] = ecology
+
+# ── genetics ──────────────────────────────────────────────────────────────────
+from sklearn.linear_model import Ridge as SKRidge
+genetics = {}
+gen_X = np.array([
+    [0, 1, 2, 0, 1], [1, 2, 0, 1, 0], [2, 0, 1, 2, 1], [0, 1, 1, 0, 2], [1, 0, 2, 1, 0],
+    [2, 1, 0, 2, 1], [0, 2, 1, 0, 1], [1, 1, 2, 1, 0], [0, 0, 1, 2, 2], [2, 2, 0, 0, 1],
+    [1, 0, 0, 1, 2], [0, 1, 2, 2, 0],
+], dtype=float)
+gen_y = np.array([5.2, 4.8, 6.1, 3.9, 5.5, 7.0, 4.2, 5.8, 6.5, 3.5, 4.0, 5.0])
+_gen_ridge = SKRidge(alpha=0.1, fit_intercept=False).fit(gen_X, gen_y)
+_gen_fitted = _gen_ridge.predict(gen_X)
+_gen_ssr = float(np.sum((gen_y - _gen_fitted) ** 2))
+_gen_sst = float(np.sum((gen_y - gen_y.mean()) ** 2))
+genetics['polygenic_basic'] = {'X': gen_X.tolist(), 'y': gen_y.tolist(), 'rSquared': 1 - _gen_ssr / _gen_sst}
+
+_mr_betaYX, _mr_seYX, _mr_betaZX, _mr_seZX = 0.5, 0.1, 0.3, 0.05
+_mr_est = _mr_betaYX / _mr_betaZX
+_mr_se = float(np.sqrt(_mr_seYX ** 2 / _mr_betaZX ** 2 + _mr_betaYX ** 2 * _mr_seZX ** 2 / _mr_betaZX ** 4))
+genetics['mr_basic'] = {'betaYX': _mr_betaYX, 'seYX': _mr_seYX, 'betaZX': _mr_betaZX, 'seZX': _mr_seZX, 'estimate': _mr_est, 'se': _mr_se}
+ref['genetics'] = genetics
+
+# ── finance ───────────────────────────────────────────────────────────────────
+finance = {}
+fin_stockR = [0.02, -0.01, 0.015, 0.03, -0.02, 0.01, 0.025, -0.015, 0.02, 0.005, 0.018, -0.008]
+fin_marketR = [0.015, -0.008, 0.01, 0.022, -0.015, 0.008, 0.02, -0.01, 0.016, 0.004, 0.014, -0.006]
+_fs, _fm = np.array(fin_stockR), np.array(fin_marketR)
+_fcov = np.cov(_fs, _fm, ddof=1)
+_fbeta = _fcov[0, 1] / _fcov[1, 1]
+_falpha = float(_fs.mean() - _fbeta * _fm.mean())
+_fpred = _falpha + _fbeta * _fm
+_fr2 = 1 - np.sum((_fs - _fpred) ** 2) / np.sum((_fs - _fs.mean()) ** 2)
+_fsharpe = float(_fs.mean() / _fs.std(ddof=1) * np.sqrt(252))
+finance['capm_basic'] = {'stockR': fin_stockR, 'marketR': fin_marketR, 'beta': float(_fbeta), 'alpha': _falpha, 'rSquared': float(_fr2)}
+finance['sharpe_basic'] = {'returns': fin_stockR, 'sharpe': _fsharpe}
+
+fin_rets = [0.05, -0.1, 0.03, -0.02, 0.08, -0.15, 0.02, 0.04, -0.05, 0.06]
+_fcum = np.cumprod(1 + np.array(fin_rets))
+_fpeak = np.maximum.accumulate(_fcum)
+_fdd = (_fpeak - _fcum) / _fpeak
+finance['maxdd_basic'] = {'returns': fin_rets, 'maxDrawdown': float(_fdd.max() * 100), 'troughIndex': int(np.argmax(_fdd))}
+
+fin_var_rets = [float(np.sin(i) * 0.03 - 0.001 * i + 0.01) for i in range(25)]
+_fvsorted = np.sort(np.array(fin_var_rets))
+_fvidx = int(np.floor(0.05 * 25))
+_fvar = float(-_fvsorted[_fvidx])
+_fcvar = float(-_fvsorted[:max(1, _fvidx)].mean())
+finance['var_basic'] = {'returns': fin_var_rets, 'var': _fvar, 'cvar': _fcvar}
+
+
+def _bs(S, K, T, r, sigma, typ='call'):
+    d1 = (np.log(S / K) + (r + sigma ** 2 / 2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    if typ == 'call':
+        return S * st.norm.cdf(d1) - K * np.exp(-r * T) * st.norm.cdf(d2)
+    return K * np.exp(-r * T) * st.norm.cdf(-d2) - S * st.norm.cdf(-d1)
+
+
+finance['bs_basic'] = {
+    'spot': 100, 'strike': 105, 'time': 0.5, 'rate': 0.03, 'sigma': 0.25,
+    'call': float(_bs(100, 105, 0.5, 0.03, 0.25, 'call')),
+    'put': float(_bs(100, 105, 0.5, 0.03, 0.25, 'put')),
+}
+
+
+def _crr(S, K, T, r, sigma, steps, typ='call'):
+    dt = T / steps
+    u = np.exp(sigma * np.sqrt(dt))
+    d = 1 / u
+    p = (np.exp(r * dt) - d) / (u - d)
+    prices = np.array([max(0, S * u ** (steps - i) * d ** i - K) if typ == 'call' else max(0, K - S * u ** (steps - i) * d ** i) for i in range(steps + 1)])
+    disc = np.exp(-r * dt)
+    for j in range(steps - 1, -1, -1):
+        prices = disc * (p * prices[:-1] + (1 - p) * prices[1:])
+    return prices[0]
+
+
+finance['binom_basic'] = {
+    'steps': 200,
+    'call': float(_crr(100, 105, 0.5, 0.03, 0.25, 200, 'call')),
+    'put': float(_crr(100, 105, 0.5, 0.03, 0.25, 200, 'put')),
+}
+ref['finance'] = finance
+
+# ── reliability ───────────────────────────────────────────────────────────────
+from scipy.special import gamma as sp_gamma_fn
+reliability = {}
+rel_data = [12.5, 18.3, 22.1, 8.7, 15.6, 30.2, 25.4, 19.8, 11.2, 27.6, 14.3, 21.9]
+_rel_arr = np.sort(np.array(rel_data))
+_rel_n = len(_rel_arr)
+_rel_logT = np.log(np.maximum(_rel_arr, 1e-10))
+_rel_F = (np.arange(_rel_n) + 0.5) / _rel_n
+_rel_logLog = np.log(-np.log(1 - _rel_F))
+_rel_num = np.sum((_rel_logT - _rel_logT.mean()) * (_rel_logLog - _rel_logLog.mean()))
+_rel_den = np.sum((_rel_logT - _rel_logT.mean()) ** 2)
+_rel_beta = max(0.5, _rel_num / _rel_den)
+_rel_eta = float(np.exp(_rel_logT.mean() - _rel_logLog.mean() / _rel_beta))
+# Weibull MTBF = eta * Gamma(1 + 1/beta) — pins down the missing-gamma-function
+# bug (the buggy code computed eta*(1+1/beta) via a no-op exp(log(x)) instead
+# of actually calling the gamma function).
+reliability['weibull_basic'] = {'data': rel_data, 'beta': float(_rel_beta), 'eta': _rel_eta, 'mtbf': _rel_eta * float(sp_gamma_fn(1 + 1 / _rel_beta))}
+
+# Kaplan-Meier survival at t=12 via lifelines — pins down the "find first step
+# >= t" bug (was using the NEXT event after the warranty period instead of the
+# LAST event at-or-before it, incorrectly counting post-warranty failures).
+from lifelines import KaplanMeierFitter as _KMF
+rel_failures = [3, 5, 5, 8, 10, 10, 10, 15, 18, 20, 22, 25]
+_kmf = _KMF()
+_kmf.fit(rel_failures, event_observed=[1] * len(rel_failures))
+_survival12 = float(_kmf.survival_function_at_times(12).values[0])
+reliability['warranty_basic'] = {'failures': rel_failures, 'monthsInWarranty': 12, 'claimRate': 1 - _survival12}
+ref['reliability'] = reliability
+
+# ── survey ────────────────────────────────────────────────────────────────────
+from statsmodels.stats.weightstats import DescrStatsW
+survey = {}
+surv_values = [12, 15, 18, 22, 9, 14, 20, 17, 11, 25]
+surv_weights = [1.2, 0.8, 1.5, 0.9, 1.1, 1.3, 0.7, 1.0, 1.4, 0.6]
+surv_y = [22, 18, 25, 30, 15, 19, 27, 23, 16, 33]
+_sv, _sw = np.array(surv_values, dtype=float), np.array(surv_weights)
+_ssumW, _ssumWSq = float(_sw.sum()), np.sum(_sw ** 2)
+_smuW = np.sum(_sw * _sv) / _ssumW
+_svar = np.sum(_sw * (_sv - _smuW) ** 2) / (_ssumW - _ssumWSq / _ssumW)
+_sdeff = len(_sw) * _ssumWSq / _ssumW ** 2
+_sy = np.array(surv_y, dtype=float)
+_smx, _smy = np.sum(_sw * _sv) / _ssumW, np.sum(_sw * _sy) / _ssumW
+_scov = np.sum(_sw * (_sv - _smx) * (_sy - _smy))
+_svx, _svy = np.sum(_sw * (_sv - _smx) ** 2), np.sum(_sw * (_sy - _smy) ** 2)
+survey['basic'] = {
+    'values': surv_values, 'weights': surv_weights, 'y': surv_y,
+    'mean': float(_smuW), 'variance': float(_svar), 'sd': float(np.sqrt(_svar)),
+    'deff': float(_sdeff), 'nEff': float(len(_sw) / _sdeff),
+    'corr': float(_scov / np.sqrt(_svx * _svy)),
+}
+ref['survey'] = survey
+
+# ── pk ────────────────────────────────────────────────────────────────────────
+pk = {}
+pk_time = [0, 0.5, 1, 2, 4, 6, 8, 12, 24]
+pk_conc = [0, 8.5, 12.3, 15.1, 11.2, 7.8, 5.4, 2.6, 0.4]
+_pt, _pc = np.array(pk_time, dtype=float), np.array(pk_conc, dtype=float)
+_aucTrap = float(np.trapezoid(_pc, _pt))
+_aucLL = 0.0
+for _i in range(1, len(_pt)):
+    _dt = _pt[_i] - _pt[_i - 1]
+    _c1, _c2 = _pc[_i - 1], _pc[_i]
+    if _c2 >= _c1 or _c1 <= 0 or _c2 <= 0:
+        _aucLL += _dt * (_c1 + _c2) / 2
+    else:
+        _aucLL += _dt * (_c1 - _c2) / np.log(_c1 / _c2)
+_t3, _c3 = _pt[-3:], _pc[-3:]
+_logc3 = np.log(_c3)
+_slope, _intercept = np.polyfit(_t3, _logc3, 1)
+_k = -_slope
+_halflife = np.log(2) / _k
+_predLog = _slope * _t3 + _intercept
+_ssres = np.sum((_logc3 - _predLog) ** 2)
+_sstot = np.sum((_logc3 - _logc3.mean()) ** 2)
+_r2log = 1 - _ssres / _sstot
+pk['basic'] = {
+    'time': pk_time, 'concentration': pk_conc,
+    'aucTrapezoidal': _aucTrap, 'aucLinearLog': float(_aucLL),
+    'halfLife': float(_halflife), 'k': float(_k), 'rSquared': float(_r2log),
+}
+ref['pk'] = pk
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

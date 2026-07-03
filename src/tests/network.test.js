@@ -7,6 +7,7 @@ import {
 } from './network.js';
 import { starEdgeList, ringEdgeList } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const star = networkFromEdgeList(starEdgeList());
 const ring = networkFromEdgeList(ringEdgeList(6));
@@ -97,6 +98,22 @@ describe('centralityMeasures', () => {
     expectKeys(r, ['test', 'nodes', 'n', 'apa']);
     expect(r.test).toBe('Centrality Measures');
   });
+
+  it('matches a networkx oracle for degree/betweenness/eigenvector centrality (regression test for the Brandes-algorithm fix)', () => {
+    // Betweenness previously used "any node v with dist[v]==dist[t]-1" as a
+    // stand-in for "v is a real predecessor of t on a shortest s→t path" —
+    // not sufficient, and it massively overcounted (a node with TRUE
+    // betweenness 0 got a large nonzero score; the hub's raw score was 5x
+    // the graph's theoretical per-node maximum). Rewritten with real Brandes'
+    // algorithm (predecessor sets + reverse-BFS dependency accumulation).
+    const e = ref.network.centrality_basic;
+    const r = centralityMeasures(e.A);
+    r.nodes.forEach((node, i) => {
+      expect(node.degree).toBe(e.degree[i]);
+      expect(node.betweenness).toBeCloseTo(e.betweenness[i], 3);
+      expect(node.eigenvector).toBeCloseTo(e.eigenvector_normed[i], 3);
+    });
+  });
 });
 
 describe('communityDetection', () => {
@@ -184,6 +201,13 @@ describe('pageRank', () => {
     expect(typeof r.apa).toBe('string');
     expect(r.apa.length).toBeGreaterThan(0);
   });
+
+  it('matches a networkx.pagerank oracle', () => {
+    const e = ref.network.centrality_basic;
+    const r = pageRank(e.A);
+    const byNode = Object.fromEntries(r.scores.map(s => [s.node, s.pagerank]));
+    e.pagerank.forEach((p, i) => expect(byNode[i]).toBeCloseTo(p, 4));
+  });
 });
 
 // ── Closeness Centrality ───────────────────────────────────────────────────
@@ -205,6 +229,13 @@ describe('closenessCentrality', () => {
     r.scores.forEach(s => {
       expect(s.closeness).toBeGreaterThanOrEqual(0);
     });
+  });
+
+  it('matches a networkx.closeness_centrality oracle', () => {
+    const e = ref.network.centrality_basic;
+    const r = closenessCentrality(e.A);
+    const byNode = Object.fromEntries(r.scores.map(s => [s.node, s.closeness]));
+    e.closeness.forEach((c, i) => expect(byNode[i]).toBeCloseTo(c, 4));
   });
 
   it('contract keys', () => {

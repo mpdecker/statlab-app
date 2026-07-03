@@ -102,15 +102,16 @@ export function regressionImpute(data, vars) {
     const otherVars = vars.filter(v => v !== target);
     const X = completeIdx.map(i => otherVars.map(v => +imputed[i][v] || 0));
     const y = completeIdx.map(i => +imputed[i][target]);
-    const intercept = avg(y) - otherVars.reduce((s, v, j) => s + avg(X.map(r => r[j])) * 0, 0);
-    const coeffs = [];
-    for (let j = 0; j < otherVars.length; j++) {
-      let num = 0, den = 0;
-      const mx = avg(X.map(r => r[j]));
-      const my = avg(y);
-      for (let i = 0; i < X.length; i++) { num += (X[i][j] - mx) * (y[i] - my); den += (X[i][j] - mx) ** 2; }
-      coeffs.push(den ? num / den : 0);
-    }
+    const p = otherVars.length;
+    const xMeans = Array.from({ length: p }, (_, j) => avg(X.map(r => r[j])));
+    const yMean = avg(y);
+    const Xc = X.map(r => r.map((v, j) => v - xMeans[j]));
+    const yc = y.map(v => v - yMean);
+    const XtX = Array.from({ length: p }, (_, a) => Array.from({ length: p }, (_, b) => Xc.reduce((s, r) => s + r[a] * r[b], 0)));
+    const XtY = Array.from({ length: p }, (_, a) => Xc.reduce((s, r, i) => s + r[a] * yc[i], 0));
+    const inv = matInv(XtX);
+    const coeffs = inv ? Array.from({ length: p }, (_, j) => inv[j].reduce((s, v, l) => s + v * XtY[l], 0)) : Array(p).fill(0);
+    const intercept = yMean - coeffs.reduce((s, c, j) => s + c * xMeans[j], 0);
     for (const idx of missingIdx) {
       let pred = intercept;
       for (let j = 0; j < otherVars.length; j++) pred += coeffs[j] * (+imputed[idx][otherVars[j]] || 0);

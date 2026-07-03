@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { weightedMean, weightedVar, weightedQuantile, designEffect, rakeWeights, calibrationWeights, postStratification, weightedCorrelation, effectiveSampleSize, brrWeights, jackknifeReplicates, fayReplicates, taylorLinearization, designTotal, ppsSampling, systematicSample, multistageVariance, domainTotal, nonresponseAdjustment } from './survey.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const vals = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 const wts = [1, 2, 1, 3, 2, 1, 2, 3, 1, 4];
@@ -149,6 +150,28 @@ describe('effectiveSampleSize', () => {
   it('null empty', () => expect(effectiveSampleSize([])).toBeNull());
   it('nEff <= n', () => { const r = effectiveSampleSize([2, 3, 1, 4, 2]); expect(r.nEff).toBeLessThanOrEqual(5); });
   it('contract keys', () => expectKeys(effectiveSampleSize([1, 1, 1]), ['test', 'nEff', 'deff', 'n', 'apa']));
+});
+
+describe('weightedMean, weightedVar, designEffect, and weightedCorrelation match statsmodels.stats.weightstats.DescrStatsW exactly', () => {
+  const e = ref.survey.basic;
+  it('weightedMean matches', () => {
+    const r = weightedMean(e.values, e.weights);
+    expect(r.mean).toBeCloseTo(e.mean, 4);
+  });
+  it('weightedVar matches the bias-corrected reliability-weights formula', () => {
+    const r = weightedVar(e.values, e.weights);
+    expect(r.variance).toBeCloseTo(e.variance, 3);
+    expect(r.sd).toBeCloseTo(e.sd, 4);
+  });
+  it('designEffect and effectiveSampleSize match Kish\'s formula', () => {
+    const r = designEffect(e.weights);
+    expect(r.deff).toBeCloseTo(e.deff, 4);
+    expect(r.nEff).toBeCloseTo(e.nEff, 1);
+  });
+  it('weightedCorrelation matches', () => {
+    const r = weightedCorrelation(e.values, e.y, e.weights);
+    expect(r.r).toBeCloseTo(e.corr, 4);
+  });
 });
 
 describe('edge cases', () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fitNormal, fitExponential, fitGamma, fitPoisson, fitBinomial, fitLogNormal, fitWeibull, fitUniform, fitBeta, distributionGoF, andersonDarling, shapiroWilk, cramerVonMises, lilliefors, chiSquareGOF, qqCorrelation } from './fitting.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const normalSample = [2.3, 2.8, 3.1, 2.5, 3.0, 2.7, 3.2, 2.9, 3.3, 2.6];
 const expSample = [0.5, 1.2, 0.3, 2.1, 0.8, 1.5, 0.7, 3.0, 0.9, 1.1];
@@ -283,6 +284,13 @@ describe('fitWeibull', () => {
     expect(r.cdf(1e6)).toBeCloseTo(1, 1);
   });
 
+  it('matches a scipy.stats.weibull_min.fit MLE oracle', () => {
+    const e = ref.fitting.weibull_basic;
+    const r = fitWeibull(e.sample);
+    expect(r.parameters.shape).toBeCloseTo(e.shape, 3);
+    expect(r.parameters.scale).toBeCloseTo(e.scale, 3);
+  });
+
   it('pdf is positive for x > 0', () => {
     const r = fitWeibull(weibSample);
     expect(r.pdf(0.1)).toBeGreaterThan(0);
@@ -412,6 +420,18 @@ describe('fitBeta', () => {
     const r = fitBeta([0.48, 0.51, 0.49, 0.5, 0.52, 0.5, 0.49, 0.51]);
     expect(r.parameters.alpha).toBeGreaterThan(5);
     expect(r.parameters.beta).toBeGreaterThan(5);
+  });
+
+  it('matches a scipy.stats.beta.fit MLE oracle (regression test for the digamma/trigamma approximation bug)', () => {
+    // The Newton-Raphson step previously used the crude large-x asymptotic
+    // approximation ψ(x)≈ln(x)−1/(2x) in place of the real digamma function,
+    // which is badly wrong for α,β in the 1–10 range typical of Beta-fitted
+    // data — it diverged to α≈290000, β≈395000 instead of the true MLE
+    // α≈3.88, β≈5.05.
+    const e = ref.fitting.beta_basic;
+    const r = fitBeta(e.sample);
+    expect(r.parameters.alpha).toBeCloseTo(e.alpha, 2);
+    expect(r.parameters.beta).toBeCloseTo(e.beta, 2);
   });
 });
 

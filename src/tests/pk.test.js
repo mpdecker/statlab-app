@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { aucTrapezoidal, aucLinearLog, pkParameters, terminalHalfLife, clearance, oneCompartmentIV, bioequivalence, emaxModel, sigmoidEmax, indirectResponse, pkpdLink, superposition, aucRatio, turnoverModel, transitCompartment, tmddModel, nonCompartmentalExpanded } from './pk.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const t = [0, 1, 2, 4, 8, 12, 24];
 const c = [100, 80, 65, 45, 20, 8, 2];
@@ -28,6 +29,24 @@ describe('terminalHalfLife', () => {
   it('null <4', () => expect(terminalHalfLife(t.slice(0, 2), c.slice(0, 2))).toBeNull());
   it('halfLife positive', () => { const r = terminalHalfLife(t, c); expect(r.halfLife).toBeGreaterThan(0); });
   it('contract keys', () => expectKeys(terminalHalfLife(t, c), ['test', 'halfLife', 'k', 'rSquared', 'nPoints', 'n', 'apa']));
+});
+
+describe('aucTrapezoidal, aucLinearLog, and terminalHalfLife match independent numpy oracles exactly', () => {
+  const e = ref.pk.basic;
+  it('aucTrapezoidal matches numpy.trapezoid', () => {
+    const r = aucTrapezoidal(e.time, e.concentration);
+    expect(r.auc).toBeCloseTo(e.aucTrapezoidal, 3);
+  });
+  it('aucLinearLog matches the linear-up/log-down formula', () => {
+    const r = aucLinearLog(e.time, e.concentration);
+    expect(r.auc).toBeCloseTo(e.aucLinearLog, 3);
+  });
+  it('terminalHalfLife R-squared is on the fitted log scale (regression test for the raw-scale R^2 fix)', () => {
+    const r = terminalHalfLife(e.time, e.concentration);
+    expect(r.halfLife).toBeCloseTo(e.halfLife, 3);
+    expect(r.k).toBeCloseTo(e.k, 4);
+    expect(r.rSquared).toBeCloseTo(e.rSquared, 3);
+  });
 });
 
 describe('clearance', () => {

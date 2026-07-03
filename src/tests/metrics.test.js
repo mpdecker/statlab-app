@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { psnr, ssim, iou, bleuScore, rougeL, perplexity, matthewsCorrelation, precisionRecallCurve } from './metrics.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const a = [10, 20, 10, 20, 10, 20, 10, 20];
 const b = [11, 19, 9, 21, 12, 18, 8, 22];
@@ -24,4 +25,30 @@ describe('precisionRecallCurve', () => {
   it('null <5', () => expect(precisionRecallCurve([0.5,0.6], [0,1])).toBeNull());
   it('curve array non-empty', () => { const r = precisionRecallCurve(scores, labels); if (r) { expect(Array.isArray(r.curve)).toBe(true); expect(r.curve.length).toBeGreaterThan(0); } });
   it('averagePrecision between 0 and 1', () => { const r = precisionRecallCurve(scores, labels); if (r) { expect(r.averagePrecision).toBeGreaterThanOrEqual(0); expect(r.averagePrecision).toBeLessThanOrEqual(1); } });
+});
+
+describe('matthewsCorrelation matches sklearn.metrics.matthews_corrcoef exactly', () => {
+  it('matches across a normal and a zero-TP confusion matrix', () => {
+    ref.metrics.mcc_basic.forEach(e => {
+      const r = matthewsCorrelation(e.tp, e.fp, e.tn, e.fn);
+      expect(r.mcc).toBeCloseTo(e.mcc, 4);
+    });
+  });
+});
+
+describe('psnr matches the independent MSE-based dB formula exactly', () => {
+  it('matches on a 15-value signal pair', () => {
+    const e = ref.metrics.psnr_basic;
+    const r = psnr(e.img1, e.img2);
+    expect(r.psnr).toBeCloseTo(e.psnr, 2);
+  });
+});
+
+describe('iou matches the independent box-intersection formula exactly', () => {
+  it('matches for partial overlap, no overlap, and containment', () => {
+    ref.metrics.iou_basic.forEach(e => {
+      const r = iou(e.box1, e.box2);
+      expect(r.iou).toBeCloseTo(e.iou, 4);
+    });
+  });
 });
