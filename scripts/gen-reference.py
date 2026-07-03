@@ -810,6 +810,45 @@ preprocessing['basic']['mad'] = _mad
 preprocessing['basic']['madOutlierIdx'] = np.where(np.abs(0.6745 * (prep_arr - _med) / _mad) > 3.5)[0].tolist()
 ref['preprocessing'] = preprocessing
 
+# ── metrics ───────────────────────────────────────────────────────────────────
+from sklearn.metrics import matthews_corrcoef
+metrics = {}
+
+
+def _mcc_from_counts(tp, fp, tn, fn):
+    y_true = [1] * tp + [1] * fn + [0] * fp + [0] * tn
+    y_pred = [1] * tp + [0] * fn + [1] * fp + [0] * tn
+    return float(matthews_corrcoef(y_true, y_pred))
+
+
+metrics['mcc_basic'] = [
+    {'tp': 45, 'fp': 5, 'tn': 40, 'fn': 10, 'mcc': _mcc_from_counts(45, 5, 40, 10)},
+    {'tp': 0, 'fp': 5, 'tn': 40, 'fn': 10, 'mcc': _mcc_from_counts(0, 5, 40, 10)},
+]
+
+_img1 = np.array([100, 120, 130, 140, 150, 160, 170, 180, 190, 200, 110, 125, 135, 145, 155], dtype=float)
+_img2 = np.array([102, 118, 133, 138, 151, 163, 168, 182, 188, 199, 113, 122, 138, 144, 157], dtype=float)
+_mse = float(np.mean((_img1 - _img2) ** 2))
+metrics['psnr_basic'] = {'img1': _img1.tolist(), 'img2': _img2.tolist(), 'psnr': 10 * np.log10(255 ** 2 / _mse)}
+
+
+def _iou_box(b1, b2):
+    x1, y1 = max(b1[0], b2[0]), max(b1[1], b2[1])
+    x2, y2 = min(b1[2], b2[2]), min(b1[3], b2[3])
+    inter = max(0, x2 - x1) * max(0, y2 - y1)
+    a1 = (b1[2] - b1[0]) * (b1[3] - b1[1])
+    a2 = (b2[2] - b2[0]) * (b2[3] - b2[1])
+    union = a1 + a2 - inter
+    return inter / union if union > 0 else 0
+
+
+metrics['iou_basic'] = [
+    {'box1': [0, 0, 10, 10], 'box2': [5, 5, 15, 15], 'iou': _iou_box([0, 0, 10, 10], [5, 5, 15, 15])},
+    {'box1': [0, 0, 10, 10], 'box2': [20, 20, 30, 30], 'iou': _iou_box([0, 0, 10, 10], [20, 20, 30, 30])},
+    {'box1': [0, 0, 10, 10], 'box2': [2, 2, 8, 8], 'iou': _iou_box([0, 0, 10, 10], [2, 2, 8, 8])},
+]
+ref['metrics'] = metrics
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

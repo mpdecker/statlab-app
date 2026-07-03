@@ -165,6 +165,13 @@
 > IQR-based robust standardization; percentile-based winsorization bounds and clipped values; Tukey-fence
 > IQR outlier bounds and flagged indices; and the modified-z-score MAD outlier formula (including the
 > `0.6745` constant) and flagged indices. No changes needed. Full suite: **4,851 tests pass**.
+>
+> **Oracle-coverage expansion (2026-07-03, eighth pass).** Extended coverage into `metrics.js`
+> (`matthewsCorrelation`, `psnr`, `iou`) against `sklearn.metrics.matthews_corrcoef` and independent
+> numpy formula recomputations. **All three matched their oracles exactly** — MCC on both a normal and a
+> zero-true-positive confusion matrix, PSNR's MSE-based dB formula on a 15-value signal pair, and box IoU
+> across partial overlap, no overlap, and containment cases. No changes needed. Full suite: **4,854 tests
+> pass**.
 
 ## Verdict
 
