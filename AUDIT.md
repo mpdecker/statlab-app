@@ -370,6 +370,29 @@
 > convention difference (both are standard BM25 variants), not a bug, so it was left as-is. Full suite:
 > **4,900 tests pass**. Total across all oracle passes: **33 real correctness bugs found and fixed**, plus
 > one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, nineteenth pass).** Extended coverage into `clinical.js`, finding
+> **2 more real bugs**:
+> - `weightedKappa` — its weight matrix used a *similarity* convention (`1 − |i−j|/(k−1)`, i.e. 1 on the
+>   diagonal, decreasing outward) instead of the *disagreement* convention the standard weighted-kappa
+>   formula (`κ_w = 1 − ΣwO/ΣwE`) requires (0 on the diagonal, increasing outward). This isn't just a sign
+>   flip — plugging a similarity weight into a formula built for a disagreement weight computes a materially
+>   different, wrong quantity. On a 20-rating test case this gave κ=−0.4655 (linear) and −0.3214 (quadratic)
+>   — strongly *negative*, implying worse-than-chance agreement — when the correct values, verified exactly
+>   against `sklearn.metrics.cohen_kappa_score`, are +0.643 and +0.75 (strong agreement, matching what the
+>   raw rating data actually shows). Fixed by removing the `1 −` prefix from the weight formula.
+> - `krippendorffAlpha` — the expected-disagreement term `D_e` was computed as a sum of squared category
+>   *proportions* (`Σ (nₐ/n)(n_b/n)`, denominator n²), but Krippendorff's coincidence-matrix formula requires
+>   denominator `n·(n−1)` (a finite-population correction on the marginal counts), not n². On a 3-rater,
+>   10-item nominal dataset this gave α=0.2905 instead of the correct α=0.3142 (verified against the
+>   `krippendorff` Python package). Fixed by scaling `D_e` by `n/(n−1)` where `n` is the total number of
+>   individual (non-missing) ratings. (The `ordinal`-level mode still has a small residual gap against the
+>   reference package — Krippendorff's ordinal distance function is a separate, more involved rank-based
+>   metric, not simply `(i−j)²`, and was left unaddressed as a distinct, lower-priority finding.)
+>
+> `cliffsDelta` and `brierScore` were confirmed as textbook-correct standard formulas by inspection. Full
+> suite: **4,902 tests pass**. Total across all oracle passes: **35 real correctness bugs found and fixed**,
+> plus one module-portability defect.
 
 ## Verdict
 

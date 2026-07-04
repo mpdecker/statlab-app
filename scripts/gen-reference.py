@@ -1398,6 +1398,32 @@ cd_res = pg.partial_corr(data=cd_df, x='x', y='y', covar='z')
 causalDiscovery['partial_corr_basic'] = {'x': cd_x, 'y': cd_y, 'z': cd_z, 'r': float(cd_res['r'].iloc[0]), 'p': float(cd_res['p_val'].iloc[0])}
 ref['causalDiscovery'] = causalDiscovery
 
+# ── clinical ──────────────────────────────────────────────────────────────────
+import krippendorff as _krippendorff
+from sklearn.metrics import cohen_kappa_score
+clinical = {}
+clin_r1 = [1, 2, 3, 2, 1, 3, 2, 1, 3, 2, 1, 2, 3, 1, 2, 3, 2, 1, 3, 2]
+clin_r2 = [1, 2, 2, 2, 1, 3, 3, 1, 3, 2, 2, 2, 3, 1, 1, 3, 2, 2, 3, 1]
+clinical['weighted_kappa_basic'] = {
+    'r1': clin_r1, 'r2': clin_r2,
+    'linear': float(cohen_kappa_score(clin_r1, clin_r2, weights='linear')),
+    'quadratic': float(cohen_kappa_score(clin_r1, clin_r2, weights='quadratic')),
+}
+
+_krip_rows = [
+    {'r1': 'A', 'r2': 'A', 'r3': 'B'}, {'r1': 'B', 'r2': 'B', 'r3': 'B'}, {'r1': 'C', 'r2': 'C', 'r3': 'C'}, {'r1': 'A', 'r2': 'B', 'r3': 'A'},
+    {'r1': 'C', 'r2': 'C', 'r3': 'B'}, {'r1': 'A', 'r2': 'A', 'r3': 'A'}, {'r1': 'B', 'r2': 'C', 'r3': 'B'}, {'r1': 'A', 'r2': 'A', 'r3': 'B'},
+    {'r1': 'C', 'r2': 'B', 'r3': 'C'}, {'r1': 'B', 'r2': 'B', 'r3': 'A'},
+]
+_krip_cat_map = {'A': 0, 'B': 1, 'C': 2}
+_krip_raters = ['r1', 'r2', 'r3']
+_krip_reliability_data = [[_krip_cat_map[row[r]] for row in _krip_rows] for r in _krip_raters]
+clinical['krippendorff_basic'] = {
+    'data': _krip_rows, 'raters': _krip_raters, 'items': ['A', 'B', 'C'],
+    'alphaNominal': float(_krippendorff.alpha(reliability_data=_krip_reliability_data, level_of_measurement='nominal')),
+}
+ref['clinical'] = clinical
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

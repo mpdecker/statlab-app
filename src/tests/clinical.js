@@ -218,9 +218,12 @@ export function weightedKappa(rater1, rater2, { weights = 'linear', labels = nul
   }
   const rowSums = O.map(row => row.reduce((s, v) => s + v, 0));
   const colSums = O[0].map((_, j) => O.reduce((s, r) => s + r[j], 0));
+  // Standard Cohen's weighted-kappa DISAGREEMENT weight: 0 on the diagonal
+  // (no penalty for exact agreement), increasing with |i-j| (more penalty the
+  // farther apart the two raters' categories are) — NOT a similarity weight.
   const w = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => {
-    if (weights === 'quadratic') return 1 - (i - j) ** 2 / ((k - 1) ** 2);
-    return 1 - Math.abs(i - j) / (k - 1);
+    if (weights === 'quadratic') return (i - j) ** 2 / ((k - 1) ** 2);
+    return Math.abs(i - j) / (k - 1);
   }));
   let sumWO = 0, sumWE = 0;
   for (let i = 0; i < k; i++) {
@@ -460,8 +463,10 @@ export function krippendorffAlpha(data, raters, items, { level = 'nominal' } = {
   const n = data.length, m = raters.length;
   // Build agreement matrix
   const pairs = [];
+  let nValues = 0;
   for (let i = 0; i < n; i++) {
     for (let a = 0; a < m; a++) {
+      if (items.indexOf(data[i][raters[a]]) >= 0) nValues++;
       for (let b = a + 1; b < m; b++) {
         const va = data[i][raters[a]], vb = data[i][raters[b]];
         pairs.push({ u: items.indexOf(va), v: items.indexOf(vb) });
@@ -489,6 +494,11 @@ export function krippendorffAlpha(data, raters, items, { level = 'nominal' } = {
       D_e += d * fNorm[a] * fNorm[b];
     }
   }
+  // Krippendorff's alpha's coincidence-matrix formula computes the expected
+  // (chance) disagreement from category marginals with denominator
+  // nValues·(nValues−1), not nValues² — apply that finite-population
+  // correction (fNorm's implicit n² needs scaling by n/(n-1)).
+  D_e *= nValues / Math.max(1, nValues - 1);
   const alpha = D_e > 0 ? 1 - D_o / D_e : 0;
   return {
     test: "Krippendorff's Alpha", alpha: +alpha.toFixed(4), level, n, nRaters: m, nItems: items.length,
