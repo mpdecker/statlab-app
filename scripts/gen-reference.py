@@ -1477,6 +1477,43 @@ spatialEconometric = {
 }
 ref['spatialEconometric'] = spatialEconometric
 
+# ── smc (particle filters) ──────────────────────────────────────────────────
+# Exact grid-based (deterministic quadrature) Bayes filter for the same 1D
+# state-space model used by bootstrapFilter/auxiliaryPF: x_t = x_{t-1} + U(-1,1),
+# y_t ~ N(x_t, 1), with an initial (pre-noise) state uniform over [-2, 8). This is
+# an independent, non-Monte-Carlo re-implementation of the filtering recursion
+# (numerical integration, not resampling), used as ground truth for both particle
+# filters (large-N Monte Carlo estimates should lie close to it).
+_smc_y = np.array([1.2, 2.1, 2.9, 3.8, 5.0, 4.8, 5.9, 7.1, 6.8, 8.0])
+_smc_grid = np.linspace(-8, 15, 4001)
+_smc_dx = _smc_grid[1] - _smc_grid[0]
+_smc_dens = np.where((_smc_grid >= -2) & (_smc_grid < 8), 1.0, 0.0)
+_smc_dens /= _smc_dens.sum() * _smc_dx
+def _smc_predict(dens):
+    k_half = int(round(1 / _smc_dx))
+    kernel = np.zeros_like(_smc_grid)
+    center = len(_smc_grid) // 2
+    kernel[center - k_half:center + k_half + 1] = 1.0
+    kernel /= kernel.sum() * _smc_dx
+    conv = np.convolve(dens, kernel, mode='same') * _smc_dx
+    return conv / (conv.sum() * _smc_dx)
+_smc_means = []
+for _t in range(len(_smc_y)):
+    _smc_dens = _smc_predict(_smc_dens)
+    _lik = np.exp(-0.5 * (_smc_y[_t] - _smc_grid) ** 2)
+    _post = _smc_dens * _lik
+    _post /= _post.sum() * _smc_dx
+    _smc_means.append(float((_smc_grid * _post).sum() * _smc_dx))
+    _smc_dens = _post
+smc = {
+    'grid_filter_basic': {
+        'y': _smc_y.tolist(),
+        'initRangeLow': -2, 'initRangeHigh': 8,
+        'exactFilteredMeans': _smc_means,
+    }
+}
+ref['smc'] = smc
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

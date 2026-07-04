@@ -474,6 +474,40 @@
 > `y_{t+h} = ρWy_{t+h-1} + Xβ` forward recursion with its `(I-ρW)⁻¹Xβ` fixed point) — all five functions
 > matched exactly; no bugs found. Full suite: **4,906 tests pass**. Total across all oracle passes:
 > **38 real correctness bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, twenty-fourth pass — the previously deprioritized "tail"
+> modules).** Per explicit user direction to pursue full rigor regardless of how hard a module is to
+> verify, resumed auditing into `bandit.js` and `smc.js`. All 9 `bandit.js` functions (epsilon-greedy,
+> UCB1, Thompson sampling, LinUCB, REINFORCE, softmax bandit, Q-learning, SARSA, DQN) were checked by hand
+> against their textbook update equations (incremental sample averaging, `√(2·ln t/n)` UCB bonus,
+> Beta-Bernoulli posterior updates, ridge `A⁻¹b` LinUCB scoring, softmax policy-gradient log-derivative,
+> off-policy vs. on-policy TD(0), and backprop through a tanh hidden layer) — all correct; the existing
+> test suite already verifies convergence to known-optimal policies on deterministic MDPs. No bugs found.
+>
+> `smc.js` — `particleMCMC` and `annealedImportance` had already been fixed in an earlier commit
+> (`0669f3d`) and are independently verified against closed-form integrals (posterior mean ≈0.423, log
+> normalizing constant of a N(0,4)) in the existing test suite. Verified `bootstrapFilter` correct by
+> constructing an independent, non-Monte-Carlo grid-based (deterministic numerical quadrature) Bayes
+> filter in Python for the same state-space model (`x_t = x_{t-1} + U(-1,1)`, `y_t ~ N(x_t,1)`) — matched
+> to within Monte-Carlo noise (N=3000 particles) at every one of 10 time steps. Found **1 more real bug**:
+> - `auxiliaryPF` — the auxiliary particle filter resampled particles proportional to the observation
+>   likelihood of the *predicted* particle (`p(y|μ)`), but then, since no fresh transition draw is taken
+>   for the resampled particles (`x_t = μ` exactly), reweighted the *same* resampled values by the *same*
+>   likelihood formula a second time before computing the filtered mean — double-counting the observation.
+>   Since `x_t = μ` exactly here, the correct second-stage correction weight `p(y|x_t)/p(y|μ)` is exactly 1
+>   (the "fully adapted" special case), so the filter is already correctly weighted after the first
+>   resample. Verified against the grid-based oracle: the buggy version deviated from ground truth by up
+>   to 0.32 (overshooting toward the most recent observation, e.g. 7.35 vs. the true 7.03 at the final
+>   step), while a from-scratch Python re-implementation of the corrected algorithm (single resample,
+>   uniform final weights) tracked the grid oracle to within 0.02–0.03 (pure Monte Carlo noise) at every
+>   step. Fixed by removing the redundant second likelihood computation/resample and taking the uniformly-
+>   weighted mean of the first-stage-resampled particles directly.
+>
+> `importanceSampling`, `effectiveSampleSizeSMC`, and `multinomialResampleExport` were confirmed correct by
+> inspection (self-normalized importance sampling with a uniform proposal correctly cancels the constant
+> proposal density; ESS is the standard Kish formula `(Σw)²/Σw²`; multinomial resampling via inverse-CDF is
+> textbook-correct). Full suite: **4,908 tests pass**. Total across all oracle passes: **39 real
+> correctness bugs found and fixed**, plus one module-portability defect.
 
 ## Verdict
 

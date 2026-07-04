@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { bootstrapFilter, auxiliaryPF, importanceSampling, effectiveSampleSizeSMC, multinomialResampleExport, particleMCMC, annealedImportance } from './smc.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const y = [1.2, 2.1, 2.9, 3.8, 5.0, 4.8, 5.9, 7.1, 6.8, 8.0];
 const init = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5];
@@ -71,5 +72,21 @@ describe('particleMCMC runs a real Metropolis chain (PMMH-style)', () => {
     // E[x|posterior] = ∫₀¹ x e^{-x²} / ∫₀¹ e^{-x²} ≈ 0.423 per coordinate
     expect(r.posteriorMean[0]).toBeCloseTo(0.423, 1);
     expect(r.posteriorMean[1]).toBeCloseTo(0.423, 1);
+  });
+});
+
+describe('bootstrapFilter and auxiliaryPF track an independent grid-based (non-Monte-Carlo) Bayes filter (regression test for the auxiliaryPF double-likelihood-weighting fix)', () => {
+  const e = ref.smc.grid_filter_basic;
+  const N = 3000;
+  const wideInit = Array.from({ length: N }, (_, i) => (i / N) * (e.initRangeHigh - e.initRangeLow) + e.initRangeLow);
+
+  it('bootstrapFilter matches the exact grid filter closely at large N', () => {
+    const r = bootstrapFilter(e.y, wideInit, { seed: 7, processNoise: 1, obsNoise: 1 });
+    e.exactFilteredMeans.forEach((m, i) => expect(Math.abs(r.filtered[i] - m)).toBeLessThan(0.15));
+  });
+
+  it('auxiliaryPF matches the exact grid filter closely at large N (previously overshot toward y by up to 0.32 due to reweighting the same predicted particles by their own likelihood twice)', () => {
+    const r = auxiliaryPF(e.y, wideInit, { seed: 7, processNoise: 1, obsNoise: 1 });
+    e.exactFilteredMeans.forEach((m, i) => expect(Math.abs(r.filtered[i] - m)).toBeLessThan(0.15));
   });
 });
