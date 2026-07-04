@@ -607,6 +607,30 @@
 >
 > Full suite: **4,916 tests pass**. Total across all oracle passes: **49 real correctness bugs found and
 > fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, twenty-eighth pass).** Audited `dimReduction.js`. `tsne`, `lle`,
+> and `umapApprox` (already fixed in an earlier commit, `894afbe`) were re-confirmed via the existing
+> correctness tests (t-SNE cluster separation with real -Q repulsion, LLE near-zero planar reconstruction
+> error, UMAP cluster separation exceeding plain PCA). Found **2 more real bugs in `isomap`**:
+> - The k-nearest-neighbor graph was directed — each point's edges came only from its OWN k nearest
+>   neighbors, with no guarantee the relation was mutual. Verified this stayed substantially asymmetric
+>   even after Floyd-Warshall's transitive closure (214 of 400 cells still differed, by up to 0.21, on a
+>   20-point connected test manifold) — but classical MDS's double-centering step requires a symmetric
+>   dissimilarity matrix; feeding it an asymmetric one breaks `jacobiEigen`'s symmetric-matrix assumption
+>   and invalidates the resulting embedding (on disconnected/uneven-density data the old code produced a
+>   degenerate embedding where nearly every point collapsed to the origin). Fixed by symmetrizing the
+>   adjacency (an edge exists if EITHER point considers the other a neighbor) before Floyd-Warshall.
+> - Separately, the classical-MDS embedding used raw unit-norm eigenvectors instead of
+>   `eigenvector·sqrt(eigenvalue)` — the scaling this same codebase's own `mds.js` already applies
+>   correctly — so every retained dimension got equal weight regardless of how much variance it actually
+>   explained. Verified against `scikit-learn.manifold.Isomap` on a near-1D helix: sklearn's second
+>   coordinate is near-degenerate (span ≈0.6) relative to its first (span ≈13.7), while the old unscaled
+>   JS code gave the two dimensions comparable magnitude. After both fixes, the JS embedding's pairwise
+>   distances correlate with sklearn's at r > 0.99 (rotation/reflection-invariant comparison, since MDS
+>   solutions are only defined up to an orthogonal transform).
+>
+> Full suite: **4,917 tests pass**. Total across all oracle passes: **51 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 

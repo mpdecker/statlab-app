@@ -1651,6 +1651,31 @@ tensor = {
 }
 ref['tensor'] = tensor
 
+# ── dimReduction (isomap) ────────────────────────────────────────────────────
+# isomap's kNN graph was directed (only each point's own k nearest neighbors),
+# which stayed substantially asymmetric even after Floyd-Warshall's transitive
+# closure, breaking classical MDS's symmetric-dissimilarity-matrix assumption.
+# Separately, the MDS embedding used raw unit-norm eigenvectors instead of
+# eigenvector*sqrt(eigenvalue) (the convention this codebase's own mds.js
+# already uses), badly distorting relative axis scales. Ground truth via
+# scikit-learn's Isomap; compared via pairwise embedding distances (rotation/
+# reflection-invariant, since MDS solutions are only defined up to an
+# orthogonal transform).
+from sklearn.manifold import Isomap as _SKIsomap
+_iso_n = 20
+_iso_X = np.array([[np.cos(t) * 3, np.sin(t) * 3, t * 0.5]
+                    for t in (np.arange(_iso_n) / (_iso_n - 1)) * np.pi * 1.5])
+_iso_model = _SKIsomap(n_neighbors=5, n_components=2)
+_iso_Y = _iso_model.fit_transform(_iso_X)
+_iso_pdist = []
+for _i in range(_iso_n):
+    for _j in range(_i + 1, _iso_n):
+        _iso_pdist.append(float(np.linalg.norm(_iso_Y[_i] - _iso_Y[_j])))
+dimReduction = {
+    'isomap_basic': {'X': _iso_X.tolist(), 'nNeighbors': 5, 'nComponents': 2, 'pairwiseDist': _iso_pdist}
+}
+ref['dimReduction'] = dimReduction
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
