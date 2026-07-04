@@ -631,6 +631,33 @@
 >
 > Full suite: **4,917 tests pass**. Total across all oracle passes: **51 real correctness bugs found and
 > fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, twenty-ninth pass — revisiting `power.js`, previously
+> deprioritized).** An earlier pass had left `power.js`/`math/power.js` alone on the grounds that their
+> normal-approximation-to-noncentral-distribution convention was a defensible simplification rather than a
+> bug. Per the user's explicit direction to pursue full rigor regardless of prior triage decisions, this was
+> re-examined quantitatively against `scipy.stats.ncx2`/`ncf` (the exact noncentral chi-square/F CDFs) —
+> and the approximation error turned out to be substantial, not negligible: **6+ percentage points** for
+> realistic parameter values (R²=0.13, n=100, k=3: normal approx gave power=0.970 vs. the true 0.905).
+> Implemented exact noncentral chi-square and F CDFs (`ncChiSqCDF`, `ncFCDF` in `math/distributions.js`) as
+> Poisson-weighted mixtures of the already-available central chi-square/beta CDFs (`lowerIncGamma`,
+> `ibeta`) — verified against `scipy.stats.ncx2.cdf`/`ncf.cdf` to ~1e-9. Found **4 real bugs** (all using
+> the same normal-approximation pattern):
+> - `powerChi` (χ² power), `powerOLS` (OLS F-test power), `powerRMANOVA` (repeated-measures ANOVA power),
+>   and `powerInteractionANOVA` (factorial-interaction ANOVA power) all approximated the noncentral χ²/F
+>   distribution's tail probability with a normal distribution matched to its mean and variance. Replaced
+>   all four with the exact noncentral CDFs; verified each against `scipy.stats.ncx2.sf`/`ncf.sf` to 4
+>   decimal places on representative test cases (χ²: 0.6635 vs. 0.6635; OLS: 0.9050 vs. 0.9050; RM ANOVA:
+>   0.6011 vs. 0.6011; interaction ANOVA: 0.6754 vs. 0.6754).
+>
+> `powerANOVA` (already a real Monte Carlo simulation, not an approximation) and `computePowerT`'s
+> noncentral-t handling (exact Monte Carlo simulation for df≤30, matching scipy's exact noncentral-t to
+> within simulation noise ~0.0015; a normal approximation for df>30, differing from the exact value by only
+> ~0.0035 at df=98 — small enough to be a legitimate, well-established simplification rather than a bug)
+> were confirmed adequate. `powerOneProportion`/`powerTwoProportion`'s Wald normal approximation is the
+> standard textbook convention for proportion tests (not a noncentral-distribution approximation issue).
+> Full suite: **4,921 tests pass**. Total across all oracle passes: **55 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 

@@ -7,6 +7,7 @@ import { powerCoxPH, powerMetaAnalysis, powerEquivalence, powerInteractionANOVA,
   powerLogRankTest, powerRMANOVA, powerOLS_apa, powerSpearmanTest,
 } from './power.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 describe('powerCoxPH', () => {
   it('returns null for invalid input', () => {
@@ -333,4 +334,27 @@ describe('edge cases', () => {
   it('powerWilcoxonTest null for n<3', () => expect(powerWilcoxonTest(2, 2, 0.5)).toBeNull());
   it('powerLogRankTest null for nEvents<4', () => expect(powerLogRankTest(2, 0.6)).toBeNull());
   it('powerSpearmanTest null for n<5', () => expect(powerSpearmanTest(3, 0.3)).toBeNull());
+});
+
+describe('powerChiSq, powerOLS_apa, powerRMANOVA, powerInteractionANOVA use the exact noncentral chi-square/F distribution (regression test for the normal-approximation fix)', () => {
+  it('powerChiSq matches scipy.stats.ncx2 exactly (old normal approx could be off by several points)', () => {
+    const e = ref.power.chi_basic;
+    const r = powerChiSq(e.cohenW, e.df, e.N, e.alpha);
+    expect(r.power).toBeCloseTo(e.power, 3);
+  });
+  it('powerOLS_apa matches scipy.stats.ncf exactly (old normal approx gave 0.970 vs. the exact 0.905)', () => {
+    const e = ref.power.ols_basic;
+    const r = powerOLS_apa(e.rSquared, e.n, e.k, e.alpha);
+    expect(r.power).toBeCloseTo(e.power, 3);
+  });
+  it('powerRMANOVA matches scipy.stats.ncf exactly', () => {
+    const e = ref.power.rmanova_basic;
+    const r = powerRMANOVA(e.k, e.n, e.epsilon, e.f, e.alpha);
+    expect(r.power).toBeCloseTo(e.power, 3);
+  });
+  it('powerInteractionANOVA matches scipy.stats.ncf exactly', () => {
+    const e = ref.power.interaction_anova_basic;
+    const r = powerInteractionANOVA(e.kA, e.kB, e.nPerCell, e.fInt, e.alpha);
+    expect(r.power).toBeCloseTo(e.power, 3);
+  });
 });

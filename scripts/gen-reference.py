@@ -1676,6 +1676,47 @@ dimReduction = {
 }
 ref['dimReduction'] = dimReduction
 
+# ── power (exact noncentral chi-square/F power) ─────────────────────────────
+# powerChi, powerOLS, powerRMANOVA, and powerInteractionANOVA previously used a
+# normal approximation to the noncentral chi-square/F distribution's mean and
+# variance, which can overstate power by several percentage points (e.g. the
+# OLS case below: 0.970 approximate vs. 0.905 exact). Ground truth via
+# scipy.stats.ncx2/ncf survival functions (the exact noncentral CDFs).
+from scipy.stats import ncx2 as _ncx2, ncf as _ncf, chi2 as _chi2sp, f as _fsp
+_pw_chi = {'cohenW': 0.3, 'df': 4, 'N': 100, 'alpha': 0.05}
+_pw_chi_crit = _chi2sp.ppf(1 - _pw_chi['alpha'], _pw_chi['df'])
+_pw_chi_ncp = _pw_chi['N'] * _pw_chi['cohenW'] ** 2
+_pw_chi_power = float(_ncx2.sf(_pw_chi_crit, _pw_chi['df'], _pw_chi_ncp))
+
+_pw_ols = {'rSquared': 0.13043478260869565, 'n': 100, 'k': 3, 'alpha': 0.05}
+_pw_ols_f2 = _pw_ols['rSquared'] / (1 - _pw_ols['rSquared'])
+_pw_ols_ncp = _pw_ols['n'] * _pw_ols_f2
+_pw_ols_df1, _pw_ols_df2 = _pw_ols['k'], _pw_ols['n'] - _pw_ols['k'] - 1
+_pw_ols_crit = _fsp.ppf(1 - _pw_ols['alpha'], _pw_ols_df1, _pw_ols_df2)
+_pw_ols_power = float(_ncf.sf(_pw_ols_crit, _pw_ols_df1, _pw_ols_df2, _pw_ols_ncp))
+
+_pw_rm = {'k': 4, 'n': 30, 'epsilon': 1, 'f': 0.25, 'alpha': 0.05}
+_pw_rm_df1 = (_pw_rm['k'] - 1) * _pw_rm['epsilon']
+_pw_rm_df2 = (_pw_rm['k'] - 1) * (_pw_rm['n'] - 1) * _pw_rm['epsilon']
+_pw_rm_ncp = _pw_rm['n'] * _pw_rm['k'] * _pw_rm['f'] ** 2
+_pw_rm_crit = _fsp.ppf(1 - _pw_rm['alpha'], _pw_rm_df1, _pw_rm_df2)
+_pw_rm_power = float(_ncf.sf(_pw_rm_crit, _pw_rm_df1, _pw_rm_df2, _pw_rm_ncp))
+
+_pw_int = {'kA': 2, 'kB': 3, 'nPerCell': 20, 'fInt': 0.25, 'alpha': 0.05}
+_pw_int_df1 = (_pw_int['kA'] - 1) * (_pw_int['kB'] - 1)
+_pw_int_df2 = _pw_int['kA'] * _pw_int['kB'] * (_pw_int['nPerCell'] - 1)
+_pw_int_ncp = _pw_int['nPerCell'] * _pw_int['kA'] * _pw_int['kB'] * _pw_int['fInt'] ** 2
+_pw_int_crit = _fsp.ppf(1 - _pw_int['alpha'], _pw_int_df1, _pw_int_df2)
+_pw_int_power = float(_ncf.sf(_pw_int_crit, _pw_int_df1, _pw_int_df2, _pw_int_ncp))
+
+power = {
+    'chi_basic': {**_pw_chi, 'power': _pw_chi_power},
+    'ols_basic': {**_pw_ols, 'power': _pw_ols_power},
+    'rmanova_basic': {**_pw_rm, 'power': _pw_rm_power},
+    'interaction_anova_basic': {**_pw_int, 'power': _pw_int_power},
+}
+ref['power'] = power
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

@@ -1,4 +1,4 @@
-import { normalCDF, normalINV } from '../math/distributions.js';
+import { normalCDF, normalINV, ncFCDF } from '../math/distributions.js';
 import { avg } from '../math/core.js';
 import { fCritUpper, powerANOVA as _powerANOVA, powerChi as _powerChi, powerLogistic as _powerLogistic,
   powerMixed as _powerMixed, powerMediation as _powerMediation, computePowerCorr,
@@ -68,6 +68,10 @@ export function powerEquivalence(meanDiff, se, dL, dU, alpha = 0.05) {
 }
 
 // ── Interaction ANOVA Power ───────────────────────────────────────────────────
+// Power via the exact noncentral F CDF (Poisson-mixture series, verified
+// against scipy.stats.ncf) rather than a normal approximation to the
+// noncentral F's mean/variance, which can overstate power by several
+// percentage points at moderate-to-large noncentrality.
 export function powerInteractionANOVA(kA, kB, nPerCell, fInt, alpha = 0.05) {
   if (kA < 2 || kB < 2 || nPerCell < 2 || !(fInt > 0)) return null;
   const df1 = (kA - 1) * (kB - 1);
@@ -75,11 +79,7 @@ export function powerInteractionANOVA(kA, kB, nPerCell, fInt, alpha = 0.05) {
   if (df2 < 1) return null;
   const ncp = nPerCell * kA * kB * fInt * fInt;
   const fCrit = fCritUpper(alpha, df1, df2);
-  const mn = df1 + ncp;
-  const vr = 2 * (df1 + 2 * ncp);
-  if (vr <= 0) return null;
-  const z = (fCrit - mn) / Math.sqrt(vr);
-  const power = normalCDF(-z);
+  const power = 1 - ncFCDF(fCrit, df1, df2, ncp);
   return {
     test: 'Interaction ANOVA Power',
     power: +power.toFixed(4),

@@ -1,4 +1,4 @@
-import { normalCDF, tInv2, fPVal, chiPVal, normalINV } from './distributions.js';
+import { normalCDF, tInv2, fPVal, chiPVal, normalINV, ncChiSqCDF, ncFCDF } from './distributions.js';
 import { avg } from './core.js';
 import { mulberry32, boxMullerN } from './rng.js';
 
@@ -63,14 +63,15 @@ export function powerANOVA(cohenF, k, nPerGroup, alpha = .05, seed = 42) {
   return +(hits / R).toFixed(4);
 }
 
-/** χ² approximate power vs Cohen's w (normal approx to non-central χ² mean/var) */
+/** χ² power vs Cohen's w via the exact noncentral χ² CDF (Poisson-mixture
+ * series; verified against scipy.stats.ncx2 — the previous normal
+ * approximation to the noncentral χ² mean/variance could be off by several
+ * percentage points, e.g. 6+ points for moderate noncentrality). */
 export function powerChi(cohenW, df, sampleN, alpha = .05) {
   if (df < 1 || sampleN < 2 || !(cohenW >= 0)) return null;
   const crit = chiCrit(alpha, df);
   const λ = sampleN * cohenW ** 2;
-  const mn = df + λ;
-  const vn = Math.sqrt(Math.max(1e-9, 2 * (df + 2 * λ)));
-  const pow = 1 - normalCDF((crit - mn) / vn);
+  const pow = 1 - ncChiSqCDF(crit, df, λ);
   return +Math.min(.9999, Math.max(0, pow)).toFixed(4);
 }
 
@@ -223,24 +224,27 @@ export function powerLogRank(nEvents, hr, alpha = .05) {
 }
 
 // ── RM ANOVA power ─────────────────────────────────────────────────────────────
+// Power via the exact noncentral F CDF (Poisson-mixture series; verified
+// against scipy.stats.ncf). The previous version approximated the noncentral
+// F by a normal density integrated numerically over x in steps of 0.2 — a
+// double approximation (normal-to-noncentral-F, then a coarse Riemann sum)
+// that could be off by several percentage points.
 export function powerRMANOVA(k, n, epsilon, f, alpha = .05) {
   if (k < 2 || n < 3 || !(epsilon > 0 && epsilon <= 1) || !(f >= 0)) return null;
   const df1 = (k - 1) * epsilon;
   const df2 = (k - 1) * (n - 1) * epsilon;
   const ncp = n * k * f * f;
-  const crit = fCritUpper(alpha, Math.max(1, Math.round(df1)), Math.max(1, Math.round(df2)));
-  const vn = Math.sqrt(Math.max(1e-9, df1 + 2 * ncp));
-  const mn = df1 + ncp;
-  const hiX = Math.max(crit + 20, mn + 10 * vn);
-  let power = 0;
-  for (let x = crit; x < hiX; x += 0.2) {
-    power += Math.exp(-0.5 * (x - mn) ** 2 / (vn * vn)) * 0.2;
-  }
-  power = Math.min(0.9999, Math.max(0, power / (Math.sqrt(2 * Math.PI) * vn)));
+  const crit = fCritUpper(alpha, df1, df2);
+  const power = Math.min(0.9999, Math.max(0, 1 - ncFCDF(crit, df1, df2, ncp)));
   return { power: +power.toFixed(4), k, n, epsilon, f, alpha, apa: `Power = ${power.toFixed(3)} (RM ANOVA, k = ${k}, n = ${n}, f = ${f})` };
 }
 
 // ── OLS regression F-test power ────────────────────────────────────────────────
+// Power via the exact noncentral F CDF (Poisson-mixture series; verified
+// against scipy.stats.ncf and R's pwr::pwr.f2.test, ncp = f2*n). The previous
+// normal approximation to the noncentral F could overstate power by several
+// percentage points at moderate-to-large effect sizes (e.g. R²=0.13, n=100,
+// k=3: normal approx gave 0.970 vs. the exact 0.905).
 export function powerOLS(rSquared, n, k, alpha = .05) {
   if (!(rSquared >= 0 && rSquared < 1) || n < k + 2 || k < 1) return null;
   const f2 = rSquared / (1 - rSquared);
@@ -248,10 +252,7 @@ export function powerOLS(rSquared, n, k, alpha = .05) {
   const df1 = k;
   const df2 = n - k - 1;
   const crit = fCritUpper(alpha, df1, df2);
-  const lambda = ncp;
-  const mn = df1 + lambda;
-  const vr = 2 * (df1 + 2 * lambda);
-  const power = 1 - normalCDF((crit - mn) / Math.sqrt(Math.max(1e-9, vr)));
+  const power = 1 - ncFCDF(crit, df1, df2, ncp);
   return { power: +Math.min(0.9999, Math.max(0, power)).toFixed(4), rSquared, n, k, alpha, apa: `Power = ${power.toFixed(3)} (OLS, R2 = ${rSquared}, n = ${n}, k = ${k})` };
 }
 
