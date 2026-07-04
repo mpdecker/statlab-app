@@ -4582,5 +4582,14 @@
         0.8333333333333334
       ]
     }
+  },
+  "spatialEconometric": {
+    "direct_indirect_basic": {
+      "beta": 2.0,
+      "theta": 1.0,
+      "rho": 0.3,
+      "direct": 2.0,
+      "total": 4.285714285714286
+    }
   }
 }
