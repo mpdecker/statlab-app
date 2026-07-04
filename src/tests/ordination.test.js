@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { permanova, anosim, mantelTest, simperAnalysis, procrustes, ccaPrep, envfit, varpart, mso } from './ordination.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const d = []; for (let i = 0; i < 20; i++) d.push({ x1: i * 0.5, x2: Math.sin(i), grp: i < 10 ? 'A' : 'B' });
 
@@ -70,6 +71,32 @@ describe('mso', () => {
   it('contract keys', () => expectKeys(mso(D), ['test','order','n','apa']));
   it('null <3', () => expect(mso([[0,1],[1,0]])).toBeNull());
   it('order array non-empty', () => { const r = mso(D); if (r) expect(r.order.length).toBeGreaterThan(0); });
+});
+
+describe('mantelTest matches an independent Pearson-correlation-of-vectorized-distances computation exactly (regression test for the wrong-r-formula and row-shuffling-permutation fixes)', () => {
+  it('r matches on two nearly-identical distance matrices', () => {
+    const e = ref.ordination.mantel_basic;
+    const r = mantelTest(e.m1, e.m2, { permutations: 999 });
+    expect(r.r).toBeCloseTo(e.r, 3);
+    expect(r.p).toBeLessThan(0.05); // should be highly significant given r~0.99, not p=1 like the old bug
+  });
+});
+
+describe('simperAnalysis no longer crashes (regression test for the undefined-n ReferenceError fix)', () => {
+  it('runs without throwing and returns nGroups', () => {
+    const r = simperAnalysis(d, ['x1', 'x2'], 'grp');
+    expect(r).not.toBeNull();
+    expect(r.nGroups).toBe(2);
+    expect(r.contributions.length).toBeGreaterThan(0);
+  });
+});
+
+describe('procrustes matches scipy.linalg.orthogonal_procrustes exactly', () => {
+  it('m2 matches on a non-trivial 7-point example', () => {
+    const e = ref.ordination.procrustes_basic;
+    const r = procrustes(e.X, e.Y);
+    expect(r.m2).toBeCloseTo(e.m2, 3);
+  });
 });
 
 describe('procrustes finds the optimal rotation', () => {

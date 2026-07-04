@@ -96,36 +96,46 @@ export function anosim(data, vars, groupVar, { seed = 42, permutations = 999 } =
 }
 
 // ── Mantel Test ────────────────────────────────────────────────────────────
+// Pearson correlation between the upper-triangular entries of two same-sized
+// distance matrices, given a labeling (identity, or a permutation) applied to
+// matrix2's rows/columns.
+function _mantelR(matrix1, matrix2, order) {
+  const n = matrix1.length;
+  let sum1 = 0, sum2 = 0, sum11 = 0, sum22 = 0, sum12 = 0, count = 0;
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const x = matrix1[i][j], y = matrix2[order[i]][order[j]];
+    sum1 += x; sum2 += y;
+    sum11 += x * x; sum22 += y * y;
+    sum12 += x * y;
+    count++;
+  }
+  const num = count * sum12 - sum1 * sum2;
+  const den = Math.sqrt(Math.max(count * sum11 - sum1 * sum1, 0) * Math.max(count * sum22 - sum2 * sum2, 0));
+  return den > 0 ? num / den : 0;
+}
+
 export function mantelTest(matrix1, matrix2, { seed = 42, permutations = 999 } = {}) {
   __rng = mulberry32(seed);
   if (!matrix1 || !matrix2 || matrix1.length < 5 || matrix1.length !== matrix2.length) return null;
   const n = matrix1.length;
-  let sum12 = 0, sum1 = 0, sum2 = 0, sum11 = 0, sum22 = 0, count = 0;
-  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
-    sum12 += matrix1[i][j] * matrix2[i][j];
-    sum1 += matrix1[i][j]; sum2 += matrix2[i][j];
-    sum11 += matrix1[i][j] * matrix1[i][j]; sum22 += matrix2[i][j] * matrix2[i][j];
-    count++;
-  }
-  const denom = count * (sum11 * sum22) - sum1 * sum1 * sum22;
-  const r = count * sum12 - sum1 * sum2;
-  const z = r / Math.sqrt(Math.max(denom, 1));
+  const identity = Array.from({ length: n }, (_, i) => i);
+  const r = _mantelR(matrix1, matrix2, identity);
 
   let permCount = 0;
   for (let p = 0; p < permutations; p++) {
-    const perm = matrix2.map(r => [...r].sort(() => __rng() - 0.5));
-    let ps12 = 0;
-    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) ps12 += matrix1[i][j] * perm[i][j];
-    const pr = count * ps12;
-    if (Math.abs(pr) >= Math.abs(r)) permCount++;
+    const order = identity.slice();
+    for (let k = n - 1; k > 0; k--) { const m = Math.floor(__rng() * (k + 1)); [order[k], order[m]] = [order[m], order[k]]; }
+    const rp = _mantelR(matrix1, matrix2, order);
+    if (Math.abs(rp) >= Math.abs(r)) permCount++;
   }
-  const p = permCount / permutations;
-  return { test: 'Mantel Test', r: +(r / Math.max(1, count * sum11)).toFixed(4), p, permutations, n, apa: `Mantel: r = ${(r / Math.max(1, count * sum11)).toFixed(3)}, p = ${p.toFixed(3)}` };
+  const p = (permCount + 1) / (permutations + 1);
+  return { test: 'Mantel Test', r: +r.toFixed(4), p, permutations, n, apa: `Mantel: r = ${r.toFixed(3)}, p = ${p.toFixed(3)}` };
 }
 
 // ── SIMPER ─────────────────────────────────────────────────────────────────
 export function simperAnalysis(data, vars, groupVar) {
   if (!data || data.length < 10 || !vars || !groupVar) return null;
+  const n = data.length;
   const D = distanceMatrix(data, vars);
   const groups = [...new Set(data.map(r => r[groupVar]))];
   if (groups.length < 2) return null;
@@ -139,7 +149,7 @@ export function simperAnalysis(data, vars, groupVar) {
     return { variable: v, contribution: +Math.abs(diff).toFixed(4), mean0: +avg(vals0).toFixed(4), mean1: +avg(vals1).toFixed(4) };
   });
   contributions.sort((a, b) => b.contribution - a.contribution);
-  return { test: 'SIMPER', contributions, groups: [g0, g1], n, apa: `SIMPER: ${g0} vs ${g1}, top: ${contributions[0]?.variable}` };
+  return { test: 'SIMPER', contributions, groups: [g0, g1], nGroups: groups.length, n, apa: `SIMPER: ${g0} vs ${g1}, top: ${contributions[0]?.variable}` };
 }
 
 // ── Procrustes ─────────────────────────────────────────────────────────────

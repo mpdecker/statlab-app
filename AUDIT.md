@@ -297,6 +297,37 @@
 > correct against `statsmodels.stats.inter_rater.fleiss_kappa` and standard classical-test-theory formulas.
 > Full suite: **4,888 tests pass**. Total across all oracle passes: **27 real correctness bugs found and
 > fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, sixteenth pass).** Extended coverage into `bioinformatics.js` and
+> `ordination.js`, finding **4 more real bugs**, including one outright crash:
+> - `enrichmentAnalysis` (bioinformatics.js) — the hypergeometric-tail-sum loop's second binomial-coefficient
+>   term had a spurious `- 1`: `(total - pathwaySize - geneset + k + i - 1) / i` instead of the correct
+>   `(total - pathwaySize - geneset + k + i) / i`. Verified exactly against `scipy.stats.hypergeom.sf` after
+>   removing it (both the buggy and fixed values were computed and compared bit-for-bit against the oracle).
+> - `fdrCorrection` (bioinformatics.js) — implemented Benjamini-Hochberg as a naive "count ranks that
+>   individually cross their own threshold" rather than the real step-up procedure ("find the *largest*
+>   crossing rank, reject everything at or below it"). On a test case with a non-monotonic crossing pattern
+>   this gave 2 significant results instead of the correct 3 (verified against
+>   `statsmodels.stats.multitest.multipletests(method='fdr_bh')`) — the classic BH failure mode where an
+>   individually-failing smaller-rank p-value should still be rejected because it falls below a later,
+>   larger-rank crossing.
+> - `simperAnalysis` (ordination.js) — **crashed on every call** with `ReferenceError: n is not defined` (a
+>   local `n` was referenced in the return statement but never assigned). The existing test suite had wrapped
+>   the call in `try {} catch {}`, silently swallowing the exception instead of catching the defect. Also
+>   added the `nGroups` field the tests expected (matching the sibling `permanova`/`anosim` contract) once the
+>   crash was fixed and the field's absence became visible.
+> - `mantelTest` (ordination.js) — badly broken in two compounding ways: (1) the reported "r" used an
+>   ad-hoc, dimensionally-wrong formula instead of the real Pearson correlation between the two matrices'
+>   vectorized upper triangles, and (2) the permutation procedure independently re-sorted *each row* of the
+>   second matrix with its own random order, destroying the matrix's symmetric structure entirely instead of
+>   permuting a single shared row/column index vector. Together these gave r=0.183 and p=1.000 (not even
+>   "not significant" — literally *no* permutation was ever more extreme) on two distance matrices that are
+>   in fact nearly identical (true r=0.990, verified via `numpy.corrcoef` on the vectorized distances).
+>   Rewrote both the statistic and the permutation scheme from scratch.
+>
+> `procrustes` was independently verified to match `scipy.linalg.orthogonal_procrustes` exactly (both the
+> rotation matrix and the residual sum of squares). Full suite: **4,893 tests pass**. Total across all
+> oracle passes: **31 real correctness bugs found and fixed**, plus one module-portability defect.
 
 ## Verdict
 

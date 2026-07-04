@@ -1283,6 +1283,37 @@ _psy_table, _psy_cats = _sm_aggregate_raters(_psy_subj_ratings)
 psychometrics['fleiss_basic'] = {'ratings': psy_ratings, 'kappa': float(_sm_fleiss_kappa(_psy_table))}
 ref['psychometrics'] = psychometrics
 
+# ── bioinformatics ────────────────────────────────────────────────────────────
+from scipy.stats import hypergeom
+bioinformatics = {}
+_bio_geneset, _bio_bg, _bio_pathway, _bio_overlap, _bio_total = 50, 500, 30, 5, 1000
+bioinformatics['enrichment_basic'] = {
+    'geneset': _bio_geneset, 'background': _bio_bg, 'pathwaySize': _bio_pathway, 'overlap': _bio_overlap, 'total': _bio_total,
+    'pValue': float(hypergeom.sf(_bio_overlap - 1, _bio_total, _bio_pathway, _bio_geneset)),
+}
+_bio_pvals = [0.005, 0.025, 0.029, 0.5, 0.5]
+from statsmodels.stats.multitest import multipletests as _sm_multipletests
+_bio_rej, _bio_pcorr, _, _ = _sm_multipletests(_bio_pvals, alpha=0.05, method='fdr_bh')
+bioinformatics['fdr_basic'] = {'pValues': _bio_pvals, 'alpha': 0.05, 'nSig': int(sum(_bio_rej))}
+ref['bioinformatics'] = bioinformatics
+
+# ── ordination ────────────────────────────────────────────────────────────────
+from scipy.linalg import orthogonal_procrustes as _sp_orthogonal_procrustes
+ordination = {}
+_ord_m1 = [[0, 1, 2, 3, 4], [1, 0, 1.5, 2.5, 3.5], [2, 1.5, 0, 1, 2], [3, 2.5, 1, 0, 1], [4, 3.5, 2, 1, 0]]
+_ord_m2 = [[0, 1.2, 2.1, 2.9, 4.2], [1.2, 0, 1.4, 2.6, 3.3], [2.1, 1.4, 0, 0.9, 2.2], [2.9, 2.6, 0.9, 0, 1.1], [4.2, 3.3, 2.2, 1.1, 0]]
+_ord_m1a, _ord_m2a = np.array(_ord_m1), np.array(_ord_m2)
+_ord_n = len(_ord_m1)
+_ord_iu = np.triu_indices(_ord_n, k=1)
+ordination['mantel_basic'] = {'m1': _ord_m1, 'm2': _ord_m2, 'r': float(np.corrcoef(_ord_m1a[_ord_iu], _ord_m2a[_ord_iu])[0, 1])}
+
+_ord_X = np.array([[1.2, 2.3], [3.1, 4.5], [5.2, 1.1], [2.3, 6.1], [4.4, 3.2], [0.5, 1.5], [3.3, 3.3]])
+_ord_Y = np.array([[2.1, 1.4], [4.6, 3.0], [1.0, 5.1], [6.2, 2.2], [3.1, 4.0], [1.6, 0.4], [3.4, 3.2]])
+_ord_R, _ = _sp_orthogonal_procrustes(_ord_X, _ord_Y)
+_ord_m2val = float(np.sum((_ord_X @ _ord_R - _ord_Y) ** 2))
+ordination['procrustes_basic'] = {'X': _ord_X.tolist(), 'Y': _ord_Y.tolist(), 'm2': _ord_m2val}
+ref['ordination'] = ordination
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

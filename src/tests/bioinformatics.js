@@ -9,7 +9,7 @@ export function enrichmentAnalysis(geneset, background, pathwaySize, overlap, to
   for (let k = overlap; k <= Math.min(geneset, pathwaySize); k++) {
     let comb1 = 1, comb2 = 1, comb3 = 1;
     for (let i = 1; i <= k; i++) { comb1 *= (pathwaySize - k + i) / i; }
-    for (let i = 1; i <= geneset - k; i++) { comb2 *= (total - pathwaySize - geneset + k + i - 1) / i; }
+    for (let i = 1; i <= geneset - k; i++) { comb2 *= (total - pathwaySize - geneset + k + i) / i; }
     for (let i = 1; i <= geneset; i++) { comb3 *= (total - geneset + i) / i; }
     pval += comb1 * comb2 / Math.max(comb3, 1);
   }
@@ -47,7 +47,12 @@ export function fdrCorrection(pValues, alpha = 0.05) {
   const n = pValues.length;
   const sorted = pValues.map((p, i) => ({ p, i })).sort((a, b) => a.p - b.p);
   const thresholds = sorted.map((s, rank) => ({ ...s, rank: rank + 1, threshold: alpha * (rank + 1) / n }));
-  const sigCount = thresholds.filter(t => t.p <= t.threshold).length;
+  // Standard Benjamini-Hochberg step-up: find the LARGEST rank whose p-value
+  // crosses its threshold, then everything at or below that rank is significant
+  // (not just the ranks that individually cross their own threshold).
+  let maxCrossingRank = 0;
+  for (const t of thresholds) if (t.p <= t.threshold) maxCrossingRank = t.rank;
+  const sigCount = maxCrossingRank;
   return { test: 'FDR Correction', nTotal: n, nSig: sigCount, fdr: +(sigCount / n).toFixed(4), alpha, apa: `FDR: ${sigCount}/${n} sig at ${alpha}` };
 }
 
