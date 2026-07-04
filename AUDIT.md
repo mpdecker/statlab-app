@@ -281,6 +281,22 @@
 > `waldSPRT`'s A/B threshold formula was independently verified as the standard textbook formula, no changes
 > needed. Full suite: **4,886 tests pass**. Total across all oracle passes: **26 real correctness bugs found
 > and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, fifteenth pass).** Extended coverage into `abTesting.js` and
+> `psychometrics.js`, finding **1 more real bug**:
+> - `unequalAllocationT` (abTesting.js) — computed Welch's t-statistic and the correct Welch-Satterthwaite
+>   degrees of freedom, but then converted it to a p-value using `normalCDF` (a normal-distribution
+>   approximation) instead of the t-distribution with that computed df. The t-statistic matched
+>   `scipy.stats.ttest_ind(equal_var=False)` exactly, but the p-value was off by a factor of over 270x on a
+>   small-sample test case (0.0000023 buggy vs the correct 0.00063) — precisely the small-sample regime
+>   where using a normal approximation instead of the t-distribution matters most. Fixed by using the
+>   already-available `tPVal` helper with the computed df instead of `normalCDF`.
+>
+> `minimumDetectableEffect`/`requiredSampleSize` were verified self-consistent (inverses of each other), and
+> `interRaterReliability`'s Fleiss' Kappa, `itemDifficultyIndex`, and `itemDiscriminationIndex` were verified
+> correct against `statsmodels.stats.inter_rater.fleiss_kappa` and standard classical-test-theory formulas.
+> Full suite: **4,888 tests pass**. Total across all oracle passes: **27 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 

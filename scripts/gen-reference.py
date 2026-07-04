@@ -1261,6 +1261,28 @@ causal['iv2sls_basic'] = {
 }
 ref['causal'] = causal
 
+# ── abTesting ─────────────────────────────────────────────────────────────────
+abTesting = {}
+ab_control = [12.1, 15.3, 11.8, 14.2, 13.5, 12.9]
+ab_treatment = [16.2, 18.1, 15.5, 17.8, 19.2, 16.9, 15.1]
+_ab_t, _ab_p = st.ttest_ind(ab_treatment, ab_control, equal_var=False)
+abTesting['unequal_basic'] = {'control': ab_control, 'treatment': ab_treatment, 't': float(_ab_t), 'p': float(_ab_p)}
+ref['abTesting'] = abTesting
+
+# ── psychometrics ─────────────────────────────────────────────────────────────
+from statsmodels.stats.inter_rater import fleiss_kappa as _sm_fleiss_kappa, aggregate_raters as _sm_aggregate_raters
+psychometrics = {}
+psy_ratings = [
+    [1, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 1],
+    [1, 2, 2, 3, 1, 2, 2, 1, 2, 3, 2, 1],
+    [1, 1, 2, 3, 2, 2, 3, 1, 3, 3, 1, 1],
+]
+_psy_nsubj = len(psy_ratings[0])
+_psy_subj_ratings = [[psy_ratings[r][s] for r in range(len(psy_ratings))] for s in range(_psy_nsubj)]
+_psy_table, _psy_cats = _sm_aggregate_raters(_psy_subj_ratings)
+psychometrics['fleiss_basic'] = {'ratings': psy_ratings, 'kappa': float(_sm_fleiss_kappa(_psy_table))}
+ref['psychometrics'] = psychometrics
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
