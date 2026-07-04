@@ -1,6 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { nashEquilibrium, shapleyValue, dominatedStrategies, paretoOptimal, auctionRevenue, evolutionarilyStableStrategy, replicatorDynamics } from './game.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+describe('shapleyValue matches the classic glove-game analytical values exactly', () => {
+  it('player 1 gets 2/3, players 2 and 3 get 1/6 each', () => {
+    const e = ref.game.shapley_glove;
+    const coalitionValues = { '1': 0, '2': 0, '3': 0, '1|2': 1, '1|3': 1, '2|3': 0, '1|2|3': 1 };
+    const r = shapleyValue(e.players, coalitionValues);
+    r.values.forEach((v, i) => expect(v.shapley).toBeCloseTo(e.values[i], 3));
+  });
+});
 
 describe('nashEquilibrium', () => { it('contract keys', () => expectKeys(nashEquilibrium([[3,1],[0,2]]), ['test','mixed','pure','apa']));   it('p in [0,1]', () => { const r = nashEquilibrium([[3,1],[0,2]]); if (r.mixed) { expect(r.mixed.p).toBeGreaterThanOrEqual(0); expect(r.mixed.p).toBeLessThanOrEqual(1) } });
   it('returns valid equilibrium', () => { const r = nashEquilibrium([[3,1],[2,2]]); if (r && r.pure) { expect(Array.isArray(r.pure)).toBe(true); r.pure.forEach(v => expect(Number.isFinite(v.p || v.q)).toBe(true)); } });

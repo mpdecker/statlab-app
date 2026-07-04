@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { fourPL, ec50, hillSlope, volcanoPlot, log2FoldChange, moderatedTStatistic } from './doseResponse.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const dose = [0.01, 0.03, 0.1, 0.3, 1, 3, 10];
 const resp = [5, 8, 15, 35, 60, 82, 95];
@@ -10,6 +11,19 @@ describe('fourPL', () => {
   it('contract keys', () => expectKeys(fourPL(dose, resp), ['test', 'parameters', 'fitted', 'sse', 'n', 'apa']));
   it('fitted length = n', () => { const r = fourPL(dose, resp); expect(r.fitted).toHaveLength(dose.length); });
   it('parameters finite', () => { const r = fourPL(dose, resp); expect(Number.isFinite(r.parameters.logEC50)).toBe(true); });
+});
+
+describe('fourPL converges to the global optimum, matching scipy.optimize.curve_fit exactly (regression test for the LM-solver + local-optimum fix)', () => {
+  it('parameters, SSE, and seLogEC50 all match', () => {
+    const e = ref.doseResponse.fourpl_basic;
+    const r = fourPL(e.dose, e.response);
+    expect(r.parameters.bottom).toBeCloseTo(e.bottom, 2);
+    expect(r.parameters.top).toBeCloseTo(e.top, 2);
+    expect(r.parameters.logEC50).toBeCloseTo(e.logEC50, 3);
+    expect(r.parameters.hill).toBeCloseTo(e.hill, 2);
+    expect(r.sse).toBeCloseTo(e.sse, 1);
+    expect(r.parameters.seLogEC50).toBeCloseTo(e.seLogEC50, 3);
+  });
 });
 
 describe('ec50', () => {

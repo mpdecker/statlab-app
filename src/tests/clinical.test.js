@@ -1,6 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import { blandAltman, diagnosticAccuracy, likelihoodRatios, netReclassification, weightedKappa, ac1Agreement, blandAltmanRatio, clinicalUtility, diagnosticOddsRatio, agreementTable, youdenIndex, deLongTest, partialAUC, optimalThreshold, fleissKappa, krippendorffAlpha, cliffsDelta, rankBiserial, stochasticOrdering, populationAttributableFraction, cornfieldBounds, hosmerLemeshow, calibrationPlot, netBenefit, decisionCurve, brierScore, haybittlePeto, wangTsiatis, inverseNormal, fisherCombination, adaptiveDesign } from './clinical.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+describe('weightedKappa matches sklearn.metrics.cohen_kappa_score exactly (regression test for the inverted-weight-convention fix)', () => {
+  it('linear and quadratic weighted kappa both match', () => {
+    const e = ref.clinical.weighted_kappa_basic;
+    expect(weightedKappa(e.r1, e.r2, { weights: 'linear' }).kappa).toBeCloseTo(e.linear, 3);
+    expect(weightedKappa(e.r1, e.r2, { weights: 'quadratic' }).kappa).toBeCloseTo(e.quadratic, 3);
+  });
+});
+
+describe('krippendorffAlpha matches the krippendorff reference package exactly for nominal data (regression test for the D_e finite-population-correction fix)', () => {
+  it('alpha matches on a 3-rater, 10-item dataset', () => {
+    const e = ref.clinical.krippendorff_basic;
+    const r = krippendorffAlpha(e.data, e.raters, e.items, { level: 'nominal' });
+    expect(r.alpha).toBeCloseTo(e.alphaNominal, 3);
+  });
+});
 
 const a = [10, 10.2, 10.5, 9.8, 10.1, 10.3, 9.9, 10.4, 10.0, 10.6];
 const b = [9.8, 10.0, 10.3, 9.6, 10.0, 10.1, 9.7, 10.2, 9.9, 10.4];

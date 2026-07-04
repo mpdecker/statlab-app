@@ -7,20 +7,38 @@ let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 // ── Part-Worth Utilities ──────────────────────────────────────────
 export function partWorthUtilities(ratings, profiles, attrs) {
   if (!ratings || !profiles || ratings.length < 5 || !attrs || attrs.length < 2) return null;
-  const n = ratings.length, p = attrs.length;
-  const X = profiles.map(row => attrs.flatMap(a => {
-    const levels = [...new Set(profiles.map(r => r[a]))];
-    const val = row[a];
-    return levels.map((l, j) => j < levels.length - 1 && l === val ? 1 : j === levels.length - 1 ? -1 : 0);
-  }));
+  const n = ratings.length;
+  const attrLevels = attrs.map(a => [...new Set(profiles.map(r => r[a]))]);
+  // Standard effects coding: an intercept, plus (L-1) columns per attribute.
+  // For the first L-1 levels, +1 when that level is observed; the reference
+  // (last) level is coded -1 in ALL of the attribute's columns, 0 elsewhere.
+  // (The previous version emitted L columns per attribute with the last
+  // column hardcoded to -1 regardless of the row's actual value — a constant,
+  // perfectly-collinear column with no intercept — which produced nonsense
+  // utilities.)
+  const X = profiles.map(row => {
+    const cols = [1];
+    attrs.forEach((a, ai) => {
+      const levels = attrLevels[ai];
+      const val = row[a];
+      for (let j = 0; j < levels.length - 1; j++) {
+        cols.push(val === levels[j] ? 1 : val === levels[levels.length - 1] ? -1 : 0);
+      }
+    });
+    return cols;
+  });
   const Xt = X[0].map((_, j) => X.map(r => r[j]));
   const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, k) => s + X[k][j] * r1[k], 0)));
   const XtY = Xt.map(r1 => r1.reduce((s, v, k) => s + v * ratings[k], 0));
-  const utilities = solveNormalEquations(XtX, XtY).map(v => +v.toFixed(4));
-  const result = attrs.map((a, ai) => ({
-    attribute: a,
-    utilities: utilities.slice(ai * 2, (ai + 1) * 2).map((u, l) => ({ level: l + 1, utility: u || 0 }))
-  }));
+  const beta = solveNormalEquations(XtX, XtY);
+  let idx = 1; // skip the intercept
+  const result = attrs.map((a, ai) => {
+    const levels = attrLevels[ai];
+    const levelUtils = levels.slice(0, -1).map(() => beta[idx++]);
+    const refUtil = -levelUtils.reduce((s, v) => s + v, 0); // part-worths sum to zero per attribute
+    const utilities = [...levelUtils, refUtil].map((u, l) => ({ level: l + 1, utility: +(u || 0).toFixed(4) }));
+    return { attribute: a, utilities };
+  });
   return { test: 'Part-Worth Utilities', utilities: result, n, apa: `Part-worth: ${attrs.length} attributes, n=${n}` };
 }
 

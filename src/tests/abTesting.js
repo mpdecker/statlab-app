@@ -1,5 +1,5 @@
 import { avg, sampleVar } from '../math/core.js';
-import { normalCDF, normalINV, chiPVal } from '../math/distributions.js';
+import { normalCDF, normalINV, chiPVal, tPVal } from '../math/distributions.js';
 import { mulberry32, randBeta } from '../math/rng.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
@@ -43,7 +43,7 @@ export function unequalAllocationT(control, treatment, ratio) {
   const dfNum = (vC / nC + vT / nT) ** 2;
   const dfDen = (vC / nC) ** 2 / (nC - 1) + (vT / nT) ** 2 / (nT - 1);
   const df = dfDen > 0 ? dfNum / dfDen : nC + nT - 2;
-  const p = 2 * (1 - normalCDF(Math.abs(t)));
+  const p = tPVal(Math.abs(t), df);
   return { test: 'Unequal Allocation T', t: +t.toFixed(4), df: +df.toFixed(1), p, ratio, nControl: nC, nTreatment: nT, apa: `Unequal t = ${t.toFixed(2)}, p = ${p.toFixed(4)}` };
 }
 

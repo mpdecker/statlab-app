@@ -232,6 +232,206 @@
 > `statsmodels.stats.weightstats.DescrStatsW` and numpy formulas, no changes needed. Full suite: **4,881
 > tests pass**. Total across all oracle passes: **22 real correctness bugs found and fixed**, plus one
 > module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, thirteenth pass).** Extended coverage into `spatial.js`,
+> `spc.js`, `compositional.js`, and `doseResponse.js`, finding **2 more real bugs**, one of them severe:
+> - `gearysC` (spatial.js) — the denominator divided the sum-of-squares by `(n-1)` *and* the final ratio
+>   separately multiplied by `(n-1)` again, inflating Geary's C by an extra factor of exactly `(n-1)`. On a
+>   12-point test dataset this gave C=8.1669 instead of the correct C=0.7424 (verified by independent numpy
+>   recomputation of the textbook formula) — a result so far outside Geary's C's ~0–2 typical range, and so
+>   inconsistent with the same dataset's positive Moran's I, that it should have been an obvious red flag.
+>   Fixed by removing the extra `/(n-1)` from the denominator.
+> - `fourPL` (doseResponse.js) — the worse of the two: its hand-rolled Levenberg-Marquardt "solve
+>   (JᵀJ+λI)Δ=Jᵀr via Cholesky-like" step only ever did a single forward-substitution pass using the
+>   lower-triangular part of `JᵀJ`, silently ignoring every upper-triangular (off-diagonal, j>i) entry —
+>   not a valid solve for a general symmetric matrix at all. Fixing just the linear algebra (via the
+>   already-imported `matInv`) was not sufficient on its own: with no line search, the very first
+>   (near-undamped) step could overshoot into a bad local optimum, and the fixed-but-still-fragile loop
+>   converged to SSE=66.55 — *worse* than the original bug's SSE=45.64 — on a standard 8-point dose-response
+>   dataset, versus scipy.optimize.curve_fit's global optimum of SSE=3.37. Replaced the entire bespoke
+>   optimizer with the codebase's shared, already-proven `mleFit` (Newton-Raphson + guaranteed-descent
+>   backtracking line search, already used successfully for GARCH and GEV/GPD MLE elsewhere). The rewritten
+>   fit now matches `scipy.optimize.curve_fit` exactly on every parameter, including the asymptotic
+>   `seLogEC50` standard error (0.01604 both ways).
+>
+> `moransI`, `spc.js`'s control-chart constants (A2/D3/D4/B3/B4, verified against the standard Montgomery
+> textbook tables) and Cp/Cpk formulas, and `compositional.js`'s CLR/ILR/ALR transforms (ILR's isometry
+> invariant — `‖ILR(x)‖ = ‖CLR(x)‖` — verified to hold exactly) were all independently checked correct, no
+> changes needed. Full suite: **4,884 tests pass**. Total across all oracle passes: **24 real correctness
+> bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, fourteenth pass).** Extended coverage into `sequential.js` and
+> `causal.js`, finding **2 more real bugs**:
+> - `obrienFleming` (sequential.js) — used a naive Bonferroni-style approximation
+>   (`z_(1-α/2K)·√(K/k)`) instead of a properly alpha-spending-calibrated boundary, even though the
+>   adjacent `pocockBoundaries` function already implements the correct Armitage-McPherson recursive
+>   calibration for Pocock's (different) boundary shape. The uncalibrated formula was meaningfully too
+>   conservative — for 5 stages at α=0.05 it gave boundaries of [5.76, 4.07, 3.33, 2.88, 2.58] instead of the
+>   correctly-calibrated [4.56, 3.22, 2.63, 2.28, 2.04] (verified by adapting the same recursive integration
+>   already used for Pocock's boundary, exploiting O'Brien-Fleming's defining property — a *constant*
+>   boundary on the raw cumulative statistic, vs. Pocock's constant boundary on the *standardized*
+>   statistic). Fixed by refactoring the calibration into a shared helper and using it for both boundary
+>   shapes.
+> - `iv2sls` (causal.js) — the 2SLS point estimate was correct, but the standard error used the
+>   first-stage-fitted `X̂` (rather than the actual endogenous `X`) when computing the structural residuals
+>   for `σ̂²`, a classic by-hand-2SLS pitfall. This overstated the SE by more than 2x on a test dataset (0.253
+>   buggy vs 0.098 correct — verified exactly against `statsmodels.sandbox.regression.gmm.IV2SLS`). Fixed by
+>   computing residuals against the original `X`.
+>
+> `waldSPRT`'s A/B threshold formula was independently verified as the standard textbook formula, no changes
+> needed. Full suite: **4,886 tests pass**. Total across all oracle passes: **26 real correctness bugs found
+> and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, fifteenth pass).** Extended coverage into `abTesting.js` and
+> `psychometrics.js`, finding **1 more real bug**:
+> - `unequalAllocationT` (abTesting.js) — computed Welch's t-statistic and the correct Welch-Satterthwaite
+>   degrees of freedom, but then converted it to a p-value using `normalCDF` (a normal-distribution
+>   approximation) instead of the t-distribution with that computed df. The t-statistic matched
+>   `scipy.stats.ttest_ind(equal_var=False)` exactly, but the p-value was off by a factor of over 270x on a
+>   small-sample test case (0.0000023 buggy vs the correct 0.00063) — precisely the small-sample regime
+>   where using a normal approximation instead of the t-distribution matters most. Fixed by using the
+>   already-available `tPVal` helper with the computed df instead of `normalCDF`.
+>
+> `minimumDetectableEffect`/`requiredSampleSize` were verified self-consistent (inverses of each other), and
+> `interRaterReliability`'s Fleiss' Kappa, `itemDifficultyIndex`, and `itemDiscriminationIndex` were verified
+> correct against `statsmodels.stats.inter_rater.fleiss_kappa` and standard classical-test-theory formulas.
+> Full suite: **4,888 tests pass**. Total across all oracle passes: **27 real correctness bugs found and
+> fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, sixteenth pass).** Extended coverage into `bioinformatics.js` and
+> `ordination.js`, finding **4 more real bugs**, including one outright crash:
+> - `enrichmentAnalysis` (bioinformatics.js) — the hypergeometric-tail-sum loop's second binomial-coefficient
+>   term had a spurious `- 1`: `(total - pathwaySize - geneset + k + i - 1) / i` instead of the correct
+>   `(total - pathwaySize - geneset + k + i) / i`. Verified exactly against `scipy.stats.hypergeom.sf` after
+>   removing it (both the buggy and fixed values were computed and compared bit-for-bit against the oracle).
+> - `fdrCorrection` (bioinformatics.js) — implemented Benjamini-Hochberg as a naive "count ranks that
+>   individually cross their own threshold" rather than the real step-up procedure ("find the *largest*
+>   crossing rank, reject everything at or below it"). On a test case with a non-monotonic crossing pattern
+>   this gave 2 significant results instead of the correct 3 (verified against
+>   `statsmodels.stats.multitest.multipletests(method='fdr_bh')`) — the classic BH failure mode where an
+>   individually-failing smaller-rank p-value should still be rejected because it falls below a later,
+>   larger-rank crossing.
+> - `simperAnalysis` (ordination.js) — **crashed on every call** with `ReferenceError: n is not defined` (a
+>   local `n` was referenced in the return statement but never assigned). The existing test suite had wrapped
+>   the call in `try {} catch {}`, silently swallowing the exception instead of catching the defect. Also
+>   added the `nGroups` field the tests expected (matching the sibling `permanova`/`anosim` contract) once the
+>   crash was fixed and the field's absence became visible.
+> - `mantelTest` (ordination.js) — badly broken in two compounding ways: (1) the reported "r" used an
+>   ad-hoc, dimensionally-wrong formula instead of the real Pearson correlation between the two matrices'
+>   vectorized upper triangles, and (2) the permutation procedure independently re-sorted *each row* of the
+>   second matrix with its own random order, destroying the matrix's symmetric structure entirely instead of
+>   permuting a single shared row/column index vector. Together these gave r=0.183 and p=1.000 (not even
+>   "not significant" — literally *no* permutation was ever more extreme) on two distance matrices that are
+>   in fact nearly identical (true r=0.990, verified via `numpy.corrcoef` on the vectorized distances).
+>   Rewrote both the statistic and the permutation scheme from scratch.
+>
+> `procrustes` was independently verified to match `scipy.linalg.orthogonal_procrustes` exactly (both the
+> rotation matrix and the residual sum of squares). Full suite: **4,893 tests pass**. Total across all
+> oracle passes: **31 real correctness bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, seventeenth pass).** Surveyed six more modules —
+> `econometric.js`, `mds.js`, `game.js`, `pgm.js`, `phylogenetics.js`, `sem.js` — finding **1 more real
+> bug**:
+> - `dSeparationQuery` (pgm.js) — called its internal `moralGraph(false)` helper, which skips the entire
+>   co-parent-marrying (moralization) step, meaning colliders were never handled. On the textbook collider
+>   example `0 → 1 ← 2`, this gave the **exact opposite** answer to the correct, independently-verified
+>   `dseparation` function elsewhere in the same file: it reported 0 and 2 as *dependent* with no
+>   conditioning (should be independent) and *independent* when conditioning on the collider (should be
+>   dependent — conditioning on a collider opens the path). Fixed by delegating to the file's own
+>   already-correct `dSepCore` (ancestral-moral-graph) implementation instead of the broken standalone copy.
+>
+> `panelFixedEffects` (econometric.js) was verified to match `statsmodels` OLS-with-unit-dummies (the LSDV
+> estimator, theoretically identical to the within/FE estimator) exactly, on both coefficients and standard
+> errors. `classicalMDS` (mds.js) was verified to match an independent numpy double-centering +
+> eigendecomposition computation exactly (stress and reconstructed distances). `shapleyValue` (game.js) was
+> verified against the classic glove-game's known analytical values (2/3, 1/6, 1/6). `hausmanTest`'s
+> diagonal-covariance formula was confirmed to be the standard simplification for when only per-coefficient
+> SEs (not full covariance matrices) are available. `nashEquilibrium`'s single-payoff-matrix convention was
+> judged too ambiguous to conclusively verify without a documented convention, so it was left unaudited
+> rather than risk a false-positive "fix." Full suite: **4,897 tests pass**. Total across all oracle passes:
+> **32 real correctness bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, eighteenth pass).** Extended coverage into `linkage.js`,
+> `text.js`, `causalDiscovery.js`, and `learning.js` against `jellyfish`, `pingouin.partial_corr`, and
+> `sklearn.metrics.roc_auc_score`, finding **1 more real bug**:
+> - `partialCorrTest` (causalDiscovery.js) — computed partial correlation by regressing `x` and `y` on the
+>   conditioning variable(s) `z` and correlating the residuals, but the regression's design matrix never
+>   included an intercept column, forcing the fit through the origin. On raw (non-mean-centered) data — the
+>   common case — this badly under-removes the shared linear relationship with `z`. On a test case where `x`
+>   and `y` are both strongly driven by `z`, this gave r=0.9426 (nearly unchanged from the raw correlation)
+>   instead of the correct r=0.333 (verified exactly against `pingouin.partial_corr`, both r and p-value).
+>   Fixed by prepending a constant column to the design matrix.
+>
+> `jaroWinkler` and `levenshteinDistance` (linkage.js) matched `jellyfish`'s reference implementations
+> exactly on five classic string-linkage test pairs. `rocAUC` (learning.js) matched
+> `sklearn.metrics.roc_auc_score` exactly. `cosineSimilarity`/`jaccardSimilarity` (text.js) were confirmed
+> as textbook-correct by inspection. `bm25`'s IDF formula was found to differ from the `rank_bm25` package's
+> default (0 vs the JS's Lucene-style "+1 inside the log" smoothing) — this is a documented, legitimate
+> convention difference (both are standard BM25 variants), not a bug, so it was left as-is. Full suite:
+> **4,900 tests pass**. Total across all oracle passes: **33 real correctness bugs found and fixed**, plus
+> one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, nineteenth pass).** Extended coverage into `clinical.js`, finding
+> **2 more real bugs**:
+> - `weightedKappa` — its weight matrix used a *similarity* convention (`1 − |i−j|/(k−1)`, i.e. 1 on the
+>   diagonal, decreasing outward) instead of the *disagreement* convention the standard weighted-kappa
+>   formula (`κ_w = 1 − ΣwO/ΣwE`) requires (0 on the diagonal, increasing outward). This isn't just a sign
+>   flip — plugging a similarity weight into a formula built for a disagreement weight computes a materially
+>   different, wrong quantity. On a 20-rating test case this gave κ=−0.4655 (linear) and −0.3214 (quadratic)
+>   — strongly *negative*, implying worse-than-chance agreement — when the correct values, verified exactly
+>   against `sklearn.metrics.cohen_kappa_score`, are +0.643 and +0.75 (strong agreement, matching what the
+>   raw rating data actually shows). Fixed by removing the `1 −` prefix from the weight formula.
+> - `krippendorffAlpha` — the expected-disagreement term `D_e` was computed as a sum of squared category
+>   *proportions* (`Σ (nₐ/n)(n_b/n)`, denominator n²), but Krippendorff's coincidence-matrix formula requires
+>   denominator `n·(n−1)` (a finite-population correction on the marginal counts), not n². On a 3-rater,
+>   10-item nominal dataset this gave α=0.2905 instead of the correct α=0.3142 (verified against the
+>   `krippendorff` Python package). Fixed by scaling `D_e` by `n/(n−1)` where `n` is the total number of
+>   individual (non-missing) ratings. (The `ordinal`-level mode still has a small residual gap against the
+>   reference package — Krippendorff's ordinal distance function is a separate, more involved rank-based
+>   metric, not simply `(i−j)²`, and was left unaddressed as a distinct, lower-priority finding.)
+>
+> `cliffsDelta` and `brierScore` were confirmed as textbook-correct standard formulas by inspection. Full
+> suite: **4,902 tests pass**. Total across all oracle passes: **35 real correctness bugs found and fixed**,
+> plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, twentieth pass).** Surveyed `pro.js`, `raMonitor.js`,
+> `spatialEconometric.js`, `spatialTemporal.js`, `sced.js`, and `stochastic.js` — a clean pass with **no new
+> bugs found**. `markovSteadyState` (stochastic.js) was verified to match an independent numpy
+> eigenvector-of-the-transition-matrix computation exactly. `reliableChangeIndex` (pro.js) was confirmed to
+> implement the standard Jacobson & Truax (1991) formula exactly. sced.js's single-case design metrics
+> (`tauU`, `pnd`, `pem`, `nap`) were confirmed as the standard, published formulas from the SCED literature
+> by inspection. Two functions were flagged as **too ambiguous to safely verify** and left unaudited rather
+> than risk a false-positive fix: `safetySignal`/`prrAnalysis` (raMonitor.js) collapse to a simple
+> observed/expected ratio rather than the classic 2×2-table pharmacovigilance PRR formula — this may be an
+> intentional simplification (a valid "standardized reporting ratio" under a different name) rather than a
+> bug, and the function's 3-argument signature can't represent a genuine 2×2 table either way; and
+> `raCusum`'s scoring rule is a simplified surprisal-based formula rather than the exact Steiner
+> RA-CUSUM log-likelihood-ratio, which would need deeper domain-specific verification to confirm one way or
+> the other. Full suite: **4,903 tests pass**. Total across all oracle passes remains **35 real correctness
+> bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, twenty-first pass).** Extended coverage into `conjoint.js`,
+> finding **1 more real bug**:
+> - `partWorthUtilities` — its design matrix used `levels.length` columns per attribute instead of the
+>   correct `levels.length − 1` for effects coding, and the last column was hardcoded to `−1` for *every*
+>   row regardless of that row's actual value — a constant, perfectly-collinear column, with no explicit
+>   intercept anywhere in the design. On a noise-free synthetic conjoint dataset with known true part-worths
+>   (price: +2/−2, brand: +1/−1, shared intercept 5), this produced nonsense utilities (7.33, −5, 6.67, −5)
+>   instead of recovering the true generating values. Rewrote the design matrix with standard effects coding
+>   (an explicit intercept, `L−1` columns per attribute, reference level derived as `−Σ(other levels)` so
+>   each attribute's part-worths sum to zero) — the fix now recovers the exact true utilities, verified
+>   against `statsmodels.OLS` on an equivalent effects-coded regression.
+>
+> `abm.js`'s `segregationIndex` was found to give exactly half of Duncan's classic Index of Dissimilarity on
+> a symmetric 2-group test case, but was **left unaudited**: multi-group generalizations of segregation
+> indices are genuinely contested in the demography literature (Sakoda's index, Theil's multi-group entropy
+> index H, and the James–Taeuber index all disagree on the "right" generalization beyond 2 groups), so
+> without a documented convention this codebase intends to match, a "fix" risked being a confident wrong
+> answer rather than a correction. `symbolic.js`'s interval-data statistics (`intervalMean`,
+> `intervalVariance`, `intervalCorrelation`) and `markovSteadyState`/`reliableChangeIndex` (already checked
+> in the prior pass) round out a productive stretch of the less-traveled modules. Full suite: **4,904 tests
+> pass**. Total across all oracle passes: **36 real correctness bugs found and fixed**, plus one
+> module-portability defect.
 
 ## Verdict
 

@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { elasticNet, elasticNetCV, kFoldCV, huberRegression, tukeyBisquareRegression, lowess, randomForest, gradientBoosting, confusionMatrix, rocAUC, classificationReport, labelPropagation, localOutlierFactor, isolationScore, selfTraining, anomalyThreshold, partialDependence, accumulatedLE, permutationImportance, shapleyApprox, featureInteraction } from './learning.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+describe('rocAUC matches sklearn.metrics.roc_auc_score exactly', () => {
+  it('matches on a 12-observation example', () => {
+    const e = ref.learning.roc_basic;
+    const r = rocAUC(e.actual, e.scores);
+    expect(r.auc).toBeCloseTo(e.auc, 4);
+  });
+});
 
 const y = [5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31, 33, 35, 37, 39, 41, 43];
 const x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];

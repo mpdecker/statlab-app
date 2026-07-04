@@ -1,6 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { tobitModel, heckmanSelection, bivariateProbit, psmCaliper, localLinearIV, panelFixedEffects, panelRandomEffects, hausmanTest, arellanoBond, sur, threeSLS, gmm, cointegration, vecm, structuralVAR } from './econometric.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+describe('panelFixedEffects matches statsmodels OLS with unit dummies (LSDV) exactly', () => {
+  it('coefficients and SEs match on a 3-unit x 4-period panel', () => {
+    const e = ref.econometric.panel_fe_basic;
+    const data = e.ids.map((id, i) => ({ id, x1: e.x1[i], x2: e.x2[i], y: e.y[i] }));
+    const r = panelFixedEffects(data, 'y', ['x1', 'x2'], { idVar: 'id' });
+    const b = Object.fromEntries(r.coefficients.map(c => [c.name, c.b]));
+    const se = Object.fromEntries(r.coefficients.map(c => [c.name, c.se]));
+    expect(b.x1).toBeCloseTo(e.b.x1, 3);
+    expect(b.x2).toBeCloseTo(e.b.x2, 3);
+    expect(se.x1).toBeCloseTo(e.se.x1, 3);
+    expect(se.x2).toBeCloseTo(e.se.x2, 3);
+  });
+});
 
 const d = []; for (let i = 0; i < 30; i++) d.push({ y: Math.max(0, i * 2), x1: i, x2: i % 2, sel: i > 10 ? 1 : 0, z1: i % 3, y1: i % 2, y2: (i + 1) % 2, id: Math.floor(i / 5), time: i % 5 });
 

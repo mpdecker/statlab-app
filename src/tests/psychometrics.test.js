@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore, irt3PL, gradedResponseModel, partialCreditModel, testInformation, difMH, eapScoring, multidimensional2PL, itemFit, nominalResponseModel, generalizedPartialCredit, testEquating, mixedFormatIRT, difLogistic, testRetestReliability, interRaterReliability, parallelFormsReliability, itemDifficultyIndex, itemDiscriminationIndex } from './psychometrics.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 import { itemMatrix, itemRows, binaryMatrix } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
 
@@ -484,6 +485,14 @@ describe('interRaterReliability', () => {
   it('contract keys', () => expectKeys(interRaterReliability(ratings), ['test','kappa','nSubjects','nRaters','apa']));
   it('null <3 raters', () => expect(interRaterReliability([[1,2]])).toBeNull());
   it('kappa between -1 and 1', () => { const r = interRaterReliability(ratings); if (r) { expect(r.kappa).toBeGreaterThanOrEqual(-1); expect(r.kappa).toBeLessThanOrEqual(1); } });
+});
+
+describe('interRaterReliability matches statsmodels.stats.inter_rater.fleiss_kappa exactly', () => {
+  it('Fleiss kappa matches on a 3-rater, 12-subject dataset', () => {
+    const e = ref.psychometrics.fleiss_basic;
+    const r = interRaterReliability(e.ratings);
+    expect(r.kappa).toBeCloseTo(e.kappa, 4);
+  });
 });
 describe('parallelFormsReliability', () => {
   const a = [10,12,14,16,18,20,22,24,26,28];

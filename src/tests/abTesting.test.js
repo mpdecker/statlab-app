@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { sampleRatioMismatch, sequentialTest, unequalAllocationT, minimumDetectableEffect, requiredSampleSize, bayesianABTest, multiArmBandit } from './abTesting.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const ctrl = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const trt = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -21,6 +22,15 @@ describe('unequalAllocationT', () => {
   it('contract keys', () => expectKeys(unequalAllocationT(ctrl, trt, 0.3), ['test', 't', 'df', 'p', 'ratio', 'nControl', 'nTreatment', 'apa']));
   it('null <5', () => expect(unequalAllocationT([1, 2], [3, 4], 0.5)).toBeNull());
   it('df positive', () => { const r = unequalAllocationT(ctrl, trt, 0.3); if (r) expect(r.df).toBeGreaterThan(0); });
+});
+
+describe('unequalAllocationT matches scipy.stats.ttest_ind(equal_var=False) exactly (regression test for the normal-vs-t p-value fix)', () => {
+  it('t-statistic and p-value both match Welch\'s t-test', () => {
+    const e = ref.abTesting.unequal_basic;
+    const r = unequalAllocationT(e.control, e.treatment);
+    expect(r.t).toBeCloseTo(e.t, 3);
+    expect(r.p).toBeCloseTo(e.p, 5);
+  });
 });
 
 describe('minimumDetectableEffect', () => {

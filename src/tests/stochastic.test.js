@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { markovChain, markovSteadyState, poissonProcess, brownianMotion, randomWalkTest, ornsteinUhlenbeck, jumpDiffusion, regimeSwitching, hestonModel, roughVolatility, sabrModel, vasicekModel } from './stochastic.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+describe('markovSteadyState matches an independent numpy eigenvector computation exactly', () => {
+  it('pi matches on a 3-state transition matrix', () => {
+    const e = ref.stochastic.steady_state_basic;
+    const r = markovSteadyState(e.P);
+    e.pi.forEach((p, i) => expect(r.pi[i]).toBeCloseTo(p, 4));
+  });
+});
 
 const seq = [1, 2, 1, 2, 1, 2, 2, 1, 2, 1, 1, 2, 1, 2, 2, 1, 2, 1, 2, 1, 2];
 const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];

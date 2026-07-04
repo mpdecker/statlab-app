@@ -1,6 +1,7 @@
 import { avg, sampleVar } from '../math/core.js';
 import { tPVal, normalINV } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
+import { mleFit } from '../math/inference.js';
 
 // ── 4-Parameter Logistic (4PL) ─────────────────────────────────────────────
 export function fourPL(dose, response, { maxIter = 100, tolerance = 1e-6 } = {}) {
@@ -8,65 +9,25 @@ export function fourPL(dose, response, { maxIter = 100, tolerance = 1e-6 } = {})
   const n = dose.length;
   const yMin = Math.min(...response), yMax = Math.max(...response);
   if (yMin === yMax) return null;
-  let bottom = yMin, top = yMax;
   const logDose = dose.map(v => Math.log10(Math.max(v, 1e-10)));
-  let logEC50 = avg(logDose), hill = 1;
-  let lambda = 0.01, prevSSE = Infinity;
 
-  for (let iter = 0; iter < maxIter; iter++) {
-    const pred = logDose.map(x => bottom + (top - bottom) / (1 + Math.pow(10, (logEC50 - x) * hill)));
-    const resid = pred.map((p, i) => response[i] - p);
-    let sse = 0;
-    for (const r of resid) sse += r * r;
-
-    // Jacobian: 4 parameters × n observations
-    const J = Array.from({ length: n }, () => Array(4).fill(0));
+  // Minimise SSE via the shared Newton + backtracking-line-search optimiser
+  // (mleFit guarantees descent at every step, unlike a hand-rolled
+  // Levenberg-Marquardt loop with no line search, which is prone to
+  // overshooting into a poor local optimum on this non-convex objective).
+  const sseOf = theta => {
+    const [b, t, lec50, hRaw] = theta;
+    const h = Math.max(0.1, hRaw);
+    let s = 0;
     for (let i = 0; i < n; i++) {
-      const denom = 1 + Math.pow(10, (logEC50 - logDose[i]) * hill);
-      const p = (top - bottom) * Math.pow(10, (logEC50 - logDose[i]) * hill) / (denom * denom);
-      J[i][0] = 1 - 1 / denom; // d/d bottom
-      J[i][1] = 1 / denom; // d/d top
-      J[i][2] = -p * hill * Math.log(10); // d/d logEC50
-      J[i][3] = p * (logEC50 - logDose[i]) * Math.log(10); // d/d hill
+      const pred = b + (t - b) / (1 + Math.pow(10, (lec50 - logDose[i]) * h));
+      s += (response[i] - pred) ** 2;
     }
-
-    // J'J + λI
-    const JtJ = Array.from({ length: 4 }, () => Array(4).fill(0));
-    for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) {
-      for (let i = 0; i < n; i++) JtJ[a][b] += J[i][a] * J[i][b];
-    }
-    for (let d = 0; d < 4; d++) JtJ[d][d] += lambda;
-
-    // J'r
-    const Jtr = Array(4).fill(0);
-    for (let a = 0; a < 4; a++) for (let i = 0; i < n; i++) Jtr[a] += J[i][a] * resid[i];
-
-    // Solve (J'J + λI)Δ = J'r via Cholesky-like
-    const delta = Array(4).fill(0);
-    for (let i = 0; i < 4; i++) {
-      let s = 0;
-      for (let j = 0; j < i; j++) s += JtJ[i][j] * delta[j];
-      const denom = Math.max(JtJ[i][i], 1e-10);
-      delta[i] = (Jtr[i] - s) / denom;
-    }
-
-    // Try new parameters
-    const newBottom = bottom + delta[0], newTop = top + delta[1];
-    const newLogEC50 = logEC50 + delta[2], newHill = Math.max(0.1, hill + delta[3]);
-
-    const newPred = logDose.map(x => newBottom + (newTop - newBottom) / (1 + Math.pow(10, (newLogEC50 - x) * newHill)));
-    let newSSE = 0;
-    for (let i = 0; i < n; i++) newSSE += (response[i] - newPred[i]) ** 2;
-
-    if (newSSE < sse) {
-      bottom = newBottom; top = newTop; logEC50 = newLogEC50; hill = newHill;
-      lambda *= 0.5;
-      if (Math.abs(newSSE - sse) < tolerance) { sse = newSSE; break; }
-      sse = newSSE;
-    } else {
-      lambda *= 2;
-    }
-  }
+    return s;
+  };
+  const theta0 = [yMin, yMax, avg(logDose), 1];
+  const fit = mleFit(theta0, sseOf, { maxIter, tol: tolerance });
+  const [bottom, top, logEC50, hill] = [fit.theta[0], fit.theta[1], fit.theta[2], Math.max(0.1, fit.theta[3])];
 
   const fitted = logDose.map(x => bottom + (top - bottom) / (1 + Math.pow(10, (logEC50 - x) * hill)));
   let finalSSE = 0;

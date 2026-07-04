@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
 import { enrichmentAnalysis, volcanoTest, foldChange, fdrCorrection, heatmapData } from './bioinformatics.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 describe('enrichmentAnalysis', () => {
   it('contract keys', () => expectKeys(enrichmentAnalysis(200, 10000, 50, 15, 20000), ['test','pValue','oddsRatio','overlap','pathwaySize','geneset','total','apa']));
@@ -28,6 +29,22 @@ describe('fdrCorrection', () => {
   it('null <2', () => expect(fdrCorrection([0.1])).toBeNull());
   it('nSig <= nTotal', () => { const r = fdrCorrection(p); if (r) expect(r.nSig).toBeLessThanOrEqual(r.nTotal) });
 });
+describe('enrichmentAnalysis matches scipy.stats.hypergeom.sf exactly (regression test for the comb2 off-by-one fix)', () => {
+  it('p-value matches', () => {
+    const e = ref.bioinformatics.enrichment_basic;
+    const r = enrichmentAnalysis(e.geneset, e.background, e.pathwaySize, e.overlap, e.total);
+    expect(r.pValue).toBeCloseTo(e.pValue, 5);
+  });
+});
+
+describe('fdrCorrection matches the standard BH step-up procedure exactly (regression test for the naive-per-rank-count fix)', () => {
+  it('nSig matches statsmodels.stats.multitest.multipletests(method=fdr_bh) on a case with a non-monotonic crossing pattern', () => {
+    const e = ref.bioinformatics.fdr_basic;
+    const r = fdrCorrection(e.pValues, e.alpha);
+    expect(r.nSig).toBe(e.nSig);
+  });
+});
+
 describe('heatmapData', () => {
   const M = [[1,2,3],[4,5,6],[7,8,9],[10,11,12]];
   it('contract keys', () => expectKeys(heatmapData(M), ['test','data','h','w','apa']));

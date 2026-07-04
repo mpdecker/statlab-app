@@ -11,6 +11,7 @@ import {
 } from './causal.js';
 import { causalRows } from './fixtures/phase3.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const rows = causalRows(100);
 
@@ -107,6 +108,14 @@ describe('iv2sls', () => {
     const clean = iv2sls(rows, 'y', 'x1', 'z', []);
     const filt = iv2sls(dirty, 'y', 'x1', 'z', []);
     expect(filt.n).toBe(clean.n - 1);
+  });
+
+  it('SE matches statsmodels.sandbox.regression.gmm.IV2SLS exactly (regression test for the xHat-residual SE fix)', () => {
+    const e = ref.causal.iv2sls_basic;
+    const ivRows = e.y.map((y, i) => ({ y, x: e.x[i], z: e.z[i], w1: e.w1[i] }));
+    const r = iv2sls(ivRows, 'y', 'x', 'z', ['w1']);
+    expect(r.coef).toBeCloseTo(e.coef, 3);
+    expect(r.se).toBeCloseTo(e.se, 3);
   });
 });
 

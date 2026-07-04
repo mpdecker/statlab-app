@@ -84,7 +84,7 @@ export function gearysC(points, valueField, { weightType = 'inverseDistance', th
       num += W[i][j] * (val[i] - val[j]) ** 2;
     }
   }
-  den = (1 / (n - 1)) * val.reduce((s, v) => s + (v - valMean) ** 2, 0);
+  den = val.reduce((s, v) => s + (v - valMean) ** 2, 0);
   const s0 = W.flat().reduce((s, w) => s + w, 0);
   const C = s0 > 0 && den > 0 ? ((n - 1) * num) / (2 * s0 * den) : 0;
   const EC = 1;

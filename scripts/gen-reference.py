@@ -1096,6 +1096,362 @@ pk['basic'] = {
 }
 ref['pk'] = pk
 
+# ── spatial ───────────────────────────────────────────────────────────────────
+spatial = {}
+sp_points = [(0, 0, 5), (1, 0, 6), (2, 0, 8), (0, 1, 4), (1, 1, 7), (2, 1, 9),
+             (0, 2, 3), (1, 2, 5), (2, 2, 8), (3, 0, 10), (3, 1, 11), (3, 2, 9)]
+_spn = len(sp_points)
+_spcoords = np.array([(p[0], p[1]) for p in sp_points])
+_spval = np.array([p[2] for p in sp_points], dtype=float)
+_spdist = np.zeros((_spn, _spn))
+for _i in range(_spn):
+    for _j in range(_spn):
+        if _i != _j:
+            _spdist[_i, _j] = np.sqrt(np.sum((_spcoords[_i] - _spcoords[_j]) ** 2))
+_spW = np.zeros((_spn, _spn))
+for _i in range(_spn):
+    for _j in range(_spn):
+        if _i != _j:
+            _spW[_i, _j] = 1 / max(_spdist[_i, _j], 1e-6)
+for _i in range(_spn):
+    _rs = _spW[_i].sum()
+    if _rs > 0:
+        _spW[_i] /= _rs
+_spMean = _spval.mean()
+_spz = _spval - _spMean
+_spS0 = _spW.sum()
+_spNum = float(np.sum(_spW * np.outer(_spz, _spz)))
+_spDen = float(np.sum(_spz ** 2))
+_moranI = (_spn * _spNum) / (_spS0 * _spDen)
+# Geary's C — the correct textbook formula: (n-1)/(2*S0) * sum_ij w_ij(xi-xj)^2 / sum_i(xi-xbar)^2.
+# This pins down the /(n-1) double-counting bug (the buggy code divided the
+# denominator by (n-1) AND multiplied the whole ratio by (n-1) again, inflating
+# C by an extra factor of (n-1)).
+_gearyNum = 0.0
+for _i in range(_spn):
+    for _j in range(_spn):
+        _gearyNum += _spW[_i, _j] * (_spval[_i] - _spval[_j]) ** 2
+_gearyRawSS = float(np.sum((_spval - _spMean) ** 2))
+_gearyC = ((_spn - 1) / (2 * _spS0)) * _gearyNum / _gearyRawSS
+spatial['basic'] = {
+    'points': [{'x': p[0], 'y': p[1], 'val': p[2]} for p in sp_points],
+    'moransI': float(_moranI), 'gearysC': float(_gearyC),
+}
+ref['spatial'] = spatial
+
+# ── doseResponse ──────────────────────────────────────────────────────────────
+from scipy.optimize import curve_fit as _curve_fit
+doseResponse = {}
+dr_dose = [0.1, 0.3, 1, 3, 10, 30, 100, 300]
+dr_response = [2, 3, 8, 25, 55, 78, 92, 96]
+_drlogdose = np.log10(np.array(dr_dose))
+_drresp = np.array(dr_response, dtype=float)
+
+
+def _fourpl(x, bottom, top, logec50, hill):
+    return bottom + (top - bottom) / (1 + 10 ** ((logec50 - x) * hill))
+
+
+_drp0 = [_drresp.min(), _drresp.max(), _drlogdose.mean(), 1]
+_dr_popt, _dr_pcov = _curve_fit(_fourpl, _drlogdose, _drresp, p0=_drp0, maxfev=10000)
+_dr_fitted = _fourpl(_drlogdose, *_dr_popt)
+_dr_sse = float(np.sum((_drresp - _dr_fitted) ** 2))
+doseResponse['fourpl_basic'] = {
+    'dose': dr_dose, 'response': dr_response,
+    'bottom': float(_dr_popt[0]), 'top': float(_dr_popt[1]),
+    'logEC50': float(_dr_popt[2]), 'hill': float(_dr_popt[3]),
+    'sse': _dr_sse, 'seLogEC50': float(np.sqrt(_dr_pcov[2, 2])),
+}
+ref['doseResponse'] = doseResponse
+
+# ── sequential ────────────────────────────────────────────────────────────────
+sequential = {}
+
+
+def _calibrate_gs_boundary(K, alpha, bound_w):
+    def phi(z):
+        return np.exp(-0.5 * z * z) / np.sqrt(2 * np.pi)
+    L = 4 * np.sqrt(K) + 6
+    h = 0.05
+    grid = np.arange(-L, L + h, h)
+    m = len(grid)
+
+    def cross_prob(c):
+        f = phi(grid)
+        total = 0.0
+        for k in range(1, K + 1):
+            bound = bound_w(c, k)
+            mask = np.abs(grid) >= bound
+            total += np.sum(f[mask]) * h
+            if k == K:
+                break
+            fc = np.where(np.abs(grid) < bound, f, 0)
+            fn = np.zeros(m)
+            for a_idx in range(m):
+                if fc[a_idx] == 0:
+                    continue
+                fn += fc[a_idx] * h * phi(grid - grid[a_idx])
+            f = fn
+        return total
+
+    lo, hi = 0.5, 4.5
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if cross_prob(mid) > alpha:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+# O'Brien-Fleming's defining property is a CONSTANT boundary on the raw
+# cumulative statistic (unlike Pocock's, constant on the standardized Z_k) —
+# pins down the uncalibrated-Bonferroni-approximation bug.
+_seq_K = 5
+_seq_alpha = 0.05
+_of_c = _calibrate_gs_boundary(_seq_K, _seq_alpha, lambda c, k: c * np.sqrt(_seq_K))
+sequential['obf_basic'] = {'stages': _seq_K, 'alpha': _seq_alpha, 'boundaries': [_of_c * np.sqrt(_seq_K / k) for k in range(1, _seq_K + 1)]}
+ref['sequential'] = sequential
+
+# ── causal ────────────────────────────────────────────────────────────────────
+causal = {}
+# Hardcoded dataset (generated once via the JS mulberry32(777) PRNG so both
+# sides compute on IDENTICAL inputs — the JS and Python PRNGs are not
+# interchangeable, so the values are frozen here rather than regenerated).
+_civ_rows = [
+    (1.994141, 1.017547, 1.299848, 0.847309), (2.31306, 0.50751, -0.76982, 0.48612),
+    (-0.341837, 0.751622, 1.358044, 0.136), (1.637515, 0.135979, -0.86427, -0.414053),
+    (5.978281, 1.694295, 0.610925, 1.24172), (0.122956, 0.078447, -0.206754, 0.120521),
+    (0.242182, -0.659929, -1.775206, 0.807418), (-0.373752, 0.250487, 0.648229, -0.002199),
+    (-2.500691, -0.92493, -0.743934, 0.10348), (3.309397, 1.317309, 0.88468, -0.118403),
+    (0.876359, -0.022933, -0.6193, -0.451659), (-1.167633, -0.568964, 0.22266, -0.321876),
+    (-0.032854, -0.096495, 0.052113, 1.408253), (-6.830407, -2.358329, -1.358638, -1.304165),
+    (-0.549916, 0.512404, 1.819642, -1.623364), (0.070708, 0.741812, 1.152796, -0.54124),
+    (-2.023993, -0.676797, -0.452337, -0.836613), (-1.240588, 0.382184, 1.655386, -0.978727),
+    (0.240488, 0.414157, 1.125669, -0.320693), (1.015166, 1.174702, 1.890333, 0.051903),
+    (-1.905509, -0.918197, -1.400682, 0.452626), (-3.478152, -0.832949, -0.22761, -1.090667),
+    (-7.419039, -2.20256, -0.353978, -1.718063), (-0.666971, -0.518594, -0.809596, -0.988157),
+    (3.422243, 1.479821, 1.03901, 0.009684), (-2.400736, -0.60906, -0.061244, 0.644206),
+    (-3.553708, -0.912828, 0.363107, -0.749546), (0.302392, -0.282406, -0.338081, -0.055977),
+    (4.214853, 0.792528, -1.833248, 1.213772), (-5.745977, -1.363275, 0.125704, -2.19781),
+    (0.851195, 0.40813, 0.491459, -0.586798), (-0.22564, -0.418477, -0.35298, -0.221666),
+    (4.379086, 1.802899, 0.835041, 0.536953), (-5.537386, -2.260048, -2.658437, 0.788478),
+    (1.119912, 0.09011, -1.130225, 1.503722), (-1.742426, -0.726282, -0.502189, 1.14037),
+    (-5.852709, -1.506193, 0.452254, -1.497045), (6.037305, 1.562713, -0.178858, 1.661376),
+    (1.319935, 0.118742, -0.149877, 0.343818), (-2.1043, -0.010822, 1.671622, -2.104768),
+]
+_civ_n = len(_civ_rows)
+_civ_y = np.array([r[0] for r in _civ_rows])
+_civ_x = np.array([r[1] for r in _civ_rows])
+_civ_z = np.array([r[2] for r in _civ_rows])
+_civ_w1 = np.array([r[3] for r in _civ_rows])
+
+_civ_Z = np.column_stack([np.ones(_civ_n), _civ_z, _civ_w1])
+_civ_xhat = _civ_Z @ np.linalg.solve(_civ_Z.T @ _civ_Z, _civ_Z.T @ _civ_x)
+_civ_X2 = np.column_stack([np.ones(_civ_n), _civ_xhat, _civ_w1])
+_civ_beta2 = np.linalg.solve(_civ_X2.T @ _civ_X2, _civ_X2.T @ _civ_y)
+_civ_Xactual = np.column_stack([np.ones(_civ_n), _civ_x, _civ_w1])
+_civ_resid = _civ_y - _civ_Xactual @ _civ_beta2
+_civ_s2 = np.sum(_civ_resid ** 2) / (_civ_n - 3)
+_civ_inv2 = np.linalg.inv(_civ_X2.T @ _civ_X2)
+_civ_se = float(np.sqrt(_civ_s2 * _civ_inv2[1, 1]))
+causal['iv2sls_basic'] = {
+    'y': _civ_y.tolist(), 'x': _civ_x.tolist(), 'z': _civ_z.tolist(), 'w1': _civ_w1.tolist(),
+    'coef': float(_civ_beta2[1]), 'se': _civ_se,
+}
+ref['causal'] = causal
+
+# ── abTesting ─────────────────────────────────────────────────────────────────
+abTesting = {}
+ab_control = [12.1, 15.3, 11.8, 14.2, 13.5, 12.9]
+ab_treatment = [16.2, 18.1, 15.5, 17.8, 19.2, 16.9, 15.1]
+_ab_t, _ab_p = st.ttest_ind(ab_treatment, ab_control, equal_var=False)
+abTesting['unequal_basic'] = {'control': ab_control, 'treatment': ab_treatment, 't': float(_ab_t), 'p': float(_ab_p)}
+ref['abTesting'] = abTesting
+
+# ── psychometrics ─────────────────────────────────────────────────────────────
+from statsmodels.stats.inter_rater import fleiss_kappa as _sm_fleiss_kappa, aggregate_raters as _sm_aggregate_raters
+psychometrics = {}
+psy_ratings = [
+    [1, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 1],
+    [1, 2, 2, 3, 1, 2, 2, 1, 2, 3, 2, 1],
+    [1, 1, 2, 3, 2, 2, 3, 1, 3, 3, 1, 1],
+]
+_psy_nsubj = len(psy_ratings[0])
+_psy_subj_ratings = [[psy_ratings[r][s] for r in range(len(psy_ratings))] for s in range(_psy_nsubj)]
+_psy_table, _psy_cats = _sm_aggregate_raters(_psy_subj_ratings)
+psychometrics['fleiss_basic'] = {'ratings': psy_ratings, 'kappa': float(_sm_fleiss_kappa(_psy_table))}
+ref['psychometrics'] = psychometrics
+
+# ── bioinformatics ────────────────────────────────────────────────────────────
+from scipy.stats import hypergeom
+bioinformatics = {}
+_bio_geneset, _bio_bg, _bio_pathway, _bio_overlap, _bio_total = 50, 500, 30, 5, 1000
+bioinformatics['enrichment_basic'] = {
+    'geneset': _bio_geneset, 'background': _bio_bg, 'pathwaySize': _bio_pathway, 'overlap': _bio_overlap, 'total': _bio_total,
+    'pValue': float(hypergeom.sf(_bio_overlap - 1, _bio_total, _bio_pathway, _bio_geneset)),
+}
+_bio_pvals = [0.005, 0.025, 0.029, 0.5, 0.5]
+from statsmodels.stats.multitest import multipletests as _sm_multipletests
+_bio_rej, _bio_pcorr, _, _ = _sm_multipletests(_bio_pvals, alpha=0.05, method='fdr_bh')
+bioinformatics['fdr_basic'] = {'pValues': _bio_pvals, 'alpha': 0.05, 'nSig': int(sum(_bio_rej))}
+ref['bioinformatics'] = bioinformatics
+
+# ── ordination ────────────────────────────────────────────────────────────────
+from scipy.linalg import orthogonal_procrustes as _sp_orthogonal_procrustes
+ordination = {}
+_ord_m1 = [[0, 1, 2, 3, 4], [1, 0, 1.5, 2.5, 3.5], [2, 1.5, 0, 1, 2], [3, 2.5, 1, 0, 1], [4, 3.5, 2, 1, 0]]
+_ord_m2 = [[0, 1.2, 2.1, 2.9, 4.2], [1.2, 0, 1.4, 2.6, 3.3], [2.1, 1.4, 0, 0.9, 2.2], [2.9, 2.6, 0.9, 0, 1.1], [4.2, 3.3, 2.2, 1.1, 0]]
+_ord_m1a, _ord_m2a = np.array(_ord_m1), np.array(_ord_m2)
+_ord_n = len(_ord_m1)
+_ord_iu = np.triu_indices(_ord_n, k=1)
+ordination['mantel_basic'] = {'m1': _ord_m1, 'm2': _ord_m2, 'r': float(np.corrcoef(_ord_m1a[_ord_iu], _ord_m2a[_ord_iu])[0, 1])}
+
+_ord_X = np.array([[1.2, 2.3], [3.1, 4.5], [5.2, 1.1], [2.3, 6.1], [4.4, 3.2], [0.5, 1.5], [3.3, 3.3]])
+_ord_Y = np.array([[2.1, 1.4], [4.6, 3.0], [1.0, 5.1], [6.2, 2.2], [3.1, 4.0], [1.6, 0.4], [3.4, 3.2]])
+_ord_R, _ = _sp_orthogonal_procrustes(_ord_X, _ord_Y)
+_ord_m2val = float(np.sum((_ord_X @ _ord_R - _ord_Y) ** 2))
+ordination['procrustes_basic'] = {'X': _ord_X.tolist(), 'Y': _ord_Y.tolist(), 'm2': _ord_m2val}
+ref['ordination'] = ordination
+
+# ── econometric ───────────────────────────────────────────────────────────────
+econometric = {}
+econ_ids = ['a', 'a', 'a', 'a', 'b', 'b', 'b', 'b', 'c', 'c', 'c', 'c']
+econ_x1 = [1.0, 2.0, 1.5, 2.5, 4.0, 5.0, 4.5, 5.5, 7.0, 8.0, 7.5, 8.5]
+econ_x2 = [0.5, -0.3, 0.2, 0.1, -0.4, 0.6, -0.1, 0.3, 0.2, -0.5, 0.4, -0.2]
+econ_y = [5.1, 7.3, 6.0, 8.4, 12.9, 14.5, 13.6, 15.2, 20.1, 21.4, 20.5, 22.0]
+econ_df = pd.DataFrame({'id': econ_ids, 'x1': econ_x1, 'x2': econ_x2, 'y': econ_y})
+econ_dummies = pd.get_dummies(econ_df['id'], drop_first=True).astype(float)
+econ_X = sm.add_constant(pd.concat([econ_df[['x1', 'x2']], econ_dummies], axis=1))
+econ_model = sm.OLS(econ_df['y'], econ_X).fit()
+econometric['panel_fe_basic'] = {
+    'ids': econ_ids, 'x1': econ_x1, 'x2': econ_x2, 'y': econ_y,
+    'b': {'x1': float(econ_model.params['x1']), 'x2': float(econ_model.params['x2'])},
+    'se': {'x1': float(econ_model.bse['x1']), 'x2': float(econ_model.bse['x2'])},
+}
+ref['econometric'] = econometric
+
+# ── mds ───────────────────────────────────────────────────────────────────────
+mds = {}
+mds_data = [[1, 2, 3], [4, 1, 2], [2, 5, 1], [6, 3, 4], [1, 1, 6], [3, 4, 2], [5, 2, 5]]
+_mds_X = np.array(mds_data, dtype=float)
+_mds_n = len(_mds_X)
+_mds_D = np.sqrt(((_mds_X[:, None, :] - _mds_X[None, :, :]) ** 2).sum(-1))
+_mds_D2 = _mds_D ** 2
+_mds_rowmeans = _mds_D2.mean(axis=1)
+_mds_grandmean = _mds_rowmeans.mean()
+_mds_B = -0.5 * (_mds_D2 - _mds_rowmeans[:, None] - _mds_rowmeans[None, :] + _mds_grandmean)
+_mds_eigval, _mds_eigvec = np.linalg.eigh(_mds_B)
+_mds_idx = np.argsort(_mds_eigval)[::-1]
+_mds_eigval, _mds_eigvec = _mds_eigval[_mds_idx], _mds_eigvec[:, _mds_idx]
+_mds_points = _mds_eigvec[:, :2] * np.sqrt(np.maximum(_mds_eigval[:2], 0))
+_mds_Dhat = np.sqrt(((_mds_points[:, None, :] - _mds_points[None, :, :]) ** 2).sum(-1))
+_mds_iu = np.triu_indices(_mds_n, k=1)
+mds['classical_basic'] = {'data': mds_data, 'stress': float(np.sum((_mds_D[_mds_iu] - _mds_Dhat[_mds_iu]) ** 2) / np.sum(_mds_D[_mds_iu] ** 2))}
+ref['mds'] = mds
+
+# ── game ──────────────────────────────────────────────────────────────────────
+game = {}
+# Classic glove game: player 1 holds a left glove, players 2 and 3 each hold a
+# right glove; a coalition is worth 1 iff it has >=1 left AND >=1 right glove.
+# Known analytical Shapley values: player 1 = 2/3, players 2 and 3 = 1/6 each.
+game['shapley_glove'] = {'players': ['1', '2', '3'], 'values': [2 / 3, 1 / 6, 1 / 6]}
+ref['game'] = game
+
+# ── pgm ───────────────────────────────────────────────────────────────────────
+pgm = {}
+# Classic collider: 0 -> 1 <- 2. Without conditioning on the collider (node 1),
+# 0 and 2 are d-separated; conditioning on the collider opens the path.
+pgm['collider_basic'] = {
+    'edges': [{'from': 0, 'to': 1}, {'from': 2, 'to': 1}],
+    'nVars': 3, 'X': 0, 'Y': 2,
+    'separatedNoZ': True, 'separatedWithZ': False,
+}
+ref['pgm'] = pgm
+
+# ── linkage ───────────────────────────────────────────────────────────────────
+import jellyfish
+linkage = {}
+linkage_pairs = [['MARTHA', 'MARHTA'], ['DIXON', 'DICKSONX'], ['JELLYFISH', 'SMELLYFISH'], ['kitten', 'sitting'], ['flaw', 'lawn']]
+linkage['pairs'] = {
+    f'{a}|{b}': {'jaroWinkler': jellyfish.jaro_winkler_similarity(a, b), 'levenshtein': jellyfish.levenshtein_distance(a, b)}
+    for a, b in linkage_pairs
+}
+ref['linkage'] = linkage
+
+# ── learning ──────────────────────────────────────────────────────────────────
+from sklearn.metrics import roc_auc_score
+learning = {}
+learn_actual = [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+learn_scores = [0.9, 0.85, 0.3, 0.7, 0.6, 0.4, 0.2, 0.1, 0.75, 0.5, 0.55, 0.65]
+learning['roc_basic'] = {'actual': learn_actual, 'scores': learn_scores, 'auc': float(roc_auc_score(learn_actual, learn_scores))}
+ref['learning'] = learning
+
+# ── causalDiscovery ───────────────────────────────────────────────────────────
+import pingouin as pg
+causalDiscovery = {}
+cd_x = [12, 15, 11, 18, 14, 20, 9, 16, 13, 17, 10, 19]
+cd_y = [20, 22, 18, 25, 21, 28, 16, 23, 19, 24, 17, 26]
+cd_z = [5, 6, 4, 8, 5.5, 9, 3, 7, 4.5, 7.5, 3.5, 8.5]
+cd_df = pd.DataFrame({'x': cd_x, 'y': cd_y, 'z': cd_z})
+cd_res = pg.partial_corr(data=cd_df, x='x', y='y', covar='z')
+causalDiscovery['partial_corr_basic'] = {'x': cd_x, 'y': cd_y, 'z': cd_z, 'r': float(cd_res['r'].iloc[0]), 'p': float(cd_res['p_val'].iloc[0])}
+ref['causalDiscovery'] = causalDiscovery
+
+# ── clinical ──────────────────────────────────────────────────────────────────
+import krippendorff as _krippendorff
+from sklearn.metrics import cohen_kappa_score
+clinical = {}
+clin_r1 = [1, 2, 3, 2, 1, 3, 2, 1, 3, 2, 1, 2, 3, 1, 2, 3, 2, 1, 3, 2]
+clin_r2 = [1, 2, 2, 2, 1, 3, 3, 1, 3, 2, 2, 2, 3, 1, 1, 3, 2, 2, 3, 1]
+clinical['weighted_kappa_basic'] = {
+    'r1': clin_r1, 'r2': clin_r2,
+    'linear': float(cohen_kappa_score(clin_r1, clin_r2, weights='linear')),
+    'quadratic': float(cohen_kappa_score(clin_r1, clin_r2, weights='quadratic')),
+}
+
+_krip_rows = [
+    {'r1': 'A', 'r2': 'A', 'r3': 'B'}, {'r1': 'B', 'r2': 'B', 'r3': 'B'}, {'r1': 'C', 'r2': 'C', 'r3': 'C'}, {'r1': 'A', 'r2': 'B', 'r3': 'A'},
+    {'r1': 'C', 'r2': 'C', 'r3': 'B'}, {'r1': 'A', 'r2': 'A', 'r3': 'A'}, {'r1': 'B', 'r2': 'C', 'r3': 'B'}, {'r1': 'A', 'r2': 'A', 'r3': 'B'},
+    {'r1': 'C', 'r2': 'B', 'r3': 'C'}, {'r1': 'B', 'r2': 'B', 'r3': 'A'},
+]
+_krip_cat_map = {'A': 0, 'B': 1, 'C': 2}
+_krip_raters = ['r1', 'r2', 'r3']
+_krip_reliability_data = [[_krip_cat_map[row[r]] for row in _krip_rows] for r in _krip_raters]
+clinical['krippendorff_basic'] = {
+    'data': _krip_rows, 'raters': _krip_raters, 'items': ['A', 'B', 'C'],
+    'alphaNominal': float(_krippendorff.alpha(reliability_data=_krip_reliability_data, level_of_measurement='nominal')),
+}
+ref['clinical'] = clinical
+
+# ── stochastic ────────────────────────────────────────────────────────────────
+stochastic = {}
+stoch_P = [[0.7, 0.2, 0.1], [0.3, 0.5, 0.2], [0.2, 0.3, 0.5]]
+_stoch_Pa = np.array(stoch_P)
+_stoch_eigval, _stoch_eigvec = np.linalg.eig(_stoch_Pa.T)
+_stoch_idx = np.argmin(np.abs(_stoch_eigval - 1))
+_stoch_pi = np.real(_stoch_eigvec[:, _stoch_idx])
+_stoch_pi = _stoch_pi / _stoch_pi.sum()
+stochastic['steady_state_basic'] = {'P': stoch_P, 'pi': _stoch_pi.tolist()}
+ref['stochastic'] = stochastic
+
+# ── conjoint ──────────────────────────────────────────────────────────────────
+conjoint = {}
+conj_profiles = [
+    {'price': 'low', 'brand': 'A'}, {'price': 'low', 'brand': 'B'}, {'price': 'high', 'brand': 'A'},
+    {'price': 'high', 'brand': 'B'}, {'price': 'low', 'brand': 'A'}, {'price': 'high', 'brand': 'B'},
+]
+conj_ratings = [8, 6, 4, 2, 8, 2]
+_conj_X = np.array([[1 if p['price'] == 'low' else -1, 1 if p['brand'] == 'A' else -1] for p in conj_profiles], dtype=float)
+_conj_X = sm.add_constant(_conj_X)
+_conj_model = sm.OLS(conj_ratings, _conj_X).fit()
+conjoint['partworth_basic'] = {
+    'profiles': conj_profiles, 'ratings': conj_ratings,
+    'priceUtil': [float(_conj_model.params[1]), -float(_conj_model.params[1])],
+    'brandUtil': [float(_conj_model.params[2]), -float(_conj_model.params[2])],
+}
+ref['conjoint'] = conjoint
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

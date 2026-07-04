@@ -20,28 +20,14 @@ export function waldSPRT(data, h0, h1, { alpha = 0.05, beta = 0.2 } = {}) {
   return { test: 'Wald SPRT', llr: LLR.slice(1).map(v => +v.toFixed(4)), stoppedAt: (stoppedAt >= 0 ? stoppedAt : null), decision, h0, h1, alpha, beta, n, apa: `SPRT: ${decision || 'inconclusive'} at step ${stoppedAt != null ? stoppedAt + 1 : n}` };
 }
 
-// O'Brien-Fleming Boundaries
-export function obrienFleming(stages, alpha = 0.05) {
-  if (!stages || stages < 2) return null;
-  const boundaries = [];
-  for (let k = 1; k <= stages; k++) {
-    const z = normalINV(1 - alpha / (2 * stages));
-    const b = z * Math.sqrt(stages / k);
-    boundaries.push({ stage: k, z: +z.toFixed(4), boundary: +b.toFixed(4) });
-  }
-  return { test: "O'Brien-Fleming", boundaries, stages, alpha, apa: `O-F: ${stages} stages, ${boundaries.map(b => b.boundary.toFixed(2)).join(', ')}` };
-}
-
-// ── Pocock Boundaries ─────────────────────────────────────────────
-export function pocockBoundaries(stages, alpha = 0.05) {
-  if (!stages || stages < 2) return null;
-  // Pocock's constant boundary c on the standardized statistic Z_k, equal at
-  // every look. Z_k = W_k/√k with W_k a standard random walk, so the looks have
-  // the canonical group-sequential covariance Cov(Z_j,Z_k)=√(j/k). Find c so the
-  // overall two-sided crossing probability equals α, via the Armitage–McPherson
-  // recursion on the sub-density of W_k restricted to the continuation region.
+// Calibrate a group-sequential boundary constant c so the overall two-sided
+// crossing probability of the continuation region equals alpha exactly, via
+// the Armitage-McPherson recursion on the sub-density of the raw cumulative
+// statistic W_k (a standard random walk: W_k = sum of k independent N(0,1)
+// increments, so Z_k = W_k/√k has the canonical covariance Cov(Z_j,Z_k)=√(j/k)).
+// boundW(c, k) gives the W-scale boundary at stage k for calibration constant c.
+function _calibrateGSBoundary(K, alpha, boundW) {
   const phi = z => Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
-  const K = stages;
   const L = 4 * Math.sqrt(K) + 6, h = 0.05;
   const grid = []; for (let w = -L; w <= L; w += h) grid.push(w);
   const m = grid.length;
@@ -49,7 +35,7 @@ export function pocockBoundaries(stages, alpha = 0.05) {
     let f = grid.map(w => phi(w)); // density of W_1
     let total = 0;
     for (let k = 1; k <= K; k++) {
-      const bound = c * Math.sqrt(k);
+      const bound = boundW(c, k);
       for (let gi = 0; gi < m; gi++) if (Math.abs(grid[gi]) >= bound) total += f[gi] * h;
       if (k === K) break;
       const fc = grid.map((w, gi) => (Math.abs(w) < bound ? f[gi] : 0)); // continuation region
@@ -60,9 +46,33 @@ export function pocockBoundaries(stages, alpha = 0.05) {
     return total;
   };
   // Bisection: crossProb is decreasing in c.
-  let lo = 1.5, hi = 4.5;
+  let lo = 0.5, hi = 4.5;
   for (let it = 0; it < 40; it++) { const mid = (lo + hi) / 2; if (crossProb(mid) > alpha) lo = mid; else hi = mid; }
-  const c = (lo + hi) / 2;
+  return (lo + hi) / 2;
+}
+
+// O'Brien-Fleming Boundaries
+export function obrienFleming(stages, alpha = 0.05) {
+  if (!stages || stages < 2) return null;
+  // O'Brien-Fleming's defining property is a CONSTANT boundary on the raw
+  // cumulative statistic W_k (unlike Pocock's boundary, which is constant on
+  // the standardized Z_k); on the Z_k=W_k/√k scale this becomes c·√(K/k).
+  const c = _calibrateGSBoundary(stages, alpha, (cc, k) => cc * Math.sqrt(stages));
+  const boundaries = [];
+  for (let k = 1; k <= stages; k++) {
+    const b = c * Math.sqrt(stages / k);
+    boundaries.push({ stage: k, z: +c.toFixed(4), boundary: +b.toFixed(4) });
+  }
+  return { test: "O'Brien-Fleming", boundaries, stages, alpha, apa: `O-F: ${stages} stages, ${boundaries.map(b => b.boundary.toFixed(2)).join(', ')}` };
+}
+
+// ── Pocock Boundaries ─────────────────────────────────────────────
+export function pocockBoundaries(stages, alpha = 0.05) {
+  if (!stages || stages < 2) return null;
+  // Pocock's constant boundary c on the standardized statistic Z_k, equal at
+  // every look; on the raw-sum W_k scale this becomes c·√k.
+  const K = stages;
+  const c = _calibrateGSBoundary(K, alpha, (cc, k) => cc * Math.sqrt(k));
   const boundaries = []; for (let k = 1; k <= K; k++) boundaries.push({ stage: k, boundary: +c.toFixed(4) });
   return { test: 'Pocock Boundaries', boundaries, stages, alpha, apa: `Pocock: ${K} stages, boundary = ${c.toFixed(3)}` };
 }
