@@ -10,6 +10,26 @@ function boxMuller(rand) {
   return Math.sqrt(-2 * Math.log(Math.max(u1, 1e-10))) * Math.cos(2 * Math.PI * u2);
 }
 
+// Pseudo-observations via average-rank empirical CDF (standard method for
+// copula fitting). `sorted.indexOf(v)` (the previous approach) returns only
+// the FIRST matching position, so every tied value collapsed onto the same
+// rank instead of the tied (average) rank — biased whenever the data has
+// any repeated values, which is the common case for real/rounded data.
+function pseudoObs(col) {
+  const n = col.length;
+  const order = col.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
+  const ranks = Array(n).fill(0);
+  let i = 0;
+  while (i < n) {
+    let j = i;
+    while (j < n - 1 && order[j + 1].v === order[i].v) j++;
+    const avgRank = (i + j) / 2; // 0-indexed average rank across the tied block
+    for (let k = i; k <= j; k++) ranks[order[k].i] = avgRank;
+    i = j + 1;
+  }
+  return ranks.map(r => (r + 0.5) / n);
+}
+
 // ── Gaussian Copula ────────────────────────────────────────────────────────
 export function gaussianCopula(data, vars, { seed = 42 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
@@ -22,8 +42,7 @@ export function gaussianCopula(data, vars, { seed = 42 } = {}) {
   // Pseudo-observations: empirical CDF transformation
   const u = Array.from({ length: d }, (_, j) => {
     const col = X.map(r => r[j]);
-    const sorted = [...col].sort((a, b) => a - b);
-    return col.map(v => (sorted.indexOf(v) + 0.5) / n);
+    return pseudoObs(col);
   });
   // Simulate a few points
   const rand = lcg(seed);
@@ -100,8 +119,7 @@ export function claytonCopula(data, vars, { theta = 2, seed = 42 } = {}) {
   // Pseudo-observations
   const u = Array.from({ length: d }, (_, j) => {
     const col = data.map(r => +r[vars[j]]);
-    const sorted = [...col].sort((a, b) => a - b);
-    return col.map(v => (sorted.indexOf(v) + 0.5) / n);
+    return pseudoObs(col);
   });
   // Kendall's tau -> theta
   let tau = 0;
@@ -130,8 +148,7 @@ export function gumbelCopula(data, vars, { theta = 2, seed = 42 } = {}) {
   if (theta < 1) return null;
   const u = Array.from({ length: d }, (_, j) => {
     const col = data.map(r => +r[vars[j]]);
-    const sorted = [...col].sort((a, b) => a - b);
-    return col.map(v => (sorted.indexOf(v) + 0.5) / n);
+    return pseudoObs(col);
   });
   let tau = 0, count = 0;
   for (let j = 0; j < d; j++) for (let k = j + 1; k < d; k++) {
@@ -157,8 +174,7 @@ export function frankCopula(data, vars, { theta = 2, seed = 42 } = {}) {
   const n = data.length, d = vars.length;
   const u = Array.from({ length: d }, (_, j) => {
     const col = data.map(r => +r[vars[j]]);
-    const sorted = [...col].sort((a, b) => a - b);
-    return col.map(v => (sorted.indexOf(v) + 0.5) / n);
+    return pseudoObs(col);
   });
   let tau = 0;
   for (let j = 0; j < d; j++) for (let k = j + 1; k < d; k++) {

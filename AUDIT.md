@@ -432,6 +432,24 @@
 > in the prior pass) round out a productive stretch of the less-traveled modules. Full suite: **4,904 tests
 > pass**. Total across all oracle passes: **36 real correctness bugs found and fixed**, plus one
 > module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, twenty-second pass).** Extended coverage into `copula.js`,
+> finding **1 more real bug** (present identically in all four copula-fitting functions):
+> - `gaussianCopula`/`tCopula`/`claytonCopula`/`gumbelCopula` — the pseudo-observation (empirical-CDF)
+>   transform used `sorted.indexOf(v)` to find each value's rank, but `Array.indexOf` only ever returns the
+>   position of the *first* matching element. Every tied value therefore collapsed onto the same rank
+>   instead of the standard mid-rank/average-rank convention (what `scipy.stats.rankdata(method='average')`
+>   computes) — biased for any column with repeated values, the common case for real or rounded data. On a
+>   test column with several duplicates this gave pseudo-observations of [0.0417, 0.2917, 0.2917, 0.625,
+>   0.0417] instead of the correct [0.125, 0.4167, 0.4167, 0.6667, 0.125] (verified exactly against
+>   `scipy.stats.rankdata`). Fixed by extracting a shared `pseudoObs` helper that computes proper tied
+>   (average) ranks, used identically across all four copula families.
+>
+> `privacy.js`'s `laplaceMechanism` (standard inverse-CDF Laplace sampling), `kAnonymityCheck`, and
+> `lDiversity` were confirmed correct by inspection; `tCloseness`'s 1D Earth Mover's Distance approximation
+> is a standard, valid computational shortcut for ordered categories. Full suite: **4,905 tests pass**.
+> Total across all oracle passes: **37 real correctness bugs found and fixed**, plus one module-portability
+> defect.
 
 ## Verdict
 

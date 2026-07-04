@@ -1452,6 +1452,16 @@ conjoint['partworth_basic'] = {
 }
 ref['conjoint'] = conjoint
 
+# ── copula ────────────────────────────────────────────────────────────────────
+from scipy.stats import rankdata as _sp_rankdata
+copula = {}
+cop_xvals = [1, 2, 2, 3, 1, 2, 4, 5, 2, 3, 1, 4]
+cop_yvals = [5, 4, 3, 2, 6, 7, 1, 2, 3, 4, 5, 6]
+_cop_n = len(cop_xvals)
+_cop_ranks = _sp_rankdata(cop_xvals, method='average')
+copula['pseudo_obs_basic'] = {'x': cop_xvals, 'y': cop_yvals, 'uX': ((_cop_ranks - 0.5) / _cop_n).tolist()}
+ref['copula'] = copula
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
