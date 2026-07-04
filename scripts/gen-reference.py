@@ -1540,6 +1540,90 @@ neural = {
 }
 ref['neural'] = neural
 
+# ── gam ──────────────────────────────────────────────────────────────────────
+gam = {}
+
+# gamLocalScoring: IRLS logistic regression. Deterministic grid-based design (no
+# RNG, so both this fixture and the JS test embed the same literal arrays).
+# Ground truth via statsmodels.Logit (a real external oracle) — the previous
+# JS code's XtWz omitted the w[k] weight factor (X^T·z instead of X^T·W·z),
+# causing the IRLS update to diverge to +/-infinity within a few iterations.
+_gam_X, _gam_y = [], []
+for _i in range(40):
+    _x1 = (_i % 8) - 3.5
+    _x2 = (_i // 8) - 2
+    _logit = 0.4 + 0.9 * _x1 - 0.7 * _x2
+    _p = 1 / (1 + np.exp(-_logit))
+    _label = 1 if _p > 0.5 else 0
+    if _i % 5 == 0:  # deterministic label noise to avoid perfect separation
+        _label = 1 - _label
+    _gam_X.append([1.0, float(_x1), float(_x2)])
+    _gam_y.append(_label)
+_gam_logit_model = sm.Logit(np.array(_gam_y), np.array(_gam_X)).fit(disp=0)
+gam['local_scoring_basic'] = {
+    'X': _gam_X, 'y': _gam_y,
+    'beta': _gam_logit_model.params.tolist(),
+    'logLik': float(_gam_logit_model.llf),
+}
+
+# thinPlateSpline / pSpline: deterministic (no RNG) x,y; ground truth via a
+# from-scratch numpy solve of the exact augmented system the JS code declares
+# (not a reuse of the JS implementation) — the previous JS `solveSystem`
+# didn't solve the linear system at all (each rhs entry divided by its own
+# matrix row's sum, unrelated to the true solution), and separately read the
+# solved coefficient vector's two blocks (RBF weights vs. polynomial terms)
+# in the wrong order.
+_tps_x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=float)
+_tps_y = _tps_x * 2 + np.sin(_tps_x) * 0.3
+_tps_n = len(_tps_x)
+_tps_K = np.zeros((_tps_n, _tps_n))
+for _i in range(_tps_n):
+    for _j in range(_tps_n):
+        _r = abs(_tps_x[_i] - _tps_x[_j])
+        _tps_K[_i, _j] = _r * _r * np.log(_r * _r + 1e-10) if _r > 0 else 0
+_tps_T = np.column_stack([np.ones(_tps_n), _tps_x])
+_tps_lambda = 0.1
+_tps_M = np.zeros((_tps_n + 2, _tps_n + 2))
+_tps_M[:_tps_n, :_tps_n] = _tps_K + _tps_lambda * np.eye(_tps_n)
+_tps_M[:_tps_n, _tps_n:] = _tps_T
+_tps_M[_tps_n:, :_tps_n] = _tps_T.T
+_tps_alpha = np.linalg.solve(_tps_M, np.concatenate([_tps_y, [0, 0]]))
+_tps_c, _tps_d = _tps_alpha[:_tps_n], _tps_alpha[_tps_n:]
+_tps_fitted = []
+for _i in range(_tps_n):
+    _pred = _tps_d[0] + _tps_d[1] * _tps_x[_i]
+    for _j in range(_tps_n):
+        _r = abs(_tps_x[_i] - _tps_x[_j])
+        _pred += _tps_c[_j] * (_r * _r * np.log(_r * _r + 1e-10) if _r > 0 else 0)
+    _tps_fitted.append(float(_pred))
+gam['tps_basic'] = {'x': _tps_x.tolist(), 'y': _tps_y.tolist(), 'lambda': _tps_lambda, 'fitted': _tps_fitted}
+
+_psp_x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=float)
+_psp_y = _psp_x * 1.5 + np.sin(_psp_x) * 0.5
+_psp_n = len(_psp_x)
+_psp_nKnots = 3
+_psp_xmin, _psp_xmax = _psp_x.min(), _psp_x.max()
+_psp_knots = [_psp_xmin + (_psp_xmax - _psp_xmin) * (_j + 1) / (_psp_nKnots + 1) for _j in range(_psp_nKnots)]
+_psp_B = []
+for _xi in _psp_x:
+    _row = [1.0, float(_xi)]
+    for _k in _psp_knots:
+        _v = _xi - _k
+        _row.append(float(_v ** 3 if _v > 0 else 0))
+    _psp_B.append(_row)
+_psp_B = np.array(_psp_B)
+_psp_p = _psp_B.shape[1]
+_psp_BtB = _psp_B.T @ _psp_B
+_psp_BtY = _psp_B.T @ _psp_y
+_psp_lambda = 0.1
+for _i in range(2, _psp_p):
+    _psp_BtB[_i, _i] += _psp_lambda
+_psp_beta = np.linalg.solve(_psp_BtB, _psp_BtY)
+_psp_fitted = (_psp_B @ _psp_beta).tolist()
+gam['pspline_basic'] = {'x': _psp_x.tolist(), 'y': _psp_y.tolist(), 'nKnots': _psp_nKnots, 'lambda': _psp_lambda, 'fitted': _psp_fitted}
+
+ref['gam'] = gam
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

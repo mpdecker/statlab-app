@@ -529,6 +529,62 @@
 >
 > Full suite: **4,909 tests pass**. Total across all oracle passes: **40 real correctness bugs found and
 > fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, twenty-sixth pass — `gam.js`, the worst module found so far).**
+> Nearly every exported function in `gam.js` was broken. Found **8 more real bugs**:
+> - `backfitOne` (shared helper) — the normal-equations Gram matrix was built by iterating
+>   `basis[0].map(...)`, but `basis` is column-major (`basis[j]` is the jth spline basis function's values
+>   across all `n` samples, so `basis[0].length === n`, not `m` the number of basis functions) — this
+>   produced a bogus n×n matrix instead of the intended m×m Gram matrix, so `solveNormalEquations` returned
+>   an n-length vector of garbage instead of the m fitted spline coefficients. Verified against a
+>   from-scratch numpy OLS fit of a known `y = x²` spline: the old code diverged to R²≈-57 (worse than the
+>   mean); the fix recovers R²≈0.9997. This silently corrupted both `gamBackfitting` and `gamSpline`.
+> - `gamBackfitting` — separately, `smoothVars` (e.g. `['x1']`) was resolved to a column index via
+>   `X[0].indexOf(v)`, but `X[0]` is a plain numeric row (no header), so this string-vs-number comparison
+>   always returned -1 — `smoothIdx` was always empty, so NO term (smooth or linear; `linearIdx` was
+>   computed but never used) was ever fit, and the function always silently returned the intercept-only
+>   model. Verified with a clean `y = x²` DGP: old code gave R² = 0.000 (identical to a naive linear OLS,
+>   confirming zero fitting occurred); rewritten as a proper Hastie–Tibshirani backfitting loop
+>   (spline-smooth for smooth vars, coordinate-descent linear fit for others, each term re-centered to mean
+>   zero every iteration), it recovers R² ≈ 0.994. Also added a `fitted` field to the return value (absent
+>   before, despite the existing test conditionally checking it).
+> - `gamSpline` — its parameter list (`data, yVar, smoothVar`) never matched how the function is actually
+>   called (a plain `y` array + numeric `X` matrix, per its own test file), so `smoothVar` was always
+>   `undefined` and the function always returned `null` — before ever reaching a `return` statement that
+>   referenced an undeclared `n` and would have thrown `ReferenceError: n is not defined` had it been
+>   reached. Rewritten to accept `(y, X, { df, varIdx })` matching actual usage, storing the fitted spline
+>   coefficients/knots for prediction.
+> - `gamPredict` — ignored its `newData` argument entirely and returned the same constant `alpha` value
+>   regardless of input (not a prediction). Rewritten to evaluate the stored `gamSpline` basis coefficients
+>   at the new x-values.
+> - `gamLocalScoring` — the weighted-least-squares normal equations for its IRLS logistic fit computed
+>   `XtWz` as `X^T·z` instead of `X^T·W·z` (the `w[k]` weight factor was entirely missing from that one sum,
+>   while `XtWX` correctly included it) — since the working response `z` already has a `1/w` factor baked
+>   in, omitting `w` when forming `XtWz` left that scaling uncorrected, and the resulting IRLS update
+>   overshot and diverged. Verified against `statsmodels.Logit` on a well-posed (non-separated) logistic
+>   dataset: the old code's log-likelihood exploded from -69 (iteration 1) to -1750 (iteration 3+, then
+>   stayed there) while statsmodels converges cleanly to -50.55; after adding the missing `w[k]`, the fix
+>   converges to -50.5508 in 3 iterations — matching statsmodels to 4 significant figures.
+> - `thinPlateSpline`'s `solveSystem` helper didn't solve the declared linear system at all — each `rhs`
+>   entry was divided by the sum of its own matrix row, a no-op heuristic unrelated to the true solution.
+>   Replaced with an actual `matInv`-based solve.
+> - `thinPlateSpline` — separately, the fitted-value formula read the polynomial (intercept, slope)
+>   coefficients from `alpha[0]`/`alpha[1]` and the RBF weights from `alpha[2+j]`, but the augmented system
+>   (`[[K+λI, T], [Tᵀ, 0]]`) actually places the RBF-weight block FIRST (indices `0..n-1`) and the
+>   polynomial block LAST (indices `n..n+1`) — the two blocks were swapped. Verified against a from-scratch
+>   numpy solve of the exact same declared system: fitted values now match to 4 decimal places.
+> - `pSpline` — the `lambda` parameter was accepted but never used anywhere in the computation, and the
+>   "solve" step approximated the true p×p normal-equations solve as `BtY[i] / BtB[i][i]` — dividing by
+>   only the diagonal, i.e. treating the (correlated) truncated-cubic basis functions as if they were
+>   uncorrelated, which is not a solution to the least-squares system whenever basis columns correlate (the
+>   normal case). Fixed by ridge-penalizing the non-polynomial coefficients by `lambda` and solving the real
+>   normal equations via `solveNormalEquations`; verified to match a from-scratch numpy ridge-OLS solve
+>   exactly.
+>
+> `gamEffectiveDf`, `gamInteraction`, and `gamAnova` were confirmed correct by inspection (the existing
+> `gamInteraction` test already verifies R² > 0.8 on a real tensor-product interaction). Full suite:
+> **4,915 tests pass**. Total across all oracle passes: **48 real correctness bugs found and fixed**, plus
+> one module-portability defect.
 
 ## Verdict
 

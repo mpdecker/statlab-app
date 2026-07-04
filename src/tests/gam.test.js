@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { gamBackfitting, gamSpline, gamLocalScoring, gamEffectiveDf, gamPredict, gamInteraction, thinPlateSpline, pSpline, gamAnova } from './gam.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const d = []; for (let i = 0; i < 20; i++) d.push({ y: i * 2 + Math.sin(i) * 3, x1: i, x2: Math.sin(i) });
 const X = d.map(r => [r.x1, r.x2]);
@@ -55,5 +56,54 @@ describe('gamInteraction fits the tensor-product interaction model', () => {
     for (let i = 0; i < 60; i++) { const a = rnd() * 3, b = rnd() * 3; d.push({ x1: a, x2: b, y: a * b + 0.05 * rnd() }); }
     const r = gamInteraction(d, 'y', 'x1', 'x2', { df: 6 });
     expect(r.rSquared).toBeGreaterThan(0.8);
+  });
+});
+
+describe('gamBackfitting actually fits a nonlinear smooth (regression test for the smoothVars-resolution and backfitOne Gram-matrix-dimension bugs)', () => {
+  it('recovers a clean quadratic (y=x^2) with high R^2, where the old code always returned the intercept-only model (R^2=0)', () => {
+    const n = 60;
+    const Xq = [], yq = [];
+    for (let i = 0; i < n; i++) { const xv = (i / (n - 1)) * 4 - 2; Xq.push([xv]); yq.push(xv * xv); }
+    const r = gamBackfitting(yq, Xq, ['x1'], { maxIter: 30 });
+    expect(r.fitted).toHaveLength(n);
+    expect(r.rSquared).toBeGreaterThan(0.95);
+  });
+});
+
+describe('gamSpline and gamPredict actually fit and predict (regression test for the signature-mismatch/undefined-var and ignored-newData bugs)', () => {
+  it('gamSpline returns a full-length fit (old code always returned null before an undeclared-variable crash)', () => {
+    const r = gamSpline(y, X, { varIdx: 0 });
+    expect(r).not.toBeNull();
+    expect(r.fitted).toHaveLength(y.length);
+  });
+  it('gamPredict evaluates the stored spline at new x-values instead of returning a constant', () => {
+    const r = gamSpline(y, X, { varIdx: 0 });
+    const preds = gamPredict(r, X);
+    expect(preds).toHaveLength(y.length);
+    expect(new Set(preds).size).toBeGreaterThan(1); // old code returned the same value for every row
+  });
+});
+
+describe('gamLocalScoring converges to a real logistic MLE (regression test for the XtWz missing-weight bug)', () => {
+  it('matches statsmodels.Logit — old code diverged to +/-infinity within a few IRLS iterations', () => {
+    const e = ref.gam.local_scoring_basic;
+    const r = gamLocalScoring(e.y, e.X, { family: 'binomial', maxIter: 25 });
+    expect(r.logLik).toBeCloseTo(e.logLik, 1);
+  });
+});
+
+describe('thinPlateSpline actually solves its linear system (regression test for the fake-solver and swapped-block-index bugs)', () => {
+  it('matches a from-scratch numpy solve of the declared augmented system', () => {
+    const e = ref.gam.tps_basic;
+    const r = thinPlateSpline(e.x, e.y, { lambda: e.lambda });
+    e.fitted.forEach((v, i) => expect(r.fitted[i]).toBeCloseTo(v, 3));
+  });
+});
+
+describe('pSpline applies its lambda penalty and actually solves the normal equations (regression test for the ignored-lambda/diagonal-only-division bug)', () => {
+  it('matches a from-scratch numpy ridge-penalized OLS solve', () => {
+    const e = ref.gam.pspline_basic;
+    const r = pSpline(e.x, e.y, { nKnots: e.nKnots, lambda: e.lambda });
+    e.fitted.forEach((v, i) => expect(r.fitted[i]).toBeCloseTo(v, 3));
   });
 });
