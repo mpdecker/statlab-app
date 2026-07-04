@@ -393,6 +393,22 @@
 > `cliffsDelta` and `brierScore` were confirmed as textbook-correct standard formulas by inspection. Full
 > suite: **4,902 tests pass**. Total across all oracle passes: **35 real correctness bugs found and fixed**,
 > plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, twentieth pass).** Surveyed `pro.js`, `raMonitor.js`,
+> `spatialEconometric.js`, `spatialTemporal.js`, `sced.js`, and `stochastic.js` — a clean pass with **no new
+> bugs found**. `markovSteadyState` (stochastic.js) was verified to match an independent numpy
+> eigenvector-of-the-transition-matrix computation exactly. `reliableChangeIndex` (pro.js) was confirmed to
+> implement the standard Jacobson & Truax (1991) formula exactly. sced.js's single-case design metrics
+> (`tauU`, `pnd`, `pem`, `nap`) were confirmed as the standard, published formulas from the SCED literature
+> by inspection. Two functions were flagged as **too ambiguous to safely verify** and left unaudited rather
+> than risk a false-positive fix: `safetySignal`/`prrAnalysis` (raMonitor.js) collapse to a simple
+> observed/expected ratio rather than the classic 2×2-table pharmacovigilance PRR formula — this may be an
+> intentional simplification (a valid "standardized reporting ratio" under a different name) rather than a
+> bug, and the function's 3-argument signature can't represent a genuine 2×2 table either way; and
+> `raCusum`'s scoring rule is a simplified surprisal-based formula rather than the exact Steiner
+> RA-CUSUM log-likelihood-ratio, which would need deeper domain-specific verification to confirm one way or
+> the other. Full suite: **4,903 tests pass**. Total across all oracle passes remains **35 real correctness
+> bugs found and fixed**, plus one module-portability defect.
 
 ## Verdict
 

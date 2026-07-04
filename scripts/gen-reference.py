@@ -1424,6 +1424,17 @@ clinical['krippendorff_basic'] = {
 }
 ref['clinical'] = clinical
 
+# ── stochastic ────────────────────────────────────────────────────────────────
+stochastic = {}
+stoch_P = [[0.7, 0.2, 0.1], [0.3, 0.5, 0.2], [0.2, 0.3, 0.5]]
+_stoch_Pa = np.array(stoch_P)
+_stoch_eigval, _stoch_eigvec = np.linalg.eig(_stoch_Pa.T)
+_stoch_idx = np.argmin(np.abs(_stoch_eigval - 1))
+_stoch_pi = np.real(_stoch_eigvec[:, _stoch_idx])
+_stoch_pi = _stoch_pi / _stoch_pi.sum()
+stochastic['steady_state_basic'] = {'P': stoch_P, 'pi': _stoch_pi.tolist()}
+ref['stochastic'] = stochastic
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
