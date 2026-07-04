@@ -1751,6 +1751,43 @@ interpretability = {
 }
 ref['interpretability'] = interpretability
 
+# ── phylogenetics (pglsRegression) ──────────────────────────────────────────
+# pglsRegression previously didn't accept a `tree` argument at all (silently
+# dropping it) and fabricated a covariance matrix from each row's ARRAY INDEX
+# distance instead of any real phylogenetic relationship. Ground truth via a
+# from-scratch numpy GLS solve of X'V^-1X b = X'V^-1y, with V(lambda) =
+# lambda*C_offdiag + diag(C) for a real balanced-binary-tree VCV (matching the
+# codebase's own phyloVCV/glsFit convention, not reusing the JS code).
+_pg_D = 3
+_pg_n = 2 ** _pg_D
+_pg_C = np.zeros((_pg_n, _pg_n))
+for _i in range(_pg_n):
+    for _j in range(_pg_n):
+        if _i == _j:
+            _pg_C[_i, _j] = _pg_D
+        else:
+            _shared = 0
+            for _b in range(_pg_D - 1, -1, -1):
+                if ((_i >> _b) & 1) == ((_j >> _b) & 1):
+                    _shared += 1
+                else:
+                    break
+            _pg_C[_i, _j] = _shared
+_pg_lambda = 0.6
+_pg_V = np.where(np.eye(_pg_n) == 1, _pg_C, _pg_lambda * _pg_C)
+_pg_x = np.array([1, 2, 3, 4, 5, 6, 7, 8]) * 0.7
+_pg_y = np.array([2 + 1.8 * xi + (0.3 if i % 2 == 0 else -0.2) for i, xi in enumerate(_pg_x)])
+_pg_X = np.column_stack([np.ones(_pg_n), _pg_x])
+_pg_Vinv = np.linalg.inv(_pg_V)
+_pg_beta = np.linalg.solve(_pg_X.T @ _pg_Vinv @ _pg_X, _pg_X.T @ _pg_Vinv @ _pg_y)
+phylogenetics = {
+    'pgls_basic': {
+        'vcv': _pg_C.tolist(), 'x': _pg_x.tolist(), 'y': _pg_y.tolist(), 'lambda': _pg_lambda,
+        'beta': _pg_beta.tolist(),
+    }
+}
+ref['phylogenetics'] = phylogenetics
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

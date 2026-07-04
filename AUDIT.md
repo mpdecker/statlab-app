@@ -685,6 +685,26 @@
 >
 > Full suite: **4,922 tests pass**. Total across all oracle passes: **56 real correctness bugs found and
 > fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, thirty-first pass).** Audited `phylogenetics.js`. Most of the
+> module (already fixed in an earlier commit, `680446f`) was confirmed correct via its own existing
+> real-tree-based validation tests (Pagel's λ ≈1 for simulated Brownian-motion traits and ≈0 for iid noise;
+> Blomberg's K ≈1 for BM traits; PIC correlation recovering a known cross-trait ρ=0.8; OU model inferring
+> higher pull for weaker signal — all against a real balanced-binary-tree VCV, not just contract shape).
+> Found **1 real bug**:
+> - `pglsRegression` didn't accept a `tree` argument at all — its signature was
+>   `(data, xVar, yVar, lambda)`, silently dropping the tree even though the module's own test suite already
+>   called it as `pglsRegression(data, 'x', 'y', 1, { tree })` (the 5th argument was simply discarded by
+>   JS's normal call semantics). In place of the real phylogenetic covariance, it fabricated a covariance
+>   matrix from each row's ARRAY INDEX distance (`exp(-|i-j|·0.5)`) — unrelated to any actual phylogenetic
+>   relationship — and had a separate numerical instability (`1/(1-lambda+1e-10)` blows up as λ→1). Fixed by
+>   accepting `{ tree }`, building `V(λ) = λ·C_offdiag + diag(C)` from the real phylogenetic VCV (the same
+>   convention `pagelsLambda`/`ouTraitModel` already use correctly), and solving via the module's own,
+>   already-verified `glsFit` helper. Verified against a from-scratch numpy GLS solve
+>   (`X'V⁻¹X·β = X'V⁻¹y`) for a real balanced-binary-tree VCV — exact match to 5 decimal places.
+>
+> Full suite: **4,923 tests pass**. Total across all oracle passes: **57 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 

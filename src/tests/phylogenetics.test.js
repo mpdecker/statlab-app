@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { independentContrasts, pagelsLambda, blombergK, phylogeneticSignal, picCorrelation, pglsRegression, diversificationRate, ouTraitModel } from './phylogenetics.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const trait = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const trait2 = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20];
@@ -99,5 +100,15 @@ describe('phylogenetics: real tree-based comparative methods', () => {
     const aBM = ouTraitModel(bm.map((v, i) => ({ trait: v })), 'trait', { tree }).alpha;
     const aNoise = ouTraitModel(noisy.map((v, i) => ({ trait: v })), 'trait', { tree }).alpha;
     expect(aNoise).toBeGreaterThan(aBM);
+  });
+});
+
+describe('pglsRegression actually uses the phylogenetic tree (regression test for the ignored-tree/index-based-covariance fix)', () => {
+  it('matches a from-scratch numpy GLS solve of X\'V^-1X b = X\'V^-1y for a real balanced-tree VCV', () => {
+    const e = ref.phylogenetics.pgls_basic;
+    const data = e.x.map((xi, i) => ({ x: xi, y: e.y[i] }));
+    const r = pglsRegression(data, 'x', 'y', e.lambda, { tree: { vcv: e.vcv } });
+    expect(r.beta[0]).toBeCloseTo(e.beta[0], 3);
+    expect(r.beta[1]).toBeCloseTo(e.beta[1], 3);
   });
 });

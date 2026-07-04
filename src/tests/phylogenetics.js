@@ -155,32 +155,24 @@ export function picCorrelation(trait1, trait2, tree) {
 }
 
 // ── PGLS Regression ───────────────────────────────────────────────
-export function pglsRegression(data, xVar, yVar, lambda = 1) {
+// GLS fit of y = a + b·x under phylogenetic error, V(λ) = λ·C_offdiag + diag(C)
+// (Pagel's λ transform of the real phylogenetic VCV — same convention as
+// pagelsLambda/ouTraitModel). The previous version didn't accept a `tree`
+// argument at all (silently dropping it — the test suite already called this
+// with a 5th `{ tree }` argument that the old 4-parameter signature ignored),
+// and fabricated a covariance matrix from each row's ARRAY INDEX distance
+// (`exp(-|i-j|·0.5)`) instead of any phylogenetic relationship. It also had a
+// numerically unstable λ→1 singularity (`1/(1-lambda+1e-10)` blows up).
+export function pglsRegression(data, xVar, yVar, lambda = 1, { tree = null } = {}) {
   if (!data || data.length < 5 || !xVar || !yVar) return null;
   const n = data.length;
   const x = data.map(r => +r[xVar]);
   const y = data.map(r => +r[yVar]);
-  const C = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => {
-    if (i === j) return 1;
-    return +(Math.exp(-Math.abs(i - j) * 0.5)).toFixed(4);
-  }));
-  const Vinv = C.map((row, i) => row.map((v, j) => i === j ? 1 : -v * lambda / (1 - lambda + 1e-10)));
+  const C = phyloVCV(tree, n);
+  const V = C.map((row, i) => row.map((v, j) => (i === j ? v : lambda * v)));
   const X = x.map(xi => [1, xi]);
-  let xtVx = [[0, 0], [0, 0]], xtVy = [0, 0];
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-    const w = Vinv[i][j] || 0;
-    xtVx[0][0] += w;
-    xtVx[0][1] += w * X[j][1];
-    xtVx[1][0] += w * X[j][1];
-    xtVx[1][1] += w * X[j][1] * X[i][1];
-    xtVy[0] += w * y[j];
-    xtVy[1] += w * y[j] * X[i][1];
-  }
-  const det = xtVx[0][0] * xtVx[1][1] - xtVx[0][1] * xtVx[1][0];
-  const beta = det !== 0 ? [
-    (xtVy[0] * xtVx[1][1] - xtVy[1] * xtVx[0][1]) / det,
-    (xtVy[1] * xtVx[0][0] - xtVy[0] * xtVx[1][0]) / det
-  ] : [avg(y), 0];
+  const fit = glsFit(X, y, V);
+  const beta = fit ? fit.beta : [avg(y), 0];
   return { test: 'PGLS Regression', beta: beta.map(b => +b.toFixed(5)), lambda, n, apa: `PGLS: lambda=${lambda}, beta=${beta.map(b => b.toFixed(3)).join(', ')}` };
 }
 
