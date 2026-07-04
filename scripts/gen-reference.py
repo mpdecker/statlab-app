@@ -1477,6 +1477,180 @@ spatialEconometric = {
 }
 ref['spatialEconometric'] = spatialEconometric
 
+# ── smc (particle filters) ──────────────────────────────────────────────────
+# Exact grid-based (deterministic quadrature) Bayes filter for the same 1D
+# state-space model used by bootstrapFilter/auxiliaryPF: x_t = x_{t-1} + U(-1,1),
+# y_t ~ N(x_t, 1), with an initial (pre-noise) state uniform over [-2, 8). This is
+# an independent, non-Monte-Carlo re-implementation of the filtering recursion
+# (numerical integration, not resampling), used as ground truth for both particle
+# filters (large-N Monte Carlo estimates should lie close to it).
+_smc_y = np.array([1.2, 2.1, 2.9, 3.8, 5.0, 4.8, 5.9, 7.1, 6.8, 8.0])
+_smc_grid = np.linspace(-8, 15, 4001)
+_smc_dx = _smc_grid[1] - _smc_grid[0]
+_smc_dens = np.where((_smc_grid >= -2) & (_smc_grid < 8), 1.0, 0.0)
+_smc_dens /= _smc_dens.sum() * _smc_dx
+def _smc_predict(dens):
+    k_half = int(round(1 / _smc_dx))
+    kernel = np.zeros_like(_smc_grid)
+    center = len(_smc_grid) // 2
+    kernel[center - k_half:center + k_half + 1] = 1.0
+    kernel /= kernel.sum() * _smc_dx
+    conv = np.convolve(dens, kernel, mode='same') * _smc_dx
+    return conv / (conv.sum() * _smc_dx)
+_smc_means = []
+for _t in range(len(_smc_y)):
+    _smc_dens = _smc_predict(_smc_dens)
+    _lik = np.exp(-0.5 * (_smc_y[_t] - _smc_grid) ** 2)
+    _post = _smc_dens * _lik
+    _post /= _post.sum() * _smc_dx
+    _smc_means.append(float((_smc_grid * _post).sum() * _smc_dx))
+    _smc_dens = _post
+smc = {
+    'grid_filter_basic': {
+        'y': _smc_y.tolist(),
+        'initRangeLow': -2, 'initRangeHigh': 8,
+        'exactFilteredMeans': _smc_means,
+    }
+}
+ref['smc'] = smc
+
+# ── neural (conv2D zero-padding) ────────────────────────────────────────────
+# conv2D's output-size formula already accounted for padding, but the input
+# indexing never subtracted `padding`, so padding>0 silently read the wrong
+# cells instead of zero-padding. Ground truth via a from-scratch numpy
+# zero-pad + cross-correlate (not scipy — this is a direct, exact re-derivation
+# of the definition, not reusing the JS code).
+_conv_input = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
+_conv_kernel = np.array([[1, 0], [0, -1]], dtype=float)
+_conv_pad = 1
+_conv_padded = np.pad(_conv_input, ((_conv_pad, _conv_pad), (_conv_pad, _conv_pad)), mode='constant')
+_ckh, _ckw = _conv_kernel.shape
+_coh = _conv_padded.shape[0] - _ckh + 1
+_cow = _conv_padded.shape[1] - _ckw + 1
+_conv_out = np.zeros((_coh, _cow))
+for _i in range(_coh):
+    for _j in range(_cow):
+        _region = _conv_padded[_i:_i + _ckh, _j:_j + _ckw]
+        _conv_out[_i, _j] = float((_region * _conv_kernel).sum())
+neural = {
+    'conv2d_padding_basic': {
+        'input': _conv_input.tolist(), 'kernel': _conv_kernel.tolist(), 'padding': _conv_pad,
+        'output': _conv_out.tolist(),
+    }
+}
+ref['neural'] = neural
+
+# ── gam ──────────────────────────────────────────────────────────────────────
+gam = {}
+
+# gamLocalScoring: IRLS logistic regression. Deterministic grid-based design (no
+# RNG, so both this fixture and the JS test embed the same literal arrays).
+# Ground truth via statsmodels.Logit (a real external oracle) — the previous
+# JS code's XtWz omitted the w[k] weight factor (X^T·z instead of X^T·W·z),
+# causing the IRLS update to diverge to +/-infinity within a few iterations.
+_gam_X, _gam_y = [], []
+for _i in range(40):
+    _x1 = (_i % 8) - 3.5
+    _x2 = (_i // 8) - 2
+    _logit = 0.4 + 0.9 * _x1 - 0.7 * _x2
+    _p = 1 / (1 + np.exp(-_logit))
+    _label = 1 if _p > 0.5 else 0
+    if _i % 5 == 0:  # deterministic label noise to avoid perfect separation
+        _label = 1 - _label
+    _gam_X.append([1.0, float(_x1), float(_x2)])
+    _gam_y.append(_label)
+_gam_logit_model = sm.Logit(np.array(_gam_y), np.array(_gam_X)).fit(disp=0)
+gam['local_scoring_basic'] = {
+    'X': _gam_X, 'y': _gam_y,
+    'beta': _gam_logit_model.params.tolist(),
+    'logLik': float(_gam_logit_model.llf),
+}
+
+# thinPlateSpline / pSpline: deterministic (no RNG) x,y; ground truth via a
+# from-scratch numpy solve of the exact augmented system the JS code declares
+# (not a reuse of the JS implementation) — the previous JS `solveSystem`
+# didn't solve the linear system at all (each rhs entry divided by its own
+# matrix row's sum, unrelated to the true solution), and separately read the
+# solved coefficient vector's two blocks (RBF weights vs. polynomial terms)
+# in the wrong order.
+_tps_x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=float)
+_tps_y = _tps_x * 2 + np.sin(_tps_x) * 0.3
+_tps_n = len(_tps_x)
+_tps_K = np.zeros((_tps_n, _tps_n))
+for _i in range(_tps_n):
+    for _j in range(_tps_n):
+        _r = abs(_tps_x[_i] - _tps_x[_j])
+        _tps_K[_i, _j] = _r * _r * np.log(_r * _r + 1e-10) if _r > 0 else 0
+_tps_T = np.column_stack([np.ones(_tps_n), _tps_x])
+_tps_lambda = 0.1
+_tps_M = np.zeros((_tps_n + 2, _tps_n + 2))
+_tps_M[:_tps_n, :_tps_n] = _tps_K + _tps_lambda * np.eye(_tps_n)
+_tps_M[:_tps_n, _tps_n:] = _tps_T
+_tps_M[_tps_n:, :_tps_n] = _tps_T.T
+_tps_alpha = np.linalg.solve(_tps_M, np.concatenate([_tps_y, [0, 0]]))
+_tps_c, _tps_d = _tps_alpha[:_tps_n], _tps_alpha[_tps_n:]
+_tps_fitted = []
+for _i in range(_tps_n):
+    _pred = _tps_d[0] + _tps_d[1] * _tps_x[_i]
+    for _j in range(_tps_n):
+        _r = abs(_tps_x[_i] - _tps_x[_j])
+        _pred += _tps_c[_j] * (_r * _r * np.log(_r * _r + 1e-10) if _r > 0 else 0)
+    _tps_fitted.append(float(_pred))
+gam['tps_basic'] = {'x': _tps_x.tolist(), 'y': _tps_y.tolist(), 'lambda': _tps_lambda, 'fitted': _tps_fitted}
+
+_psp_x = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=float)
+_psp_y = _psp_x * 1.5 + np.sin(_psp_x) * 0.5
+_psp_n = len(_psp_x)
+_psp_nKnots = 3
+_psp_xmin, _psp_xmax = _psp_x.min(), _psp_x.max()
+_psp_knots = [_psp_xmin + (_psp_xmax - _psp_xmin) * (_j + 1) / (_psp_nKnots + 1) for _j in range(_psp_nKnots)]
+_psp_B = []
+for _xi in _psp_x:
+    _row = [1.0, float(_xi)]
+    for _k in _psp_knots:
+        _v = _xi - _k
+        _row.append(float(_v ** 3 if _v > 0 else 0))
+    _psp_B.append(_row)
+_psp_B = np.array(_psp_B)
+_psp_p = _psp_B.shape[1]
+_psp_BtB = _psp_B.T @ _psp_B
+_psp_BtY = _psp_B.T @ _psp_y
+_psp_lambda = 0.1
+for _i in range(2, _psp_p):
+    _psp_BtB[_i, _i] += _psp_lambda
+_psp_beta = np.linalg.solve(_psp_BtB, _psp_BtY)
+_psp_fitted = (_psp_B @ _psp_beta).tolist()
+gam['pspline_basic'] = {'x': _psp_x.tolist(), 'y': _psp_y.tolist(), 'nKnots': _psp_nKnots, 'lambda': _psp_lambda, 'fitted': _psp_fitted}
+
+ref['gam'] = gam
+
+# ── tensor (mode-n unfold) ───────────────────────────────────────────────────
+# unfoldTensor's row index for mode 1/2 always used `i` (the tensor's first
+# index) instead of the mode-appropriate index (j for mode 1, k for mode 2),
+# so almost every cell landed in the wrong row (or was clamped into row 0).
+# Ground truth via a from-scratch numpy re-derivation of the standard mode-n
+# unfolding definition (Kolda & Bader), using the same column-index convention
+# the JS code declares (col = j*d3+k for mode 0, i*d3+k for mode 1, i*d2+j for
+# mode 2) — not a reuse of the JS implementation.
+_ut_X = np.arange(24).reshape(2, 3, 4).astype(float)
+_ut_d1, _ut_d2, _ut_d3 = _ut_X.shape
+_ut_M0 = np.zeros((_ut_d1, _ut_d2 * _ut_d3))
+_ut_M1 = np.zeros((_ut_d2, _ut_d1 * _ut_d3))
+_ut_M2 = np.zeros((_ut_d3, _ut_d1 * _ut_d2))
+for _i in range(_ut_d1):
+    for _j in range(_ut_d2):
+        for _k in range(_ut_d3):
+            _ut_M0[_i, _j * _ut_d3 + _k] = _ut_X[_i, _j, _k]
+            _ut_M1[_j, _i * _ut_d3 + _k] = _ut_X[_i, _j, _k]
+            _ut_M2[_k, _i * _ut_d2 + _j] = _ut_X[_i, _j, _k]
+tensor = {
+    'unfold_basic': {
+        'tensor': _ut_X.tolist(),
+        'mode0': _ut_M0.tolist(), 'mode1': _ut_M1.tolist(), 'mode2': _ut_M2.tolist(),
+    }
+}
+ref['tensor'] = tensor
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

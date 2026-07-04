@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parafac, tuckerDecomp, unfold, multiwayPCA, tensorRegression, cpDecomposition, tuckerRegression, tensorCompletion } from './tensor.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const X = [[[1, 2], [3, 4]], [[5, 6], [7, 8]]];
 const y = [3, 7, 11, 15];
@@ -92,5 +93,16 @@ describe('tensorCompletion recovers low-rank structure', () => {
     const mask = [[[true, true], [true, false]], [[true, true], [true, true]]]; // hide T[0][1][1]=a0*b1*c1=1*3*1=3
     const r = tensorCompletion(T, mask, { rank: 1, maxIter: 25 });
     expect(r.completed[0][1][1]).toBeCloseTo(3, 1);
+  });
+});
+
+describe('unfold produces the standard mode-n matricization for every mode (regression test for the wrong-row-index fix)', () => {
+  it('matches a from-scratch numpy re-derivation for mode 0, 1, and 2 — the old code silently zeroed out most cells for mode 1/2', () => {
+    const e = ref.tensor.unfold_basic;
+    [0, 1, 2].forEach(mode => {
+      const r = unfold(e.tensor, mode);
+      const expected = e[`mode${mode}`];
+      expected.forEach((row, i) => row.forEach((v, j) => expect(r.matrix[i][j]).toBeCloseTo(v, 6)));
+    });
   });
 });

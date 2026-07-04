@@ -148,7 +148,11 @@ export function conv2D(input, kernel, { stride = 1, padding = 0 } = {}) {
       let s = 0;
       for (let ki = 0; ki < kh; ki++) {
         for (let kj = 0; kj < kw; kj++) {
-          s += (input[i * stride + ki]?.[j * stride + kj] || 0) * kernel[ki][kj];
+          // Offset by `padding`: the output-size formula above already accounts for
+          // zero-padding, but without subtracting `padding` here the indices just read
+          // straight into `input` unshifted — for padding>0 that reads the wrong cells
+          // (or falls out of bounds early) instead of implementing actual zero-padding.
+          s += (input[i * stride + ki - padding]?.[j * stride + kj - padding] || 0) * kernel[ki][kj];
         }
       }
       output[i][j] = +s.toFixed(4);

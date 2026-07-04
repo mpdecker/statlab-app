@@ -48,19 +48,23 @@ export function auxiliaryPF(y, initialParticles, { seed = 42, processNoise = 1, 
   let particles = [...initialParticles];
   const filtered = [];
   for (let t = 0; t < n; t++) {
-    // Predict
+    // Predict (one transition draw, reused as the final particle — no second,
+    // independent transition draw is taken for the resampled particles).
     particles = particles.map(p => p + processNoise * (__rng() - 0.5) * 2);
-    // Auxiliary weights
-    const mu = particles.map(p => p);
-    const auxW = particles.map((p, i) => Math.exp(-0.5 * (y[t] - mu[i]) ** 2 / (obsNoise ** 2)));
+    // Auxiliary weights: resample proportional to the observation likelihood of
+    // the predicted particle. Because the resampled particle IS the predicted
+    // particle (no fresh draw follows), the second-stage correction weight
+    // p(y|x_t)/p(y|mu) is exactly 1 for every kept particle — the filter is
+    // already correctly weighted after this one resample. The previous version
+    // recomputed the SAME likelihood on the resampled values and reweighted by
+    // it again, double-counting the observation and biasing the filtered mean
+    // toward whichever particles happened to be resampled (e.g. pulling the
+    // estimate too far toward the most recent observation).
+    const auxW = particles.map(p => Math.exp(-0.5 * (y[t] - p) ** 2 / (obsNoise ** 2)));
     const sumAW = auxW.reduce((s, v) => s + v, 0) || 1;
     const preRes = multinomialResample(particles, auxW.map(v => v / sumAW));
-    // Likelihood weights
-    const w = preRes.map(p => Math.exp(-0.5 * (y[t] - p) ** 2 / (obsNoise ** 2)));
-    const sumW = w.reduce((s, v) => s + v, 0) || 1;
-    const normW = w.map(v => v / sumW);
-    filtered.push(preRes.reduce((s, p, i) => s + p * normW[i], 0));
-    particles = multinomialResample(preRes, normW);
+    filtered.push(avg(preRes));
+    particles = preRes;
   }
   return { test: 'Auxiliary PF', filtered: filtered.map(v => +v.toFixed(4)), n, nParticles: N, apa: `Auxiliary PF: ${N} particles, n = ${n}` };
 }

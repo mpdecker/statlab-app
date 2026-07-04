@@ -474,6 +474,139 @@
 > `y_{t+h} = ρWy_{t+h-1} + Xβ` forward recursion with its `(I-ρW)⁻¹Xβ` fixed point) — all five functions
 > matched exactly; no bugs found. Full suite: **4,906 tests pass**. Total across all oracle passes:
 > **38 real correctness bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, twenty-fourth pass — the previously deprioritized "tail"
+> modules).** Per explicit user direction to pursue full rigor regardless of how hard a module is to
+> verify, resumed auditing into `bandit.js` and `smc.js`. All 9 `bandit.js` functions (epsilon-greedy,
+> UCB1, Thompson sampling, LinUCB, REINFORCE, softmax bandit, Q-learning, SARSA, DQN) were checked by hand
+> against their textbook update equations (incremental sample averaging, `√(2·ln t/n)` UCB bonus,
+> Beta-Bernoulli posterior updates, ridge `A⁻¹b` LinUCB scoring, softmax policy-gradient log-derivative,
+> off-policy vs. on-policy TD(0), and backprop through a tanh hidden layer) — all correct; the existing
+> test suite already verifies convergence to known-optimal policies on deterministic MDPs. No bugs found.
+>
+> `smc.js` — `particleMCMC` and `annealedImportance` had already been fixed in an earlier commit
+> (`0669f3d`) and are independently verified against closed-form integrals (posterior mean ≈0.423, log
+> normalizing constant of a N(0,4)) in the existing test suite. Verified `bootstrapFilter` correct by
+> constructing an independent, non-Monte-Carlo grid-based (deterministic numerical quadrature) Bayes
+> filter in Python for the same state-space model (`x_t = x_{t-1} + U(-1,1)`, `y_t ~ N(x_t,1)`) — matched
+> to within Monte-Carlo noise (N=3000 particles) at every one of 10 time steps. Found **1 more real bug**:
+> - `auxiliaryPF` — the auxiliary particle filter resampled particles proportional to the observation
+>   likelihood of the *predicted* particle (`p(y|μ)`), but then, since no fresh transition draw is taken
+>   for the resampled particles (`x_t = μ` exactly), reweighted the *same* resampled values by the *same*
+>   likelihood formula a second time before computing the filtered mean — double-counting the observation.
+>   Since `x_t = μ` exactly here, the correct second-stage correction weight `p(y|x_t)/p(y|μ)` is exactly 1
+>   (the "fully adapted" special case), so the filter is already correctly weighted after the first
+>   resample. Verified against the grid-based oracle: the buggy version deviated from ground truth by up
+>   to 0.32 (overshooting toward the most recent observation, e.g. 7.35 vs. the true 7.03 at the final
+>   step), while a from-scratch Python re-implementation of the corrected algorithm (single resample,
+>   uniform final weights) tracked the grid oracle to within 0.02–0.03 (pure Monte Carlo noise) at every
+>   step. Fixed by removing the redundant second likelihood computation/resample and taking the uniformly-
+>   weighted mean of the first-stage-resampled particles directly.
+>
+> `importanceSampling`, `effectiveSampleSizeSMC`, and `multinomialResampleExport` were confirmed correct by
+> inspection (self-normalized importance sampling with a uniform proposal correctly cancels the constant
+> proposal density; ESS is the standard Kish formula `(Σw)²/Σw²`; multinomial resampling via inverse-CDF is
+> textbook-correct). Full suite: **4,908 tests pass**. Total across all oracle passes: **39 real
+> correctness bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, twenty-fifth pass).** Audited `neural.js` and `deepLearning.js`
+> in full. `deepLearning.js`'s `autoencoder`, `variationalAutoencoder`, `gan`, and `transformerBlock` had
+> already been fixed correctly in an earlier commit (`06fdd5c`); independently re-derived every gradient
+> by hand (VAE's reparameterization-trick chain rule through both `μ` and `logσ²`, the GAN's non-saturating
+> discriminator/generator logistic gradients through `tanh`) and confirmed each matches the textbook
+> formula exactly — no bugs. `neural.js`'s `softmax`, `activate`, `softmaxCrossEntropy`, `gradientDescent`,
+> `adamUpdate`, `xavierInit`, `backpropagation`, `convolution1D`, `maxPooling`, `batchNorm`, and `dropout`
+> were all confirmed correct by hand against their standard definitions. Found **1 more real bug**:
+> - `conv2D` — the output-size formula `oh = floor((h+2·padding-kh)/stride)+1` correctly accounts for zero-
+>   padding, but the convolution loop indexed directly into `input[i·stride+ki]` without ever subtracting
+>   `padding`, so for any `padding > 0` the "padded" region was never actually zero — the code just read
+>   unshifted (wrong) cells of the raw input, or read out of bounds early, silently producing an incorrect
+>   result shaped like a padded output. Verified against a from-scratch numpy zero-pad + cross-correlate
+>   reference (a direct re-derivation of the definition, not reusing the JS code): on a 3×3 input with a
+>   2×2 kernel and `padding=1`, the buggy code returned `[[-4,-4,3,0],[-4,-4,6,0],[7,8,9,0],[0,0,0,0]]`
+>   instead of the correct `[[-1,-2,-3,0],[-4,-4,-4,3],[-7,-4,-4,6],[0,7,8,9]]` — every element wrong.
+>   Fixed by subtracting `padding` from both input indices before the bounds-checked lookup.
+>
+> Full suite: **4,909 tests pass**. Total across all oracle passes: **40 real correctness bugs found and
+> fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, twenty-sixth pass — `gam.js`, the worst module found so far).**
+> Nearly every exported function in `gam.js` was broken. Found **8 more real bugs**:
+> - `backfitOne` (shared helper) — the normal-equations Gram matrix was built by iterating
+>   `basis[0].map(...)`, but `basis` is column-major (`basis[j]` is the jth spline basis function's values
+>   across all `n` samples, so `basis[0].length === n`, not `m` the number of basis functions) — this
+>   produced a bogus n×n matrix instead of the intended m×m Gram matrix, so `solveNormalEquations` returned
+>   an n-length vector of garbage instead of the m fitted spline coefficients. Verified against a
+>   from-scratch numpy OLS fit of a known `y = x²` spline: the old code diverged to R²≈-57 (worse than the
+>   mean); the fix recovers R²≈0.9997. This silently corrupted both `gamBackfitting` and `gamSpline`.
+> - `gamBackfitting` — separately, `smoothVars` (e.g. `['x1']`) was resolved to a column index via
+>   `X[0].indexOf(v)`, but `X[0]` is a plain numeric row (no header), so this string-vs-number comparison
+>   always returned -1 — `smoothIdx` was always empty, so NO term (smooth or linear; `linearIdx` was
+>   computed but never used) was ever fit, and the function always silently returned the intercept-only
+>   model. Verified with a clean `y = x²` DGP: old code gave R² = 0.000 (identical to a naive linear OLS,
+>   confirming zero fitting occurred); rewritten as a proper Hastie–Tibshirani backfitting loop
+>   (spline-smooth for smooth vars, coordinate-descent linear fit for others, each term re-centered to mean
+>   zero every iteration), it recovers R² ≈ 0.994. Also added a `fitted` field to the return value (absent
+>   before, despite the existing test conditionally checking it).
+> - `gamSpline` — its parameter list (`data, yVar, smoothVar`) never matched how the function is actually
+>   called (a plain `y` array + numeric `X` matrix, per its own test file), so `smoothVar` was always
+>   `undefined` and the function always returned `null` — before ever reaching a `return` statement that
+>   referenced an undeclared `n` and would have thrown `ReferenceError: n is not defined` had it been
+>   reached. Rewritten to accept `(y, X, { df, varIdx })` matching actual usage, storing the fitted spline
+>   coefficients/knots for prediction.
+> - `gamPredict` — ignored its `newData` argument entirely and returned the same constant `alpha` value
+>   regardless of input (not a prediction). Rewritten to evaluate the stored `gamSpline` basis coefficients
+>   at the new x-values.
+> - `gamLocalScoring` — the weighted-least-squares normal equations for its IRLS logistic fit computed
+>   `XtWz` as `X^T·z` instead of `X^T·W·z` (the `w[k]` weight factor was entirely missing from that one sum,
+>   while `XtWX` correctly included it) — since the working response `z` already has a `1/w` factor baked
+>   in, omitting `w` when forming `XtWz` left that scaling uncorrected, and the resulting IRLS update
+>   overshot and diverged. Verified against `statsmodels.Logit` on a well-posed (non-separated) logistic
+>   dataset: the old code's log-likelihood exploded from -69 (iteration 1) to -1750 (iteration 3+, then
+>   stayed there) while statsmodels converges cleanly to -50.55; after adding the missing `w[k]`, the fix
+>   converges to -50.5508 in 3 iterations — matching statsmodels to 4 significant figures.
+> - `thinPlateSpline`'s `solveSystem` helper didn't solve the declared linear system at all — each `rhs`
+>   entry was divided by the sum of its own matrix row, a no-op heuristic unrelated to the true solution.
+>   Replaced with an actual `matInv`-based solve.
+> - `thinPlateSpline` — separately, the fitted-value formula read the polynomial (intercept, slope)
+>   coefficients from `alpha[0]`/`alpha[1]` and the RBF weights from `alpha[2+j]`, but the augmented system
+>   (`[[K+λI, T], [Tᵀ, 0]]`) actually places the RBF-weight block FIRST (indices `0..n-1`) and the
+>   polynomial block LAST (indices `n..n+1`) — the two blocks were swapped. Verified against a from-scratch
+>   numpy solve of the exact same declared system: fitted values now match to 4 decimal places.
+> - `pSpline` — the `lambda` parameter was accepted but never used anywhere in the computation, and the
+>   "solve" step approximated the true p×p normal-equations solve as `BtY[i] / BtB[i][i]` — dividing by
+>   only the diagonal, i.e. treating the (correlated) truncated-cubic basis functions as if they were
+>   uncorrelated, which is not a solution to the least-squares system whenever basis columns correlate (the
+>   normal case). Fixed by ridge-penalizing the non-polynomial coefficients by `lambda` and solving the real
+>   normal equations via `solveNormalEquations`; verified to match a from-scratch numpy ridge-OLS solve
+>   exactly.
+>
+> `gamEffectiveDf`, `gamInteraction`, and `gamAnova` were confirmed correct by inspection (the existing
+> `gamInteraction` test already verifies R² > 0.8 on a real tensor-product interaction). Full suite:
+> **4,915 tests pass**. Total across all oracle passes: **48 real correctness bugs found and fixed**, plus
+> one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, twenty-seventh pass).** Audited `tensor.js` in full. `parafac`,
+> `cpDecomposition`, `tensorRegression`, `tuckerRegression`, and `tensorCompletion` (already fixed in an
+> earlier commit, `f3d000a`) were independently re-verified with synthetic ground-truth tensors: a rank-1
+> tensor is recovered with exactly zero reconstruction error by both `parafac` and `cpDecomposition`; a
+> noiseless linear model is recovered with R²=1 by `tensorRegression`; `tuckerRegression` at full rank
+> recovers MSE=0 (and a sensible nonzero MSE at a deliberately under-ranked truncation); `tensorCompletion`
+> exactly recovers held-out cells of a rank-1 tensor. No bugs. Found **1 more real bug**:
+> - `unfoldTensor` (the shared mode-n matricization helper behind `unfold`, `tuckerDecomp`, and
+>   `multiwayPCA`) — assigned every unfolded cell to `result[i]` (the tensor's first-index iterator) as the
+>   row, even for mode-1 and mode-2 unfoldings where the row should be `j` or `k` respectively; any `i`
+>   beyond the mode's actual row count was clamped into row 0. Verified against a from-scratch numpy
+>   re-derivation of the standard mode-n unfolding (Kolda & Bader) on a 2×3×4 test tensor: the old code's
+>   mode-1 unfolding was `[[8,9,10,11,0,0,0,0],[0,0,0,0,20,21,22,23],[0,0,0,0,0,0,0,0]]` — mostly zeros,
+>   with real data overwritten or discarded — instead of the correct
+>   `[[0,1,2,3,12,13,14,15],[4,5,6,7,16,17,18,19],[8,9,10,11,20,21,22,23]]`. This silently corrupted every
+>   `tuckerDecomp` mode past the first and all of `multiwayPCA`'s SVD-via-power-iteration (which unfolds on
+>   mode 0, so was actually unaffected) — but any consumer unfolding on mode 1 or 2 got garbage. Fixed by
+>   using the mode-appropriate tensor index as the row.
+>
+> Full suite: **4,916 tests pass**. Total across all oracle passes: **49 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 
