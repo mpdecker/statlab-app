@@ -1514,6 +1514,32 @@ smc = {
 }
 ref['smc'] = smc
 
+# ── neural (conv2D zero-padding) ────────────────────────────────────────────
+# conv2D's output-size formula already accounted for padding, but the input
+# indexing never subtracted `padding`, so padding>0 silently read the wrong
+# cells instead of zero-padding. Ground truth via a from-scratch numpy
+# zero-pad + cross-correlate (not scipy — this is a direct, exact re-derivation
+# of the definition, not reusing the JS code).
+_conv_input = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
+_conv_kernel = np.array([[1, 0], [0, -1]], dtype=float)
+_conv_pad = 1
+_conv_padded = np.pad(_conv_input, ((_conv_pad, _conv_pad), (_conv_pad, _conv_pad)), mode='constant')
+_ckh, _ckw = _conv_kernel.shape
+_coh = _conv_padded.shape[0] - _ckh + 1
+_cow = _conv_padded.shape[1] - _ckw + 1
+_conv_out = np.zeros((_coh, _cow))
+for _i in range(_coh):
+    for _j in range(_cow):
+        _region = _conv_padded[_i:_i + _ckh, _j:_j + _ckw]
+        _conv_out[_i, _j] = float((_region * _conv_kernel).sum())
+neural = {
+    'conv2d_padding_basic': {
+        'input': _conv_input.tolist(), 'kernel': _conv_kernel.tolist(), 'padding': _conv_pad,
+        'output': _conv_out.tolist(),
+    }
+}
+ref['neural'] = neural
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

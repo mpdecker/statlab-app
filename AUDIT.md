@@ -508,6 +508,27 @@
 > proposal density; ESS is the standard Kish formula `(Σw)²/Σw²`; multinomial resampling via inverse-CDF is
 > textbook-correct). Full suite: **4,908 tests pass**. Total across all oracle passes: **39 real
 > correctness bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, twenty-fifth pass).** Audited `neural.js` and `deepLearning.js`
+> in full. `deepLearning.js`'s `autoencoder`, `variationalAutoencoder`, `gan`, and `transformerBlock` had
+> already been fixed correctly in an earlier commit (`06fdd5c`); independently re-derived every gradient
+> by hand (VAE's reparameterization-trick chain rule through both `μ` and `logσ²`, the GAN's non-saturating
+> discriminator/generator logistic gradients through `tanh`) and confirmed each matches the textbook
+> formula exactly — no bugs. `neural.js`'s `softmax`, `activate`, `softmaxCrossEntropy`, `gradientDescent`,
+> `adamUpdate`, `xavierInit`, `backpropagation`, `convolution1D`, `maxPooling`, `batchNorm`, and `dropout`
+> were all confirmed correct by hand against their standard definitions. Found **1 more real bug**:
+> - `conv2D` — the output-size formula `oh = floor((h+2·padding-kh)/stride)+1` correctly accounts for zero-
+>   padding, but the convolution loop indexed directly into `input[i·stride+ki]` without ever subtracting
+>   `padding`, so for any `padding > 0` the "padded" region was never actually zero — the code just read
+>   unshifted (wrong) cells of the raw input, or read out of bounds early, silently producing an incorrect
+>   result shaped like a padded output. Verified against a from-scratch numpy zero-pad + cross-correlate
+>   reference (a direct re-derivation of the definition, not reusing the JS code): on a 3×3 input with a
+>   2×2 kernel and `padding=1`, the buggy code returned `[[-4,-4,3,0],[-4,-4,6,0],[7,8,9,0],[0,0,0,0]]`
+>   instead of the correct `[[-1,-2,-3,0],[-4,-4,-4,3],[-7,-4,-4,6],[0,7,8,9]]` — every element wrong.
+>   Fixed by subtracting `padding` from both input indices before the bounds-checked lookup.
+>
+> Full suite: **4,909 tests pass**. Total across all oracle passes: **40 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 
