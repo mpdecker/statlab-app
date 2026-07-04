@@ -9,3 +9,5 @@ statsmodels
 lifelines
 scikit-learn
 networkx
+jellyfish
+pingouin

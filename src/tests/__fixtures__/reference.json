@@ -4244,5 +4244,110 @@
       "separatedNoZ": true,
       "separatedWithZ": false
     }
+  },
+  "linkage": {
+    "pairs": {
+      "MARTHA|MARHTA": {
+        "jaroWinkler": 0.9611111111111111,
+        "levenshtein": 2
+      },
+      "DIXON|DICKSONX": {
+        "jaroWinkler": 0.8133333333333332,
+        "levenshtein": 4
+      },
+      "JELLYFISH|SMELLYFISH": {
+        "jaroWinkler": 0.8962962962962964,
+        "levenshtein": 2
+      },
+      "kitten|sitting": {
+        "jaroWinkler": 0.746031746031746,
+        "levenshtein": 3
+      },
+      "flaw|lawn": {
+        "jaroWinkler": 0.8333333333333334,
+        "levenshtein": 2
+      }
+    }
+  },
+  "learning": {
+    "roc_basic": {
+      "actual": [
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "scores": [
+        0.9,
+        0.85,
+        0.3,
+        0.7,
+        0.6,
+        0.4,
+        0.2,
+        0.1,
+        0.75,
+        0.5,
+        0.55,
+        0.65
+      ],
+      "auc": 0.5277777777777777
+    }
+  },
+  "causalDiscovery": {
+    "partial_corr_basic": {
+      "x": [
+        12,
+        15,
+        11,
+        18,
+        14,
+        20,
+        9,
+        16,
+        13,
+        17,
+        10,
+        19
+      ],
+      "y": [
+        20,
+        22,
+        18,
+        25,
+        21,
+        28,
+        16,
+        23,
+        19,
+        24,
+        17,
+        26
+      ],
+      "z": [
+        5,
+        6,
+        4,
+        8,
+        5.5,
+        9,
+        3,
+        7,
+        4.5,
+        7.5,
+        3.5,
+        8.5
+      ],
+      "r": 0.3333744129500332,
+      "p": 0.31641407790085385
+    }
   }
 }

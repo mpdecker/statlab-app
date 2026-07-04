@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { partialCorrTest, skeletonPhase, colliderDetection, dagAdjacency, pcAlgorithm, lingam, fciAlgorithm } from './causalDiscovery.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const d = []; for (let i = 0; i < 30; i++) d.push({ x1: i, x2: i * 0.5, x3: Math.sin(i) });
 
@@ -8,6 +9,16 @@ describe('partialCorrTest', () => {
   it('contract keys', () => expectKeys(partialCorrTest(d, ['x1', 'x2', 'x3'], 'x1', 'x2', ['x3']), ['test', 'r', 't', 'p', 'df', 'n', 'apa']));
   it('handles no vars', () => { const r = partialCorrTest(d, [], 'x1', 'x2', []); expect(r !== undefined).toBe(true); });
   it('r between -1 and 1', () => { const r = partialCorrTest(d, ['x1', 'x2', 'x3'], 'x1', 'x2', ['x3']); if (r && Number.isFinite(r.r)) { expect(r.r).toBeGreaterThanOrEqual(-1); expect(r.r).toBeLessThanOrEqual(1); } });
+});
+
+describe('partialCorrTest matches pingouin.partial_corr exactly (regression test for the missing-intercept fix)', () => {
+  it('r and p match on raw, non-centered data where x/y both correlate strongly with z', () => {
+    const e = ref.causalDiscovery.partial_corr_basic;
+    const rows = e.x.map((x, i) => ({ x, y: e.y[i], z: e.z[i] }));
+    const r = partialCorrTest(rows, ['x', 'y', 'z'], 'x', 'y', ['z']);
+    expect(r.r).toBeCloseTo(e.r, 3);
+    expect(r.p).toBeCloseTo(e.p, 3);
+  });
 });
 
 describe('skeletonPhase', () => {

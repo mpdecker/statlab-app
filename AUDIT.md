@@ -350,6 +350,26 @@
 > judged too ambiguous to conclusively verify without a documented convention, so it was left unaudited
 > rather than risk a false-positive "fix." Full suite: **4,897 tests pass**. Total across all oracle passes:
 > **32 real correctness bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, eighteenth pass).** Extended coverage into `linkage.js`,
+> `text.js`, `causalDiscovery.js`, and `learning.js` against `jellyfish`, `pingouin.partial_corr`, and
+> `sklearn.metrics.roc_auc_score`, finding **1 more real bug**:
+> - `partialCorrTest` (causalDiscovery.js) — computed partial correlation by regressing `x` and `y` on the
+>   conditioning variable(s) `z` and correlating the residuals, but the regression's design matrix never
+>   included an intercept column, forcing the fit through the origin. On raw (non-mean-centered) data — the
+>   common case — this badly under-removes the shared linear relationship with `z`. On a test case where `x`
+>   and `y` are both strongly driven by `z`, this gave r=0.9426 (nearly unchanged from the raw correlation)
+>   instead of the correct r=0.333 (verified exactly against `pingouin.partial_corr`, both r and p-value).
+>   Fixed by prepending a constant column to the design matrix.
+>
+> `jaroWinkler` and `levenshteinDistance` (linkage.js) matched `jellyfish`'s reference implementations
+> exactly on five classic string-linkage test pairs. `rocAUC` (learning.js) matched
+> `sklearn.metrics.roc_auc_score` exactly. `cosineSimilarity`/`jaccardSimilarity` (text.js) were confirmed
+> as textbook-correct by inspection. `bm25`'s IDF formula was found to differ from the `rank_bm25` package's
+> default (0 vs the JS's Lucene-style "+1 inside the log" smoothing) — this is a documented, legitimate
+> convention difference (both are standard BM25 variants), not a bug, so it was left as-is. Full suite:
+> **4,900 tests pass**. Total across all oracle passes: **33 real correctness bugs found and fixed**, plus
+> one module-portability defect.
 
 ## Verdict
 

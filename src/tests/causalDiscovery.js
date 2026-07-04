@@ -8,8 +8,12 @@ let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 // Partial correlation test (conditional independence)
 function partialCorr(x, y, z) {
   if (!z || !z.length) return corr(x, y);
-  // z is [var][obs]; transpose to an n×p design matrix [obs][var].
-  const rz = z[0].map((_, i) => z.map(col => col[i]));
+  // z is [var][obs]; transpose to an n×p design matrix [obs][var], with a
+  // leading intercept column — without it, the residualizing regression is
+  // forced through the origin, which badly under-removes the shared linear
+  // relationship with z whenever the conditioning variables aren't already
+  // mean-centered (the common case for raw data).
+  const rz = z[0].map((_, i) => [1, ...z.map(col => col[i])]);
   // Compute residuals
   const xRes = residuals(x, rz);
   const yRes = residuals(y, rz);

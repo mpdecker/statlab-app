@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { jaroWinkler, levenshteinDistance, fellegiSunter, recordBlocking, matchThreshold, probabilisticRecordLinkage, deduplication } from './linkage.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+describe('jaroWinkler and levenshteinDistance match the jellyfish reference library exactly', () => {
+  it('matches on 5 classic string-linkage test pairs', () => {
+    for (const [key, e] of Object.entries(ref.linkage.pairs)) {
+      const [a, b] = key.split('|');
+      expect(jaroWinkler(a, b).similarity).toBeCloseTo(e.jaroWinkler, 4);
+      expect(levenshteinDistance(a, b).distance).toBe(e.levenshtein);
+    }
+  });
+});
 
 const pairs = [{ id: 1, agree: 5, compared: 5 }, { id: 2, agree: 2, compared: 5 }, { id: 3, agree: 4, compared: 5 }];
 

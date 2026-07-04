@@ -1369,6 +1369,35 @@ pgm['collider_basic'] = {
 }
 ref['pgm'] = pgm
 
+# ── linkage ───────────────────────────────────────────────────────────────────
+import jellyfish
+linkage = {}
+linkage_pairs = [['MARTHA', 'MARHTA'], ['DIXON', 'DICKSONX'], ['JELLYFISH', 'SMELLYFISH'], ['kitten', 'sitting'], ['flaw', 'lawn']]
+linkage['pairs'] = {
+    f'{a}|{b}': {'jaroWinkler': jellyfish.jaro_winkler_similarity(a, b), 'levenshtein': jellyfish.levenshtein_distance(a, b)}
+    for a, b in linkage_pairs
+}
+ref['linkage'] = linkage
+
+# ── learning ──────────────────────────────────────────────────────────────────
+from sklearn.metrics import roc_auc_score
+learning = {}
+learn_actual = [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+learn_scores = [0.9, 0.85, 0.3, 0.7, 0.6, 0.4, 0.2, 0.1, 0.75, 0.5, 0.55, 0.65]
+learning['roc_basic'] = {'actual': learn_actual, 'scores': learn_scores, 'auc': float(roc_auc_score(learn_actual, learn_scores))}
+ref['learning'] = learning
+
+# ── causalDiscovery ───────────────────────────────────────────────────────────
+import pingouin as pg
+causalDiscovery = {}
+cd_x = [12, 15, 11, 18, 14, 20, 9, 16, 13, 17, 10, 19]
+cd_y = [20, 22, 18, 25, 21, 28, 16, 23, 19, 24, 17, 26]
+cd_z = [5, 6, 4, 8, 5.5, 9, 3, 7, 4.5, 7.5, 3.5, 8.5]
+cd_df = pd.DataFrame({'x': cd_x, 'y': cd_y, 'z': cd_z})
+cd_res = pg.partial_corr(data=cd_df, x='x', y='y', covar='z')
+causalDiscovery['partial_corr_basic'] = {'x': cd_x, 'y': cd_y, 'z': cd_z, 'r': float(cd_res['r'].iloc[0]), 'p': float(cd_res['p_val'].iloc[0])}
+ref['causalDiscovery'] = causalDiscovery
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
