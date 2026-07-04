@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
 import { shapValues, limeImportance, partialDependence, permutationImportance, alePlot, featureInteraction, globalSurrogate } from './interpretability.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const X = Array.from({length: 10}, (_, i) => [i, i * 0.5, i % 3]);
 const y = X.map(r => r[0] * 2 + r[1] * 3 + Math.random());
@@ -85,5 +86,20 @@ describe('limeImportance fits a real local linear surrogate', () => {
     expect(r.coefficients[0]).toBeCloseTo(2, 1);
     expect(r.coefficients[1]).toBeCloseTo(3, 1);
     expect(r.coefficients[2]).toBeCloseTo(-1.5, 1);
+  });
+});
+
+describe('alePlot handles the max-value boundary and empty bins correctly (regression test for the exclusive-last-bin and reset-to-zero bugs)', () => {
+  it('matches a from-scratch re-implementation of the ALE definition on data with an isolated max-value point', () => {
+    const e = ref.interpretability.ale_basic;
+    const model = row => row[0] * row[0];
+    const r = alePlot(e.X, model, 0, { nIntervals: e.nIntervals });
+    e.ale.forEach((v, i) => expect(r.ale[i]).toBeCloseTo(v, 3));
+    // Specifically: the isolated max point (10) must contribute to the last bin
+    // (nonzero jump from the previous cumulative value), and the two genuinely
+    // empty bins in between must carry the running total forward, not reset to 0.
+    expect(r.ale[2]).toBeCloseTo(r.ale[1], 6);
+    expect(r.ale[3]).toBeCloseTo(r.ale[1], 6);
+    expect(r.ale[4]).toBeGreaterThan(r.ale[3]);
   });
 });

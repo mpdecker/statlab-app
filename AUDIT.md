@@ -658,6 +658,33 @@
 > standard textbook convention for proportion tests (not a noncentral-distribution approximation issue).
 > Full suite: **4,921 tests pass**. Total across all oracle passes: **55 real correctness bugs found and
 > fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, thirtieth pass).** Audited the remaining `interpretability.js`
+> functions (`partialDependence` and `featureInteraction` were already verified in an earlier pass).
+> `shapValues` and `limeImportance` were checked against exact analytical expectations for a purely linear
+> model: for a linear `f(x)=Σbⱼxⱼ`, both the Shapley value and the LIME local-surrogate coefficient reduce
+> to closed forms independent of permutation order/perturbation weighting — `limeImportance` and
+> `globalSurrogate` recovered the exact coefficients `[3,-2]` and intercept `1` (R²=1); `shapValues`'
+> feature-importance ratio (4.399, Monte Carlo) matched the exact theoretical ratio computed directly from
+> the data's empirical mean-absolute-deviations (4.462) — the naive "should be exactly 5:1" expectation
+> was simply wrong given finite-sample column variation, not evidence of a bug. `permutationImportance`
+> correctly ranked features by their true linear-coefficient magnitude. No bugs in any of these. Found
+> **2 real bugs in `alePlot`**:
+> - The last bin used an exclusive upper bound (`[lo, hi)`), so any point sitting exactly at the feature's
+>   maximum value satisfied no bin's condition and was silently dropped from the ALE estimate entirely.
+> - Separately, when a bin had no data at all, the code `continue`d without updating `ale[k]`, leaving it at
+>   its `Array(nIntervals).fill(0)` initial value — resetting the cumulative (accumulated) effect to zero
+>   at any gap in the data — instead of carrying the previous bin's running total forward, which is what
+>   "accumulated" local effects requires.
+>
+> Verified against a from-scratch re-implementation of the same ALE definition (not reusing the JS code) on
+> a case with an isolated max-value point and a nonlinear model: the old code gave `[6.84, 20.16, 0, 0, 0]`
+> (both bugs visible — the two genuinely-empty bins reset to 0, and the final bin, which should have picked
+> up the isolated max point, also failed to accumulate since it inherited the reset-to-0 baseline); the
+> fixed code gives `[6.84, 20.16, 20.16, 20.16, 52.92]`, matching the independent re-derivation exactly.
+>
+> Full suite: **4,922 tests pass**. Total across all oracle passes: **56 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 

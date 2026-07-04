@@ -1717,6 +1717,40 @@ power = {
 }
 ref['power'] = power
 
+# ── interpretability (alePlot) ──────────────────────────────────────────────
+# alePlot's last bin used an exclusive upper bound ([lo,hi)), silently dropping
+# any point sitting exactly at the feature's maximum from every bin; and an
+# empty bin reset the cumulative ALE value to 0 instead of carrying the
+# previous bin's running total forward. Ground truth via a from-scratch
+# (non-JS) re-implementation of the same well-documented ALE definition with
+# both fixes applied, on a case with an isolated max-value point (gap before
+# it) and a nonlinear model, so both bugs are exercised.
+_ale_X = [[1.0], [1.5], [2.0], [2.5], [3.0], [10.0]]
+_ale_nIntervals = 5
+_ale_vals = [r[0] for r in _ale_X]
+_ale_minV, _ale_maxV = min(_ale_vals), max(_ale_vals)
+_ale_intervals = [_ale_minV + (_ale_maxV - _ale_minV) * i / _ale_nIntervals for i in range(_ale_nIntervals + 1)]
+_ale_vals_out = [0.0] * _ale_nIntervals
+for _k in range(_ale_nIntervals):
+    _lo, _hi = _ale_intervals[_k], _ale_intervals[_k + 1]
+    if _k == _ale_nIntervals - 1:
+        _inBin = [r for r in _ale_X if r[0] >= _lo and r[0] <= _hi]
+    else:
+        _inBin = [r for r in _ale_X if r[0] >= _lo and r[0] < _hi]
+    if not _inBin:
+        _ale_vals_out[_k] = _ale_vals_out[_k - 1] if _k > 0 else 0.0
+        continue
+    _effect = 0.0
+    for _row in _inBin:
+        _rowLo = list(_row); _rowLo[0] = _lo
+        _rowHi = list(_row); _rowHi[0] = _hi
+        _effect += ((_rowHi[0] ** 2) - (_rowLo[0] ** 2)) / len(_inBin)
+    _ale_vals_out[_k] = (_ale_vals_out[_k - 1] if _k > 0 else 0.0) + _effect
+interpretability = {
+    'ale_basic': {'X': _ale_X, 'nIntervals': _ale_nIntervals, 'ale': _ale_vals_out, 'intervals': _ale_intervals}
+}
+ref['interpretability'] = interpretability
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
