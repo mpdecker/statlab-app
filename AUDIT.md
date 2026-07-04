@@ -328,6 +328,28 @@
 > `procrustes` was independently verified to match `scipy.linalg.orthogonal_procrustes` exactly (both the
 > rotation matrix and the residual sum of squares). Full suite: **4,893 tests pass**. Total across all
 > oracle passes: **31 real correctness bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, seventeenth pass).** Surveyed six more modules —
+> `econometric.js`, `mds.js`, `game.js`, `pgm.js`, `phylogenetics.js`, `sem.js` — finding **1 more real
+> bug**:
+> - `dSeparationQuery` (pgm.js) — called its internal `moralGraph(false)` helper, which skips the entire
+>   co-parent-marrying (moralization) step, meaning colliders were never handled. On the textbook collider
+>   example `0 → 1 ← 2`, this gave the **exact opposite** answer to the correct, independently-verified
+>   `dseparation` function elsewhere in the same file: it reported 0 and 2 as *dependent* with no
+>   conditioning (should be independent) and *independent* when conditioning on the collider (should be
+>   dependent — conditioning on a collider opens the path). Fixed by delegating to the file's own
+>   already-correct `dSepCore` (ancestral-moral-graph) implementation instead of the broken standalone copy.
+>
+> `panelFixedEffects` (econometric.js) was verified to match `statsmodels` OLS-with-unit-dummies (the LSDV
+> estimator, theoretically identical to the within/FE estimator) exactly, on both coefficients and standard
+> errors. `classicalMDS` (mds.js) was verified to match an independent numpy double-centering +
+> eigendecomposition computation exactly (stress and reconstructed distances). `shapleyValue` (game.js) was
+> verified against the classic glove-game's known analytical values (2/3, 1/6, 1/6). `hausmanTest`'s
+> diagonal-covariance formula was confirmed to be the standard simplification for when only per-coefficient
+> SEs (not full covariance matrices) are available. `nashEquilibrium`'s single-payoff-matrix convention was
+> judged too ambiguous to conclusively verify without a documented convention, so it was left unaudited
+> rather than risk a false-positive "fix." Full suite: **4,897 tests pass**. Total across all oracle passes:
+> **32 real correctness bugs found and fixed**, plus one module-portability defect.
 
 ## Verdict
 

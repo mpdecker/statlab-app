@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { classicalMDS, sammonMapping, nonMetricMDS, sammonMappingDM, landmarkMDS } from './mds.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const data = []; for (let i = 0; i < 12; i++) data.push({ x1: i, x2: i * 0.5, x3: Math.sin(i), x4: i % 3 });
 
@@ -10,6 +11,15 @@ describe('classicalMDS', () => {
   it('points correct count', () => { const r = classicalMDS(data, ['x1', 'x2']); expect(r.points).toHaveLength(data.length); });
   it('stress >= 0', () => { const r = classicalMDS(data, ['x1', 'x2']); expect(r.stress).toBeGreaterThanOrEqual(0); });
   it('points have correct dimensions', () => { const r = classicalMDS(data, ['x1', 'x2']); if (r && r.points && r.points[0]) expect(r.points[0]).toHaveLength(2); });
+});
+
+describe('classicalMDS matches an independent numpy double-centering + eigendecomposition exactly', () => {
+  it('stress matches on a 7-point 3-variable example', () => {
+    const e = ref.mds.classical_basic;
+    const rows = e.data.map(([a, b, c]) => ({ a, b, c }));
+    const r = classicalMDS(rows, ['a', 'b', 'c'], { nDimensions: 2 });
+    expect(r.stress).toBeCloseTo(e.stress, 4);
+  });
 });
 
 describe('sammonMapping', () => {

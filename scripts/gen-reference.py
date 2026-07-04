@@ -1314,6 +1314,61 @@ _ord_m2val = float(np.sum((_ord_X @ _ord_R - _ord_Y) ** 2))
 ordination['procrustes_basic'] = {'X': _ord_X.tolist(), 'Y': _ord_Y.tolist(), 'm2': _ord_m2val}
 ref['ordination'] = ordination
 
+# ── econometric ───────────────────────────────────────────────────────────────
+econometric = {}
+econ_ids = ['a', 'a', 'a', 'a', 'b', 'b', 'b', 'b', 'c', 'c', 'c', 'c']
+econ_x1 = [1.0, 2.0, 1.5, 2.5, 4.0, 5.0, 4.5, 5.5, 7.0, 8.0, 7.5, 8.5]
+econ_x2 = [0.5, -0.3, 0.2, 0.1, -0.4, 0.6, -0.1, 0.3, 0.2, -0.5, 0.4, -0.2]
+econ_y = [5.1, 7.3, 6.0, 8.4, 12.9, 14.5, 13.6, 15.2, 20.1, 21.4, 20.5, 22.0]
+econ_df = pd.DataFrame({'id': econ_ids, 'x1': econ_x1, 'x2': econ_x2, 'y': econ_y})
+econ_dummies = pd.get_dummies(econ_df['id'], drop_first=True).astype(float)
+econ_X = sm.add_constant(pd.concat([econ_df[['x1', 'x2']], econ_dummies], axis=1))
+econ_model = sm.OLS(econ_df['y'], econ_X).fit()
+econometric['panel_fe_basic'] = {
+    'ids': econ_ids, 'x1': econ_x1, 'x2': econ_x2, 'y': econ_y,
+    'b': {'x1': float(econ_model.params['x1']), 'x2': float(econ_model.params['x2'])},
+    'se': {'x1': float(econ_model.bse['x1']), 'x2': float(econ_model.bse['x2'])},
+}
+ref['econometric'] = econometric
+
+# ── mds ───────────────────────────────────────────────────────────────────────
+mds = {}
+mds_data = [[1, 2, 3], [4, 1, 2], [2, 5, 1], [6, 3, 4], [1, 1, 6], [3, 4, 2], [5, 2, 5]]
+_mds_X = np.array(mds_data, dtype=float)
+_mds_n = len(_mds_X)
+_mds_D = np.sqrt(((_mds_X[:, None, :] - _mds_X[None, :, :]) ** 2).sum(-1))
+_mds_D2 = _mds_D ** 2
+_mds_rowmeans = _mds_D2.mean(axis=1)
+_mds_grandmean = _mds_rowmeans.mean()
+_mds_B = -0.5 * (_mds_D2 - _mds_rowmeans[:, None] - _mds_rowmeans[None, :] + _mds_grandmean)
+_mds_eigval, _mds_eigvec = np.linalg.eigh(_mds_B)
+_mds_idx = np.argsort(_mds_eigval)[::-1]
+_mds_eigval, _mds_eigvec = _mds_eigval[_mds_idx], _mds_eigvec[:, _mds_idx]
+_mds_points = _mds_eigvec[:, :2] * np.sqrt(np.maximum(_mds_eigval[:2], 0))
+_mds_Dhat = np.sqrt(((_mds_points[:, None, :] - _mds_points[None, :, :]) ** 2).sum(-1))
+_mds_iu = np.triu_indices(_mds_n, k=1)
+mds['classical_basic'] = {'data': mds_data, 'stress': float(np.sum((_mds_D[_mds_iu] - _mds_Dhat[_mds_iu]) ** 2) / np.sum(_mds_D[_mds_iu] ** 2))}
+ref['mds'] = mds
+
+# ── game ──────────────────────────────────────────────────────────────────────
+game = {}
+# Classic glove game: player 1 holds a left glove, players 2 and 3 each hold a
+# right glove; a coalition is worth 1 iff it has >=1 left AND >=1 right glove.
+# Known analytical Shapley values: player 1 = 2/3, players 2 and 3 = 1/6 each.
+game['shapley_glove'] = {'players': ['1', '2', '3'], 'values': [2 / 3, 1 / 6, 1 / 6]}
+ref['game'] = game
+
+# ── pgm ───────────────────────────────────────────────────────────────────────
+pgm = {}
+# Classic collider: 0 -> 1 <- 2. Without conditioning on the collider (node 1),
+# 0 and 2 are d-separated; conditioning on the collider opens the path.
+pgm['collider_basic'] = {
+    'edges': [{'from': 0, 'to': 1}, {'from': 2, 'to': 1}],
+    'nVars': 3, 'X': 0, 'Y': 2,
+    'separatedNoZ': True, 'separatedWithZ': False,
+}
+ref['pgm'] = pgm
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

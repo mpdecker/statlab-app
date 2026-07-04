@@ -348,24 +348,10 @@ export function cpdag(dagEdges, nVars) {
 // ── D-Separation Query ────────────────────────────────────────────
 export function dSeparationQuery(edges, nVars, X, Y, Z = []) {
   if (!edges || !nVars || X == null || Y == null) return null;
-  const moralGraph = (parents) => {
-    const graph = Array.from({length: nVars}, () => new Set());
-    for (const e of edges) { graph[e.from].add(e.to); graph[e.to].add(e.from); }
-    if (parents) {
-      for (let v = 0; v < nVars; v++) {
-        const pa = edges.filter(e => e.to === v).map(e => e.from);
-        for (let i = 0; i < pa.length; i++) for (let j = i + 1; j < pa.length; j++) { graph[pa[i]].add(pa[j]); graph[pa[j]].add(pa[i]); }
-      }
-    }
-    return graph;
-  };
-  const Zset = new Set(Z);
-  const graph = moralGraph(false);
-  // Remove Z nodes
-  for (const z of Zset) { graph[z].forEach(n => graph[n].delete(z)); graph[z].clear(); }
-  // Check reachable
-  const visited = new Set();
-  function dfs(node) { if (node === Y) return true; visited.add(node); for (const nbr of graph[node]) if (!visited.has(nbr)) if (dfs(nbr)) return true; return false; }
-  const reachable = dfs(X);
-  return { test: 'D-Separation', separated: !reachable, query: `X${X}|Y${Y}|Z[${[...Z]}`, nVars, apa: `d-sep: X${X} ${reachable ? 'not ' : ''}separated from Y${Y}` };
+  // Delegate to dSepCore's ancestral-moral-graph algorithm (the standalone
+  // implementation formerly here called moralGraph(false), which never
+  // executed the co-parent-marrying step — colliders were never moralized,
+  // so conditioning on a collider silently gave the opposite answer).
+  const separated = dSepCore(edges, X, Y, Z);
+  return { test: 'D-Separation', separated, query: `X${X}|Y${Y}|Z[${[...Z]}`, nVars, apa: `d-sep: X${X} ${separated ? '' : 'not '}separated from Y${Y}` };
 }

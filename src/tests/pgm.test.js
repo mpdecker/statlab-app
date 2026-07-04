@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { markovBlanket, beliefPropagation, factorGraph, bicScore, dseparation, variableElimination, treeWidth, junctionTree, hillClimbing, scoringBDeu, cpdag, dSeparationQuery } from './pgm.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+describe('dSeparationQuery correctly handles a collider (regression test for the skipped-moralization fix)', () => {
+  it('0 and 2 are d-separated when NOT conditioning on the collider, and NOT d-separated when conditioning on it', () => {
+    const e = ref.pgm.collider_basic;
+    expect(dSeparationQuery(e.edges, e.nVars, e.X, e.Y, []).separated).toBe(e.separatedNoZ);
+    expect(dSeparationQuery(e.edges, e.nVars, e.X, e.Y, [1]).separated).toBe(e.separatedWithZ);
+  });
+});
 
 const edges = [{ from: 0, to: 1 }, { from: 0, to: 2 }, { from: 1, to: 3 }, { from: 2, to: 3 }];
 
