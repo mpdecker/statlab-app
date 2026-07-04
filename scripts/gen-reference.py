@@ -1435,6 +1435,23 @@ _stoch_pi = _stoch_pi / _stoch_pi.sum()
 stochastic['steady_state_basic'] = {'P': stoch_P, 'pi': _stoch_pi.tolist()}
 ref['stochastic'] = stochastic
 
+# ── conjoint ──────────────────────────────────────────────────────────────────
+conjoint = {}
+conj_profiles = [
+    {'price': 'low', 'brand': 'A'}, {'price': 'low', 'brand': 'B'}, {'price': 'high', 'brand': 'A'},
+    {'price': 'high', 'brand': 'B'}, {'price': 'low', 'brand': 'A'}, {'price': 'high', 'brand': 'B'},
+]
+conj_ratings = [8, 6, 4, 2, 8, 2]
+_conj_X = np.array([[1 if p['price'] == 'low' else -1, 1 if p['brand'] == 'A' else -1] for p in conj_profiles], dtype=float)
+_conj_X = sm.add_constant(_conj_X)
+_conj_model = sm.OLS(conj_ratings, _conj_X).fit()
+conjoint['partworth_basic'] = {
+    'profiles': conj_profiles, 'ratings': conj_ratings,
+    'priceUtil': [float(_conj_model.params[1]), -float(_conj_model.params[1])],
+    'brandUtil': [float(_conj_model.params[2]), -float(_conj_model.params[2])],
+}
+ref['conjoint'] = conjoint
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

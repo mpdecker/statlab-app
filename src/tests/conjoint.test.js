@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
 import { partWorthUtilities, attributeImportance, choiceSimulation, orthogonalDesign, marketSimulator } from './conjoint.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const profiles = []; for (let i = 0; i < 12; i++) profiles.push({ brand: (i % 3) + 1, price: (i % 2) + 1, feature: (Math.floor(i / 4) % 3) + 1 });
 const ratings = profiles.map(() => Math.random() * 10);
@@ -10,6 +11,19 @@ describe('partWorthUtilities', () => {
   it('null <2 attrs', () => expect(partWorthUtilities(ratings, profiles, ['brand'])).toBeNull());
   it('utilities array non-empty', () => { const r = partWorthUtilities(ratings, profiles, ['brand','price','feature']); if (r) expect(r.utilities.length).toBeGreaterThan(0) });
 });
+describe('partWorthUtilities matches statsmodels OLS with effects coding exactly (regression test for the constant-column/no-intercept fix)', () => {
+  it('recovers the true noise-free generating utilities', () => {
+    const e = ref.conjoint.partworth_basic;
+    const r = partWorthUtilities(e.ratings, e.profiles, ['price', 'brand']);
+    const price = r.utilities.find(u => u.attribute === 'price').utilities;
+    const brand = r.utilities.find(u => u.attribute === 'brand').utilities;
+    expect(price[0].utility).toBeCloseTo(e.priceUtil[0], 3);
+    expect(price[1].utility).toBeCloseTo(e.priceUtil[1], 3);
+    expect(brand[0].utility).toBeCloseTo(e.brandUtil[0], 3);
+    expect(brand[1].utility).toBeCloseTo(e.brandUtil[1], 3);
+  });
+});
+
 describe('attributeImportance', () => {
   const pw = partWorthUtilities(ratings, profiles, ['brand','price','feature']);
   it('contract keys', () => { if (pw) expectKeys(attributeImportance(pw), ['test','importance','apa']); });

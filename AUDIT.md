@@ -409,6 +409,29 @@
 > RA-CUSUM log-likelihood-ratio, which would need deeper domain-specific verification to confirm one way or
 > the other. Full suite: **4,903 tests pass**. Total across all oracle passes remains **35 real correctness
 > bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, twenty-first pass).** Extended coverage into `conjoint.js`,
+> finding **1 more real bug**:
+> - `partWorthUtilities` — its design matrix used `levels.length` columns per attribute instead of the
+>   correct `levels.length − 1` for effects coding, and the last column was hardcoded to `−1` for *every*
+>   row regardless of that row's actual value — a constant, perfectly-collinear column, with no explicit
+>   intercept anywhere in the design. On a noise-free synthetic conjoint dataset with known true part-worths
+>   (price: +2/−2, brand: +1/−1, shared intercept 5), this produced nonsense utilities (7.33, −5, 6.67, −5)
+>   instead of recovering the true generating values. Rewrote the design matrix with standard effects coding
+>   (an explicit intercept, `L−1` columns per attribute, reference level derived as `−Σ(other levels)` so
+>   each attribute's part-worths sum to zero) — the fix now recovers the exact true utilities, verified
+>   against `statsmodels.OLS` on an equivalent effects-coded regression.
+>
+> `abm.js`'s `segregationIndex` was found to give exactly half of Duncan's classic Index of Dissimilarity on
+> a symmetric 2-group test case, but was **left unaudited**: multi-group generalizations of segregation
+> indices are genuinely contested in the demography literature (Sakoda's index, Theil's multi-group entropy
+> index H, and the James–Taeuber index all disagree on the "right" generalization beyond 2 groups), so
+> without a documented convention this codebase intends to match, a "fix" risked being a confident wrong
+> answer rather than a correction. `symbolic.js`'s interval-data statistics (`intervalMean`,
+> `intervalVariance`, `intervalCorrelation`) and `markovSteadyState`/`reliableChangeIndex` (already checked
+> in the prior pass) round out a productive stretch of the less-traveled modules. Full suite: **4,904 tests
+> pass**. Total across all oracle passes: **36 real correctness bugs found and fixed**, plus one
+> module-portability defect.
 
 ## Verdict
 

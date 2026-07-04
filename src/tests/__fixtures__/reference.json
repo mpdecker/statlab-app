@@ -4490,5 +4490,51 @@
         0.21951219512195125
       ]
     }
+  },
+  "conjoint": {
+    "partworth_basic": {
+      "profiles": [
+        {
+          "price": "low",
+          "brand": "A"
+        },
+        {
+          "price": "low",
+          "brand": "B"
+        },
+        {
+          "price": "high",
+          "brand": "A"
+        },
+        {
+          "price": "high",
+          "brand": "B"
+        },
+        {
+          "price": "low",
+          "brand": "A"
+        },
+        {
+          "price": "high",
+          "brand": "B"
+        }
+      ],
+      "ratings": [
+        8,
+        6,
+        4,
+        2,
+        8,
+        2
+      ],
+      "priceUtil": [
+        2.000000000000001,
+        -2.000000000000001
+      ],
+      "brandUtil": [
+        1.0,
+        -1.0
+      ]
+    }
   }
 }
