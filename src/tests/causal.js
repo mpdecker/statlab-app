@@ -139,7 +139,12 @@ export function iv2sls(data, yVar, xVar, instrument, controls = []) {
   if (!inv2) return null;
   const beta2 = matMul(inv2, XtY.map(v => [v])).map(v => v[0]);
   const coefX = beta2[1];
-  const resid = Y.map((y, i) => y - X2[i].reduce((s, v, j) => s + v * beta2[j], 0));
+  // Structural residuals must use the ORIGINAL (endogenous) X, not the
+  // first-stage-fitted X̂ — plugging X̂ into the residual (as if it were the
+  // regressor actually observed) understates the true residual variance and
+  // badly overstates the SE, a classic by-hand-2SLS pitfall.
+  const Xactual = Xend.map((x, i) => [1, x, ...W[i].slice(1)]);
+  const resid = Y.map((y, i) => y - Xactual[i].reduce((s, v, j) => s + v * beta2[j], 0));
   const s2 = resid.reduce((s, e) => s + e ** 2, 0) / (n - p2);
   const seX = Math.sqrt(s2 * inv2[1][1]);
   const t = coefX / (seX || 1e-9);

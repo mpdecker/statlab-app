@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { waldSPRT, obrienFleming, pocockBoundaries, groupSequential, lanDemets, conditionalPower, doubleTriangular, haybittlePeto } from './sequential.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const data = [0.1, 0.3, -0.2, 0.5, 0.2, 0.4, 0.6, -0.1, 0.3, 0.7, 0.2, 0.5, 0.1, 0.8, 0.4, 0.3, 0.6, 0.9, 0.2, 0.5];
 
@@ -20,6 +21,14 @@ describe('pocockBoundaries', () => {
   it('contract keys', () => expectKeys(pocockBoundaries(3), ['test', 'boundaries', 'stages', 'alpha', 'apa']));
   it('boundaries non-empty', () => { const r = pocockBoundaries(3); if (r) expect(r.boundaries.length).toBeGreaterThan(0); });
   it('stages matches', () => { const r = pocockBoundaries(3); if (r) expect(r.stages).toBe(3); });
+});
+
+describe('obrienFleming matches a properly-calibrated Armitage-McPherson recursion (regression test for the uncalibrated-Bonferroni-approximation fix)', () => {
+  it('boundaries match the true alpha-spending-calibrated O\'Brien-Fleming shape', () => {
+    const e = ref.sequential.obf_basic;
+    const r = obrienFleming(e.stages, e.alpha);
+    e.boundaries.forEach((b, i) => expect(r.boundaries[i].boundary).toBeCloseTo(b, 3));
+  });
 });
 
 describe('groupSequential', () => {

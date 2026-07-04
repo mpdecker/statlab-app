@@ -259,6 +259,28 @@
 > invariant — `‖ILR(x)‖ = ‖CLR(x)‖` — verified to hold exactly) were all independently checked correct, no
 > changes needed. Full suite: **4,884 tests pass**. Total across all oracle passes: **24 real correctness
 > bugs found and fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, fourteenth pass).** Extended coverage into `sequential.js` and
+> `causal.js`, finding **2 more real bugs**:
+> - `obrienFleming` (sequential.js) — used a naive Bonferroni-style approximation
+>   (`z_(1-α/2K)·√(K/k)`) instead of a properly alpha-spending-calibrated boundary, even though the
+>   adjacent `pocockBoundaries` function already implements the correct Armitage-McPherson recursive
+>   calibration for Pocock's (different) boundary shape. The uncalibrated formula was meaningfully too
+>   conservative — for 5 stages at α=0.05 it gave boundaries of [5.76, 4.07, 3.33, 2.88, 2.58] instead of the
+>   correctly-calibrated [4.56, 3.22, 2.63, 2.28, 2.04] (verified by adapting the same recursive integration
+>   already used for Pocock's boundary, exploiting O'Brien-Fleming's defining property — a *constant*
+>   boundary on the raw cumulative statistic, vs. Pocock's constant boundary on the *standardized*
+>   statistic). Fixed by refactoring the calibration into a shared helper and using it for both boundary
+>   shapes.
+> - `iv2sls` (causal.js) — the 2SLS point estimate was correct, but the standard error used the
+>   first-stage-fitted `X̂` (rather than the actual endogenous `X`) when computing the structural residuals
+>   for `σ̂²`, a classic by-hand-2SLS pitfall. This overstated the SE by more than 2x on a test dataset (0.253
+>   buggy vs 0.098 correct — verified exactly against `statsmodels.sandbox.regression.gmm.IV2SLS`). Fixed by
+>   computing residuals against the original `X`.
+>
+> `waldSPRT`'s A/B threshold formula was independently verified as the standard textbook formula, no changes
+> needed. Full suite: **4,886 tests pass**. Total across all oracle passes: **26 real correctness bugs found
+> and fixed**, plus one module-portability defect.
 
 ## Verdict
 

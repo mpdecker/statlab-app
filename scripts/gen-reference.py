@@ -1164,6 +1164,103 @@ doseResponse['fourpl_basic'] = {
 }
 ref['doseResponse'] = doseResponse
 
+# ── sequential ────────────────────────────────────────────────────────────────
+sequential = {}
+
+
+def _calibrate_gs_boundary(K, alpha, bound_w):
+    def phi(z):
+        return np.exp(-0.5 * z * z) / np.sqrt(2 * np.pi)
+    L = 4 * np.sqrt(K) + 6
+    h = 0.05
+    grid = np.arange(-L, L + h, h)
+    m = len(grid)
+
+    def cross_prob(c):
+        f = phi(grid)
+        total = 0.0
+        for k in range(1, K + 1):
+            bound = bound_w(c, k)
+            mask = np.abs(grid) >= bound
+            total += np.sum(f[mask]) * h
+            if k == K:
+                break
+            fc = np.where(np.abs(grid) < bound, f, 0)
+            fn = np.zeros(m)
+            for a_idx in range(m):
+                if fc[a_idx] == 0:
+                    continue
+                fn += fc[a_idx] * h * phi(grid - grid[a_idx])
+            f = fn
+        return total
+
+    lo, hi = 0.5, 4.5
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if cross_prob(mid) > alpha:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
+# O'Brien-Fleming's defining property is a CONSTANT boundary on the raw
+# cumulative statistic (unlike Pocock's, constant on the standardized Z_k) —
+# pins down the uncalibrated-Bonferroni-approximation bug.
+_seq_K = 5
+_seq_alpha = 0.05
+_of_c = _calibrate_gs_boundary(_seq_K, _seq_alpha, lambda c, k: c * np.sqrt(_seq_K))
+sequential['obf_basic'] = {'stages': _seq_K, 'alpha': _seq_alpha, 'boundaries': [_of_c * np.sqrt(_seq_K / k) for k in range(1, _seq_K + 1)]}
+ref['sequential'] = sequential
+
+# ── causal ────────────────────────────────────────────────────────────────────
+causal = {}
+# Hardcoded dataset (generated once via the JS mulberry32(777) PRNG so both
+# sides compute on IDENTICAL inputs — the JS and Python PRNGs are not
+# interchangeable, so the values are frozen here rather than regenerated).
+_civ_rows = [
+    (1.994141, 1.017547, 1.299848, 0.847309), (2.31306, 0.50751, -0.76982, 0.48612),
+    (-0.341837, 0.751622, 1.358044, 0.136), (1.637515, 0.135979, -0.86427, -0.414053),
+    (5.978281, 1.694295, 0.610925, 1.24172), (0.122956, 0.078447, -0.206754, 0.120521),
+    (0.242182, -0.659929, -1.775206, 0.807418), (-0.373752, 0.250487, 0.648229, -0.002199),
+    (-2.500691, -0.92493, -0.743934, 0.10348), (3.309397, 1.317309, 0.88468, -0.118403),
+    (0.876359, -0.022933, -0.6193, -0.451659), (-1.167633, -0.568964, 0.22266, -0.321876),
+    (-0.032854, -0.096495, 0.052113, 1.408253), (-6.830407, -2.358329, -1.358638, -1.304165),
+    (-0.549916, 0.512404, 1.819642, -1.623364), (0.070708, 0.741812, 1.152796, -0.54124),
+    (-2.023993, -0.676797, -0.452337, -0.836613), (-1.240588, 0.382184, 1.655386, -0.978727),
+    (0.240488, 0.414157, 1.125669, -0.320693), (1.015166, 1.174702, 1.890333, 0.051903),
+    (-1.905509, -0.918197, -1.400682, 0.452626), (-3.478152, -0.832949, -0.22761, -1.090667),
+    (-7.419039, -2.20256, -0.353978, -1.718063), (-0.666971, -0.518594, -0.809596, -0.988157),
+    (3.422243, 1.479821, 1.03901, 0.009684), (-2.400736, -0.60906, -0.061244, 0.644206),
+    (-3.553708, -0.912828, 0.363107, -0.749546), (0.302392, -0.282406, -0.338081, -0.055977),
+    (4.214853, 0.792528, -1.833248, 1.213772), (-5.745977, -1.363275, 0.125704, -2.19781),
+    (0.851195, 0.40813, 0.491459, -0.586798), (-0.22564, -0.418477, -0.35298, -0.221666),
+    (4.379086, 1.802899, 0.835041, 0.536953), (-5.537386, -2.260048, -2.658437, 0.788478),
+    (1.119912, 0.09011, -1.130225, 1.503722), (-1.742426, -0.726282, -0.502189, 1.14037),
+    (-5.852709, -1.506193, 0.452254, -1.497045), (6.037305, 1.562713, -0.178858, 1.661376),
+    (1.319935, 0.118742, -0.149877, 0.343818), (-2.1043, -0.010822, 1.671622, -2.104768),
+]
+_civ_n = len(_civ_rows)
+_civ_y = np.array([r[0] for r in _civ_rows])
+_civ_x = np.array([r[1] for r in _civ_rows])
+_civ_z = np.array([r[2] for r in _civ_rows])
+_civ_w1 = np.array([r[3] for r in _civ_rows])
+
+_civ_Z = np.column_stack([np.ones(_civ_n), _civ_z, _civ_w1])
+_civ_xhat = _civ_Z @ np.linalg.solve(_civ_Z.T @ _civ_Z, _civ_Z.T @ _civ_x)
+_civ_X2 = np.column_stack([np.ones(_civ_n), _civ_xhat, _civ_w1])
+_civ_beta2 = np.linalg.solve(_civ_X2.T @ _civ_X2, _civ_X2.T @ _civ_y)
+_civ_Xactual = np.column_stack([np.ones(_civ_n), _civ_x, _civ_w1])
+_civ_resid = _civ_y - _civ_Xactual @ _civ_beta2
+_civ_s2 = np.sum(_civ_resid ** 2) / (_civ_n - 3)
+_civ_inv2 = np.linalg.inv(_civ_X2.T @ _civ_X2)
+_civ_se = float(np.sqrt(_civ_s2 * _civ_inv2[1, 1]))
+causal['iv2sls_basic'] = {
+    'y': _civ_y.tolist(), 'x': _civ_x.tolist(), 'z': _civ_z.tolist(), 'w1': _civ_w1.tolist(),
+    'coef': float(_civ_beta2[1]), 'se': _civ_se,
+}
+ref['causal'] = causal
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
