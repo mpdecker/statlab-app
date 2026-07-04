@@ -155,11 +155,26 @@ export function directIndirectEffects(durbinResult) {
   if (!durbinResult || !durbinResult.coefficients) return null;
   const n = durbinResult.n || 0;
   const rho = durbinResult.rho || 0.3;
-  const effects = durbinResult.coefficients.map((c, j) => ({
-    variable: c.name,
-    direct: +c.b.toFixed(5),
-    indirect: +((c.b * rho) / (1 - rho)).toFixed(5),
-    total: +((c.b) / (1 - rho)).toFixed(5),
-  }));
+  const lagCoefs = durbinResult.lagCoefficients || [];
+  // For row-standardized W, (I-ρW)⁻¹·1 = 1/(1-ρ)·1 and W·1 = 1, so the average
+  // TOTAL effect has the exact closed form (β+θ)/(1-ρ) — the previous version
+  // silently dropped θ (the WX/"lagCoefficients" term) from this sum entirely,
+  // understating Total by exactly θ/(1-ρ) whenever a Durbin (WX) term is
+  // present. The exact split of Total into Direct/Indirect requires the trace
+  // structure of the actual W matrix (not available from β/θ/ρ alone), so
+  // Direct is kept as the β approximation and Indirect is the remainder
+  // (Total − Direct), preserving internal consistency.
+  const effects = durbinResult.coefficients.map((c, j) => {
+    const theta = lagCoefs[j] ? lagCoefs[j].b : 0;
+    const direct = c.b;
+    const total = (c.b + theta) / (1 - rho);
+    const indirect = total - direct;
+    return {
+      variable: c.name,
+      direct: +direct.toFixed(5),
+      indirect: +indirect.toFixed(5),
+      total: +total.toFixed(5),
+    };
+  });
   return { test: 'Direct & Indirect Effects', effects, rho: +rho.toFixed(4), apa: `Effects: direct + indirect` };
 }

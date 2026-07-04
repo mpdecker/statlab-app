@@ -432,6 +432,48 @@
 > in the prior pass) round out a productive stretch of the less-traveled modules. Full suite: **4,904 tests
 > pass**. Total across all oracle passes: **36 real correctness bugs found and fixed**, plus one
 > module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-03, twenty-second pass).** Extended coverage into `copula.js`,
+> finding **1 more real bug** (present identically in all four copula-fitting functions):
+> - `gaussianCopula`/`tCopula`/`claytonCopula`/`gumbelCopula` — the pseudo-observation (empirical-CDF)
+>   transform used `sorted.indexOf(v)` to find each value's rank, but `Array.indexOf` only ever returns the
+>   position of the *first* matching element. Every tied value therefore collapsed onto the same rank
+>   instead of the standard mid-rank/average-rank convention (what `scipy.stats.rankdata(method='average')`
+>   computes) — biased for any column with repeated values, the common case for real or rounded data. On a
+>   test column with several duplicates this gave pseudo-observations of [0.0417, 0.2917, 0.2917, 0.625,
+>   0.0417] instead of the correct [0.125, 0.4167, 0.4167, 0.6667, 0.125] (verified exactly against
+>   `scipy.stats.rankdata`). Fixed by extracting a shared `pseudoObs` helper that computes proper tied
+>   (average) ranks, used identically across all four copula families.
+>
+> `privacy.js`'s `laplaceMechanism` (standard inverse-CDF Laplace sampling), `kAnonymityCheck`, and
+> `lDiversity` were confirmed correct by inspection; `tCloseness`'s 1D Earth Mover's Distance approximation
+> is a standard, valid computational shortcut for ordered categories. Full suite: **4,905 tests pass**.
+> Total across all oracle passes: **37 real correctness bugs found and fixed**, plus one module-portability
+> defect.
+>
+> **Oracle-coverage expansion (2026-07-03, twenty-third pass).** Re-examined `spatialEconometric.js` in
+> full (having previously only spot-checked it) by writing an independent from-scratch Python
+> re-implementation of Ord's concentrated-log-likelihood spatial-lag MLE (via `scipy.optimize.minimize_scalar`
+> golden-section search over ρ and `np.linalg.slogdet` for the log-Jacobian term) and driving both
+> implementations with a synthetic DGP (`y = ρWy + Xβ + ε` generated via 200-iteration Neumann-series
+> simulation on a row-standardized grid W). `spatialDurbin` and `spatialPanel` matched the from-scratch
+> Python oracle exactly (ρ = 0.0922, ll = 14.7149 and ρ = 0.2081, β = 1.4853, ll = 54.802 respectively, both
+> ways) — confirmed correct, no bug. Found **1 more real bug**:
+> - `directIndirectEffects` — computed each variable's average Total spatial effect as the direct-effect
+>   approximation `β / (1-ρ)`, silently dropping `θ` (the `lagCoefficients`/WX "Durbin" term) whenever the
+>   fitted model included one. For row-standardized W, `(I-ρW)⁻¹·1 = 1/(1-ρ)·1`, so the exact closed-form
+>   average Total effect is `(β+θ)/(1-ρ)` — verified directly against `(I-ρW)⁻¹(βI+θW)` via numpy trace
+>   computation. With β=2.0, θ=1.0, ρ=0.3 the old code returned Total=2.857 instead of the correct 4.286 (a
+>   33% understatement) whenever a Durbin term was present. Fixed by including `θ` in the Total sum and
+>   deriving Indirect as the remainder (Total − Direct), since the exact Direct/Indirect split requires the
+>   underlying W's trace structure, not recoverable from β/θ/ρ alone.
+>
+> Also audited `spatialTemporal.js` in full (`starModel`, `gstarModel`, `spaceTimeInteraction`,
+> `spatiotemporalMoran`, `spaceTimeForecast`) against independent numpy re-implementations of the same
+> synthetic-DGP procedure (OLS via `np.linalg.lstsq` on `[Wy, X]`, direct Moran's-I summation, and the
+> `y_{t+h} = ρWy_{t+h-1} + Xβ` forward recursion with its `(I-ρW)⁻¹Xβ` fixed point) — all five functions
+> matched exactly; no bugs found. Full suite: **4,906 tests pass**. Total across all oracle passes:
+> **38 real correctness bugs found and fixed**, plus one module-portability defect.
 
 ## Verdict
 

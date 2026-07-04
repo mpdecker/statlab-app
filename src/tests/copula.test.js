@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { gaussianCopula, tCopula, claytonCopula, gumbelCopula, frankCopula, copulaFit, tailDependence } from './copula.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+describe('gaussianCopula pseudo-observations match scipy.stats.rankdata(method=average) exactly under ties (regression test for the indexOf-first-occurrence fix)', () => {
+  it('matches on a column with repeated values', () => {
+    const e = ref.copula.pseudo_obs_basic;
+    const data = e.x.map((x, i) => ({ x, y: e.y[i] }));
+    const r = gaussianCopula(data, ['x', 'y']);
+    // pseudoObs is sliced to the first 5 rows in the return value.
+    e.uX.slice(0, 5).forEach((u, i) => expect(r.pseudoObs[0][i]).toBeCloseTo(u, 3));
+  });
+});
 
 const d = []; for (let i = 0; i < 30; i++) d.push({ x1: i * 0.5, x2: i * 0.3 + Math.sin(i) * 2, x3: i % 5 });
 

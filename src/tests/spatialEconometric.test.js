@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
 import { spatialDurbin, spatialPanel, spatialHausman, directIndirectEffects } from './spatialEconometric.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const d = []; for (let i = 0; i < 20; i++) d.push({ y: i + Math.random(), x1: i % 3, x2: i % 2, id: Math.floor(i / 4), time: i % 4 });
 const W = Array.from({length: 20}, () => Array(20).fill(0.01));
@@ -25,6 +26,20 @@ describe('directIndirectEffects', () => {
   it('contract keys', () => expectKeys(directIndirectEffects(result), ['test','effects','rho','apa']));
   it('effects non-empty', () => { const r = directIndirectEffects(result); if (r && r.effects) expect(r.effects.length).toBeGreaterThan(0); });
   it('each effect has total', () => { const r = directIndirectEffects(result); if (r && r.effects) { r.effects.forEach(e => { expect(e).toHaveProperty('total'); }); } });
+});
+
+describe('directIndirectEffects Total includes the Durbin (WX) term (regression test for the theta-dropping fix)', () => {
+  it('Total = (beta + theta) / (1 - rho), the exact closed form for row-standardized W', () => {
+    const e = ref.spatialEconometric.direct_indirect_basic;
+    const result = {
+      n: 20, rho: e.rho,
+      coefficients: [{ name: 'x1', b: e.beta }],
+      lagCoefficients: [{ name: 'W_x1', b: e.theta }],
+    };
+    const r = directIndirectEffects(result);
+    expect(r.effects[0].direct).toBeCloseTo(e.direct, 4);
+    expect(r.effects[0].total).toBeCloseTo(e.total, 4);
+  });
 });
 
 describe('spatialDurbin is a real ML estimator', () => {

@@ -1452,6 +1452,31 @@ conjoint['partworth_basic'] = {
 }
 ref['conjoint'] = conjoint
 
+# ── copula ────────────────────────────────────────────────────────────────────
+from scipy.stats import rankdata as _sp_rankdata
+copula = {}
+cop_xvals = [1, 2, 2, 3, 1, 2, 4, 5, 2, 3, 1, 4]
+cop_yvals = [5, 4, 3, 2, 6, 7, 1, 2, 3, 4, 5, 6]
+_cop_n = len(cop_xvals)
+_cop_ranks = _sp_rankdata(cop_xvals, method='average')
+copula['pseudo_obs_basic'] = {'x': cop_xvals, 'y': cop_yvals, 'uX': ((_cop_ranks - 0.5) / _cop_n).tolist()}
+ref['copula'] = copula
+
+# ── spatialEconometric ─────────────────────────────────────────────────────────
+# directIndirectEffects: for row-standardized W, (I-rho*W)^-1 * 1 = 1/(1-rho) * 1,
+# so the average TOTAL effect of a Durbin (WX) variable has the exact closed form
+# (beta + theta) / (1 - rho). Verifies the fix for the previous version, which
+# silently dropped theta from Total entirely.
+_se_beta, _se_theta, _se_rho = 2.0, 1.0, 0.3
+spatialEconometric = {
+    'direct_indirect_basic': {
+        'beta': _se_beta, 'theta': _se_theta, 'rho': _se_rho,
+        'direct': _se_beta,
+        'total': (_se_beta + _se_theta) / (1 - _se_rho),
+    }
+}
+ref['spatialEconometric'] = spatialEconometric
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
