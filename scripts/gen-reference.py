@@ -1624,6 +1624,33 @@ gam['pspline_basic'] = {'x': _psp_x.tolist(), 'y': _psp_y.tolist(), 'nKnots': _p
 
 ref['gam'] = gam
 
+# ── tensor (mode-n unfold) ───────────────────────────────────────────────────
+# unfoldTensor's row index for mode 1/2 always used `i` (the tensor's first
+# index) instead of the mode-appropriate index (j for mode 1, k for mode 2),
+# so almost every cell landed in the wrong row (or was clamped into row 0).
+# Ground truth via a from-scratch numpy re-derivation of the standard mode-n
+# unfolding definition (Kolda & Bader), using the same column-index convention
+# the JS code declares (col = j*d3+k for mode 0, i*d3+k for mode 1, i*d2+j for
+# mode 2) — not a reuse of the JS implementation.
+_ut_X = np.arange(24).reshape(2, 3, 4).astype(float)
+_ut_d1, _ut_d2, _ut_d3 = _ut_X.shape
+_ut_M0 = np.zeros((_ut_d1, _ut_d2 * _ut_d3))
+_ut_M1 = np.zeros((_ut_d2, _ut_d1 * _ut_d3))
+_ut_M2 = np.zeros((_ut_d3, _ut_d1 * _ut_d2))
+for _i in range(_ut_d1):
+    for _j in range(_ut_d2):
+        for _k in range(_ut_d3):
+            _ut_M0[_i, _j * _ut_d3 + _k] = _ut_X[_i, _j, _k]
+            _ut_M1[_j, _i * _ut_d3 + _k] = _ut_X[_i, _j, _k]
+            _ut_M2[_k, _i * _ut_d2 + _j] = _ut_X[_i, _j, _k]
+tensor = {
+    'unfold_basic': {
+        'tensor': _ut_X.tolist(),
+        'mode0': _ut_M0.tolist(), 'mode1': _ut_M1.tolist(), 'mode2': _ut_M2.tolist(),
+    }
+}
+ref['tensor'] = tensor
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

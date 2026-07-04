@@ -45,11 +45,16 @@ function unfoldTensor(X, mode) {
     for (let j = 0; j < dims[1]; j++) {
       for (let k = 0; k < dims[2]; k++) {
         const val = X[i]?.[j]?.[k] || 0;
-        let col = 0;
-        if (mode === 0) col = j * dims[2] + k;
-        else if (mode === 1) col = i * dims[2] + k;
-        else col = i * dims[1] + j;
-        result[i < nRows ? i : 0][col >= nCols ? 0 : col] = val;
+        let col = 0, row;
+        // The unfolded matrix's ROW index is the mode's own tensor index (i for
+        // mode 0, j for mode 1, k for mode 2) — the previous version always used
+        // `i`, so for mode 1/2 nearly every cell was written to the wrong row
+        // (or clamped into row 0 whenever i >= nRows), silently destroying most
+        // of the tensor's data in the unfolded matrix.
+        if (mode === 0) { col = j * dims[2] + k; row = i; }
+        else if (mode === 1) { col = i * dims[2] + k; row = j; }
+        else { col = i * dims[1] + j; row = k; }
+        result[row][col] = val;
       }
     }
   }

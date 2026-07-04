@@ -585,6 +585,28 @@
 > `gamInteraction` test already verifies R² > 0.8 on a real tensor-product interaction). Full suite:
 > **4,915 tests pass**. Total across all oracle passes: **48 real correctness bugs found and fixed**, plus
 > one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, twenty-seventh pass).** Audited `tensor.js` in full. `parafac`,
+> `cpDecomposition`, `tensorRegression`, `tuckerRegression`, and `tensorCompletion` (already fixed in an
+> earlier commit, `f3d000a`) were independently re-verified with synthetic ground-truth tensors: a rank-1
+> tensor is recovered with exactly zero reconstruction error by both `parafac` and `cpDecomposition`; a
+> noiseless linear model is recovered with R²=1 by `tensorRegression`; `tuckerRegression` at full rank
+> recovers MSE=0 (and a sensible nonzero MSE at a deliberately under-ranked truncation); `tensorCompletion`
+> exactly recovers held-out cells of a rank-1 tensor. No bugs. Found **1 more real bug**:
+> - `unfoldTensor` (the shared mode-n matricization helper behind `unfold`, `tuckerDecomp`, and
+>   `multiwayPCA`) — assigned every unfolded cell to `result[i]` (the tensor's first-index iterator) as the
+>   row, even for mode-1 and mode-2 unfoldings where the row should be `j` or `k` respectively; any `i`
+>   beyond the mode's actual row count was clamped into row 0. Verified against a from-scratch numpy
+>   re-derivation of the standard mode-n unfolding (Kolda & Bader) on a 2×3×4 test tensor: the old code's
+>   mode-1 unfolding was `[[8,9,10,11,0,0,0,0],[0,0,0,0,20,21,22,23],[0,0,0,0,0,0,0,0]]` — mostly zeros,
+>   with real data overwritten or discarded — instead of the correct
+>   `[[0,1,2,3,12,13,14,15],[4,5,6,7,16,17,18,19],[8,9,10,11,20,21,22,23]]`. This silently corrupted every
+>   `tuckerDecomp` mode past the first and all of `multiwayPCA`'s SVD-via-power-iteration (which unfolds on
+>   mode 0, so was actually unaffected) — but any consumer unfolding on mode 1 or 2 got garbage. Fixed by
+>   using the mode-appropriate tensor index as the row.
+>
+> Full suite: **4,916 tests pass**. Total across all oracle passes: **49 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 
