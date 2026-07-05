@@ -1651,6 +1651,206 @@ tensor = {
 }
 ref['tensor'] = tensor
 
+# ── dimReduction (isomap) ────────────────────────────────────────────────────
+# isomap's kNN graph was directed (only each point's own k nearest neighbors),
+# which stayed substantially asymmetric even after Floyd-Warshall's transitive
+# closure, breaking classical MDS's symmetric-dissimilarity-matrix assumption.
+# Separately, the MDS embedding used raw unit-norm eigenvectors instead of
+# eigenvector*sqrt(eigenvalue) (the convention this codebase's own mds.js
+# already uses), badly distorting relative axis scales. Ground truth via
+# scikit-learn's Isomap; compared via pairwise embedding distances (rotation/
+# reflection-invariant, since MDS solutions are only defined up to an
+# orthogonal transform).
+from sklearn.manifold import Isomap as _SKIsomap
+_iso_n = 20
+_iso_X = np.array([[np.cos(t) * 3, np.sin(t) * 3, t * 0.5]
+                    for t in (np.arange(_iso_n) / (_iso_n - 1)) * np.pi * 1.5])
+_iso_model = _SKIsomap(n_neighbors=5, n_components=2)
+_iso_Y = _iso_model.fit_transform(_iso_X)
+_iso_pdist = []
+for _i in range(_iso_n):
+    for _j in range(_i + 1, _iso_n):
+        _iso_pdist.append(float(np.linalg.norm(_iso_Y[_i] - _iso_Y[_j])))
+dimReduction = {
+    'isomap_basic': {'X': _iso_X.tolist(), 'nNeighbors': 5, 'nComponents': 2, 'pairwiseDist': _iso_pdist}
+}
+ref['dimReduction'] = dimReduction
+
+# ── power (exact noncentral chi-square/F power) ─────────────────────────────
+# powerChi, powerOLS, powerRMANOVA, and powerInteractionANOVA previously used a
+# normal approximation to the noncentral chi-square/F distribution's mean and
+# variance, which can overstate power by several percentage points (e.g. the
+# OLS case below: 0.970 approximate vs. 0.905 exact). Ground truth via
+# scipy.stats.ncx2/ncf survival functions (the exact noncentral CDFs).
+from scipy.stats import ncx2 as _ncx2, ncf as _ncf, chi2 as _chi2sp, f as _fsp
+_pw_chi = {'cohenW': 0.3, 'df': 4, 'N': 100, 'alpha': 0.05}
+_pw_chi_crit = _chi2sp.ppf(1 - _pw_chi['alpha'], _pw_chi['df'])
+_pw_chi_ncp = _pw_chi['N'] * _pw_chi['cohenW'] ** 2
+_pw_chi_power = float(_ncx2.sf(_pw_chi_crit, _pw_chi['df'], _pw_chi_ncp))
+
+_pw_ols = {'rSquared': 0.13043478260869565, 'n': 100, 'k': 3, 'alpha': 0.05}
+_pw_ols_f2 = _pw_ols['rSquared'] / (1 - _pw_ols['rSquared'])
+_pw_ols_ncp = _pw_ols['n'] * _pw_ols_f2
+_pw_ols_df1, _pw_ols_df2 = _pw_ols['k'], _pw_ols['n'] - _pw_ols['k'] - 1
+_pw_ols_crit = _fsp.ppf(1 - _pw_ols['alpha'], _pw_ols_df1, _pw_ols_df2)
+_pw_ols_power = float(_ncf.sf(_pw_ols_crit, _pw_ols_df1, _pw_ols_df2, _pw_ols_ncp))
+
+_pw_rm = {'k': 4, 'n': 30, 'epsilon': 1, 'f': 0.25, 'alpha': 0.05}
+_pw_rm_df1 = (_pw_rm['k'] - 1) * _pw_rm['epsilon']
+_pw_rm_df2 = (_pw_rm['k'] - 1) * (_pw_rm['n'] - 1) * _pw_rm['epsilon']
+_pw_rm_ncp = _pw_rm['n'] * _pw_rm['k'] * _pw_rm['f'] ** 2
+_pw_rm_crit = _fsp.ppf(1 - _pw_rm['alpha'], _pw_rm_df1, _pw_rm_df2)
+_pw_rm_power = float(_ncf.sf(_pw_rm_crit, _pw_rm_df1, _pw_rm_df2, _pw_rm_ncp))
+
+_pw_int = {'kA': 2, 'kB': 3, 'nPerCell': 20, 'fInt': 0.25, 'alpha': 0.05}
+_pw_int_df1 = (_pw_int['kA'] - 1) * (_pw_int['kB'] - 1)
+_pw_int_df2 = _pw_int['kA'] * _pw_int['kB'] * (_pw_int['nPerCell'] - 1)
+_pw_int_ncp = _pw_int['nPerCell'] * _pw_int['kA'] * _pw_int['kB'] * _pw_int['fInt'] ** 2
+_pw_int_crit = _fsp.ppf(1 - _pw_int['alpha'], _pw_int_df1, _pw_int_df2)
+_pw_int_power = float(_ncf.sf(_pw_int_crit, _pw_int_df1, _pw_int_df2, _pw_int_ncp))
+
+power = {
+    'chi_basic': {**_pw_chi, 'power': _pw_chi_power},
+    'ols_basic': {**_pw_ols, 'power': _pw_ols_power},
+    'rmanova_basic': {**_pw_rm, 'power': _pw_rm_power},
+    'interaction_anova_basic': {**_pw_int, 'power': _pw_int_power},
+}
+ref['power'] = power
+
+# ── interpretability (alePlot) ──────────────────────────────────────────────
+# alePlot's last bin used an exclusive upper bound ([lo,hi)), silently dropping
+# any point sitting exactly at the feature's maximum from every bin; and an
+# empty bin reset the cumulative ALE value to 0 instead of carrying the
+# previous bin's running total forward. Ground truth via a from-scratch
+# (non-JS) re-implementation of the same well-documented ALE definition with
+# both fixes applied, on a case with an isolated max-value point (gap before
+# it) and a nonlinear model, so both bugs are exercised.
+_ale_X = [[1.0], [1.5], [2.0], [2.5], [3.0], [10.0]]
+_ale_nIntervals = 5
+_ale_vals = [r[0] for r in _ale_X]
+_ale_minV, _ale_maxV = min(_ale_vals), max(_ale_vals)
+_ale_intervals = [_ale_minV + (_ale_maxV - _ale_minV) * i / _ale_nIntervals for i in range(_ale_nIntervals + 1)]
+_ale_vals_out = [0.0] * _ale_nIntervals
+for _k in range(_ale_nIntervals):
+    _lo, _hi = _ale_intervals[_k], _ale_intervals[_k + 1]
+    if _k == _ale_nIntervals - 1:
+        _inBin = [r for r in _ale_X if r[0] >= _lo and r[0] <= _hi]
+    else:
+        _inBin = [r for r in _ale_X if r[0] >= _lo and r[0] < _hi]
+    if not _inBin:
+        _ale_vals_out[_k] = _ale_vals_out[_k - 1] if _k > 0 else 0.0
+        continue
+    _effect = 0.0
+    for _row in _inBin:
+        _rowLo = list(_row); _rowLo[0] = _lo
+        _rowHi = list(_row); _rowHi[0] = _hi
+        _effect += ((_rowHi[0] ** 2) - (_rowLo[0] ** 2)) / len(_inBin)
+    _ale_vals_out[_k] = (_ale_vals_out[_k - 1] if _k > 0 else 0.0) + _effect
+interpretability = {
+    'ale_basic': {'X': _ale_X, 'nIntervals': _ale_nIntervals, 'ale': _ale_vals_out, 'intervals': _ale_intervals}
+}
+ref['interpretability'] = interpretability
+
+# ── phylogenetics (pglsRegression) ──────────────────────────────────────────
+# pglsRegression previously didn't accept a `tree` argument at all (silently
+# dropping it) and fabricated a covariance matrix from each row's ARRAY INDEX
+# distance instead of any real phylogenetic relationship. Ground truth via a
+# from-scratch numpy GLS solve of X'V^-1X b = X'V^-1y, with V(lambda) =
+# lambda*C_offdiag + diag(C) for a real balanced-binary-tree VCV (matching the
+# codebase's own phyloVCV/glsFit convention, not reusing the JS code).
+_pg_D = 3
+_pg_n = 2 ** _pg_D
+_pg_C = np.zeros((_pg_n, _pg_n))
+for _i in range(_pg_n):
+    for _j in range(_pg_n):
+        if _i == _j:
+            _pg_C[_i, _j] = _pg_D
+        else:
+            _shared = 0
+            for _b in range(_pg_D - 1, -1, -1):
+                if ((_i >> _b) & 1) == ((_j >> _b) & 1):
+                    _shared += 1
+                else:
+                    break
+            _pg_C[_i, _j] = _shared
+_pg_lambda = 0.6
+_pg_V = np.where(np.eye(_pg_n) == 1, _pg_C, _pg_lambda * _pg_C)
+_pg_x = np.array([1, 2, 3, 4, 5, 6, 7, 8]) * 0.7
+_pg_y = np.array([2 + 1.8 * xi + (0.3 if i % 2 == 0 else -0.2) for i, xi in enumerate(_pg_x)])
+_pg_X = np.column_stack([np.ones(_pg_n), _pg_x])
+_pg_Vinv = np.linalg.inv(_pg_V)
+_pg_beta = np.linalg.solve(_pg_X.T @ _pg_Vinv @ _pg_X, _pg_X.T @ _pg_Vinv @ _pg_y)
+phylogenetics = {
+    'pgls_basic': {
+        'vcv': _pg_C.tolist(), 'x': _pg_x.tolist(), 'y': _pg_y.tolist(), 'lambda': _pg_lambda,
+        'beta': _pg_beta.tolist(),
+    }
+}
+ref['phylogenetics'] = phylogenetics
+
+# ── sem (pathAnalysis, bifactorModel) ───────────────────────────────────────
+# Shared LCG matching the JS mulberry32-style generator used throughout this
+# codebase's own test fixtures, so both languages produce identical sequences.
+def _lcg_seq(seed, count):
+    s = seed
+    out = []
+    for _ in range(count):
+        s = (1664525 * s + 1013904223) & 0xFFFFFFFF
+        out.append(s / 2**32)
+    return out
+
+# pathAnalysis: mediation chain x -> m -> y (no direct x->y in the true model).
+# The previous version regressed each equation through the origin (no
+# intercept column), badly biasing every coefficient given these variables'
+# nonzero means, and hardcoded indirect=0/total=direct for every edge instead
+# of tracing the chain, so the x->y mediated effect (0.6*0.8=0.48) was never
+# computed at all. Ground truth via numpy OLS with an intercept for each
+# equation (a direct, from-scratch re-derivation, not reusing the JS code).
+_pa_n = 200
+_pa_u = _lcg_seq(3, _pa_n * 3)
+_pa_x = [5 + (_pa_u[3 * i] * 2 - 1) * 2 for i in range(_pa_n)]
+_pa_m = [10 + 0.6 * _pa_x[i] + (_pa_u[3 * i + 1] * 2 - 1) * 0.3 for i in range(_pa_n)]
+_pa_y = [20 + 0.8 * _pa_m[i] + (_pa_u[3 * i + 2] * 2 - 1) * 0.3 for i in range(_pa_n)]
+_pa_Xm = np.column_stack([np.ones(_pa_n), _pa_x])
+_pa_beta_m = np.linalg.lstsq(_pa_Xm, _pa_m, rcond=None)[0]
+_pa_Xy = np.column_stack([np.ones(_pa_n), _pa_m])
+_pa_beta_y = np.linalg.lstsq(_pa_Xy, _pa_y, rcond=None)[0]
+sem_fixtures = {
+    'path_analysis_basic': {
+        'x': _pa_x, 'm': _pa_m, 'y': _pa_y,
+        'x_to_m': float(_pa_beta_m[1]), 'm_to_y': float(_pa_beta_y[1]),
+        'x_to_y_indirect': float(_pa_beta_m[1] * _pa_beta_y[1]),
+    }
+}
+ref['sem'] = sem_fixtures
+
+# ── abm (moranIMulti) ────────────────────────────────────────────────────────
+# moranIMulti summed the i==j "self" term (w_ii=exp(0)=1, spuriously adding
+# Sum(z_i^2) to the numerator) and normalized by the agent count n instead of
+# S0 (the true sum of all off-diagonal spatial weights). Ground truth via a
+# from-scratch numpy re-derivation of the standard Moran's I formula
+# (n/S0)*Sum_{i!=j}(w_ij*z_i*z_j)/Sum(z_i^2).
+_ma_n = 20
+_ma_u = _lcg_seq(3, _ma_n * 3)
+_ma_agents = [{'x': _ma_u[3 * i] * 10, 'y': _ma_u[3 * i + 1] * 10, 'val': _ma_u[3 * i + 2] * 5} for i in range(_ma_n)]
+_ma_vals = np.array([a['val'] for a in _ma_agents])
+_ma_z = _ma_vals - _ma_vals.mean()
+_ma_W = np.zeros((_ma_n, _ma_n))
+for _i in range(_ma_n):
+    for _j in range(_ma_n):
+        _dx = _ma_agents[_i]['x'] - _ma_agents[_j]['x']
+        _dy = _ma_agents[_i]['y'] - _ma_agents[_j]['y']
+        _ma_W[_i, _j] = np.exp(-(_dx * _dx + _dy * _dy))
+np.fill_diagonal(_ma_W, 0)
+_ma_S0 = _ma_W.sum()
+_ma_num = float(np.sum(_ma_W * np.outer(_ma_z, _ma_z)))
+_ma_denom = float(np.sum(_ma_z ** 2))
+_ma_I = (_ma_n / _ma_S0) * (_ma_num / _ma_denom)
+abm = {
+    'moran_basic': {'agents': _ma_agents, 'I': _ma_I}
+}
+ref['abm'] = abm
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

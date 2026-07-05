@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
 import { tsne, isomap, lle, umapApprox } from './dimReduction.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const X = Array.from({length: 15}, () => Array.from({length: 3}, () => Math.random() * 10));
 
@@ -69,5 +70,23 @@ describe('umapApprox is a real neighbor embedding (not plain PCA)', () => {
   it('separates two well-separated clusters', () => {
     const r = umapApprox(twoClusters(), { nNeighbors: 4, seed: 1 });
     expect(separation(r.embedding)).toBeGreaterThan(3);
+  });
+});
+
+describe('isomap matches scikit-learn (regression test for the asymmetric-kNN-graph and missing-sqrt(eigenvalue)-scaling fixes)', () => {
+  it('pairwise embedding distances correlate strongly with sklearn.manifold.Isomap on a near-1D helix', () => {
+    const e = ref.dimReduction.isomap_basic;
+    const r = isomap(e.X, { nNeighbors: e.nNeighbors, nComponents: e.nComponents });
+    const n = e.X.length;
+    const jsPdist = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      jsPdist.push(Math.hypot(...r.embedding[i].map((v, k) => v - r.embedding[j][k])));
+    }
+    const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+    const mx = mean(jsPdist), my = mean(e.pairwiseDist);
+    let cov = 0, vx = 0, vy = 0;
+    for (let i = 0; i < jsPdist.length; i++) { cov += (jsPdist[i] - mx) * (e.pairwiseDist[i] - my); vx += (jsPdist[i] - mx) ** 2; vy += (e.pairwiseDist[i] - my) ** 2; }
+    const correlation = cov / Math.sqrt(vx * vy);
+    expect(correlation).toBeGreaterThan(0.9);
   });
 });

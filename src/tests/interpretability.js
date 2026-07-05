@@ -158,8 +158,19 @@ export function alePlot(X, model, featureIndex, { nIntervals = 10 } = {}) {
   const ale = Array(nIntervals).fill(0);
   for (let k = 0; k < nIntervals; k++) {
     const lo = intervals[k], hi = intervals[k + 1];
-    const inBin = X.filter(r => r[featureIndex] >= lo && r[featureIndex] < hi);
-    if (!inBin.length) continue;
+    // The last interval must be closed on the right ([lo, hi]) — otherwise the
+    // single point (or points) sitting exactly at the feature's maximum value
+    // never satisfies `< hi` for any bin and is silently dropped from the ALE
+    // estimate entirely (verified: with a max-value point isolated from its
+    // neighbors, its bin's local effect stayed 0 instead of reflecting that
+    // point's actual contribution).
+    const inBin = X.filter(r => r[featureIndex] >= lo && (k === nIntervals - 1 ? r[featureIndex] <= hi : r[featureIndex] < hi));
+    // ALE is a running cumulative sum: an empty bin (no data to estimate a
+    // local effect from) must carry the previous bin's cumulative value
+    // forward unchanged, not reset to 0 — the previous version's `continue`
+    // left ale[k] at its Array(nIntervals).fill(0) initial value instead,
+    // producing spurious drops to zero at any gap in the data.
+    if (!inBin.length) { ale[k] = k > 0 ? ale[k - 1] : 0; continue; }
     let effect = 0;
     for (const row of inBin) {
       const rowLo = [...row]; rowLo[featureIndex] = lo;

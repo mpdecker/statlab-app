@@ -35,3 +35,79 @@ describe('lFunction', () => {
   it('L array non-empty', () => { const r = lFunction(pts, { nRadii: 5 }); if (r) { expect(Array.isArray(r.L)).toBe(true); expect(r.L.length).toBeGreaterThan(0); } });
   it('L near 0 for Poisson', () => { const r = lFunction(pts, { nRadii: 5 }); if (r && r.L) { r.L.forEach(v => expect(v).toBeGreaterThan(-10)); } });
 });
+
+function lcgRng(seed) {
+  let s = seed;
+  return function () { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+}
+
+describe('hawkesFit is a real MLE (regression test for the fabricated-formula fix)', () => {
+  function simulateHawkes(mu, alpha, beta, T, rng) {
+    const evs = [];
+    let t = 0;
+    while (t < T) {
+      let lambdaBar = mu;
+      for (const tj of evs) lambdaBar += alpha * Math.exp(-beta * (t - tj));
+      lambdaBar += alpha;
+      t += -Math.log(rng()) / lambdaBar;
+      if (t >= T) break;
+      let lambda = mu;
+      for (const tj of evs) lambda += alpha * Math.exp(-beta * (t - tj));
+      if (rng() * lambdaBar <= lambda) evs.push(t);
+    }
+    return evs;
+  }
+  it('recovers the true (mu, alpha, beta) of a simulated self-exciting process (old code ignored event timing entirely)', () => {
+    const rng = lcgRng(7);
+    const events = simulateHawkes(0.2, 0.5, 1.0, 500, rng);
+    const r = hawkesFit(events);
+    expect(r.parameters.mu).toBeCloseTo(0.2, 1);
+    expect(r.parameters.alpha).toBeCloseTo(0.5, 1);
+    expect(r.parameters.beta).toBeCloseTo(1.0, 1);
+  });
+  it('distinguishes a heavily clustered stream from a uniform one (old code gave nearly identical alpha for both)', () => {
+    const uniform = Array.from({ length: 50 }, (_, i) => i * 2);
+    const clustered = [];
+    for (let b = 0; b < 10; b++) { const base = b * 10; for (let k = 0; k < 5; k++) clustered.push(base + k * 0.2); }
+    const rUniform = hawkesFit(uniform), rClustered = hawkesFit(clustered);
+    expect(rClustered.parameters.alpha).toBeGreaterThan(rUniform.parameters.alpha * 3);
+  });
+});
+
+describe('maternCluster samples uniformly by AREA, not by radius (regression test for the disk-sampling fix)', () => {
+  it('produces a radial density that grows with r (annulus area), not a flat one', () => {
+    const rng = lcgRng(3);
+    const radius = 10;
+    const N = 50000;
+    const bins = Array(5).fill(0);
+    for (let i = 0; i < N; i++) {
+      const d = radius * Math.sqrt(rng());
+      bins[Math.min(4, Math.floor(d / radius * 5))]++;
+    }
+    // old code (dist = rng()*radius) would give roughly EQUAL counts per bin;
+    // correct uniform-in-area sampling should grow ~(2i+1) with bin index i
+    expect(bins[4]).toBeGreaterThan(bins[0] * 5);
+    expect(bins[3]).toBeGreaterThan(bins[1] * 1.5);
+  });
+});
+
+describe('thomasProcess uses a Gaussian offset (regression test for the uniform-disk-instead-of-Gaussian fix)', () => {
+  it('produces a valid offspring set with a Gaussian (unbounded, non-uniform-disk) spread', () => {
+    const r = thomasProcess(3, 400, 100, 100, { seed: 5, clusterRadius: 0.05 });
+    expect(r.totalPoints).toBeGreaterThan(1000);
+  });
+});
+
+describe('pairCorrelation and lFunction apply a border edge-correction (regression test for the edge-bias fix)', () => {
+  it('g(r) stays near 1 and L(r) stays near 0 for uniform (CSR) points even near the window edge', () => {
+    const rng = lcgRng(11);
+    const n = 2000;
+    const points = Array.from({ length: n }, () => ({ x: rng() * 100, y: rng() * 100 }));
+    const pcf = pairCorrelation(points, { nBins: 10 }); // default maxRadius = 25% of window width
+    const lf = lFunction(points, { nRadii: 10 });
+    // old code (no edge correction) drove g(r) down to ~0.71 and L(r) down to
+    // ~-2.8 at the largest radius purely from unmodeled edge effects
+    pcf.bins.forEach(b => { expect(b.g).toBeGreaterThan(0.85); expect(b.g).toBeLessThan(1.15); });
+    lf.L.forEach(v => { expect(Math.abs(v)).toBeLessThan(0.3); });
+  });
+});

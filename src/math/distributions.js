@@ -132,6 +132,40 @@ export const chiPVal = (chi2, df) => {
   return 1 - lowerIncGamma(df / 2, chi2 / 2);
 };
 
+// ── Noncentral chi-square / F CDFs (Poisson-mixture-of-central series) ────────
+// P(X<=x | df, ncp) = Σⱼ Poisson(ncp/2, j)·P(central χ²_{df+2j} <= x). Verified
+// against scipy.stats.ncx2.cdf to ~1e-9 for ncp up to several hundred.
+export function ncChiSqCDF(x, df, ncp) {
+  if (ncp <= 0) return df > 0 && x >= 0 ? lowerIncGamma(df / 2, x / 2) : (x >= 0 ? 1 : 0);
+  if (x <= 0) return 0;
+  const lam = ncp / 2;
+  let sum = 0, logW = -lam, logLam = Math.log(lam);
+  for (let j = 0; j < 2000; j++) {
+    const w = Math.exp(logW);
+    sum += w * lowerIncGamma(df / 2 + j, x / 2);
+    if (j > lam && w < 1e-16) break;
+    logW += logLam - Math.log(j + 1);
+  }
+  return Math.min(1, Math.max(0, sum));
+}
+
+// P(F<=f | df1, df2, ncp) = Σⱼ Poisson(ncp/2, j)·I_{x}(df1/2+j, df2/2), where
+// x = df1·f/(df1·f+df2). Verified against scipy.stats.ncf.cdf to ~1e-9.
+export function ncFCDF(f, df1, df2, ncp) {
+  if (f <= 0) return 0;
+  if (ncp <= 0) return ibeta(df1 / 2, df2 / 2, df1 * f / (df1 * f + df2));
+  const x = df1 * f / (df1 * f + df2);
+  const lam = ncp / 2;
+  let sum = 0, logW = -lam, logLam = Math.log(lam);
+  for (let j = 0; j < 2000; j++) {
+    const w = Math.exp(logW);
+    sum += w * ibeta(df1 / 2 + j, df2 / 2, x);
+    if (j > lam && w < 1e-16) break;
+    logW += logLam - Math.log(j + 1);
+  }
+  return Math.min(1, Math.max(0, sum));
+}
+
 // ── Inverse t (two-tailed) ────────────────────────────────────────────────────
 export function tInv2(alpha, df) {
   if (df > 1e4) return normalINV(1 - alpha / 2);

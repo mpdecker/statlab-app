@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { moranIMulti, simulationConvergence, sobolSensitivity, agentSummaryStats, scenarioComparison, thresholdModel, networkDiffusion, segregationIndex } from './abm.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const agents = []; for (let i = 0; i < 20; i++) agents.push({ x: i % 5, y: i % 4, val: i * 0.5 });
 
@@ -69,5 +70,13 @@ describe('sobolSensitivity estimates variance-based indices (not corr^2)', () =>
     const r = sobolSensitivity([x0, x1], y);
     expect(r.indices[0].sensitivity).toBeGreaterThan(0.5); // S_0 high
     expect(r.indices[1].sensitivity).toBeLessThan(0.2);    // S_1 ~ 0
+  });
+});
+
+describe('moranIMulti excludes self-pairs and normalizes by the true sum of spatial weights (regression test for the wrong-normalization fix)', () => {
+  it('matches a from-scratch numpy re-derivation of the standard Moran\'s I formula', () => {
+    const e = ref.abm.moran_basic;
+    const r = moranIMulti(e.agents, 'val');
+    expect(r.I).toBeCloseTo(e.I, 4);
   });
 });
