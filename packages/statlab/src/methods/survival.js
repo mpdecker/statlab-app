@@ -2,6 +2,7 @@ import { chiPVal, normalCDF } from '../math/distributions.js';
 import { fmtP, avg, sampleSD } from '../math/core.js';
 import { matInv } from '../math/matrix.js';
 
+/** Kaplan–Meier survival estimate. @param {Array<Record<string, number>>} obs rows with time and event (0/1). */
 export function kmEstimate(obs) {
   if (!obs || obs.length < 2) return null;
   const sorted = [...obs].sort((a, b) => a.time - b.time);
@@ -28,6 +29,7 @@ export function kmEstimate(obs) {
     apa: `Kaplan-Meier: median survival = ${medianSurvival != null ? medianSurvival.toFixed(2) : 'not reached'}, n = ${n}, events = ${totalEvents}` };
 }
 
+/** Log-rank test comparing two groups. @param {Array<Record<string, number>>} obsA @param {Array<Record<string, number>>} obsB */
 export function logRankTest(obsA, obsB) {
   if (!obsA || !obsA.length || !obsB || !obsB.length) return null;
   const allTimes = [...new Set([...obsA.map(o => o.time), ...obsB.map(o => o.time)])].sort((a, b) => a - b);
@@ -64,6 +66,7 @@ export function logRankTest(obsA, obsB) {
     apa: `Log-rank chi2(1) = ${chi2.toFixed(2)}, ${fmtP(p)}` };
 }
 
+/** Nelson–Aalen cumulative hazard estimate. @param {Array<Record<string, number>>} obs */
 export function nelsonAalen(obs) {
   if (!obs || obs.length < 2) return null;
   const sorted = [...obs].sort((a, b) => a.time - b.time);
@@ -89,6 +92,7 @@ export function nelsonAalen(obs) {
     apa: `Nelson-Aalen cumulative hazard: ${cumHazard.toFixed(4)}, n = ${n}, events = ${totalEvents}` };
 }
 
+/** Cox proportional-hazards model. @param {Array<Record<string, number>>} obs @param {string[]} covNames @param {{maxIter?: number, tolerance?: number, strata?: string|null}} [options] */
 export function coxPH(obs, covNames, { maxIter = 50, tolerance = 1e-6, strata = null } = {}) {
   if (!obs || obs.length < 3 || !covNames || covNames.length < 1) return null;
   const valid = obs.filter(o => covNames.every(c => Number.isFinite(o[c])) && Number.isFinite(o.time) && (o.event === 0 || o.event === 1));
@@ -194,6 +198,7 @@ export function coxPH(obs, covNames, { maxIter = 50, tolerance = 1e-6, strata = 
     apa: `Cox PH${strata ? ' (stratified by ' + strata + ')' : ''}: ${coeffs.map(c => `${c.name} HR=${c.hr.toFixed(2)} ${fmtP(c.p)}`).join(', ')}` };
 }
 
+/** Parametric AFT/PH survival model. @param {Array<Record<string, number>>} obs @param {string[]} covNames @param {{distribution?: string, maxIter?: number, tolerance?: number}} [options] */
 export function parametricSurvival(obs, covNames, { distribution = 'weibull', maxIter = 100, tolerance = 1e-6 } = {}) {
   const supported = ['weibull', 'exponential', 'log-logistic', 'log-normal', 'gompertz'];
   if (!obs || obs.length < 3 || !covNames || covNames.length < 1) return null;
@@ -239,6 +244,7 @@ function digamma(x) {
 }
 
 // ── Fine-Gray Competing Risks ──────────────────────────────────────────────────
+/** Fine–Gray competing-risks subdistribution model. @param {Array<Record<string, number>>} obs @param {string[]} covNames @param {number} causeOfInterest @param {{maxIter?: number, tolerance?: number}} [options] */
 export function fineGray(obs, covNames, causeOfInterest, { maxIter = 30, tolerance = 1e-5 } = {}) {
   if (!obs || obs.length < 5 || !covNames || covNames.length < 1 || causeOfInterest == null) return null;
   const eventsOfInterest = obs.filter(o => o.event === causeOfInterest);
@@ -350,6 +356,7 @@ export function fineGray(obs, covNames, causeOfInterest, { maxIter = 30, toleran
 }
 
 // ── Frailty Cox (Shared Frailty) ──────────────────────────────────────────────
+/** Shared-frailty Cox model. @param {Array<Record<string, number>>} obs @param {string[]} covNames @param {string} clusterVar cluster column. @param {{distribution?: string, maxIter?: number, tolerance?: number}} [options] */
 export function frailtyCox(obs, covNames, clusterVar, { distribution = 'gamma', maxIter = 40, tolerance = 1e-5 } = {}) {
   if (!obs || obs.length < 5 || !covNames || covNames.length < 1 || !clusterVar) return null;
   const valid = obs.filter(o => covNames.every(c => Number.isFinite(o[c])) && Number.isFinite(o.time) && (o.event === 0 || o.event === 1) && o[clusterVar] != null);
@@ -513,6 +520,7 @@ export function frailtyCox(obs, covNames, clusterVar, { distribution = 'gamma', 
 }
 
 // ── Time-Varying Cox ──────────────────────────────────────────────────────────
+/** Cox model with time-varying covariates (start–stop). @param {Array<Record<string, number>>} data @param {string} idVar @param {string} startVar @param {string} stopVar @param {string} eventVar @param {string[]} covNames @param {{maxIter?: number, tolerance?: number}} [options] */
 export function timeVaryingCox(data, idVar, startVar, stopVar, eventVar, covNames, { maxIter = 40, tolerance = 1e-5 } = {}) {
   if (!data || data.length < 5 || !idVar || !startVar || !stopVar || !eventVar || !covNames || covNames.length < 1) return null;
   const valid = data.filter(r => Number.isFinite(+r[startVar]) && Number.isFinite(+r[stopVar]) && (r[eventVar] === 0 || r[eventVar] === 1) && covNames.every(c => Number.isFinite(r[c])) && r[idVar] != null);
@@ -605,6 +613,7 @@ export function timeVaryingCox(data, idVar, startVar, stopVar, eventVar, covName
 }
 
 // ── Restricted Mean Survival Time ─────────────────────────────────────────────
+/** Restricted mean survival time. @param {Array<Record<string, number>>} obs @param {number|null} [truncTime] truncation time. */
 export function rmst(obs, truncTime = null) {
   const km = kmEstimate(obs);
   if (!km) return null;
@@ -638,6 +647,7 @@ export function rmst(obs, truncTime = null) {
 
 // ── RMST Difference ───────────────────────────────────────────────
 
+/** Compare restricted mean survival time between groups. @param {Array<Record<string, number>>} obsA @param {Array<Record<string, number>>} obsB @param {number|null} [truncTime] */
 export function rmstCompare(obsA, obsB, truncTime = null) {
   const r1 = rmst(obsA, truncTime);
   const r2 = rmst(obsB, truncTime);
@@ -653,6 +663,7 @@ export function rmstCompare(obsA, obsB, truncTime = null) {
 }
 
 // ── Aalen Additive Model ────────────────────────────────────────────────────
+/** Aalen additive hazards model. @param {Array<Record<string, number>>} obs @param {string[]} covNames */
 export function aalenModel(obs, covNames) {
   if (!obs || obs.length < 20 || !covNames || !covNames.length) return null;
   const sorted = [...obs].sort((a, b) => a.time - b.time);
@@ -752,6 +763,7 @@ function _breslowS0(eventTimes, sorted, X, survBeta, weights) {
   return (tq) => { let s = 1; for (const st of steps) { if (st.t <= tq) s = st.S0; else break; } return s; };
 }
 
+/** Mixture cure model. @param {Array<Record<string, number>>} obs @param {string[]} covNames @param {{maxIter?: number, tolerance?: number}} [options] */
 export function cureModel(obs, covNames, { maxIter = 50, tolerance = 1e-5 } = {}) {
   if (!obs || obs.length < 30 || !covNames || !covNames.length) return null;
   const sorted = [...obs].sort((a, b) => a.time - b.time);
@@ -867,6 +879,7 @@ export function cureModel(obs, covNames, { maxIter = 50, tolerance = 1e-5 } = {}
 }
 
 // ── Multistate Model ────────────────────────────────────────────────────────
+/** Multi-state (illness–death style) transition model. @param {Array<Record<string, any>>} obs @param {string} idVar @param {string} fromState @param {string} toState @param {number[]} [states=[1,2,3]] */
 export function multistateModel(obs, idVar, fromState, toState, states = [1, 2, 3]) {
   if (!obs || obs.length < 20 || !idVar || !fromState || !toState) return null;
   const ids = [...new Set(obs.map(r => r[idVar]))];
@@ -913,6 +926,7 @@ export function multistateModel(obs, idVar, fromState, toState, states = [1, 2, 
 }
 
 // ── Andersen-Gill Model ───────────────────────────────────────────
+/** Andersen–Gill recurrent-events model. @param {Array<Record<string, number>>} data @param {string} idVar @param {string} timeVar @param {string} eventVar */
 export function agModel(data, idVar, timeVar, eventVar) {
   if (!data || data.length < 15 || !idVar || !timeVar || !eventVar) return null;
   const n = data.length;
@@ -925,6 +939,7 @@ export function agModel(data, idVar, timeVar, eventVar) {
 }
 
 // ── PWP Gap-Time ──────────────────────────────────────────────────
+/** Prentice–Williams–Peterson gap-time model. @param {Array<Record<string, number>>} data @param {string} idVar @param {string} timeVar @param {string} eventVar */
 export function pwpgap(data, idVar, timeVar, eventVar) {
   if (!data || data.length < 15 || !idVar || !eventVar) return null;
   const n = data.length;
@@ -935,6 +950,7 @@ export function pwpgap(data, idVar, timeVar, eventVar) {
 }
 
 // ── WLW Marginal Model ────────────────────────────────────────────
+/** Wei–Lin–Weissfeld marginal model. @param {Array<Record<string, number>>} data @param {string} idVar @param {string} timeVar @param {string} eventVar */
 export function wlwMarginal(data, idVar, timeVar, eventVar) {
   if (!data || data.length < 15 || !idVar || !eventVar) return null;
   const n = data.length;
@@ -944,6 +960,7 @@ export function wlwMarginal(data, idVar, timeVar, eventVar) {
 }
 
 // ── Survival Tree (CART with log-rank) ────────────────────────────
+/** Recursive-partitioning survival tree. @param {Array<Record<string, number>>} obs @param {string[]} covNames @param {{maxDepth?: number, minSamples?: number}} [options] */
 export function survivalTree(obs, covNames, { maxDepth = 3, minSamples = 5 } = {}) {
   if (!obs || obs.length < 20 || !covNames || !covNames.length) return null;
   const n = obs.length; const k = covNames.length;
@@ -967,6 +984,7 @@ export function survivalTree(obs, covNames, { maxDepth = 3, minSamples = 5 } = {
 }
 
 // ── Random Survival Forest ────────────────────────────────────────
+/** Random survival forest. @param {Array<Record<string, number>>} obs @param {string[]} covNames @param {{nTrees?: number, maxDepth?: number}} [options] */
 export function randomSurvivalForest(obs, covNames, { nTrees = 50, maxDepth = 3 } = {}) {
   if (!obs || obs.length < 20 || !covNames || !covNames.length) return null;
   const n = obs.length;
@@ -977,6 +995,7 @@ export function randomSurvivalForest(obs, covNames, { nTrees = 50, maxDepth = 3 
 }
 
 // ── RSF Variable Importance ───────────────────────────────────────
+/** Permutation variable importance for a fitted forest. @param {object} rsfResult */
 export function rsfVariableImportance(rsfResult) {
   if (!rsfResult) return null;
   const importance = { nTrees: rsfResult.nTrees || 0, n: rsfResult.n || 0 };
@@ -984,6 +1003,7 @@ export function rsfVariableImportance(rsfResult) {
 }
 
 // ── Time-Dependent ROC ────────────────────────────────────────────
+/** Time-dependent ROC/AUC. @param {Array<Record<string, number>>} obs @param {string[]} covNames @param {number[]} times */
 export function timeDependentROC(obs, covNames, times) {
   if (!obs || obs.length < 20 || !times || !times.length) return null;
   const n = obs.length;
@@ -996,6 +1016,7 @@ export function timeDependentROC(obs, covNames, times) {
 }
 
 // ── Survival Calibration ──────────────────────────────────────────
+/** Survival calibration at fixed times. @param {Array<Record<string, number>>} obs @param {string[]} covNames @param {number[]} times */
 export function survivalCalibration(obs, covNames, times) {
   if (!obs || obs.length < 20 || !times || !times.length) return null;
   const n = obs.length;
@@ -1008,12 +1029,14 @@ export function survivalCalibration(obs, covNames, times) {
 }
 
 // ── Survival Forest Predict ───────────────────────────────────────
+/** Predict from a fitted survival forest. @param {object} rsfResult @param {Array<Record<string, number>>} newObs */
 export function survivalForestPredict(rsfResult, newObs) {
   if (!rsfResult || !newObs) return null;
   return { test: 'Survival Forest Predict', prediction: +(rsfResult.predictions?.[0] || 0.5).toFixed(4), apa: `RSF pred: 0.5` };
 }
 
 // ── Joint Model (longitudinal + survival) ─────────────────────────
+/** Joint longitudinal–survival model. @param {Array<Record<string, number>>} longData @param {Array<Record<string, number>>} survData @param {string} timeVar @param {string} idVar @param {{nIter?: number}} [options] */
 export function jointModel(longData, survData, timeVar, idVar, { nIter = 30 } = {}) {
   if (!longData || !survData || longData.length < 10 || survData.length < 5) return null;
   const ids = [...new Set(longData.map(r => r[idVar]))];
@@ -1026,6 +1049,7 @@ export function jointModel(longData, survData, timeVar, idVar, { nIter = 30 } = 
 }
 
 // ── Landmark Analysis ─────────────────────────────────────────────
+/** Landmark survival analysis. @param {Array<Record<string, number>>} data @param {string} timeVar @param {string} eventVar @param {number} landmarkTime @param {number} horizonTime @param {string[]} xVars */
 export function landmarkAnalysis(data, timeVar, eventVar, landmarkTime, horizonTime, xVars) {
   if (!data || data.length < 10 || !timeVar || !eventVar || !landmarkTime || !horizonTime) return null;
   const n = data.length;
@@ -1038,6 +1062,7 @@ export function landmarkAnalysis(data, timeVar, eventVar, landmarkTime, horizonT
 }
 
 // ── Pseudo-Values (for RMST) ──────────────────────────────────────
+/** Jackknife pseudo-observations for survival. @param {Array<Record<string, number>>} data @param {string} timeVar @param {string} eventVar @param {number} truncTime @param {number} [nSamples=20] */
 export function pseudoValues(data, timeVar, eventVar, truncTime, nSamples = 20) {
   if (!data || data.length < 10 || !timeVar || !eventVar || !truncTime) return null;
   const n = data.length;

@@ -2,6 +2,7 @@ import { avg, sampleVar, sampleSD, effEta, fmtP } from '../math/core.js';
 import { tPVal, fPVal, chiPVal, tInv2 } from '../math/distributions.js';
 
 // ── One-Way ANOVA + Tukey HSD ─────────────────────────────────────────────────
+/** One-way (between-subjects) ANOVA. @param {number[][]} groups one array per group. */
 export function oneWayANOVA(groups) {
   if (groups.length < 2) return null;
   const all = groups.flatMap(g => g.vals), N = all.length, k = groups.length;
@@ -41,6 +42,7 @@ export function oneWayANOVA(groups) {
 // missing (k-2)=1 factor is invisible so F still matched a real oracle, but df2 was
 // wrong for every k, understating p by orders of magnitude. Verified against
 // statsmodels.stats.oneway.anova_oneway(..., use_var='unequal') at k=2,3,4.
+/** Welch's ANOVA (unequal variances). @param {number[][]} groups */
 export function welchANOVA(groups) {
   const valid = groups.filter(g => g.vals.length >= 2);
   if (valid.length < 2) return null;
@@ -66,6 +68,7 @@ export function welchANOVA(groups) {
 }
 
 // ── Two-Way ANOVA ─────────────────────────────────────────────────────────────
+/** Two-way factorial ANOVA from long-format rows. @param {Array<Record<string, any>>} data @param {string} factA factor-A column. @param {string} factB factor-B column. @param {string} resp response column. */
 export function twoWayANOVA(data, factA, factB, resp) {
   const aLevs = [...new Set(data.map(r => r[factA]))].filter(v => v != null);
   const bLevs = [...new Set(data.map(r => r[factB]))].filter(v => v != null);
@@ -98,6 +101,7 @@ export function twoWayANOVA(data, factA, factB, resp) {
 }
 
 // ── ANCOVA ────────────────────────────────────────────────────────────────────
+/** One-way ANCOVA with a single covariate. @param {Array<{vals: number[]}>} groups @param {number[][]} cov covariate values per group. */
 export function ancova(groups, cov) {
   if (groups.length < 2) return null;
   const all = groups.flatMap((g, gi) => g.vals.map((v, i) => ({ y: v, x: cov[gi][i], g: gi }))).filter(r => Number.isFinite(r.x));
@@ -121,6 +125,7 @@ export function ancova(groups, cov) {
 }
 
 // ── One-Way RM ANOVA (Greenhouse-Geisser) ────────────────────────────────────
+/** One-way repeated-measures ANOVA. @param {number[][]} matrix subjects × conditions. */
 export function rmANOVA(matrix) {
   if (!matrix?.length || !matrix[0]?.length) return null;
   const n = matrix.length, k = matrix[0].length;
@@ -153,6 +158,7 @@ export function rmANOVA(matrix) {
 
 // ── Friedman test ─────────────────────────────────────────────────────────────
 import { rank } from '../math/core.js';
+/** Friedman rank test for repeated measures. @param {number[][]} matrix subjects × conditions. */
 export function friedman(matrix) {
   if (!matrix?.length || !matrix[0]?.length) return null;
   const n = matrix.length, k = matrix[0].length;
@@ -169,6 +175,7 @@ export function friedman(matrix) {
 }
 
 // ── Kruskal-Wallis ────────────────────────────────────────────────────────────
+/** Kruskal–Wallis rank test. @param {number[][]} groups */
 export function kruskalWallis(groups) {
   if (groups.length < 2) return null;
   const all = groups.flatMap((g, gi) => g.vals.map(v => ({ v, gi }))).sort((a, b) => a.v - b.v);
@@ -188,6 +195,7 @@ export function kruskalWallis(groups) {
 }
 
 // ── Cochran's Q ───────────────────────────────────────────────────────────────
+/** Cochran's Q test for k related binary samples. @param {number[][]} matrix subjects × conditions (0/1). */
 export function cochranQ(matrix) {
   if (!matrix?.length || !matrix[0]?.length) return null;
   const n = matrix.length, k = matrix[0].length;
@@ -206,6 +214,7 @@ export function cochranQ(matrix) {
 }
 
 // ── Hedges' g ─────────────────────────────────────────────────────────────────
+/** Hedges' g (bias-corrected standardized mean difference). @param {number[]} a @param {number[]} b */
 export function hedgesG(a, b) {
   if (!a || !b || a.length < 2 || b.length < 2) return null;
   const na = a.length, nb = b.length;
@@ -225,6 +234,7 @@ export function hedgesG(a, b) {
 }
 
 // ── Cohen's d ─────────────────────────────────────────────────────────────────
+/** Cohen's d (pooled-SD standardized mean difference). @param {number[]} a @param {number[]} b */
 export function cohensD(a, b) {
   if (!a || !b || a.length < 2 || b.length < 2) return null;
   const na = a.length, nb = b.length;
@@ -243,6 +253,7 @@ export function cohensD(a, b) {
 }
 
 // ── Games-Howell post-hoc ─────────────────────────────────────────────────────
+/** Games–Howell post-hoc test (unequal variances). @param {number[][]} groups @param {number} [alpha=0.05] */
 export function gamesHowell(groups, alpha = 0.05) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 2);
@@ -280,6 +291,7 @@ export function gamesHowell(groups, alpha = 0.05) {
 }
 
 // ── Dunnett's Test ────────────────────────────────────────────────────────────
+/** Dunnett's test vs a control group. @param {number[][]} groups @param {number} [controlIndex=0] @param {number} [alpha=0.05] */
 export function dunnettTest(groups, controlIndex = 0, alpha = 0.05) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 2);
@@ -316,6 +328,7 @@ export function dunnettTest(groups, controlIndex = 0, alpha = 0.05) {
 }
 
 // ── Partial Eta-Squared ───────────────────────────────────────────────────────
+/** Partial eta-squared. @param {number} ssEffect @param {number} ssError */
 export function eta2Partial(ssEffect, ssError) {
   if (!(ssEffect >= 0) || !(ssError > 0)) return null;
   const total = ssEffect + ssError;
@@ -330,6 +343,7 @@ export function eta2Partial(ssEffect, ssError) {
 }
 
 // ── Partial Omega-Squared ─────────────────────────────────────────────────────
+/** Partial omega-squared. @param {number} msEffect @param {number} msError @param {number} dfEffect @param {number} dfError @param {number} N */
 export function omega2Partial(msEffect, msError, dfEffect, dfError, N) {
   if (!(msEffect >= 0) || !(msError >= 0) || !(dfEffect > 0) || !(dfError > 0) || !(N > dfEffect)) return null;
   const num = dfEffect * (msEffect - msError);

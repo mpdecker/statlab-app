@@ -2,6 +2,7 @@ import { avg, sampleSD, sampleVar, corr, rank, effR, effV, fmtP, sig } from '../
 import { tPVal, fPVal, chiPVal, normalCDF, tInv2, lnBinom } from '../math/distributions.js';
 
 // ── Chi-Square independence ───────────────────────────────────────────────────
+/** Chi-square test of independence from long-format rows. @param {Array<Record<string, any>>} data @param {string} col1 @param {string} col2 */
 export function chiSquare(data, col1, col2) {
   const c1 = [...new Set(data.map(r => r[col1]))].filter(v => v != null).sort();
   const c2 = [...new Set(data.map(r => r[col2]))].filter(v => v != null).sort();
@@ -29,6 +30,7 @@ export function chiSquare(data, col1, col2) {
 }
 
 // ── Chi-Square goodness-of-fit ────────────────────────────────────────────────
+/** Chi-square goodness-of-fit test. @param {number[]} observed @param {number[]} expected */
 export function chiGoF(observed, expected) {
   if (!observed.length || observed.length !== expected.length) return null;
   const n = observed.reduce((s, v) => s + v, 0);
@@ -44,6 +46,7 @@ export function chiGoF(observed, expected) {
 }
 
 // ── Fisher's Exact ────────────────────────────────────────────────────────────
+/** Fisher's exact test for a 2×2 table. @param {number} a @param {number} b @param {number} c @param {number} d */
 export function fisherExact(a, b, c, d) {
   if (![a, b, c, d].every(v => Number.isFinite(v) && v >= 0)) return null;
   const n = a + b + c + d;
@@ -70,6 +73,7 @@ export function fisherExact(a, b, c, d) {
 }
 
 // ── McNemar's Test ────────────────────────────────────────────────────────────
+/** McNemar's test for paired binary data (discordant cells). @param {number} b @param {number} c */
 export function mcnemar(b, c) {
   if (!Number.isFinite(b) || !Number.isFinite(c) || b < 0 || c < 0) return null;
   if (b + c < 10) return null;
@@ -79,6 +83,7 @@ export function mcnemar(b, c) {
 }
 
 // ── Binomial exact test ───────────────────────────────────────────────────────
+/** Exact binomial test. @param {number} k successes. @param {number} n trials. @param {number} [p0=0.5] */
 export function binomialTest(k, n, p0 = .5) {
   if (!Number.isInteger(n) || n < 1 || !Number.isInteger(k) || k < 0 || k > n) return null;
   if (!(p0 > 0 && p0 < 1)) return null;
@@ -96,6 +101,7 @@ export function binomialTest(k, n, p0 = .5) {
 }
 
 // ── One-proportion z ──────────────────────────────────────────────────────────
+/** One-proportion z-test. @param {number} x successes. @param {number} n trials. @param {number} [p0=0.5] */
 export function onePropZ(x, n, p0 = .5) {
   if (!Number.isFinite(n) || n < 1 || !Number.isFinite(x) || x < 0 || x > n) return null;
   if (!(p0 > 0 && p0 < 1)) return null;
@@ -114,6 +120,7 @@ export function onePropZ(x, n, p0 = .5) {
 }
 
 // ── Two-proportion z ──────────────────────────────────────────────────────────
+/** Two-proportion z-test. @param {number} x1 @param {number} n1 @param {number} x2 @param {number} n2 */
 export function twoPropZ(x1, n1, x2, n2) {
   if ([n1, n2].some(n => !Number.isFinite(n) || n < 1)) return null;
   if ([x1, x2].some((x, i) => !Number.isFinite(x) || x < 0 || x > [n1, n2][i])) return null;
@@ -136,6 +143,7 @@ export function twoPropZ(x1, n1, x2, n2) {
 // ── Mann-Whitney U and Wilcoxon signed-rank moved to nonparametric.js ──────
 
 // ── TOST equivalence ──────────────────────────────────────────────────────────
+/** Two one-sided tests (TOST) equivalence. @param {number[]} a @param {number[]} b @param {number} dL @param {number} dU @param {number} [alpha=0.05] */
 export function tost(a, b, dL, dU, alpha = .05) {
   if (!a.length || !b.length) return null;
   const na = a.length, nb = b.length, ma = avg(a), mb = avg(b);
@@ -155,6 +163,7 @@ export function tost(a, b, dL, dU, alpha = .05) {
 
 // ── Bayes factor for t-test (JZS Cauchy prior) ───────────────────────────────
 import { tPDF } from '../math/distributions.js';
+/** JZS Bayes factor for a t-test. @param {number} t @param {number} n1 @param {number} n2 @param {number} [r=0.707] prior scale. */
 export function bayesFactorT(t, n1, n2, r = 0.707) {
   if (!Number.isFinite(t) || !Number.isFinite(n1) || n1 < 1) return null;
   const n = n2 ? n1 * n2 / (n1 + n2) : n1, df = n2 ? n1 + n2 - 2 : n1 - 1;
@@ -179,6 +188,7 @@ export function bayesFactorT(t, n1, n2, r = 0.707) {
 }
 
 // ── Bayes factor for correlation (approximation) ──────────────────────────────
+/** Bayes factor for a correlation. @param {number} r @param {number} n */
 export function bayesFactorCorr(r, n) {
   if (!n || n < 3) return null;
   // Jeffreys approximation: BF = (1-r²)^((n-1)/2) / B(0.5,0.5)
@@ -201,6 +211,7 @@ export function bayesFactorCorr(r, n) {
 // by orders of magnitude (verified self-consistent: inverting the standard
 // NIST Grubbs critical-value formula for a chosen α recovers exactly α under
 // this p-value formula, and matches at G_crit(0.05, n=8)=2.1266 → p=0.05).
+/** Grubbs' test for a single outlier. @param {number[]} vals */
 export function grubbsTest(vals) {
   const n = vals.length; if (n < 7) return null;
   const m = avg(vals), s = sampleSD(vals);
@@ -219,6 +230,7 @@ export function grubbsTest(vals) {
 }
 
 // ── Levene + Bartlett homogeneity tests ───────────────────────────────────────
+/** Levene's test for equality of variances. @param {number[][]} groups */
 export function leveneTest(groups) {
   const k = groups.length, N = groups.reduce((s, g) => s + g.length, 0);
   const z = groups.map(g => g.map(x => Math.abs(x - avg(g))));
@@ -228,6 +240,7 @@ export function leveneTest(groups) {
   const F = num / (den || 1e-9);
   return { F: +F.toFixed(4), p: fPVal(F, k - 1, N - k), equal: fPVal(F, k - 1, N - k) > .05 };
 }
+/** Bartlett's test for equality of variances. @param {number[][]} groups */
 export function bartlettTest(groups) {
   const k = groups.length, N = groups.reduce((s, g) => s + g.length, 0);
   const ni = groups.map(g => g.length), si = groups.map(g => sampleVar(g));
@@ -239,16 +252,19 @@ export function bartlettTest(groups) {
 }
 
 // ── Multiple comparison corrections ──────────────────────────────────────────
+/** Bonferroni p-value adjustment. @param {Array<{p: number}>} pairs */
 export function bonferroni(pairs) {
   const m = pairs.length;
   return pairs.map(p => ({ ...p, pAdj: Math.min(1, p.p * m), sig: Math.min(1, p.p * m) < .05 }));
 }
+/** Holm–Bonferroni step-down adjustment. @param {Array<{p: number}>} pairs */
 export function holm(pairs) {
   const m = pairs.length, sorted = [...pairs].sort((a, b) => a.p - b.p);
   let prev = 0;
   return sorted.map((p, i) => { const adj = Math.max(prev, Math.min(1, p.p * (m - i))); prev = adj; return { ...p, pAdj: adj, sig: adj < .05 }; })
     .sort((a, b) => pairs.indexOf(a) - pairs.indexOf(b));
 }
+/** Benjamini–Hochberg FDR adjustment. @param {Array<{p: number}>} pairs */
 export function bh(pairs) {
   const m = pairs.length, sorted = [...pairs].sort((a, b) => a.p - b.p);
   let prev = 1;
@@ -257,6 +273,7 @@ export function bh(pairs) {
 }
 
 // ── Leave-one-out sensitivity ─────────────────────────────────────────────────
+/** Leave-one-out sensitivity of a test statistic. @param {number[]} vals @param {(sample: number[]) => any} testFn */
 export function sensitivityLOO(vals, testFn) {
   const n = vals.length; if (n < 10) return null;
   const ps = vals.map((_, i) => {
@@ -271,6 +288,7 @@ export function sensitivityLOO(vals, testFn) {
 }
 
 // Cochran-Mantel-Haenszel
+/** Cochran–Mantel–Haenszel test across strata. @param {number[][][]} tables one 2×2 table per stratum. */
 export function cmhTest(tables) {
   if (!tables || tables.length < 2) return null;
   const formatted = tables.map(t => {
@@ -334,6 +352,7 @@ export function cmhTest(tables) {
 }
 
 // ── Relative Risk ─────────────────────────────────────────────────
+/** Relative risk and odds ratio for a 2×2 table. @param {number} a @param {number} b @param {number} c @param {number} d */
 export function relativeRisk(a, b, c, d) {
   if (![a, b, c, d].every(v => Number.isFinite(v) && v >= 0)) return null;
   if (a + b === 0 || c + d === 0) return null;
@@ -360,6 +379,7 @@ export function relativeRisk(a, b, c, d) {
 }
 
 // Cramer's V
+/** Cramér's V effect size. @param {number} chiSquared @param {number} n @param {number} k min(rows, cols). */
 export function cramersV(chiSquared, n, k) {
   if (!(chiSquared >= 0) || n <= 0) return null;
   let df;
@@ -379,6 +399,7 @@ export function cramersV(chiSquared, n, k) {
 }
 
 // Kendall's W
+/** Kendall's W coefficient of concordance. @param {Array<Record<string, any>>} data @param {string[]} vars rater columns. */
 export function kendallW(data, vars) {
   if (!data || data.length < 8 || !vars || vars.length < 2) return null;
   const n = data.length, k = vars.length;
@@ -402,6 +423,7 @@ export function kendallW(data, vars) {
 }
 
 // Dunn's Test
+/** Dunn's post-hoc test after Kruskal–Wallis. @param {number[][]} groups @param {{alpha?: number}} [options] */
 export function dunnTest(groups, { alpha = 0.05 } = {}) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 3);
@@ -431,6 +453,7 @@ export function dunnTest(groups, { alpha = 0.05 } = {}) {
 }
 
 // ── Nemenyi Test ──────────────────────────────────────────────────
+/** Nemenyi post-hoc test. @param {number[][]} groups @param {{alpha?: number}} [options] */
 export function nemenyiTest(groups, { alpha = 0.05 } = {}) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 3);
@@ -457,6 +480,7 @@ export function nemenyiTest(groups, { alpha = 0.05 } = {}) {
 }
 
 // Cochran's Q Post-Hoc
+/** Post-hoc pairwise comparisons after Cochran's Q. @param {Array<Record<string, any>>} data @param {string[]} vars @param {{alpha?: number}} [options] */
 export function cochranQPost(data, vars, { alpha = 0.05 } = {}) {
   if (!data || data.length < 3 || !vars || vars.length < 3) return null;
   const k = vars.length, nSubjects = data.length;
@@ -490,6 +514,7 @@ function sampleSDp(arr) {
 }
 
 // ── Storey q-value ────────────────────────────────────────────────
+/** Storey q-values from p-values. @param {number[]} pValues */
 export function storeyQValue(pValues) {
   if (!pValues || !pValues.length) return null;
   const n = pValues.length;
@@ -500,6 +525,7 @@ export function storeyQValue(pValues) {
 }
 
 // ── Benjamini-Yekutieli ───────────────────────────────────────────
+/** Benjamini–Yekutieli FDR adjustment. @param {number[]} pValues */
 export function benjaminiYekutieli(pValues) {
   if (!pValues || !pValues.length) return null;
   const n = pValues.length;
@@ -510,6 +536,7 @@ export function benjaminiYekutieli(pValues) {
 }
 
 // ── Local FDR ─────────────────────────────────────────────────────
+/** Local false discovery rate. @param {number[]} pValues @param {{nullProportion?: number|null}} [options] */
 export function localFDR(pValues, { nullProportion = null } = {}) {
   if (!pValues || !pValues.length) return null;
   const n = pValues.length;
@@ -519,6 +546,7 @@ export function localFDR(pValues, { nullProportion = null } = {}) {
 }
 
 // ── Stratified FDR ────────────────────────────────────────────────
+/** Stratified FDR control. @param {number[]} pValues @param {Array<string|number>} strata */
 export function stratifiedFDR(pValues, strata) {
   if (!pValues || !strata || pValues.length !== strata.length || !pValues.length) return null;
   const n = pValues.length;
@@ -533,6 +561,7 @@ export function stratifiedFDR(pValues, strata) {
 }
 
 // ── FWER Control (Hochberg) ───────────────────────────────────────
+/** Family-wise error rate control. @param {number[]} pValues @param {{method?: string}} [options] */
 export function fwerControl(pValues, { method = 'hochberg' } = {}) {
   if (!pValues || !pValues.length) return null;
   const n = pValues.length;
