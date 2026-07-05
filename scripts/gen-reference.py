@@ -1824,6 +1824,33 @@ sem_fixtures = {
 }
 ref['sem'] = sem_fixtures
 
+# ── abm (moranIMulti) ────────────────────────────────────────────────────────
+# moranIMulti summed the i==j "self" term (w_ii=exp(0)=1, spuriously adding
+# Sum(z_i^2) to the numerator) and normalized by the agent count n instead of
+# S0 (the true sum of all off-diagonal spatial weights). Ground truth via a
+# from-scratch numpy re-derivation of the standard Moran's I formula
+# (n/S0)*Sum_{i!=j}(w_ij*z_i*z_j)/Sum(z_i^2).
+_ma_n = 20
+_ma_u = _lcg_seq(3, _ma_n * 3)
+_ma_agents = [{'x': _ma_u[3 * i] * 10, 'y': _ma_u[3 * i + 1] * 10, 'val': _ma_u[3 * i + 2] * 5} for i in range(_ma_n)]
+_ma_vals = np.array([a['val'] for a in _ma_agents])
+_ma_z = _ma_vals - _ma_vals.mean()
+_ma_W = np.zeros((_ma_n, _ma_n))
+for _i in range(_ma_n):
+    for _j in range(_ma_n):
+        _dx = _ma_agents[_i]['x'] - _ma_agents[_j]['x']
+        _dy = _ma_agents[_i]['y'] - _ma_agents[_j]['y']
+        _ma_W[_i, _j] = np.exp(-(_dx * _dx + _dy * _dy))
+np.fill_diagonal(_ma_W, 0)
+_ma_S0 = _ma_W.sum()
+_ma_num = float(np.sum(_ma_W * np.outer(_ma_z, _ma_z)))
+_ma_denom = float(np.sum(_ma_z ** 2))
+_ma_I = (_ma_n / _ma_S0) * (_ma_num / _ma_denom)
+abm = {
+    'moran_basic': {'agents': _ma_agents, 'I': _ma_I}
+}
+ref['abm'] = abm
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

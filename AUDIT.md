@@ -736,6 +736,23 @@
 >
 > Full suite: **4,925 tests pass**. Total across all oracle passes: **59 real correctness bugs found and
 > fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, thirty-third pass).** Audited `abm.js`. `simulationConvergence`,
+> `sobolSensitivity` (already verified via its own existing "not corr²" test), `agentSummaryStats`,
+> `scenarioComparison`, `thresholdModel`, and `networkDiffusion` were confirmed correct by inspection
+> (standard moving-window convergence, binned Sobol variance decomposition, descriptive stats, Welch-style
+> two-sample z-test, Granovetter cascade, and independent-cascade diffusion respectively).
+> `segregationIndex`'s multi-group generalization remains deliberately unaudited (a genuinely contested
+> convention in the demography literature, per an earlier pass). Found **1 real bug**:
+> - `moranIMulti` summed the `i==j` "self" term into its numerator (`w_ii = exp(0) = 1`, spuriously adding
+>   `Σz_i²`) and normalized by the agent count `n` instead of `S0`, the true sum of all off-diagonal spatial
+>   weights — the standard formula is `(n/S0)·ΣΣ_{i≠j} w_ij·z_i·z_j / Σz_i²`. Verified against a from-scratch
+>   numpy re-derivation on a 20-agent test case: the old code gave I=0.0511 vs. the correct 0.0366 (a ~40%
+>   relative error), and the discrepancy's sign/magnitude depends arbitrarily on how `S0` happens to compare
+>   to `n` for any given spatial configuration. Fixed by excluding self-pairs and normalizing by the true `S0`.
+>
+> Full suite: **4,926 tests pass**. Total across all oracle passes: **60 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 
