@@ -753,6 +753,44 @@
 >
 > Full suite: **4,926 tests pass**. Total across all oracle passes: **60 real correctness bugs found and
 > fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, thirty-fourth pass — `pointProcess.js`, the last un-audited
+> module).** `hawkesIntensity`, `coxProcess`, `interArrivalTest`, and `burstinessIndex` were confirmed
+> correct by inspection (standard exponential-kernel Hawkes intensity, rejection-sampled Cox process,
+> coefficient-of-variation clustering test, and the standard Goh–Barabási burstiness parameter). Found
+> **4 real bugs**:
+> - `hawkesFit` ("Hawkes Fit (MLE)") derived `mu`/`alpha`/`beta` purely from the average event rate `n/T`
+>   — arithmetic that never examines WHEN events occur relative to each other, so it cannot distinguish a
+>   genuinely self-exciting/clustered process from a uniform one at all. Verified: a uniform 50-event stream
+>   and a heavily bursty 50-event stream with the same span produced nearly identical "fitted" parameters
+>   (α=0.0051 vs. 0.0055). Replaced with a real Newton-Raphson MLE (via the existing `mleFit` helper) on the
+>   exponential-kernel Hawkes log-likelihood; verified against an independent `scipy.optimize` Nelder-Mead
+>   fit of the same likelihood on the same simulated event stream — both converge to the identical optimum
+>   (μ=0.2060, α=0.4877, β=0.9764) to 4 decimal places, and the fit now correctly recovers the true
+>   parameters of a simulated self-exciting process (μ=0.2, α=0.5, β=1.0).
+> - `maternCluster` and `thomasProcess` both placed offspring at `dist = rand()·radius, angle = rand()·2π` —
+>   uniform in RADIUS, not uniform in AREA. Verified with 200,000 samples: equal-width radial bins came out
+>   ~equal (~40,000 each) instead of growing with annulus area as required (8,000/24,000/40,000/56,000/
+>   72,000) — points were badly over-concentrated near cluster centers. Fixed `maternCluster` (whose
+>   textbook definition, Matérn 1960, is exactly "uniform within the disk") via `r = R·√u`. `thomasProcess`
+>   has a different textbook definition entirely (Thomas 1949: offspring displaced by an isotropic
+>   bivariate NORMAL, not a bounded disk) — since this codebase already implements the disk-based process
+>   separately as `maternCluster`, `thomasProcess` was rewritten to use a genuine Gaussian offset via
+>   Box-Muller, matching its actual name.
+> - `pairCorrelation` and `lFunction` (Ripley's K/L) computed their neighbor counts with no edge/border
+>   correction, so points near the observation window's boundary were systematically undercounted (part of
+>   their neighborhood falls outside the observed area). Verified on 2,000 uniform (CSR) points in a 100×100
+>   window: `g(r)` should be ≈1 and `L(r)` should be ≈0 everywhere, but the uncorrected estimator gave
+>   `g(r)` declining to 0.71 and `L(r)` declining to −2.8 at the default `maxRadius` (25% of the window
+>   width) — a severe, systematic bias, not sampling noise (confirmed by re-running with a much smaller
+>   `maxRadius`, where the bias nearly vanished). Fixed by adding the standard border (minus-sampling) edge
+>   correction: a point is only used as a reference for radius `r` if its full neighborhood of radius `r`
+>   fits inside the observation window; after the fix, `g(r)` stays within 0.85–1.15 and `|L(r)|` stays
+>   under 0.3 across all bins for the same CSR test case.
+>
+> Full suite: **4,931 tests pass**. Total across all oracle passes: **64 real correctness bugs found and
+> fixed**, plus one module-portability defect. **This completes the exhaustive oracle-testing audit of every
+> module in the codebase.**
 
 ## Verdict
 
