@@ -14,6 +14,7 @@ function sigmoid(z) {
 /** Propensity score matching — nearest neighbor ATT */
 
 // ── Propensity Score Match ────────────────────────────────────────
+/** Propensity score matching (nearest neighbor). @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} outcomeVar @param {string[]} [covariates=[]] */
 export function propensityScoreMatch(data, treatVar, outcomeVar, covariates = []) {
   const rows = data.filter(r =>
     r[treatVar] != null && Number.isFinite(+r[outcomeVar]) &&
@@ -91,6 +92,7 @@ export function propensityScoreMatch(data, treatVar, outcomeVar, covariates = []
 /** 2SLS: stage 1 Z→X, stage 2 fitted X→Y */
 
 // ── IV / 2SLS ─────────────────────────────────────────────────────
+/** Two-stage least squares IV regression. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} xVar endogenous regressor. @param {string} instrument @param {string[]} [controls=[]] */
 export function iv2sls(data, yVar, xVar, instrument, controls = []) {
   const allX = [instrument, ...controls];
   const rows = data.filter(r =>
@@ -175,6 +177,7 @@ export function iv2sls(data, yVar, xVar, instrument, controls = []) {
 /** Interrupted time series — level + slope change */
 
 // ── Interrupted Time Series ───────────────────────────────────────
+/** Interrupted time-series (segmented) regression. @param {number[]} times @param {number[]} values @param {number} interventionTime */
 export function interruptedTimeSeries(times, values, interventionTime) {
   if (times.length !== values.length || times.length < 6) return null;
   const post = times.map(t => (t >= interventionTime ? 1 : 0));
@@ -215,6 +218,7 @@ export function interruptedTimeSeries(times, values, interventionTime) {
 /** Sharp RDD — local linear both sides at cutoff */
 
 // ── Regression Discontinuity ──────────────────────────────────────
+/** Sharp regression discontinuity. @param {number[]} x running variable. @param {number[]} y @param {number} cutoff @param {number} bandwidth */
 export function regressionDiscontinuity(x, y, cutoff, bandwidth) {
   if (x.length !== y.length || x.length < 12) return null;
   const h = bandwidth > 0 ? bandwidth : Math.max(0.5, 1.06 * sampleSD(x) * x.length ** (-1 / 5));
@@ -263,6 +267,7 @@ export function regressionDiscontinuity(x, y, cutoff, bandwidth) {
 }
 
 // ── Synthetic control ───────────────────────────────────────────────────────
+/** Synthetic control method. @param {number[]} treated treated-unit series. @param {number[][]} controls control-unit series. @param {number} prePeriods @param {number} postPeriods */
 export function syntheticControl(treated, controls, prePeriods, postPeriods) {
   if (!treated || !controls || !controls.length || prePeriods < 2 || postPeriods < 1) return null;
   const nControls = controls.length;
@@ -345,6 +350,7 @@ export function syntheticControl(treated, controls, prePeriods, postPeriods) {
 }
 
 // ── Double/Debiased ML (DML) ────────────────────────────────────────────────
+/** Double/debiased machine learning ATE. @param {number[]} y @param {number[]} D treatment (0/1). @param {number[][]} Xraw covariate rows. @param {{splits?: number, seed?: number}} [options] */
 export function doubleML(y, D, Xraw, { splits = 2, seed = 42 } = {}) {
   if (!y || !D || !Xraw || y.length < 20 || D.length !== y.length || Xraw.length !== y.length) return null;
   const n = y.length;
@@ -407,6 +413,7 @@ export function doubleML(y, D, Xraw, { splits = 2, seed = 42 } = {}) {
 }
 
 // ── Backdoor adjustment (DAG-based) ─────────────────────────────────────────
+/** Backdoor criterion adjustment-set search. @param {Record<string, string[]>} adjacencyList DAG as node → children. @param {string} treatment @param {string} outcome */
 export function backdoorAdjustment(adjacencyList, treatment, outcome) {
   if (!adjacencyList || !treatment || !outcome) return null;
   const adj = {};
@@ -453,6 +460,7 @@ export function backdoorAdjustment(adjacencyList, treatment, outcome) {
 }
 
 // ── IPTW Weights ───────────────────────────────────────────────────────────
+/** Inverse probability of treatment weighting. @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} outcomeVar @param {string[]} covariates */
 export function iptwWeights(data, treatVar, outcomeVar, covariates) {
   if (!data || data.length < 20 || !treatVar || !outcomeVar) return null;
   const rows = data.filter(r =>
@@ -499,6 +507,7 @@ export function iptwWeights(data, treatVar, outcomeVar, covariates) {
 }
 
 // ── Fuzzy RDD ──────────────────────────────────────────────────────────────
+/** Fuzzy regression discontinuity. @param {Array<Record<string, any>>} data @param {string} runningVar @param {string} treatVar @param {string} outcomeVar @param {number} cutoff @param {number} bandwidth */
 export function fuzzyRDD(data, runningVar, treatVar, outcomeVar, cutoff, bandwidth) {
   if (!data || data.length < 30) return null;
   const rows = data.filter(r => Number.isFinite(+r[runningVar]) && r[treatVar] != null && Number.isFinite(+r[outcomeVar]));
@@ -557,6 +566,7 @@ export function fuzzyRDD(data, runningVar, treatVar, outcomeVar, cutoff, bandwid
 }
 
 // ── G-Computation ──────────────────────────────────────────────────────────
+/** G-computation (standardization) ATE. @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} outcomeVar @param {string[]} covariates @param {number} [seed=42] */
 export function gComputation(data, treatVar, outcomeVar, covariates, seed = 42) {
   __rng = mulberry32(seed);
   if (!data || data.length < 30 || !treatVar || !outcomeVar || !covariates.length) return null;
@@ -635,6 +645,7 @@ export function gComputation(data, treatVar, outcomeVar, covariates, seed = 42) 
 }
 
 // ── Staggered DiD ──────────────────────────────────────────────────────────
+/** Staggered-adoption differences-in-differences. @param {Array<Record<string, any>>} panelData @param {string} idVar @param {string} timeVar @param {string} treatVar @param {string} outcomeVar */
 export function staggeredDiD(panelData, idVar, timeVar, treatVar, outcomeVar) {
   if (!panelData || panelData.length < 20 || !idVar || !timeVar || !treatVar || !outcomeVar) return null;
   const rows = panelData.filter(r =>
@@ -689,6 +700,7 @@ export function staggeredDiD(panelData, idVar, timeVar, treatVar, outcomeVar) {
 }
 
 // ── Covariate Balance (SMD) ───────────────────────────────────────
+/** Standardized mean differences between groups. @param {Array<Record<string, number>>} treated @param {Array<Record<string, number>>} control @param {string[]} vars */
 export function covariateBalance(treated, control, vars) {
   if (!treated || !control || !vars || !vars.length || treated.length < 5 || control.length < 5) return null;
   const results = vars.map(v => {
@@ -708,6 +720,7 @@ export function covariateBalance(treated, control, vars) {
 }
 
 // SMD Table
+/** SMD balance table for all covariates. @param {Array<Record<string, any>>} data @param {string} treatVar @param {string[]} covariates */
 export function smdTable(data, treatVar, covariates) {
   if (!data || data.length < 10 || !treatVar || !covariates || !covariates.length) return null;
   const vals = [...new Set(data.map(r => r[treatVar]))];
@@ -719,6 +732,7 @@ export function smdTable(data, treatVar, covariates) {
 }
 
 // ── Propensity Overlap ────────────────────────────────────────────
+/** Propensity score overlap histogram data. @param {Array<Record<string, any>>} data @param {string} treatVar @param {string[]} covariates @param {{nBins?: number}} [options] */
 export function propensityOverlap(data, treatVar, covariates, { nBins = 10 } = {}) {
   if (!data || data.length < 10 || !treatVar || !covariates || !covariates.length) return null;
   const vals = [...new Set(data.map(r => r[treatVar]))];
@@ -744,6 +758,7 @@ export function propensityOverlap(data, treatVar, covariates, { nBins = 10 } = {
 }
 
 // ── Weighting Diagnostics ─────────────────────────────────────────
+/** Diagnostics for IPTW weights. @param {number[]} weights @param {Array<Record<string, any>>} data @param {string} treatVar @param {string[]} covariates */
 export function weightingDiagnostics(weights, data, treatVar, covariates) {
   if (!weights || !data || !treatVar || !covariates || !covariates.length) return null;
   const n = Math.min(weights.length, data.length);
@@ -772,6 +787,7 @@ export function weightingDiagnostics(weights, data, treatVar, covariates) {
 }
 
 // ── Love Plot Data ────────────────────────────────────────────────
+/** Love plot data (before/after SMDs). @param {Array<{variable: string, smd: number}>} before @param {Array<{variable: string, smd: number}>} after */
 export function lovePlotData(before, after) {
   if (!before || !after) return null;
   const data = before.map((b, i) => {
@@ -785,6 +801,7 @@ export function lovePlotData(before, after) {
 }
 
 // ── Natural Indirect Effect ───────────────────────────────────────
+/** Natural indirect effect (causal mediation). @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} mediator @param {string} outcomeVar @param {string[]} covariates */
 export function naturalIndirectEffect(data, treatVar, mediator, outcomeVar, covariates) {
   if (!data || data.length < 20 || !treatVar || !mediator || !outcomeVar) return null;
   const rows = data.filter(r => r[treatVar] != null && Number.isFinite(+r[outcomeVar]) && Number.isFinite(+r[mediator]) && covariates.every(c => Number.isFinite(r[c])));
@@ -819,6 +836,7 @@ export function naturalIndirectEffect(data, treatVar, mediator, outcomeVar, cova
 }
 
 // ── Controlled Direct Effect ──────────────────────────────────────
+/** Controlled direct effect at a fixed mediator value. @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} mediator @param {string} outcomeVar @param {string[]} covariates @param {number} [mediatorValue=0] */
 export function controlledDirectEffect(data, treatVar, mediator, outcomeVar, covariates, mediatorValue = 0) {
   if (!data || data.length < 20 || !treatVar || !mediator || !outcomeVar) return null;
   const rows = data.filter(r => r[treatVar]!=null && Number.isFinite(+r[outcomeVar]) && Number.isFinite(+r[mediator]) && covariates.every(c=>Number.isFinite(r[c])));
@@ -840,6 +858,7 @@ export function controlledDirectEffect(data, treatVar, mediator, outcomeVar, cov
 }
 
 // ── E-Value ───────────────────────────────────────────────────────
+/** E-value for unmeasured confounding. @param {number} estimate @param {number} se */
 export function evalue(estimate, se) {
   if (!Number.isFinite(estimate) || !Number.isFinite(se) || se <= 0) return null;
   const b = Math.abs(estimate), t = b / se;
@@ -849,6 +868,7 @@ export function evalue(estimate, se) {
 }
 
 // ── Mediation Proportion ──────────────────────────────────────────
+/** Proportion of effect mediated. @param {number} indirect @param {number} total */
 export function mediationProportion(indirect, total) {
   if (!Number.isFinite(indirect) || !Number.isFinite(total) || total === 0) return null;
   const prop = indirect / total;
@@ -856,6 +876,7 @@ export function mediationProportion(indirect, total) {
 }
 
 // ── Sensitivity Bias ──────────────────────────────────────────────
+/** Bias sensitivity for an odds ratio. @param {number} or @param {number} [prevalence=0.3] */
 export function sensitivityBias(or, prevalence = 0.3) {
   if (!or || or <= 0 || prevalence <= 0 || prevalence >= 1) return null;
   const rr = Math.sqrt(or);
@@ -864,6 +885,7 @@ export function sensitivityBias(or, prevalence = 0.3) {
 }
 
 // ── Interaction Mediation ─────────────────────────────────────────
+/** Mediation with treatment–mediator interaction. @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} mediator @param {string} outcomeVar @param {string[]} covariates */
 export function interactionMediation(data, treatVar, mediator, outcomeVar, covariates) {
   if (!data || data.length < 20 || !treatVar || !mediator || !outcomeVar) return null;
   const rows = data.filter(r => r[treatVar]!=null && Number.isFinite(+r[outcomeVar]) && Number.isFinite(+r[mediator]) && covariates.every(c=>Number.isFinite(r[c])));
@@ -885,6 +907,7 @@ export function interactionMediation(data, treatVar, mediator, outcomeVar, covar
 }
 
 // ── MSM with IPTW ─────────────────────────────────────────────────
+/** Marginal structural model weights over time. @param {Array<Record<string, any>>} data @param {string[]} timeVars @param {string} treatment @param {string} outcome @param {string[]} covariates */
 export function msmWeights(data, timeVars, treatment, outcome, covariates) {
   if (!data || data.length < 20 || !timeVars || !treatment || !outcome) return null;
   const n = data.length;
@@ -905,6 +928,7 @@ export function msmWeights(data, timeVars, treatment, outcome, covariates) {
 }
 
 // ── G-estimation ──────────────────────────────────────────────────
+/** G-estimation of a structural nested model. @param {Array<Record<string, any>>} data @param {string} treatment @param {string} outcome @param {string[]} covariates */
 export function gestimationSNM(data, treatment, outcome, covariates) {
   if (!data || data.length < 20 || !treatment || !outcome) return null;
   const n = data.length;
@@ -933,6 +957,7 @@ export function gestimationSNM(data, treatment, outcome, covariates) {
 }
 
 // ── RPSFT ─────────────────────────────────────────────────────────
+/** Rank-preserving structural failure time model. @param {Array<Record<string, any>>} data @param {string} treatment @param {string} outcome @param {string} observed */
 export function rpsft(data, treatment, outcome, observed) {
   if (!data || data.length < 20 || !treatment || !outcome || !observed) return null;
   const n = data.length;
@@ -956,6 +981,7 @@ export function rpsft(data, treatment, outcome, observed) {
 }
 
 // ── Structural Nested AFT ─────────────────────────────────────────
+/** Structural nested accelerated failure time model. @param {Array<Record<string, any>>} data @param {string} treatment @param {string} eventTime @param {string[]} covariates */
 export function structuralNestedAFT(data, treatment, eventTime, covariates) {
   if (!data || data.length < 20 || !treatment || !eventTime) return null;
   const n = data.length;
@@ -979,6 +1005,7 @@ export function structuralNestedAFT(data, treatment, eventTime, covariates) {
 }
 
 // ── Compliance-Adjusted ATE ───────────────────────────────────────
+/** Complier average causal effect (CACE). @param {Array<Record<string, any>>} data @param {string} randomized @param {string} received @param {string} outcome */
 export function complianceAdjusted(data, randomized, received, outcome) {
   if (!data || data.length < 20 || !randomized || !received || !outcome) return null;
   const n = data.length;
@@ -997,6 +1024,7 @@ export function complianceAdjusted(data, randomized, received, outcome) {
 }
 
 // ── Weak IV Test (F > 10 rule) ────────────────────────────────────
+/** First-stage F test for weak instruments. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} xVar @param {string} instrument @param {string[]} zVars */
 export function weakIVTest(data, yVar, xVar, instrument, zVars) {
   if (!data || data.length < 20 || !yVar || !xVar || !instrument) return null;
   const rows = data.filter(r => Number.isFinite(+r[xVar]) && Number.isFinite(+r[instrument]) && (zVars || []).every(c => Number.isFinite(+r[c])));
@@ -1015,6 +1043,7 @@ export function weakIVTest(data, yVar, xVar, instrument, zVars) {
 }
 
 // ── Sargan-Hansen J Test ──────────────────────────────────────────
+/** Sargan–Hansen J overidentification test. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} xVar @param {string[]} instruments */
 export function sarganHansenJ(data, yVar, xVar, instruments) {
   if (!data || data.length < 20 || !yVar || !xVar || !instruments || instruments.length < 2) return null;
   const n = data.length;
@@ -1027,6 +1056,7 @@ export function sarganHansenJ(data, yVar, xVar, instruments) {
 }
 
 // ── Durbin-Wu-Hausman Endogeneity Test ────────────────────────────
+/** Durbin–Wu–Hausman endogeneity test. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} xVar @param {string[]} instruments */
 export function durbinWuHausman(data, yVar, xVar, instruments) {
   if (!data || data.length < 20 || !yVar || !xVar || !instruments || !instruments.length) return null;
   const n = data.length;
@@ -1045,12 +1075,14 @@ export function durbinWuHausman(data, yVar, xVar, instruments) {
 }
 
 // ── IV Diagnostics Summary ────────────────────────────────────────
+/** Combined IV diagnostics summary. @param {number} fsFstat first-stage F. @param {object} sarganJ @param {object} hausman */
 export function ivDiagnosticsSummary(fsFstat, sarganJ, hausman) {
   if (!fsFstat || !sarganJ || !hausman) return null;
   return { test: 'IV Diagnostics Summary', weakInstruments: fsFstat.isWeak || false, overidentified: sarganJ.p < 0.05, endogenous: hausman.p < 0.05, apa: `IV diag: weak=${fsFstat.isWeak}, overID=${sarganJ.p < 0.05}, endog=${hausman.p < 0.05}` };
 }
 
 // ── Moderated Mediation ───────────────────────────────────────────
+/** Moderated mediation (index of). @param {Array<Record<string, any>>} data @param {string} xVar @param {string} mVar @param {string} yVar @param {string} wVar moderator. @param {{nBoot?: number}} [options] */
 export function moderatedMediation(data, xVar, mVar, yVar, wVar, { nBoot = 100 } = {}) {
   if (!data || data.length < 20 || !xVar || !mVar || !yVar || !wVar) return null;
   const n = data.length;
@@ -1066,6 +1098,7 @@ export function moderatedMediation(data, xVar, mVar, yVar, wVar, { nBoot = 100 }
 }
 
 // ── Multi-Mediator ────────────────────────────────────────────────
+/** Parallel multiple-mediator model. @param {Array<Record<string, any>>} data @param {string} xVar @param {string} yVar @param {string[]} mVars @param {{nBoot?: number}} [options] */
 export function multiMediator(data, xVar, yVar, mVars, { nBoot = 100 } = {}) {
   if (!data || data.length < 20 || !xVar || !yVar || !mVars || mVars.length < 2) return null;
   const x = data.map(r => +r[xVar]), y = data.map(r => +r[yVar]);
@@ -1094,6 +1127,7 @@ function partialCorrSimple(x, y, zVars) {
 }
 
 // ── Longitudinal Mediation ────────────────────────────────────────
+/** Longitudinal (cross-lagged) mediation. @param {Array<Record<string, any>>} data @param {string} xVar @param {string} mVar @param {string} yVar @param {string} timeVar @param {{idVar?: string}} [options] */
 export function longitudinalMediation(data, xVar, mVar, yVar, timeVar, { idVar = 'id' } = {}) {
   if (!data || data.length < 20 || !xVar || !mVar || !yVar || !timeVar) return null;
   const ids = [...new Set(data.map(r => r[idVar] || r[timeVar]))];
@@ -1115,6 +1149,7 @@ export function longitudinalMediation(data, xVar, mVar, yVar, timeVar, { idVar =
 }
 
 // ── Sensitivity Bounds ────────────────────────────────────────────
+/** Sensitivity bounds for an effect under confounding. @param {number} effect @param {number} se @param {number} [rho=0.1] */
 export function sensitivityBounds(effect, se, rho = 0.1) {
   if (effect == null || !se || se <= 0) return null;
   const bias = rho * se;

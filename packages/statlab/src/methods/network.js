@@ -4,7 +4,7 @@ import { mulberry32 } from '../math/rng.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
-/** Build symmetric adjacency from edge list or correlation threshold */
+/** Build an adjacency matrix from node and edge lists. @param {Array<string|number>} nodes @param {Array<{from: string|number, to: string|number, weight?: number}>} edges @param {boolean} [undirected=true] */
 export function adjacencyFromEdges(nodes, edges, undirected = true) {
   const idx = Object.fromEntries(nodes.map((n, i) => [String(n), i]));
   const n = nodes.length;
@@ -22,6 +22,7 @@ export function adjacencyFromEdges(nodes, edges, undirected = true) {
 /** Centrality measures on adjacency matrix */
 
 // ── Centrality Measures ───────────────────────────────────────────
+/** Degree/betweenness/eigenvector centrality. @param {number[][]} A adjacency matrix. */
 export function centralityMeasures(A) {
   const n = A.length;
   if (!n) return null;
@@ -94,6 +95,7 @@ export function centralityMeasures(A) {
 /** Greedy modularity community detection (Newman) */
 
 // ── Community Detection ───────────────────────────────────────────
+/** Greedy modularity community detection. @param {number[][]} A */
 export function communityDetection(A) {
   const n = A.length;
   if (n < 2) return null;
@@ -154,6 +156,7 @@ export function communityDetection(A) {
 /** Force-directed sociogram layout (Fruchterman-Reingold lite) */
 
 // ── Sociogram ─────────────────────────────────────────────────────
+/** Force-directed sociogram layout. @param {number[][]} A @param {number} [iterations=80] */
 export function sociogramLayout(A, iterations = 80) {
   const n = A.length;
   if (!n) return null;
@@ -207,7 +210,7 @@ export function sociogramLayout(A, iterations = 80) {
   };
 }
 
-/** Parse edge list string "A-B,B-C" or "A-B:2" into adjacency for named nodes */
+/** Parse an edge-list string ("a-b, b-c:2") into a network. @param {string} edgeStr @param {string[]|null} [nodeNames=null] */
 export function networkFromEdgeList(edgeStr, nodeNames = null) {
   const pairs = edgeStr.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
   const edges = pairs.map(pair => {
@@ -227,6 +230,7 @@ export function networkFromEdgeList(edgeStr, nodeNames = null) {
 }
 
 // ── PageRank ─────────────────────────────────────────────────────────────────
+/** PageRank centrality. @param {number[][]} A @param {{damping?: number, maxIter?: number, tolerance?: number}} [options] */
 export function pageRank(A, { damping = 0.85, maxIter = 100, tolerance = 1e-6 } = {}) {
   if (!A || !A.length || A.length < 2) return null;
   const n = A.length;
@@ -272,6 +276,7 @@ export function pageRank(A, { damping = 0.85, maxIter = 100, tolerance = 1e-6 } 
 }
 
 // ── Closeness Centrality ─────────────────────────────────────────────────────
+/** Closeness centrality via BFS shortest paths. @param {number[][]} A */
 export function closenessCentrality(A) {
   if (!A || !A.length || A.length < 2) return null;
   const n = A.length;
@@ -309,6 +314,7 @@ export function closenessCentrality(A) {
 }
 
 // ── Graph Metrics ────────────────────────────────────────────────────────────
+/** Global graph metrics (density, diameter, clustering, …). @param {number[][]} A */
 export function graphMetrics(A) {
   if (!A || !A.length || A.length < 2) return null;
   const n = A.length;
@@ -387,6 +393,7 @@ export function graphMetrics(A) {
 }
 
 // ── Louvain Communities ──────────────────────────────────────────────────────
+/** Louvain community detection. @param {number[][]} A @param {number} [seed=42] */
 export function louvainCommunities(A, seed = 42) {
   __rng = mulberry32(seed);
   if (!A || !A.length || A.length < 2) return null;
@@ -493,6 +500,7 @@ export function louvainCommunities(A, seed = 42) {
 }
 
 // ── Fit Power Law ────────────────────────────────────────────────────────────
+/** Power-law degree-distribution fit. @param {number[]} degrees @param {{xmin?: number|null}} [options] */
 export function fitPowerLaw(degrees, { xmin = null } = {}) {
   if (!degrees || !degrees.length || degrees.length < 3) return null;
   const sorted = [...degrees].sort((a, b) => a - b);
@@ -539,6 +547,7 @@ export function fitPowerLaw(degrees, { xmin = null } = {}) {
 }
 
 // ── Network Diffusion ─────────────────────────────────────────────
+/** Seeded diffusion over a network. @param {number[][]} A @param {number[]} seeds seed node indices. @param {{steps?: number, alpha?: number}} [options] */
 export function networkDiffusion(A, seeds, { steps = 10, alpha = 0.85 } = {}) {
   if (!A || !A.length || !seeds || !seeds.length) return null;
   const n = A.length;
@@ -564,6 +573,7 @@ export function networkDiffusion(A, seeds, { steps = 10, alpha = 0.85 } = {}) {
 }
 
 // ── SIR Model ─────────────────────────────────────────────────────
+/** SIR epidemic simulation on a network. @param {number[][]} A @param {{seed?: number, beta?: number, gamma?: number, steps?: number, initialInfected?: number[]|null}} [options] */
 export function SIRModel(A, { seed = 42, beta = 0.3, gamma = 0.1, steps = 20, initialInfected = null } = {}) {
   __rng = mulberry32(seed);
   if (!A || !A.length) return null;
@@ -595,6 +605,7 @@ export function SIRModel(A, { seed = 42, beta = 0.3, gamma = 0.1, steps = 20, in
 }
 
 // ── QAP Test ──────────────────────────────────────────────────────
+/** Quadratic assignment procedure test between two networks. @param {number[][]} A @param {number[][]} B @param {{seed?: number, permutations?: number}} [options] */
 export function qapTest(A, B, { seed = 42, permutations = 199 } = {}) {
   __rng = mulberry32(seed);
   if (!A || !B || A.length < 3 || A.length !== B.length) return null;
@@ -612,6 +623,7 @@ export function qapTest(A, B, { seed = 42, permutations = 199 } = {}) {
 }
 
 // ── CUG Test ──────────────────────────────────────────────────────
+/** Conditional uniform graph test of a statistic. @param {number[][]} A @param {(A: number[][]) => number} statFn @param {{seed?: number, permutations?: number}} [options] */
 export function cugTest(A, statFn, { seed = 42, permutations = 199 } = {}) {
   __rng = mulberry32(seed);
   if (!A || !A.length || !statFn) return null;
@@ -632,6 +644,7 @@ export function cugTest(A, statFn, { seed = 42, permutations = 199 } = {}) {
 }
 
 // ── Network Autocorrelation (Moran on network) ────────────────────
+/** Moran-style network autocorrelation of an attribute. @param {number[][]} A @param {number[]} x node attribute. */
 export function networkAutocorrelation(A, x) {
   if (!A || !x || A.length !== x.length || A.length < 3) return null;
   const n = A.length;
@@ -648,6 +661,7 @@ export function networkAutocorrelation(A, x) {
 }
 
 // ── Degree Assortativity ──────────────────────────────────────────
+/** Degree assortativity coefficient. @param {number[][]} A */
 export function degreeAssortativity(A) {
   if (!A || !A.length) return null;
   const n = A.length;
@@ -664,6 +678,7 @@ export function degreeAssortativity(A) {
 }
 
 // ── Clustering Profile ────────────────────────────────────────────
+/** Per-node local clustering coefficients. @param {number[][]} A */
 export function clusteringProfile(A) {
   if (!A || !A.length) return null;
   const n = A.length;

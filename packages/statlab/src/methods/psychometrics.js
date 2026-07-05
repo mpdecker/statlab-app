@@ -16,7 +16,7 @@ function corrMatrixFromItems(matrix) {
     Array.from({ length: k }, (_, j) => +(corr(matrix.map(r => r[i]), matrix.map(r => r[j]))).toFixed(6)));
 }
 
-/** McDonald's ω (total) from 1-factor model on item correlation matrix */
+/** McDonald's ω (total) from a 1-factor model on the item correlation matrix. @param {number[][]} matrix respondents × items. */
 export function omegaMcDonald(matrix) {
   const k = matrix[0]?.length;
   const n = matrix.length;
@@ -43,6 +43,7 @@ export function omegaMcDonald(matrix) {
 /** Parallel analysis (Monte Carlo) — compare data eigenvalues to random */
 
 // ── Parallel Analysis ─────────────────────────────────────────────
+/** Horn's parallel analysis for factor retention. @param {Array<Record<string, number>>} data @param {string[]} vars @param {number} [nReps=40] @param {number} [seed=42] */
 export function parallelAnalysis(data, vars, nReps = 40, seed = 42) {
   const matrix = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
   const n = matrix.length;
@@ -80,6 +81,7 @@ export function parallelAnalysis(data, vars, nReps = 40, seed = 42) {
 /** Rasch 1PL — joint ML difficulties (discrimination fixed at 1) */
 
 // ── IRT Rasch (1PL) ───────────────────────────────────────────────
+/** Rasch (1PL) IRT model. @param {number[][]} matrix respondents × items (0/1). */
 export function irtRasch1PL(matrix) {
   const n = matrix.length;
   const k = matrix[0]?.length;
@@ -134,6 +136,7 @@ export function irtRasch1PL(matrix) {
 /** 2PL IRT — per-item a and b (simplified JML) */
 
 // ── IRT 2PL ───────────────────────────────────────────────────────
+/** 2PL IRT model. @param {number[][]} matrix respondents × items (0/1). */
 export function irt2PL(matrix) {
   const n = matrix.length;
   const k = matrix[0]?.length;
@@ -193,6 +196,7 @@ export function irt2PL(matrix) {
 /** Composite scale scoring (sum/mean) with optional reverse coding */
 
 // ── Scale Scoring ─────────────────────────────────────────────────
+/** Scale scoring with optional reverse-keyed items. @param {number[][]} matrix @param {{method?: string, reverseIdx?: number[]}} [options] */
 export function scaleScore(matrix, { method = 'sum', reverseIdx = [] } = {}) {
   const k = matrix[0]?.length;
   const n = matrix.length;
@@ -232,6 +236,7 @@ function logistic(x) {
 
 // ── IRT 3PL ───────────────────────────────────────────────────────
 
+/** 3PL IRT model (with guessing parameter). @param {number[][]} matrix respondents × items (0/1). @param {{maxIter?: number, tolerance?: number}} [options] */
 export function irt3PL(matrix, { maxIter = 60, tolerance = 1e-5 } = {}) {
   if (!matrix || matrix.length < 10 || !matrix[0]) return null;
   const n = matrix.length, k = matrix[0].length;
@@ -294,6 +299,7 @@ export function irt3PL(matrix, { maxIter = 60, tolerance = 1e-5 } = {}) {
 }
 
 // ── Graded Response Model (Samejima) ─────────────────────────────────────────
+/** Samejima graded response model. @param {number[][]} matrix respondents × items (ordinal). @param {{maxIter?: number, tolerance?: number}} [options] */
 export function gradedResponseModel(matrix, { maxIter = 50, tolerance = 1e-5 } = {}) {
   if (!matrix || matrix.length < 10 || !matrix[0]) return null;
   const n = matrix.length, k = matrix[0].length;
@@ -377,6 +383,7 @@ export function gradedResponseModel(matrix, { maxIter = 50, tolerance = 1e-5 } =
 }
 
 // ── Partial Credit Model (Masters) ──────────────────────────────────────────
+/** Partial credit model. @param {number[][]} matrix respondents × items (ordinal). @param {{maxIter?: number, tolerance?: number}} [options] */
 export function partialCreditModel(matrix, { maxIter = 50, tolerance = 1e-5 } = {}) {
   if (!matrix || matrix.length < 10 || !matrix[0]) return null;
   const n = matrix.length, k = matrix[0].length;
@@ -455,6 +462,7 @@ export function partialCreditModel(matrix, { maxIter = 50, tolerance = 1e-5 } = 
 }
 
 // ── Test information function ────────────────────────────────────────────────
+/** Test information function over a theta grid. @param {Array<Record<string, number>>} items item parameters. @param {number} [thetaMin=-4] @param {number} [thetaMax=4] @param {number} [nPoints=81] */
 export function testInformation(items, thetaMin = -4, thetaMax = 4, nPoints = 81) {
   if (!items || !items.length) return null;
   const pts = [];
@@ -513,6 +521,7 @@ export function testInformation(items, thetaMin = -4, thetaMax = 4, nPoints = 81
 }
 
 // ── DIF via Mantel-Haenszel ───────────────────────────────────────
+/** Mantel–Haenszel differential item functioning. @param {Array<Record<string, any>>} data @param {string} groupVar @param {string[]} items */
 export function difMH(data, groupVar, items) {
   if (!data || data.length < 20 || !groupVar || !items || items.length < 3) return null;
   const groups = [...new Set(data.map(r => r[groupVar]))];
@@ -565,6 +574,7 @@ export function difMH(data, groupVar, items) {
 }
 
 // ── EAP Scoring ───────────────────────────────────────────────────
+/** Expected a posteriori (EAP) IRT scoring. @param {Array<Record<string, number>>} itemParams @param {number[]} response @param {{nQPoints?: number}} [options] */
 export function eapScoring(itemParams, response, { nQPoints = 40 } = {}) {
   if (!itemParams || !itemParams.length || !response || response.length !== itemParams.length) return null;
   const n = itemParams.length;
@@ -620,6 +630,7 @@ export function eapScoring(itemParams, response, { nQPoints = 40 } = {}) {
 }
 
 // ── Multidimensional 2PL ──────────────────────────────────────────
+/** Multidimensional 2PL IRT model. @param {Array<Record<string, number>>} data @param {string[]} items @param {number} dimensions */
 export function multidimensional2PL(data, items, dimensions) {
   if (!data || data.length < 20 || !items || !items.length || !dimensions || !dimensions.length) return null;
   const n = data.length;
@@ -679,6 +690,7 @@ export function multidimensional2PL(data, items, dimensions) {
 }
 
 // ── Item Fit ──────────────────────────────────────────────────────
+/** Item fit statistics (infit/outfit style). @param {Array<Record<string, number>>} itemParams @param {number[][]} responseMatrix @param {number[]} scores */
 export function itemFit(itemParams, responseMatrix, scores) {
   if (!itemParams || !itemParams.length || !responseMatrix || responseMatrix.length < 3) return null;
   const nItems = itemParams.length;
@@ -734,6 +746,7 @@ export function itemFit(itemParams, responseMatrix, scores) {
 }
 
 // ── Nominal Response Model ────────────────────────────────────────
+/** Bock nominal response model. @param {number[][]} itemResponses @param {number} categories */
 export function nominalResponseModel(itemResponses, categories) {
   if (!itemResponses || itemResponses.length < 10) return null;
   const n = itemResponses.length, k = categories || 3;
@@ -745,6 +758,7 @@ export function nominalResponseModel(itemResponses, categories) {
 }
 
 // ── Generalized Partial Credit Model ──────────────────────────────
+/** Generalized partial credit model. @param {number[][]} itemScores @param {number} nCategories */
 export function generalizedPartialCredit(itemScores, nCategories) {
   if (!itemScores || itemScores.length < 10) return null;
   const n = itemScores.length, k = nCategories || 3;
@@ -758,6 +772,7 @@ export function generalizedPartialCredit(itemScores, nCategories) {
 }
 
 // ── Test Equating (Tucker) ────────────────────────────────────────
+/** Linear test equating between two forms. @param {number[]} scoresA @param {number[]} scoresB */
 export function testEquating(scoresA, scoresB) {
   if (!scoresA || !scoresB || scoresA.length < 10 || scoresB.length < 10) return null;
   const mA = avg(scoresA), mB = avg(scoresB);
@@ -769,6 +784,7 @@ export function testEquating(scoresA, scoresB) {
 }
 
 // ── Mixed-Format IRT ──────────────────────────────────────────────
+/** Mixed-format (dichotomous + polytomous) IRT. @param {number[][]} responses @param {string[]} formats per-item format labels. */
 export function mixedFormatIRT(responses, formats) {
   if (!responses || !formats || responses.length !== formats.length || responses.length < 5) return null;
   const n = responses.length;
@@ -817,6 +833,7 @@ function fitLogit(X, y, maxIter = 50, tol = 1e-8) {
   return { beta, logLik };
 }
 
+/** Logistic-regression differential item functioning. @param {Array<Record<string, any>>} data @param {string} groupVar @param {string} item @param {string} totalScore */
 export function difLogistic(data, groupVar, item, totalScore) {
   if (!data || data.length < 20 || !groupVar || !item) return null;
   const n = data.length;
@@ -851,6 +868,7 @@ export function difLogistic(data, groupVar, item, totalScore) {
 }
 
 // ── Test-Retest Reliability ───────────────────────────────────────
+/** Test–retest reliability. @param {number[]} t1 @param {number[]} t2 */
 export function testRetestReliability(t1, t2) {
   if (!t1 || !t2 || t1.length < 5 || t1.length !== t2.length) return null;
   const n = t1.length;
@@ -863,6 +881,7 @@ export function testRetestReliability(t1, t2) {
 }
 
 // ── Inter-Rater Reliability (Fleiss Kappa expansion) ──────────────
+/** Inter-rater reliability from a ratings matrix. @param {number[][]} ratings subjects × raters. */
 export function interRaterReliability(ratings) {
   if (!ratings || !ratings.length || ratings.length < 3) return null;
   const nSubjects = ratings[0].length;
@@ -892,6 +911,7 @@ export function interRaterReliability(ratings) {
 }
 
 // ── Parallel Forms Reliability ────────────────────────────────────
+/** Parallel-forms reliability. @param {number[]} formA @param {number[]} formB */
 export function parallelFormsReliability(formA, formB) {
   if (!formA || !formB || formA.length < 5 || formA.length !== formB.length) return null;
   const n = formA.length;
@@ -901,6 +921,7 @@ export function parallelFormsReliability(formA, formB) {
 }
 
 // ── Item Difficulty Index (P-value) ───────────────────────────────
+/** Classical item difficulty (proportion correct). @param {number[][]} responses respondents × items (0/1). */
 export function itemDifficultyIndex(responses) {
   if (!responses || responses.length < 5 || !responses[0]?.length) return null;
   const nItems = responses[0].length;
@@ -913,6 +934,7 @@ export function itemDifficultyIndex(responses) {
 }
 
 // ── Item Discrimination Index ─────────────────────────────────────
+/** Classical item discrimination index. @param {number[][]} responses respondents × items (0/1). @param {number[]|null} [totalScores=null] */
 export function itemDiscriminationIndex(responses, totalScores = null) {
   if (!responses || responses.length < 10 || !responses[0]?.length) return null;
   const nExaminees = responses.length;

@@ -35,6 +35,7 @@ function groupBy(data, key) {
 /** Random-intercept HLM: y = γ00 + γ01*x + u_j + e_ij */
 
 // ── HLM Random Intercept ──────────────────────────────────────────
+/** Random-intercept multilevel model. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} clusterVar @param {string[]} [xVars=[]] */
 export function hlmRandomIntercept(data, yVar, clusterVar, xVars = []) {
   const rows = data.filter(r => clusterVar != null && Number.isFinite(+r[yVar]));
   const groups = groupBy(rows, clusterVar);
@@ -105,6 +106,7 @@ export function hlmRandomIntercept(data, yVar, clusterVar, xVars = []) {
 /** Random slope extension (cluster-specific slopes on one predictor) */
 
 // ── HLM Random Slope ──────────────────────────────────────────────
+/** Random-slope multilevel model. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} clusterVar @param {string} xVar */
 export function hlmRandomSlope(data, yVar, clusterVar, xVar) {
   const base = hlmRandomIntercept(data, yVar, clusterVar, [xVar]);
   if (!base) return null;
@@ -133,6 +135,7 @@ export function hlmRandomSlope(data, yVar, clusterVar, xVar) {
 /** Multilevel ICC from nested one-way layout */
 
 // ── Multilevel ICC ────────────────────────────────────────────────
+/** Intraclass correlation from a null multilevel model. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} clusterVar */
 export function iccMultilevel(data, yVar, clusterVar) {
   const res = hlmRandomIntercept(data, yVar, clusterVar, []);
   if (!res) return null;
@@ -149,6 +152,7 @@ export function iccMultilevel(data, yVar, clusterVar) {
 }
 
 // ── GLMM Logistic (PQL) ──────────────────────────────────────────────────────
+/** Logistic GLMM (random intercept). @param {Array<Record<string, any>>} data @param {string} yVar @param {string} clusterVar @param {string[]} [xVars=[]] @param {{maxIter?: number, tolerance?: number}} [options] */
 export function glmmLogistic(data, yVar, clusterVar, xVars = [], { maxIter = 30, tolerance = 1e-5 } = {}) {
   const rows = data.filter(r => clusterVar != null && Number.isFinite(+r[yVar]) &&
     xVars.every(v => Number.isFinite(+r[v])));
@@ -267,6 +271,7 @@ export function glmmLogistic(data, yVar, clusterVar, xVars = [], { maxIter = 30,
 }
 
 // ── GLMM Poisson (PQL) ───────────────────────────────────────────────────────
+/** Poisson GLMM (random intercept). @param {Array<Record<string, any>>} data @param {string} yVar @param {string} clusterVar @param {string[]} [xVars=[]] @param {{maxIter?: number, tolerance?: number}} [options] */
 export function glmmPoisson(data, yVar, clusterVar, xVars = [], { maxIter = 30, tolerance = 1e-5 } = {}) {
   const rows = data.filter(r => clusterVar != null && Number.isFinite(+r[yVar]) &&
     xVars.every(v => Number.isFinite(+r[v])));
@@ -361,6 +366,7 @@ export function glmmPoisson(data, yVar, clusterVar, xVars = [], { maxIter = 30, 
 }
 
 // ── Compare mixed models ──────────────────────────────────────────────────────
+/** Likelihood-ratio comparison of two mixed models. @param {object} model1 @param {object} model2 */
 export function compareMixedModels(model1, model2) {
   if (!model1 || !model2) return null;
   const ll1 = model1.logLik ?? model1.n * Math.log(model1.sigma2 || model1.tau2 || 1);
@@ -396,6 +402,7 @@ export function compareMixedModels(model1, model2) {
 }
 
 // ── Cross-level interaction ───────────────────────────────────────────────────
+/** Cross-level interaction model. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} clusterVar @param {string} xL1 level-1 predictor. @param {string} xL2 level-2 predictor. */
 export function crossLevelInteraction(data, yVar, clusterVar, xL1, xL2) {
   const rows = data.filter(r => clusterVar != null && Number.isFinite(+r[yVar]) &&
     Number.isFinite(+r[xL1]) && Number.isFinite(+r[xL2]));
@@ -463,6 +470,7 @@ export function crossLevelInteraction(data, yVar, clusterVar, xL1, xL2) {
 }
 
 // ── Three-Level HLM ────────────────────────────────────────────────────────
+/** Three-level hierarchical model. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} l1Var @param {string} l2Var @param {string} l3Var */
 export function hlmThreeLevel(data, yVar, l1Var, l2Var, l3Var) {
   if (!data || data.length < 10 || !yVar || !l1Var || !l2Var || !l3Var) return null;
   const rows = data.filter(r => Number.isFinite(+r[yVar]) && r[l2Var] != null && r[l3Var] != null);
@@ -536,6 +544,7 @@ export function hlmThreeLevel(data, yVar, l1Var, l2Var, l3Var) {
 }
 
 // ── GEE Exchangeable ───────────────────────────────────────────────────────
+/** GEE with exchangeable working correlation. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} clusterVar @param {string[]} xVars @param {{maxIter?: number, tolerance?: number}} [options] */
 export function geeExchangeable(data, yVar, clusterVar, xVars, { maxIter = 50, tolerance = 1e-6 } = {}) {
   if (!data || data.length < 10 || !yVar || !clusterVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => r[clusterVar] != null && Number.isFinite(+r[yVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -645,6 +654,7 @@ export function geeExchangeable(data, yVar, clusterVar, xVars, { maxIter = 50, t
 }
 
 // ── Growth Curve Model ─────────────────────────────────────────────────────
+/** Linear growth-curve model. @param {Array<Record<string, any>>} data @param {string} timeVar @param {string} subjectVar @param {string} outcomeVar */
 export function growthCurve(data, timeVar, subjectVar, outcomeVar) {
   if (!data || data.length < 10 || !timeVar || !subjectVar || !outcomeVar) return null;
   const rows = data.filter(r => Number.isFinite(+r[timeVar]) && r[subjectVar] != null && Number.isFinite(+r[outcomeVar]));
@@ -682,6 +692,7 @@ export function growthCurve(data, timeVar, subjectVar, outcomeVar) {
 }
 
 // ── Random Coefficients ────────────────────────────────────────────────────
+/** Random-coefficients model. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} clusterVar @param {string[]} xVars @param {string[]} randomVars */
 export function randomCoefficients(data, yVar, clusterVar, xVars, randomVars) {
   if (!data || data.length < 10 || !yVar || !clusterVar || !xVars || !xVars.length || !randomVars || !randomVars.length) return null;
   const rows = data.filter(r => r[clusterVar] != null && Number.isFinite(+r[yVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -735,6 +746,7 @@ export function randomCoefficients(data, yVar, clusterVar, xVars, randomVars) {
 }
 
 // ── Panel FE (Within Estimator) ───────────────────────────────────
+/** Fixed-effects (within) panel regression. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} idVar @param {string} timeVar @param {string[]} xVars */
 export function fixedEffectsPanel(data, yVar, idVar, timeVar, xVars) {
   if (!data || data.length < 20 || !idVar || !timeVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => Number.isFinite(+r[yVar]) && r[idVar] != null && Number.isFinite(+r[timeVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -773,6 +785,7 @@ export function fixedEffectsPanel(data, yVar, idVar, timeVar, xVars) {
 }
 
 // ── Panel RE (GLS) ────────────────────────────────────────────────
+/** Random-effects (GLS) panel regression. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} idVar @param {string} timeVar @param {string[]} xVars */
 export function randomEffectsPanel(data, yVar, idVar, timeVar, xVars) {
   if (!data || data.length < 20 || !idVar || !timeVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => Number.isFinite(+r[yVar]) && r[idVar] != null && Number.isFinite(+r[timeVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -834,6 +847,7 @@ export function randomEffectsPanel(data, yVar, idVar, timeVar, xVars) {
 }
 
 // ── Hausman Test ──────────────────────────────────────────────────
+/** Hausman test comparing FE and RE panel estimates. @param {object} feResult @param {object} reResult */
 export function hausmanTest(feResult, reResult) {
   if (!feResult || !reResult || !feResult.coefficients || !reResult.coefficients) return null;
   const feBeta = feResult.coefficients.map(c => c.b);
@@ -852,6 +866,7 @@ export function hausmanTest(feResult, reResult) {
 }
 
 // ── Arellano-Bond ─────────────────────────────────────────────────
+/** Arellano–Bond dynamic panel GMM (simplified). @param {Array<Record<string, any>>} data @param {string} yVar @param {string} idVar @param {string} timeVar @param {string[]} xVars @param {{maxLag?: number}} [options] */
 export function arellanoBond(data, yVar, idVar, timeVar, xVars, { maxLag = 1 } = {}) {
   if (!data || data.length < 30 || !idVar || !timeVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => Number.isFinite(+r[yVar]) && r[idVar] != null && Number.isFinite(+r[timeVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -896,6 +911,7 @@ export function arellanoBond(data, yVar, idVar, timeVar, xVars, { maxLag = 1 } =
 }
 
 // ── Random-Effects Negative Binomial ──────────────────────────────
+/** Negative binomial GLMM. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} clusterVar @param {string[]} xVars */
 export function glmmNegBinom(data, yVar, clusterVar, xVars) {
   if (!data || data.length < 15 || !yVar || !clusterVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => r[clusterVar] != null && Number.isFinite(+r[yVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -957,6 +973,7 @@ export function glmmNegBinom(data, yVar, clusterVar, xVars) {
 }
 
 // ── GEE AR(1) ─────────────────────────────────────────────────────
+/** GEE with AR(1) working correlation. @param {Array<Record<string, any>>} data @param {string} yVar @param {string} clusterVar @param {string[]} xVars */
 export function geeAR1(data, yVar, clusterVar, xVars) {
   if (!data || data.length < 15 || !yVar || !clusterVar || !xVars || !xVars.length) return null;
   const rows = data.filter(r => r[clusterVar] != null && Number.isFinite(+r[yVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -996,6 +1013,7 @@ export function geeAR1(data, yVar, clusterVar, xVars) {
 }
 
 // ── REML Estimation ───────────────────────────────────────────────
+/** REML variance-component estimation. @param {number[][]} X design rows. @param {number[]} y @param {Array<string|number>} clusterVar cluster ids. */
 export function remlEstimate(X, y, clusterVar) {
   if (!X || !y || X.length < 5 || y.length < 5 || X.length !== y.length) return null;
   const n = X.length, p = X[0]?.length || 1;
@@ -1041,6 +1059,7 @@ export function remlEstimate(X, y, clusterVar) {
 // SS_total = SS_subjects + SS_condition + SS_error and tests the condition
 // effect F = MS_condition / MS_error on (k−1, (n−1)(k−1)) df. Reports the
 // Greenhouse–Geisser sphericity correction (ε) and the corrected p-value.
+/** Repeated-measures MANOVA. @param {Array<Record<string, any>>} data @param {string[]} responses @param {string|null} [within=null] @param {string|null} [between=null] */
 export function repeatedMeasuresMANOVA(data, responses, within = null, between = null) {
   if (!data || data.length < 10 || !responses || responses.length < 2) return null;
   const n = data.length;
@@ -1083,6 +1102,7 @@ export function repeatedMeasuresMANOVA(data, responses, within = null, between =
 }
 
 // ── Transition Model ──────────────────────────────────────────────
+/** Markov transition (lagged-response) model. @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {{idVar?: string, lag?: number}} [options] */
 export function transitionModel(data, yVar, xVars, { idVar, lag = 1 } = {}) {
   if (!data || data.length < 15 || !yVar || !xVars || !idVar) return null;
   const ids = [...new Set(data.map(r => r[idVar]))];

@@ -3,6 +3,7 @@ import { tPVal, fPVal, chiPVal, tInv2, normalCDF } from '../math/distributions.j
 import { jacobiEigen, matMul, matInv, matTrans } from '../math/matrix.js';
 
 // ── PCA ───────────────────────────────────────────────────────────────────────
+/** Principal component analysis from long-format rows. @param {Array<Record<string, number>>} data @param {string[]} vars */
 export function pca(data, vars) {
   const matrix = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
   const n = matrix.length, k = vars.length;
@@ -39,6 +40,7 @@ export function pca(data, vars) {
 }
 
 // ── EFA with varimax rotation ─────────────────────────────────────────────────
+/** Exploratory factor analysis (principal axis). @param {Array<Record<string, number>>} data @param {string[]} vars @param {number} [nFactors=2] */
 export function efa(data, vars, nFactors = 2) {
   const pcaRes = pca(data, vars);
   if (!pcaRes) return null;
@@ -75,6 +77,7 @@ export function efa(data, vars, nFactors = 2) {
 }
 
 // ── Cronbach's α ──────────────────────────────────────────────────────────────
+/** Cronbach's alpha internal consistency. @param {number[][]} matrix respondents × items. */
 export function cronbachAlpha(matrix) {
   const k = matrix[0]?.length;
   if (!k || k < 2) return null;
@@ -104,6 +107,7 @@ export function cronbachAlpha(matrix) {
 }
 
 // ── Split-half reliability (Spearman-Brown) ───────────────────────────────────
+/** Split-half reliability (Spearman–Brown). @param {number[][]} matrix respondents × items. */
 export function splitHalf(matrix) {
   const k = matrix[0]?.length;
   if (!k || k < 2) return null;
@@ -118,6 +122,7 @@ export function splitHalf(matrix) {
 }
 
 // ── ICC (two-way random, single measures) ────────────────────────────────────
+/** Intraclass correlation coefficients (ICC1–ICC3k). @param {number[][]} matrix subjects × raters. */
 export function icc(matrix) {
   const n = matrix.length, k = matrix[0]?.length;
   if (!n || n < 2 || !k || k < 2) return null;
@@ -184,6 +189,7 @@ function symProd(A) {
 /** One-way MANOVA — Wilks' Λ · Bartlett χ² · Pillai trace */
 
 // ── MANOVA ────────────────────────────────────────────────────────
+/** One-way MANOVA. @param {Array<Record<string, any>>} data @param {string[]} yVars response columns. @param {string} groupVar */
 export function manova(data, yVars, groupVar) {
   const rows = data.filter(r => groupVar != null && yVars.every(col => Number.isFinite(+r[col])));
   const uniq = [...new Set(rows.map(r => String(r[groupVar])))];
@@ -264,6 +270,7 @@ export function manova(data, yVars, groupVar) {
 /** Canonical correlations (correlation-matrix formulation). */
 
 // ── Canonical Correlation ─────────────────────────────────────────
+/** Canonical correlation analysis. @param {Array<Record<string, number>>} data @param {string[]} xVars @param {string[]} yVars */
 export function canonicalCorr(data, xVars, yVars) {
   const allVars = [...xVars, ...yVars];
   const rows = data.filter(r => allVars.every(col => Number.isFinite(+r[col])));
@@ -301,6 +308,7 @@ export function canonicalCorr(data, xVars, yVars) {
 /** Fisher LDA: first discriminants + projected centroids + training accuracy (1D rule). */
 
 // ── LDA ───────────────────────────────────────────────────────────
+/** Linear discriminant analysis. @param {Array<Record<string, any>>} data @param {string} groupVar @param {string[]} xVars */
 export function linearDiscriminant(data, groupVar, xVars) {
   const rows = data.filter(r => groupVar != null && xVars.every(v => Number.isFinite(+r[v])));
   const labels = [...new Set(rows.map(r => String(r[groupVar])))];
@@ -388,6 +396,7 @@ export function linearDiscriminant(data, groupVar, xVars) {
 }
 
 // ── Cohen's κ (inter-rater agreement) ────────────────────────────────────────
+/** Cohen's kappa inter-rater agreement. @param {Array<string|number>} r1 rater-1 codes. @param {Array<string|number>} r2 rater-2 codes. */
 export function cohensKappa(r1, r2) {
   if (r1.length !== r2.length || r1.length < 1) return null;
   const n = r1.length, cats = [...new Set([...r1, ...r2])];
@@ -419,6 +428,7 @@ export function cohensKappa(r1, r2) {
 }
 
 // ── Random-effects meta-analysis (DerSimonian-Laird) ─────────────────────────
+/** Random-effects meta-analysis (DerSimonian–Laird). @param {Array<{es: number, se: number}>} studies */
 export function metaAnalysis(studies) {
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
   if (clean.length < 2) return null;
@@ -455,6 +465,7 @@ export function metaAnalysis(studies) {
 }
 
 // ── Difference-in-Differences ─────────────────────────────────────────────────
+/** 2×2 differences-in-differences. @param {number[]} preCtrl @param {number[]} postCtrl @param {number[]} preTreat @param {number[]} postTreat */
 export function differencesInDifferences(preCtrl, postCtrl, preTreat, postTreat) {
   const groups = [preCtrl, postCtrl, preTreat, postTreat];
   if (groups.some(g => g.length < 2)) return null;
@@ -478,6 +489,7 @@ export function differencesInDifferences(preCtrl, postCtrl, preTreat, postTreat)
 }
 
 // ── Meta-Regression ───────────────────────────────────────────────────────────
+/** Mixed-effects meta-regression on one moderator. @param {Array<{es: number, se: number}>} studies @param {number[]} moderator @param {string} moderatorLabel */
 export function metaRegression(studies, moderator, moderatorLabel) {
   const clean = studies.filter((s, i) => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0 && Number.isFinite(moderator[i]));
   if (clean.length < 3) return null;
@@ -568,6 +580,7 @@ export function metaRegression(studies, moderator, moderatorLabel) {
 }
 
 // ── Egger's Regression Test ───────────────────────────────────────────────────
+/** Egger's regression test for publication bias. @param {Array<{es: number, se: number}>} studies */
 export function eggersTest(studies) {
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
   if (clean.length < 3) return null;
@@ -599,6 +612,7 @@ export function eggersTest(studies) {
 }
 
 // ── Trim-and-Fill ─────────────────────────────────────────────────────────────
+/** Duval–Tweedie trim-and-fill adjustment. @param {Array<{es: number, se: number}>} studies */
 export function trimAndFill(studies) {
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
   if (clean.length < 3) return null;
@@ -657,6 +671,7 @@ export function trimAndFill(studies) {
 }
 
 // ── Effect size converter ─────────────────────────────────────────────────────
+/** Convert between effect-size metrics (d, r, OR, …). @param {string} from source metric. @param {number} val */
 export function convertEffectSize(from, val) {
   const v = parseFloat(val);
   if (!Number.isFinite(v)) return null;
@@ -684,6 +699,7 @@ export function convertEffectSize(from, val) {
 }
 
 // ── Mardia's Test ──────────────────────────────────────────────────────────
+/** Mardia's multivariate skewness/kurtosis normality test. @param {Array<Record<string, number>>} data @param {string[]} vars */
 export function mardiaTest(data, vars) {
   if (!data || data.length < 20 || !vars || vars.length < 2) return null;
   const n = data.length, p = vars.length;
@@ -734,6 +750,7 @@ export function mardiaTest(data, vars) {
 }
 
 // ── Henze-Zirkler ──────────────────────────────────────────────────────────
+/** Henze–Zirkler multivariate normality test. @param {Array<Record<string, number>>} data @param {string[]} vars */
 export function henzeZirkler(data, vars) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, p = vars.length;
@@ -797,6 +814,7 @@ export function henzeZirkler(data, vars) {
 }
 
 // ── Mahalanobis Distance ───────────────────────────────────────────────────
+/** Mahalanobis distances (optionally robust / by group). @param {Array<Record<string, number>>} data @param {string[]} vars @param {string|null} [groupVar=null] @param {{robust?: boolean}} [options] */
 export function mahalanobisDistance(data, vars, groupVar = null, { robust = false } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, p = vars.length;
@@ -842,6 +860,7 @@ export function mahalanobisDistance(data, vars, groupVar = null, { robust = fals
 }
 
 // ── Bartlett Sphericity ────────────────────────────────────────────────────
+/** Bartlett's test of sphericity. @param {Array<Record<string, number>>} data @param {string[]} vars */
 export function bartlettSphericity(data, vars) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, p = vars.length;
@@ -861,6 +880,7 @@ export function bartlettSphericity(data, vars) {
 }
 
 // ── Box's M Test ───────────────────────────────────────────────────────────
+/** Box's M test of covariance homogeneity. @param {Array<Record<string, any>>} data @param {string} groupVar @param {string[]} vars */
 export function boxMTest(data, groupVar, vars) {
   if (!data || data.length < 10 || !groupVar || !vars || vars.length < 2) return null;
   const groups = [...new Set(data.map(r => r[groupVar]))];
@@ -909,6 +929,7 @@ export function boxMTest(data, groupVar, vars) {
 }
 
 // ── Network Meta-Analysis (Frequentist) ───────────────────────────
+/** Network meta-analysis over multiple treatments. @param {Array<Record<string, any>>} studies */
 export function networkMetaAnalysis(studies) {
   if (!studies || studies.length < 5) return null;
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0 && s.trt && s.ref);
@@ -934,6 +955,7 @@ export function networkMetaAnalysis(studies) {
 }
 
 // ── Baujat Plot ───────────────────────────────────────────────────
+/** Baujat plot data from a meta-analysis result. @param {object} metaResult */
 export function baujatPlot(metaResult) {
   if (!metaResult || !metaResult.studies) return null;
   const studies = metaResult.studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se));
@@ -950,6 +972,7 @@ export function baujatPlot(metaResult) {
 }
 
 // ── Leave-One-Out Meta-Analysis ───────────────────────────────────
+/** Leave-one-out meta-analysis sensitivity. @param {Array<{es: number, se: number}>} studies */
 export function leaveOneOutMeta(studies) {
   if (!studies || studies.length < 4) return null;
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
@@ -968,6 +991,7 @@ export function leaveOneOutMeta(studies) {
 }
 
 // ── Meta-Regression Diagnostics ───────────────────────────────────
+/** Diagnostics for a meta-regression result. @param {object} metaResult */
 export function metaRegressionDiagnostics(metaResult) {
   if (!metaResult || !metaResult.coefficients) return null;
   const diag = metaResult.coefficients.map(c => ({
@@ -977,6 +1001,7 @@ export function metaRegressionDiagnostics(metaResult) {
 }
 
 // ── Oblimin Rotation ──────────────────────────────────────────────
+/** Oblimin oblique factor rotation. @param {number[][]} loadings @param {{gamma?: number}} [options] */
 export function obliminRotation(loadings, { gamma = 0 } = {}) {
   if (!loadings || !loadings.length) return null;
   const p = loadings.length, m = loadings[0].length;
@@ -996,6 +1021,7 @@ export function obliminRotation(loadings, { gamma = 0 } = {}) {
 }
 
 // ── Geomin Rotation ───────────────────────────────────────────────
+/** Geomin oblique factor rotation. @param {number[][]} loadings @param {{epsilon?: number}} [options] */
 export function geominRotation(loadings, { epsilon = 0.01 } = {}) {
   if (!loadings || !loadings.length) return null;
   const p = loadings.length, m = loadings[0].length;
@@ -1008,11 +1034,13 @@ export function geominRotation(loadings, { epsilon = 0.01 } = {}) {
 }
 
 // Quartimin Rotation
+/** Quartimin oblique factor rotation. @param {number[][]} loadings */
 export function quartiminRotation(loadings) {
   return obliminRotation(loadings, { gamma: 0 });
 }
 
 // ── Target Rotation ───────────────────────────────────────────────
+/** Target (Procrustes) factor rotation. @param {number[][]} loadings @param {number[][]} target @param {{type?: string}} [options] */
 export function targetRotation(loadings, target, { type = 'procrustes' } = {}) {
   if (!loadings || !target || loadings.length !== target.length) return null;
   const p = loadings.length, m = loadings[0].length;
@@ -1031,6 +1059,7 @@ export function targetRotation(loadings, target, { type = 'procrustes' } = {}) {
 }
 
 // ── Promax Rotation ───────────────────────────────────────────────
+/** Promax oblique factor rotation. @param {number[][]} loadings @param {{k?: number}} [options] */
 export function promaxRotation(loadings, { k = 3 } = {}) {
   if (!loadings || !loadings.length) return null;
   const p = loadings.length, m = loadings[0].length;
@@ -1041,6 +1070,7 @@ export function promaxRotation(loadings, { k = 3 } = {}) {
 }
 
 // ── Bivariate Meta-Analysis ──────────────────────────────────────────────
+/** Bivariate meta-analysis (sensitivity/specificity). @param {Array<Record<string, number>>} studies */
 export function bivariateMeta(studies) {
   if (!studies || studies.length < 5) return null;
   const n = studies.length;
@@ -1053,6 +1083,7 @@ export function bivariateMeta(studies) {
 }
 
 // ── Meta-Proportion (Logit Transform) ──────────────────────────────────────
+/** Meta-analysis of proportions. @param {number[]} events @param {number[]} totals */
 export function metaProportion(events, totals) {
   if (!events || !totals || events.length < 5 || events.length !== totals.length) return null;
   const k = events.length;
@@ -1066,6 +1097,7 @@ export function metaProportion(events, totals) {
 }
 
 // ── L'Abbe Plot ────────────────────────────────────────────────────────────
+/** L'Abbé plot data for binary-outcome meta-analysis. @param {number[]} eventsA @param {number[]} totalsA @param {number[]} eventsB @param {number[]} totalsB */
 export function labbePlot(eventsA, totalsA, eventsB, totalsB) {
   if (!eventsA || !eventsB || eventsA.length < 3) return null;
   const n = eventsA.length;
@@ -1076,6 +1108,7 @@ export function labbePlot(eventsA, totalsA, eventsB, totalsB) {
 }
 
 // ── Forest Plot Data ───────────────────────────────────────────────────────
+/** Forest plot data from studies. @param {Array<{es: number, se: number}>} studies */
 export function forestPlotData(studies) {
   if (!studies || studies.length < 3) return null;
   const n = studies.length;
@@ -1087,6 +1120,7 @@ export function forestPlotData(studies) {
 }
 
 // ── Cumulative Meta-Analysis ───────────────────────────────────────────────
+/** Cumulative meta-analysis. @param {Array<{es: number, se: number}>} studies @param {{order?: string}} [options] */
 export function cumulativeMeta(studies, { order = 'chronological' } = {}) {
   if (!studies || studies.length < 4) return null;
   const n = studies.length;
@@ -1102,6 +1136,7 @@ export function cumulativeMeta(studies, { order = 'chronological' } = {}) {
 }
 
 // ── Simple Correspondence Analysis ────────────────────────────────
+/** Simple correspondence analysis. @param {Array<Record<string, any>>} data @param {string[]} vars two categorical columns. */
 export function simpleCA(data, vars) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const rows = [...new Set(data.map(r => r[vars[0]]))];
@@ -1123,6 +1158,7 @@ export function simpleCA(data, vars) {
 }
 
 // ── Multiple CA ───────────────────────────────────────────────────
+/** Multiple correspondence analysis. @param {Array<Record<string, any>>} data @param {string[]} vars categorical columns. */
 export function multipleCA(data, vars) {
   if (!data || data.length < 5 || !vars || vars.length < 3) return null;
   const n = data.length; const p = vars.length;
@@ -1134,12 +1170,14 @@ export function multipleCA(data, vars) {
 }
 
 // ── Correspondence Biplot ─────────────────────────────────────────
+/** Biplot coordinates from a correspondence analysis result. @param {object} caResult */
 export function correspBiplot(caResult) {
   if (!caResult || !caResult.rows) return null;
   return { test: 'Correspondence Biplot', rows: caResult.rows, cols: caResult.cols, apa: `Biplot: ${caResult.rows} rows, ${caResult.cols} cols` };
 }
 
 // ── Total Inertia ─────────────────────────────────────────────────
+/** Total inertia of a correspondence analysis result. @param {object} caResult */
 export function totalInertia(caResult) {
   if (!caResult || !Number.isFinite(caResult.inertia)) return null;
   const chi2 = caResult.n ? caResult.inertia * caResult.n : caResult.inertia;
@@ -1147,12 +1185,14 @@ export function totalInertia(caResult) {
 }
 
 // ── Correspondence Contributions ──────────────────────────────────
+/** Point contributions from a correspondence analysis result. @param {object} caResult */
 export function correspContributions(caResult) {
   if (!caResult) return null;
   return { test: 'Correspondence Contributions', inertia: caResult.inertia, apa: `Contributions: inertia = ${caResult.inertia}` };
 }
 
 // ── Procrustes Rotation ───────────────────────────────────────────
+/** Procrustes rotation of X onto a target configuration. @param {number[][]} X @param {number[][]} target */
 export function procrustesRotation(X, target) {
   if (!X || !target || !X.length || !X[0] || !target[0] || X.length !== target.length || X[0].length !== target[0].length) return null;
   const n = X.length, p = X[0].length;
@@ -1179,6 +1219,7 @@ export function procrustesRotation(X, target) {
 }
 
 // ── RV Coefficient ────────────────────────────────────────────────
+/** RV coefficient between two configurations. @param {number[][]} X @param {number[][]} Y */
 export function rvCoefficient(X, Y) {
   if (!X || !Y || !X.length || !Y.length || X.length !== Y.length) return null;
   const n = X.length;
@@ -1204,6 +1245,7 @@ export function rvCoefficient(X, Y) {
 }
 
 // ── Generalized Procrustes ────────────────────────────────────────
+/** Generalized Procrustes analysis. @param {number[][][]} matrices @param {{maxIter?: number}} [options] */
 export function generalizedProcrustes(matrices, { maxIter = 20 } = {}) {
   if (!matrices || matrices.length < 2 || matrices.some(m => !m || !m.length)) return null;
   const n = matrices[0].length, p = matrices[0][0].length;
