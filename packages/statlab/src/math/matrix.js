@@ -1,8 +1,11 @@
+/** Matrix product A·B. @param {number[][]} A @param {number[][]} B @returns {number[][]} */
 export const matMul = (A, B) =>
   A.map(r => B[0].map((_, j) => r.reduce((s, _, k) => s + r[k] * B[k][j], 0)));
 
+/** Matrix transpose. @param {number[][]} A @returns {number[][]} */
 export const matTrans = A => A[0].map((_, j) => A.map(r => r[j]));
 
+/** Matrix inverse via Gauss–Jordan elimination. @param {number[][]} A @returns {number[][]|null} null if singular. */
 export function matInv(A) {
   const n = A.length;
   const M = A.map((r, i) => [...r, ...Array.from({ length: n }, (_, j) => i === j ? 1 : 0)]);
@@ -29,6 +32,7 @@ export function matInv(A) {
  * matching the degenerate-case guard in regression.js's ols(). Use this instead
  * of the bare `XtY[i] / XtX[i][i]` diagonal approximation, which is correct only
  * when predictors are orthogonal.
+ * @param {number[][]} XtX @param {number[]} XtY @returns {number[]} the coefficient vector β.
  */
 export function solveNormalEquations(XtX, XtY) {
   const inv = matInv(XtX);
@@ -39,6 +43,8 @@ export function solveNormalEquations(XtX, XtY) {
 /**
  * Jacobi eigendecomposition for real symmetric matrices.
  * Returns { eigenvalues, eigenvectors } sorted descending.
+ * @param {number[][]} A0 a real symmetric matrix.
+ * @returns {{eigenvalues: number[], eigenvectors: number[][]}} eigenvectors as rows, aligned to eigenvalues.
  */
 export function jacobiEigen(A0) {
   const n = A0.length;

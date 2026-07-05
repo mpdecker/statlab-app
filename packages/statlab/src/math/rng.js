@@ -1,4 +1,4 @@
-/** Mulberry32 PRNG — deterministic when seeded */
+/** Mulberry32 PRNG — deterministic when seeded. @param {number} seed @returns {() => number} a U(0,1) generator. */
 export function mulberry32(seed) {
   let s = seed >>> 0;
   return () => {
@@ -9,19 +9,19 @@ export function mulberry32(seed) {
   };
 }
 
-/** Standard normal draw from uniform rand() */
+/** Standard normal draw from a uniform rand(). @param {() => number} rand @returns {number} */
 export function boxMullerN(rand) {
   const u = Math.max(rand(), 1e-15);
   const v = rand();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
-/** Bootstrap row indices in [0, n) */
+/** Bootstrap row indices in [0, n). @param {() => number} rand @param {number} n @returns {number[]} */
 export function bootstrapIndices(rand, n) {
   return Array.from({ length: n }, () => Math.floor(rand() * n));
 }
 
-/** Gamma(shape, 1) variate via Marsaglia–Tsang; `rand` is a U(0,1) source. */
+/** Gamma(shape, 1) variate via Marsaglia–Tsang; `rand` is a U(0,1) source. @param {() => number} rand @param {number} shape @returns {number} */
 export function randGamma(rand, shape) {
   if (shape < 1) return randGamma(rand, shape + 1) * Math.pow(Math.max(rand(), 1e-15), 1 / shape);
   const d = shape - 1 / 3, c = 1 / Math.sqrt(9 * d);
@@ -35,7 +35,7 @@ export function randGamma(rand, shape) {
   }
 }
 
-/** Beta(a, b) variate as G(a)/(G(a)+G(b)). */
+/** Beta(a, b) variate as G(a)/(G(a)+G(b)). @param {() => number} rand @param {number} a @param {number} b @returns {number} */
 export function randBeta(rand, a, b) {
   const x = randGamma(rand, a), y = randGamma(rand, b);
   return x + y > 0 ? x / (x + y) : 0.5;
