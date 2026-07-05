@@ -1,6 +1,6 @@
 import { avg, rank, effR, fmtP, sampleVar } from '../math/core.js';
 import { normalCDF, chiPVal } from '../math/distributions.js';
-import { mulberry32 } from './fixtures/phase3.js';
+import { mulberry32 } from '../math/rng.js';
 
 // Kolmogorov distribution survival function Q(λ) = 2 Σ_{k=1}^∞ (-1)^{k-1} e^{-2k²λ²}
 // (the full alternating series, not just its leading term) with early termination

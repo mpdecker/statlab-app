@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "skipLibCheck": true,
+    "strict": false
+  },
+  "include": ["src/**/*.js"],
+  "exclude": ["src/**/*.test.js", "src/methods/__fixtures__/**", "src/methods/fixtures/**"]
+}

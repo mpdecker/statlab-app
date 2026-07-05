@@ -8,8 +8,7 @@ export default defineConfig({
     environment: 'node',
     dangerouslyIgnoreUnhandledErrors: true,
     coverage: {
-      include: ['src/math/**', 'src/tests/**', 'src/utils/**', 'src/components/**', 'src/config/**', 'src/data/**'],
-      exclude: ['src/tests/__fixtures__/**', 'src/tests/fixtures/**'],
+      include: ['src/utils/**', 'src/components/**', 'src/config/**', 'src/data/**'],
       thresholds: { lines: 90 },
     },
   },

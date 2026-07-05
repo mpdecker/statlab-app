@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const TESTS_DIR = join(__dirname, '..', 'src', 'tests');
+const TESTS_DIR = join(__dirname, '..', 'packages', 'statlab', 'src', 'methods');
 
 const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
@@ -150,7 +150,7 @@ async function loadAll() {
     const funcs = await parseModule(join(TESTS_DIR, file));
     if (funcs.length) modules.push({
       name: modName,
-      path: `src/tests/${file}`,
+      path: `packages/statlab/src/methods/${file}`,
       functions: funcs,
       count: funcs.length,
     });

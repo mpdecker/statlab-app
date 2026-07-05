@@ -1,13 +1,13 @@
 // scripts/dump-fixtures.mjs
 //
-// Dumps the shared JS test fixtures (src/tests/fixtures/core.js) to JSON so
+// Dumps the shared JS test fixtures (packages/statlab/src/methods/fixtures/core.js) to JSON so
 // scripts/gen-reference.py can compute oracle values on IDENTICAL inputs,
 // rather than reimplementing the JS seeded PRNG (mulberry32) in Python.
 //
-// Run before gen-reference.py whenever src/tests/fixtures/core.js changes:
+// Run before gen-reference.py whenever packages/statlab/src/methods/fixtures/core.js changes:
 //   node scripts/dump-fixtures.mjs && python scripts/gen-reference.py
 import { writeFileSync } from 'node:fs';
-import { mkGroups, mkTabular } from '../src/tests/fixtures/core.js';
+import { mkGroups, mkTabular } from '../packages/statlab/src/methods/fixtures/core.js';
 
 const groups = mkGroups();
 const tabular = mkTabular(42, 72);

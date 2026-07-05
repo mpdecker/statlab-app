@@ -9,7 +9,7 @@
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 
-const TESTS_DIR = join(import.meta.dirname, '..', 'src', 'tests');
+const TESTS_DIR = join(import.meta.dirname, '..', 'packages', 'statlab', 'src', 'methods');
 
 async function findTestName(lines, fnStartLine) {
   let braceDepth = 0;

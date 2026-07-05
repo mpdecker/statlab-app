@@ -2,7 +2,7 @@
 """
 scripts/gen-reference.py
 
-Canonical generator for src/tests/__fixtures__/reference.json — independent
+Canonical generator for packages/statlab/src/methods/__fixtures__/reference.json — independent
 numeric oracles for statlab's statistical functions, computed with
 scipy / statsmodels / lifelines / numpy (NOT statlab's own code).
 
@@ -15,7 +15,7 @@ consistent where they overlap).
 Setup:    pip install -r scripts/requirements.txt
 Run:      npm run reference:generate
           (equivalent to: node scripts/dump-fixtures.mjs && python scripts/gen-reference.py —
-          the JS step dumps shared test fixtures from src/tests/fixtures/core.js to
+          the JS step dumps shared test fixtures from packages/statlab/src/methods/fixtures/core.js to
           scripts/_fixtures_dump.json so oracles are computed on IDENTICAL inputs to
           the JS tests, rather than reimplementing the JS seeded PRNG in Python)
 """
@@ -29,7 +29,7 @@ from lifelines import CoxPHFitter, KaplanMeierFitter
 from lifelines.statistics import logrank_test
 from statsmodels.tsa.stattools import adfuller, acf as sm_acf, pacf as sm_pacf
 
-# Fixture data shared with the JS test suite (src/tests/fixtures/core.js), dumped via
+# Fixture data shared with the JS test suite (packages/statlab/src/methods/fixtures/core.js), dumped via
 # `node scratch_dump_fixtures.mjs` so Python computes oracles on IDENTICAL inputs
 # rather than reimplementing the JS seeded PRNG in Python.
 _FIXTURES_PATH = os.path.join(os.path.dirname(__file__), '_fixtures_dump.json')
@@ -124,7 +124,7 @@ anova['oneWay_basic'] = {'F': F, 'df1': 2, 'df2': 6, 'p': p}
 H, p = st.kruskal(g1, g2, g3)
 anova['kruskal_basic'] = {'H': H, 'df': 2, 'p': p}
 
-# Fixture groups (GROUP_A/B/C from src/tests/fixtures/core.js — equal n=7, equal
+# Fixture groups (GROUP_A/B/C from packages/statlab/src/methods/fixtures/core.js — equal n=7, equal
 # within-group variance by construction, so standard and Welch ANOVA agree closely).
 ga, gb, gc = (g['vals'] for g in _fixtures['groups'])
 F, p = st.f_oneway(ga, gb, gc)
@@ -1864,8 +1864,8 @@ def _default(o):
 
 if __name__ == '__main__':
     import os
-    os.makedirs('src/tests/__fixtures__', exist_ok=True)
-    with open('src/tests/__fixtures__/reference.json', 'w') as f:
+    os.makedirs('packages/statlab/src/methods/__fixtures__', exist_ok=True)
+    with open('packages/statlab/src/methods/__fixtures__/reference.json', 'w') as f:
         json.dump(ref, f, indent=2, default=_default)
         f.write('\n')
-    print('Written to src/tests/__fixtures__/reference.json')
+    print('Written to packages/statlab/src/methods/__fixtures__/reference.json')

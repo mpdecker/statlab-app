@@ -3,9 +3,9 @@ import {
   runBootstrapCI, runBootstrapMediation,
   runPowerANOVA, runPowerChi, runPowerLogistic, runPowerMixed, runPowerMediation,
 } from './resampleAsync.js';
-import { powerANOVA, powerChi, powerLogistic, powerMixed, powerMediation } from '../math/power.js';
-import { bootstrapCI } from '../math/distributions.js';
-import { avg } from '../math/core.js';
+import { powerANOVA, powerChi, powerLogistic, powerMixed, powerMediation } from 'statlab/math/power';
+import { bootstrapCI } from 'statlab/math/distributions';
+import { avg } from 'statlab/math/core';
 
 describe('resampleAsync', () => {
   it('runBootstrapCI is reproducible with seed', async () => {

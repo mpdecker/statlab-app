@@ -1,0 +1,504 @@
+{
+  "name": "statlab",
+  "version": "0.1.0",
+  "description": "A large, dependency-free statistics & modeling library for JavaScript/TypeScript.",
+  "type": "module",
+  "license": "MIT",
+  "author": "",
+  "keywords": [
+    "statistics",
+    "regression",
+    "bayesian",
+    "survival",
+    "econometrics",
+    "anova",
+    "multivariate",
+    "nonparametric"
+  ],
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.js",
+    "!src/methods/__fixtures__",
+    "!src/methods/fixtures",
+    "LICENSE",
+    "README.md"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./src/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./src/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./math/core": {
+      "types": "./dist/math/core.d.ts",
+      "import": "./src/math/core.js",
+      "require": "./dist/math/core.cjs"
+    },
+    "./math/distributions": {
+      "types": "./dist/math/distributions.d.ts",
+      "import": "./src/math/distributions.js",
+      "require": "./dist/math/distributions.cjs"
+    },
+    "./math/inference": {
+      "types": "./dist/math/inference.d.ts",
+      "import": "./src/math/inference.js",
+      "require": "./dist/math/inference.cjs"
+    },
+    "./math/matrix": {
+      "types": "./dist/math/matrix.d.ts",
+      "import": "./src/math/matrix.js",
+      "require": "./dist/math/matrix.cjs"
+    },
+    "./math/power": {
+      "types": "./dist/math/power.d.ts",
+      "import": "./src/math/power.js",
+      "require": "./dist/math/power.cjs"
+    },
+    "./math/rng": {
+      "types": "./dist/math/rng.d.ts",
+      "import": "./src/math/rng.js",
+      "require": "./dist/math/rng.cjs"
+    },
+    "./methods/abTesting": {
+      "types": "./dist/methods/abTesting.d.ts",
+      "import": "./src/methods/abTesting.js",
+      "require": "./dist/methods/abTesting.cjs"
+    },
+    "./methods/abm": {
+      "types": "./dist/methods/abm.d.ts",
+      "import": "./src/methods/abm.js",
+      "require": "./dist/methods/abm.cjs"
+    },
+    "./methods/anova": {
+      "types": "./dist/methods/anova.d.ts",
+      "import": "./src/methods/anova.js",
+      "require": "./dist/methods/anova.cjs"
+    },
+    "./methods/bandit": {
+      "types": "./dist/methods/bandit.d.ts",
+      "import": "./src/methods/bandit.js",
+      "require": "./dist/methods/bandit.cjs"
+    },
+    "./methods/bayesian": {
+      "types": "./dist/methods/bayesian.d.ts",
+      "import": "./src/methods/bayesian.js",
+      "require": "./dist/methods/bayesian.cjs"
+    },
+    "./methods/bioinformatics": {
+      "types": "./dist/methods/bioinformatics.d.ts",
+      "import": "./src/methods/bioinformatics.js",
+      "require": "./dist/methods/bioinformatics.cjs"
+    },
+    "./methods/bootstrap": {
+      "types": "./dist/methods/bootstrap.d.ts",
+      "import": "./src/methods/bootstrap.js",
+      "require": "./dist/methods/bootstrap.cjs"
+    },
+    "./methods/categorical": {
+      "types": "./dist/methods/categorical.d.ts",
+      "import": "./src/methods/categorical.js",
+      "require": "./dist/methods/categorical.cjs"
+    },
+    "./methods/causal": {
+      "types": "./dist/methods/causal.d.ts",
+      "import": "./src/methods/causal.js",
+      "require": "./dist/methods/causal.cjs"
+    },
+    "./methods/causalDiscovery": {
+      "types": "./dist/methods/causalDiscovery.d.ts",
+      "import": "./src/methods/causalDiscovery.js",
+      "require": "./dist/methods/causalDiscovery.cjs"
+    },
+    "./methods/circular": {
+      "types": "./dist/methods/circular.d.ts",
+      "import": "./src/methods/circular.js",
+      "require": "./dist/methods/circular.cjs"
+    },
+    "./methods/clinical": {
+      "types": "./dist/methods/clinical.d.ts",
+      "import": "./src/methods/clinical.js",
+      "require": "./dist/methods/clinical.cjs"
+    },
+    "./methods/clustering": {
+      "types": "./dist/methods/clustering.d.ts",
+      "import": "./src/methods/clustering.js",
+      "require": "./dist/methods/clustering.cjs"
+    },
+    "./methods/compositional": {
+      "types": "./dist/methods/compositional.d.ts",
+      "import": "./src/methods/compositional.js",
+      "require": "./dist/methods/compositional.cjs"
+    },
+    "./methods/conjoint": {
+      "types": "./dist/methods/conjoint.d.ts",
+      "import": "./src/methods/conjoint.js",
+      "require": "./dist/methods/conjoint.cjs"
+    },
+    "./methods/copula": {
+      "types": "./dist/methods/copula.d.ts",
+      "import": "./src/methods/copula.js",
+      "require": "./dist/methods/copula.cjs"
+    },
+    "./methods/deepLearning": {
+      "types": "./dist/methods/deepLearning.d.ts",
+      "import": "./src/methods/deepLearning.js",
+      "require": "./dist/methods/deepLearning.cjs"
+    },
+    "./methods/demo": {
+      "types": "./dist/methods/demo.d.ts",
+      "import": "./src/methods/demo.js",
+      "require": "./dist/methods/demo.cjs"
+    },
+    "./methods/dimReduction": {
+      "types": "./dist/methods/dimReduction.d.ts",
+      "import": "./src/methods/dimReduction.js",
+      "require": "./dist/methods/dimReduction.cjs"
+    },
+    "./methods/discrete": {
+      "types": "./dist/methods/discrete.d.ts",
+      "import": "./src/methods/discrete.js",
+      "require": "./dist/methods/discrete.cjs"
+    },
+    "./methods/distance": {
+      "types": "./dist/methods/distance.d.ts",
+      "import": "./src/methods/distance.js",
+      "require": "./dist/methods/distance.cjs"
+    },
+    "./methods/doseResponse": {
+      "types": "./dist/methods/doseResponse.d.ts",
+      "import": "./src/methods/doseResponse.js",
+      "require": "./dist/methods/doseResponse.cjs"
+    },
+    "./methods/ecology": {
+      "types": "./dist/methods/ecology.d.ts",
+      "import": "./src/methods/ecology.js",
+      "require": "./dist/methods/ecology.cjs"
+    },
+    "./methods/econometric": {
+      "types": "./dist/methods/econometric.d.ts",
+      "import": "./src/methods/econometric.js",
+      "require": "./dist/methods/econometric.cjs"
+    },
+    "./methods/experimental": {
+      "types": "./dist/methods/experimental.d.ts",
+      "import": "./src/methods/experimental.js",
+      "require": "./dist/methods/experimental.cjs"
+    },
+    "./methods/extreme": {
+      "types": "./dist/methods/extreme.d.ts",
+      "import": "./src/methods/extreme.js",
+      "require": "./dist/methods/extreme.cjs"
+    },
+    "./methods/fda": {
+      "types": "./dist/methods/fda.d.ts",
+      "import": "./src/methods/fda.js",
+      "require": "./dist/methods/fda.cjs"
+    },
+    "./methods/finance": {
+      "types": "./dist/methods/finance.d.ts",
+      "import": "./src/methods/finance.js",
+      "require": "./dist/methods/finance.cjs"
+    },
+    "./methods/fitting": {
+      "types": "./dist/methods/fitting.d.ts",
+      "import": "./src/methods/fitting.js",
+      "require": "./dist/methods/fitting.cjs"
+    },
+    "./methods/gam": {
+      "types": "./dist/methods/gam.d.ts",
+      "import": "./src/methods/gam.js",
+      "require": "./dist/methods/gam.cjs"
+    },
+    "./methods/game": {
+      "types": "./dist/methods/game.d.ts",
+      "import": "./src/methods/game.js",
+      "require": "./dist/methods/game.cjs"
+    },
+    "./methods/genetics": {
+      "types": "./dist/methods/genetics.d.ts",
+      "import": "./src/methods/genetics.js",
+      "require": "./dist/methods/genetics.cjs"
+    },
+    "./methods/inequality": {
+      "types": "./dist/methods/inequality.d.ts",
+      "import": "./src/methods/inequality.js",
+      "require": "./dist/methods/inequality.cjs"
+    },
+    "./methods/info": {
+      "types": "./dist/methods/info.d.ts",
+      "import": "./src/methods/info.js",
+      "require": "./dist/methods/info.cjs"
+    },
+    "./methods/interpretability": {
+      "types": "./dist/methods/interpretability.d.ts",
+      "import": "./src/methods/interpretability.js",
+      "require": "./dist/methods/interpretability.cjs"
+    },
+    "./methods/learning": {
+      "types": "./dist/methods/learning.d.ts",
+      "import": "./src/methods/learning.js",
+      "require": "./dist/methods/learning.cjs"
+    },
+    "./methods/linkage": {
+      "types": "./dist/methods/linkage.d.ts",
+      "import": "./src/methods/linkage.js",
+      "require": "./dist/methods/linkage.cjs"
+    },
+    "./methods/mds": {
+      "types": "./dist/methods/mds.d.ts",
+      "import": "./src/methods/mds.js",
+      "require": "./dist/methods/mds.cjs"
+    },
+    "./methods/means": {
+      "types": "./dist/methods/means.d.ts",
+      "import": "./src/methods/means.js",
+      "require": "./dist/methods/means.cjs"
+    },
+    "./methods/metrics": {
+      "types": "./dist/methods/metrics.d.ts",
+      "import": "./src/methods/metrics.js",
+      "require": "./dist/methods/metrics.cjs"
+    },
+    "./methods/missing": {
+      "types": "./dist/methods/missing.d.ts",
+      "import": "./src/methods/missing.js",
+      "require": "./dist/methods/missing.cjs"
+    },
+    "./methods/mixture": {
+      "types": "./dist/methods/mixture.d.ts",
+      "import": "./src/methods/mixture.js",
+      "require": "./dist/methods/mixture.cjs"
+    },
+    "./methods/multilevel": {
+      "types": "./dist/methods/multilevel.d.ts",
+      "import": "./src/methods/multilevel.js",
+      "require": "./dist/methods/multilevel.cjs"
+    },
+    "./methods/multivariate": {
+      "types": "./dist/methods/multivariate.d.ts",
+      "import": "./src/methods/multivariate.js",
+      "require": "./dist/methods/multivariate.cjs"
+    },
+    "./methods/network": {
+      "types": "./dist/methods/network.d.ts",
+      "import": "./src/methods/network.js",
+      "require": "./dist/methods/network.cjs"
+    },
+    "./methods/neural": {
+      "types": "./dist/methods/neural.d.ts",
+      "import": "./src/methods/neural.js",
+      "require": "./dist/methods/neural.cjs"
+    },
+    "./methods/nlp": {
+      "types": "./dist/methods/nlp.d.ts",
+      "import": "./src/methods/nlp.js",
+      "require": "./dist/methods/nlp.cjs"
+    },
+    "./methods/nonparametric": {
+      "types": "./dist/methods/nonparametric.d.ts",
+      "import": "./src/methods/nonparametric.js",
+      "require": "./dist/methods/nonparametric.cjs"
+    },
+    "./methods/optimization": {
+      "types": "./dist/methods/optimization.d.ts",
+      "import": "./src/methods/optimization.js",
+      "require": "./dist/methods/optimization.cjs"
+    },
+    "./methods/ordination": {
+      "types": "./dist/methods/ordination.d.ts",
+      "import": "./src/methods/ordination.js",
+      "require": "./dist/methods/ordination.cjs"
+    },
+    "./methods/outlier": {
+      "types": "./dist/methods/outlier.d.ts",
+      "import": "./src/methods/outlier.js",
+      "require": "./dist/methods/outlier.cjs"
+    },
+    "./methods/pgm": {
+      "types": "./dist/methods/pgm.d.ts",
+      "import": "./src/methods/pgm.js",
+      "require": "./dist/methods/pgm.cjs"
+    },
+    "./methods/phylogenetics": {
+      "types": "./dist/methods/phylogenetics.d.ts",
+      "import": "./src/methods/phylogenetics.js",
+      "require": "./dist/methods/phylogenetics.cjs"
+    },
+    "./methods/pk": {
+      "types": "./dist/methods/pk.d.ts",
+      "import": "./src/methods/pk.js",
+      "require": "./dist/methods/pk.cjs"
+    },
+    "./methods/pls": {
+      "types": "./dist/methods/pls.d.ts",
+      "import": "./src/methods/pls.js",
+      "require": "./dist/methods/pls.cjs"
+    },
+    "./methods/pointProcess": {
+      "types": "./dist/methods/pointProcess.d.ts",
+      "import": "./src/methods/pointProcess.js",
+      "require": "./dist/methods/pointProcess.cjs"
+    },
+    "./methods/power": {
+      "types": "./dist/methods/power.d.ts",
+      "import": "./src/methods/power.js",
+      "require": "./dist/methods/power.cjs"
+    },
+    "./methods/preprocessing": {
+      "types": "./dist/methods/preprocessing.d.ts",
+      "import": "./src/methods/preprocessing.js",
+      "require": "./dist/methods/preprocessing.cjs"
+    },
+    "./methods/privacy": {
+      "types": "./dist/methods/privacy.d.ts",
+      "import": "./src/methods/privacy.js",
+      "require": "./dist/methods/privacy.cjs"
+    },
+    "./methods/pro": {
+      "types": "./dist/methods/pro.d.ts",
+      "import": "./src/methods/pro.js",
+      "require": "./dist/methods/pro.cjs"
+    },
+    "./methods/psychometrics": {
+      "types": "./dist/methods/psychometrics.d.ts",
+      "import": "./src/methods/psychometrics.js",
+      "require": "./dist/methods/psychometrics.cjs"
+    },
+    "./methods/raMonitor": {
+      "types": "./dist/methods/raMonitor.d.ts",
+      "import": "./src/methods/raMonitor.js",
+      "require": "./dist/methods/raMonitor.cjs"
+    },
+    "./methods/recommendation": {
+      "types": "./dist/methods/recommendation.d.ts",
+      "import": "./src/methods/recommendation.js",
+      "require": "./dist/methods/recommendation.cjs"
+    },
+    "./methods/regression": {
+      "types": "./dist/methods/regression.d.ts",
+      "import": "./src/methods/regression.js",
+      "require": "./dist/methods/regression.cjs"
+    },
+    "./methods/reliability": {
+      "types": "./dist/methods/reliability.d.ts",
+      "import": "./src/methods/reliability.js",
+      "require": "./dist/methods/reliability.cjs"
+    },
+    "./methods/robust": {
+      "types": "./dist/methods/robust.d.ts",
+      "import": "./src/methods/robust.js",
+      "require": "./dist/methods/robust.cjs"
+    },
+    "./methods/sced": {
+      "types": "./dist/methods/sced.d.ts",
+      "import": "./src/methods/sced.js",
+      "require": "./dist/methods/sced.cjs"
+    },
+    "./methods/sem": {
+      "types": "./dist/methods/sem.d.ts",
+      "import": "./src/methods/sem.js",
+      "require": "./dist/methods/sem.cjs"
+    },
+    "./methods/sensitivity": {
+      "types": "./dist/methods/sensitivity.d.ts",
+      "import": "./src/methods/sensitivity.js",
+      "require": "./dist/methods/sensitivity.cjs"
+    },
+    "./methods/sequential": {
+      "types": "./dist/methods/sequential.d.ts",
+      "import": "./src/methods/sequential.js",
+      "require": "./dist/methods/sequential.cjs"
+    },
+    "./methods/signal": {
+      "types": "./dist/methods/signal.d.ts",
+      "import": "./src/methods/signal.js",
+      "require": "./dist/methods/signal.cjs"
+    },
+    "./methods/smc": {
+      "types": "./dist/methods/smc.d.ts",
+      "import": "./src/methods/smc.js",
+      "require": "./dist/methods/smc.cjs"
+    },
+    "./methods/spatial": {
+      "types": "./dist/methods/spatial.d.ts",
+      "import": "./src/methods/spatial.js",
+      "require": "./dist/methods/spatial.cjs"
+    },
+    "./methods/spatialEconometric": {
+      "types": "./dist/methods/spatialEconometric.d.ts",
+      "import": "./src/methods/spatialEconometric.js",
+      "require": "./dist/methods/spatialEconometric.cjs"
+    },
+    "./methods/spatialTemporal": {
+      "types": "./dist/methods/spatialTemporal.d.ts",
+      "import": "./src/methods/spatialTemporal.js",
+      "require": "./dist/methods/spatialTemporal.cjs"
+    },
+    "./methods/spc": {
+      "types": "./dist/methods/spc.d.ts",
+      "import": "./src/methods/spc.js",
+      "require": "./dist/methods/spc.cjs"
+    },
+    "./methods/stochastic": {
+      "types": "./dist/methods/stochastic.d.ts",
+      "import": "./src/methods/stochastic.js",
+      "require": "./dist/methods/stochastic.cjs"
+    },
+    "./methods/survey": {
+      "types": "./dist/methods/survey.d.ts",
+      "import": "./src/methods/survey.js",
+      "require": "./dist/methods/survey.cjs"
+    },
+    "./methods/survival": {
+      "types": "./dist/methods/survival.d.ts",
+      "import": "./src/methods/survival.js",
+      "require": "./dist/methods/survival.cjs"
+    },
+    "./methods/symbolic": {
+      "types": "./dist/methods/symbolic.d.ts",
+      "import": "./src/methods/symbolic.js",
+      "require": "./dist/methods/symbolic.cjs"
+    },
+    "./methods/tensor": {
+      "types": "./dist/methods/tensor.d.ts",
+      "import": "./src/methods/tensor.js",
+      "require": "./dist/methods/tensor.cjs"
+    },
+    "./methods/text": {
+      "types": "./dist/methods/text.d.ts",
+      "import": "./src/methods/text.js",
+      "require": "./dist/methods/text.cjs"
+    },
+    "./methods/timeseries": {
+      "types": "./dist/methods/timeseries.d.ts",
+      "import": "./src/methods/timeseries.js",
+      "require": "./dist/methods/timeseries.cjs"
+    },
+    "./methods/trials": {
+      "types": "./dist/methods/trials.d.ts",
+      "import": "./src/methods/trials.js",
+      "require": "./dist/methods/trials.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0",
+    "@vitest/coverage-v8": "^2.0.0"
+  },
+  "scripts": {
+    "prebuild": "node ../../scripts/gen-barrel.mjs",
+    "build": "tsup && npm run build:types",
+    "build:types": "tsc -p tsconfig.json",
+    "barrel": "node ../../scripts/gen-barrel.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
+}
