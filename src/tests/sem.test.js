@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { sem, semMultiGroup, measurementInvariance, latentGrowthModel, pathAnalysis, bifactorModel, ordinalSEM, cfiCompare } from './sem.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const cfaData = [];
 for (let i = 0; i < 50; i++) {
@@ -378,4 +379,48 @@ describe('cfiCompare', () => {
   it('null invalid', () => expect(cfiCompare(null, { chisq: 10, df: 5, cfi: 0.9, rmsea: 0.08 })).toBeNull());
   it('contract keys', () => expectKeys(cfiCompare({ chisq: 50, df: 20, cfi: 0.85, rmsea: 0.10 }, { chisq: 30, df: 18, cfi: 0.92, rmsea: 0.07 }), ['test', 'deltaChi2', 'deltaDf', 'p', 'deltaCfi', 'deltaRmsea', 'conclusion', 'apa']));
   it('deltaDf finite', () => { const r = cfiCompare({ chisq: 50, df: 20, cfi: 0.85, rmsea: 0.10 }, { chisq: 30, df: 18, cfi: 0.92, rmsea: 0.07 }); if (r) expect(Number.isFinite(r.deltaDf)).toBe(true); });
+});
+
+describe('pathAnalysis actually includes an intercept and traces indirect/total effects (regression test for the no-intercept and hardcoded-indirect=0 bugs)', () => {
+  it('matches numpy OLS-with-intercept coefficients and recovers the x->m->y mediated effect', () => {
+    const e = ref.sem.path_analysis_basic;
+    const data = e.x.map((xi, i) => ({ x: xi, m: e.m[i], y: e.y[i] }));
+    const r = pathAnalysis(data, ['m ~ x', 'y ~ m']);
+    const xm = r.coefficients.find(c => c.from === 'x' && c.to === 'm');
+    const my = r.coefficients.find(c => c.from === 'm' && c.to === 'y');
+    const xy = r.coefficients.find(c => c.from === 'x' && c.to === 'y');
+    expect(xm.direct).toBeCloseTo(e.x_to_m, 3);
+    expect(my.direct).toBeCloseTo(e.m_to_y, 3);
+    // old code always reported total=direct with indirect hardcoded to 0, and
+    // had no x->y entry at all since x is not a direct predictor of y
+    expect(xy).toBeTruthy();
+    expect(xy.direct).toBeCloseTo(0, 6);
+    expect(xy.indirect).toBeCloseTo(e.x_to_y_indirect, 3);
+  });
+});
+
+describe('bifactorModel rotates toward the intended group structure (regression test for the missing-rotation bug)', () => {
+  it('recovers both group factors\' loadings, not just the first one extracted', () => {
+    let s = 5; const rnd = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
+    function randn() { let u = 0; for (let i = 0; i < 12; i++) u += rnd(); return u - 6; }
+    const n = 2000;
+    const data = [];
+    for (let i = 0; i < n; i++) {
+      const g = randn(), gA = randn(), gB = randn();
+      const row = {};
+      for (let j = 0; j < 6; j++) {
+        const groupLoad = j < 3 ? 0.6 * gA : 0.6 * gB;
+        row['item' + j] = 0.5 * g + groupLoad + Math.sqrt(1 - 0.25 - 0.36) * randn();
+      }
+      data.push(row);
+    }
+    const groupFactors = [
+      { name: 'A', items: ['item0', 'item1', 'item2'] },
+      { name: 'B', items: ['item3', 'item4', 'item5'] },
+    ];
+    const r = bifactorModel(data, 'g', groupFactors);
+    // old code recovered group B's true 0.6 loading as ~0.002 (misattributed
+    // into an inflated general loading) while group A came out partially right
+    r.loadings.forEach(l => expect(l.group).toBeGreaterThan(0.3));
+  });
 });

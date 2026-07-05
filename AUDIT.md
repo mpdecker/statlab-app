@@ -705,6 +705,37 @@
 >
 > Full suite: **4,923 tests pass**. Total across all oracle passes: **57 real correctness bugs found and
 > fixed**, plus one module-portability defect.
+>
+> **Oracle-coverage expansion (2026-07-04, thirty-second pass).** Audited `sem.js`. The core RAM-ML fitter
+> (`sem`/CFA, `semMultiGroup`, `measurementInvariance`, `ordinalSEM`, `cfiCompare` — the latter already
+> verified correct as a standard nested-χ² test) and `latentGrowthModel` were confirmed correct: LGM was
+> checked against a synthetic growth-curve DGP with known intercept/slope means and (co)variances and
+> recovered all five parameters closely (α_i=10.01 vs. true 10, α_s=2.02 vs. true 2, ψ_ii=4.13 vs. true 4,
+> ψ_ss=0.33 vs. true 0.25, ψ_is=0.25 vs. true 0.3). Found **2 real bugs**:
+> - `pathAnalysis` regressed each structural equation through the origin (no intercept column at all),
+>   which badly biases every coefficient whenever the variables have nonzero means (the general case) —
+>   verified on a synthetic `x→m→y` mediation chain with realistic nonzero means: the old code returned
+>   `direct=2.52` for the true x→m slope of 0.6. It also hardcoded `indirect=0` and `total=direct` for every
+>   edge, so the entire point of path analysis over separate univariate regressions — chained/mediated
+>   effects — was never computed (`x`'s indirect effect on `y` via `m`, truly 0.6×0.8=0.48, wasn't reported
+>   at all, since `x` isn't a direct predictor in the `y~m` equation). Fixed by adding the intercept and
+>   computing `Total = (I-B)⁻¹-I` over the system's full direct-effects matrix `B`; the fixed version
+>   recovers `x→m=0.608`, `m→y=0.788`, and the correct mediated `x→y` indirect effect of `0.479` — verified
+>   against a from-scratch numpy OLS-with-intercept re-derivation to 4 decimal places.
+> - `bifactorModel` extracted the correct number of factors via unrotated PCA/EFA (eigendecomposition of
+>   the communality-adjusted correlation matrix) but then directly assigned the k-th extracted factor, in
+>   eigenvalue order, to "group k" with no rotation — nothing guarantees an arbitrary unrotated PCA axis
+>   aligns with any particular item subgroup. Verified on synthetic data with a true bifactor structure
+>   (general loading 0.5 on 6 items; group A loading 0.6 on items 0-2; group B loading 0.6 on items 3-5):
+>   the old code recovered group B's loading as ~0.002 (its true signal was misattributed entirely into an
+>   inflated ~0.62 "general" loading), while group A came out partially right (~0.37-0.40 instead of 0.6).
+>   Fixed by adding an orthogonal Procrustes rotation toward the intended target pattern (general loads
+>   every item; each group factor loads only its own items) before reading off loadings — a standard
+>   target-rotation technique for bifactor structure recovery. After the fix, both groups recover loadings
+>   in the correct 0.5-0.6 range.
+>
+> Full suite: **4,925 tests pass**. Total across all oracle passes: **59 real correctness bugs found and
+> fixed**, plus one module-portability defect.
 
 ## Verdict
 

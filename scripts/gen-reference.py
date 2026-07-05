@@ -1788,6 +1788,42 @@ phylogenetics = {
 }
 ref['phylogenetics'] = phylogenetics
 
+# ── sem (pathAnalysis, bifactorModel) ───────────────────────────────────────
+# Shared LCG matching the JS mulberry32-style generator used throughout this
+# codebase's own test fixtures, so both languages produce identical sequences.
+def _lcg_seq(seed, count):
+    s = seed
+    out = []
+    for _ in range(count):
+        s = (1664525 * s + 1013904223) & 0xFFFFFFFF
+        out.append(s / 2**32)
+    return out
+
+# pathAnalysis: mediation chain x -> m -> y (no direct x->y in the true model).
+# The previous version regressed each equation through the origin (no
+# intercept column), badly biasing every coefficient given these variables'
+# nonzero means, and hardcoded indirect=0/total=direct for every edge instead
+# of tracing the chain, so the x->y mediated effect (0.6*0.8=0.48) was never
+# computed at all. Ground truth via numpy OLS with an intercept for each
+# equation (a direct, from-scratch re-derivation, not reusing the JS code).
+_pa_n = 200
+_pa_u = _lcg_seq(3, _pa_n * 3)
+_pa_x = [5 + (_pa_u[3 * i] * 2 - 1) * 2 for i in range(_pa_n)]
+_pa_m = [10 + 0.6 * _pa_x[i] + (_pa_u[3 * i + 1] * 2 - 1) * 0.3 for i in range(_pa_n)]
+_pa_y = [20 + 0.8 * _pa_m[i] + (_pa_u[3 * i + 2] * 2 - 1) * 0.3 for i in range(_pa_n)]
+_pa_Xm = np.column_stack([np.ones(_pa_n), _pa_x])
+_pa_beta_m = np.linalg.lstsq(_pa_Xm, _pa_m, rcond=None)[0]
+_pa_Xy = np.column_stack([np.ones(_pa_n), _pa_m])
+_pa_beta_y = np.linalg.lstsq(_pa_Xy, _pa_y, rcond=None)[0]
+sem_fixtures = {
+    'path_analysis_basic': {
+        'x': _pa_x, 'm': _pa_m, 'y': _pa_y,
+        'x_to_m': float(_pa_beta_m[1]), 'm_to_y': float(_pa_beta_y[1]),
+        'x_to_y_indirect': float(_pa_beta_m[1] * _pa_beta_y[1]),
+    }
+}
+ref['sem'] = sem_fixtures
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):
