@@ -6,29 +6,29 @@ import { InferenceConfig } from './InferenceConfig.jsx';
 import { InferenceResults } from './InferenceResults.jsx';
 
 // ── test runners ──────────────────────────────────────────────────────────────
-import { tWelch, tOne, tPaired, yuentTest, zTestKnownSD, signTest } from '../tests/means.js';
-import { oneWayANOVA, welchANOVA, twoWayANOVA, ancova, rmANOVA, friedman, kruskalWallis, cochranQ } from '../tests/anova.js';
+import { tWelch, tOne, tPaired, yuentTest, zTestKnownSD, signTest } from 'statlab/methods/means';
+import { oneWayANOVA, welchANOVA, twoWayANOVA, ancova, rmANOVA, friedman, kruskalWallis, cochranQ } from 'statlab/methods/anova';
 import {
   pearsonTest, spearman, kendallTau, partialCorr, pointBiserial,
   simpleOLS, multipleOLS, polynomialOLS, hierarchicalOLS,
   logisticReg, ordinalLogisticRegression, poissonRegression, negativeBinomialRegression,
   mediation, moderation,
-} from '../tests/regression.js';
-import { mannWhitney, wilcoxonSR } from '../tests/nonparametric.js';
+} from 'statlab/methods/regression';
+import { mannWhitney, wilcoxonSR } from 'statlab/methods/nonparametric';
 import {
   chiSquare, chiGoF, fisherExact, mcnemar, binomialTest, onePropZ, twoPropZ,
   tost, bayesFactorT, bayesFactorCorr,
   grubbsTest, leveneTest, bartlettTest,
   bonferroni, holm, bh, sensitivityLOO,
-} from '../tests/categorical.js';
-import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from '../tests/multivariate.js';
-import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '../tests/psychometrics.js';
-import { kmeans, hierarchicalCluster, latentClassAnalysis } from '../tests/clustering.js';
-import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '../tests/multilevel.js';
-import { propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity } from '../tests/causal.js';
-import { centralityMeasures, communityDetection, sociogramLayout, networkFromEdgeList } from '../tests/network.js';
-import { normalityDP, shapiroWilk, computePowerT, requiredN, requiredNCorr } from '../math/distributions.js';
-import { avg, sampleSD, median } from '../math/core.js';
+} from 'statlab/methods/categorical';
+import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from 'statlab/methods/multivariate';
+import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from 'statlab/methods/psychometrics';
+import { kmeans, hierarchicalCluster, latentClassAnalysis } from 'statlab/methods/clustering';
+import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from 'statlab/methods/multilevel';
+import { propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity } from 'statlab/methods/causal';
+import { centralityMeasures, communityDetection, sociogramLayout, networkFromEdgeList } from 'statlab/methods/network';
+import { normalityDP, shapiroWilk, computePowerT, requiredN, requiredNCorr } from 'statlab/math/distributions';
+import { avg, sampleSD, median } from 'statlab/math/core';
 import { parseFinite, barHeightPct, finiteNums, rowFinite, parseNumList } from '../utils/parse.js';
 import {
   runBootstrapCI, runBootstrapMediation,

@@ -8,7 +8,7 @@ import {
   normalityDP, shapiroWilk, bootstrapCI,
 } from './distributions.js';
 import { avg } from './core.js';
-import ref from '../tests/__fixtures__/reference.json' with { type: 'json' };
+import ref from '../methods/__fixtures__/reference.json' with { type: 'json' };
 
 describe('lngamma', () => {
   it('lngamma(1) = 0', () => expect(lngamma(1)).toBeCloseTo(0, 8));

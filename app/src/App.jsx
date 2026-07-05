@@ -7,7 +7,7 @@ import {
   formatInferenceSummary, CHART_MODE_LABELS, exploreChartLabel, explorePanelChartFromMode,
 } from './utils/vizHelpers.js';
 import { CHART_FOR_TEST } from './config/chartMap.js';
-import { computeStats, corr, avg, sampleSD } from './math/core.js';
+import { computeStats, corr, avg, sampleSD } from 'statlab/math/core';
 import { barHeightPct } from './utils/parse.js';
 import { useInference, Navigator } from './components/InferencePanel.jsx';
 import { InferenceConfig } from './components/InferenceConfig.jsx';

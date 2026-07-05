@@ -1,4 +1,4 @@
-import { corr, sampleSD } from '../math/core.js';
+import { corr, sampleSD } from 'statlab/math/core';
 
 /** Tests whose QuickView should follow Inference variable selectors */
 export const TESTS_USE_INFERENCE_GROUPS = new Set([

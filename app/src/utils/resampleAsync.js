@@ -1,9 +1,9 @@
-import { bootstrapCI } from '../math/distributions.js';
-import { bootstrapMediation } from '../tests/regression.js';
+import { bootstrapCI } from 'statlab/math/distributions';
+import { bootstrapMediation } from 'statlab/methods/regression';
 import {
   powerANOVA, powerChi, powerLogistic, powerMixed, powerMediation,
-} from '../math/power.js';
-import { avg, median, sampleSD } from '../math/core.js';
+} from 'statlab/math/power';
+import { avg, median, sampleSD } from 'statlab/math/core';
 
 const STAT_FN = { mean: avg, median, sd: sampleSD };
 const WORKER_MIN_B = 400;

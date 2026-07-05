@@ -3,13 +3,13 @@
  * Run: node scripts/generate-reference.mjs
  */
 import { writeFileSync, readFileSync } from 'fs';
-import { oneWayANOVA, welchANOVA } from '../src/tests/anova.js';
-import { mannWhitney, binomialTest, twoPropZ } from '../src/tests/categorical.js';
-import { mediation } from '../src/tests/regression.js';
-import { metaAnalysis } from '../src/tests/multivariate.js';
-import { mkGroups, GROUP_A, GROUP_B, mkTabular } from '../src/tests/fixtures/core.js';
+import { oneWayANOVA, welchANOVA } from '../packages/statlab/src/methods/anova.js';
+import { mannWhitney, binomialTest, twoPropZ } from '../packages/statlab/src/methods/categorical.js';
+import { mediation } from '../packages/statlab/src/methods/regression.js';
+import { metaAnalysis } from '../packages/statlab/src/methods/multivariate.js';
+import { mkGroups, GROUP_A, GROUP_B, mkTabular } from '../packages/statlab/src/methods/fixtures/core.js';
 
-const ref = JSON.parse(readFileSync('src/tests/__fixtures__/reference.json', 'utf8'));
+const ref = JSON.parse(readFileSync('packages/statlab/src/methods/__fixtures__/reference.json', 'utf8'));
 const rows = mkTabular();
 
 ref.anova.oneWay_fixture_groups = (() => {
@@ -35,5 +35,5 @@ ref.meta.two_studies = (() => {
   return { dRE: r.dRE, p: r.p };
 })();
 
-writeFileSync('src/tests/__fixtures__/reference.json', `${JSON.stringify(ref, null, 2)}\n`);
-console.log('Updated src/tests/__fixtures__/reference.json');
+writeFileSync('packages/statlab/src/methods/__fixtures__/reference.json', `${JSON.stringify(ref, null, 2)}\n`);
+console.log('Updated packages/statlab/src/methods/__fixtures__/reference.json');

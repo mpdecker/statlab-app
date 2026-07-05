@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { TREE } from '../config/tree.js';
-import { CHART_FOR_TEST } from '../config/chartMap.js';
-import { runTreeTest, RUNNERS } from './fixtures/runners.js';
-import { expectInferenceResult } from './__fixtures__/helpers.js';
+import { TREE } from './tree.js';
+import { CHART_FOR_TEST } from './chartMap.js';
+// Integration test: validates the app's method TREE against the engine's shared
+// test harness, which lives in the statlab package's internal test fixtures.
+import { runTreeTest, RUNNERS } from '../../../packages/statlab/src/methods/fixtures/runners.js';
+import { expectInferenceResult } from '../../../packages/statlab/src/methods/__fixtures__/helpers.js';
 
 const TREE_IDS = TREE.flatMap(c => c.tests.map(t => t.id));
 const NULL_OK = new Set(['bootstrap', 'med_bootstrap']);

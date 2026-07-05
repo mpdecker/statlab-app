@@ -1,6 +1,6 @@
 import { C, PAL } from '../palette.js';
-import { tPDF, tInv2, normalINV, normalCDF } from '../math/distributions.js';
-import { avg, sampleSD } from '../math/core.js';
+import { tPDF, tInv2, normalINV, normalCDF } from 'statlab/math/distributions';
+import { avg, sampleSD } from 'statlab/math/core';
 import {
   ComposedChart, Scatter, Line as RLine, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar, Cell, LineChart, Line,
@@ -97,7 +97,7 @@ export function ResidualPlot({ fitted, residuals }) {
 }
 
 // ── Power curve ───────────────────────────────────────────────────────────────
-import { computePowerT } from '../math/distributions.js';
+import { computePowerT } from 'statlab/math/distributions';
 export function PowerCurve({ d, alpha = .05, currentN }) {
   const pts = Array.from({ length: 40 }, (_, i) => ({
     n: (i + 1) * 5,
