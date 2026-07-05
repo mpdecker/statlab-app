@@ -4,7 +4,7 @@
   "description": "A large, dependency-free statistics & modeling library for JavaScript/TypeScript.",
   "type": "module",
   "license": "MIT",
-  "author": "",
+  "author": "Matthieu Decker <decker.matthieu@gmail.com>",
   "keywords": [
     "statistics",
     "regression",
