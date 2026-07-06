@@ -728,7 +728,6 @@ function orthogonalProcrustes(A, Target) {
 // group B's loading as ~0.002 (its true 0.6 signal was misattributed entirely
 // into an inflated "general" loading of ~0.62); the rotated version recovers
 // both groups' loadings in the correct 0.5-0.6 range.)
-/** @param {Array<Record<string, any>>} data */
 export function bifactorModel(data, generalFactor, groupFactors, { maxIter = 50 } = {}) {
   if (!data || data.length < 20 || !groupFactors || !groupFactors.length) return null;
   const allItems = groupFactors.flatMap(g => g.items);

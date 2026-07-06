@@ -769,7 +769,7 @@ export function varModel(series, p = 1, { horizon = 10 } = {}) {
 }
 
 // ── Granger Causality ─────────────────────────────────────────────────────────
-/** @param {number[]} series @param {number} [maxLag] */
+/** @param {number[]} series @param {number} [maxLag] @param {string|number} cause @param {string|number} effect */
 export function grangerCausality(series, cause, effect, maxLag = 4) {
   if (!series || typeof series !== 'object') return null;
   const names = Array.isArray(series) ? null : Object.keys(series);
@@ -829,7 +829,7 @@ export function grangerCausality(series, cause, effect, maxLag = 4) {
 }
 
 // ── Chow Test for Structural Break ────────────────────────────────────────────
-/** @param {number[]} series */
+/** @param {number[]} series @param {number} breakPoint */
 export function chowTest(series, breakPoint, { arOrder = 1 } = {}) {
   if (!series || series.length < 10) return null;
   const T = series.length;
@@ -959,7 +959,6 @@ export function garch(data, { p = 1, q = 1 } = {}) {
 }
 
 // ── Kalman Filter ───────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
 export function kalmanFilter(data, { systemNoise = 1, obsNoise = 1, initialState = null } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -1078,7 +1077,6 @@ export function johansenTest(series, p, { deterministic = 'const' } = {}) {
 }
 
 // ── Structural Break ───────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
 export function structuralBreak(data, { maxBreaks = 3, minSegLen = 10 } = {}) {
   if (!data || data.length < 2 * minSegLen) return null;
   const n = data.length;
@@ -1144,6 +1142,7 @@ export function structuralBreak(data, { maxBreaks = 3, minSegLen = 10 } = {}) {
 }
 
 // ── Bottom-Up Reconciliation ──────────────────────────────────────
+/** @param {number[]} bottomForecasts @param {number[][]} hierarchy group index lists. */
 export function bottomUpReconciliation(bottomForecasts, hierarchy) {
   if (!bottomForecasts || !hierarchy || !bottomForecasts.length) return null;
   const n = bottomForecasts.length;
@@ -1156,6 +1155,7 @@ export function bottomUpReconciliation(bottomForecasts, hierarchy) {
 }
 
 // ── Top-Down Reconciliation ───────────────────────────────────────
+/** @param {number[]} topForecast @param {number[]} proportions */
 export function topDownReconciliation(topForecast, proportions, { method = 'proportions' } = {}) {
   if (!topForecast || !proportions || !proportions.length) return null;
   const sumP = proportions.reduce((s, v) => s + v, 0);
@@ -1164,6 +1164,7 @@ export function topDownReconciliation(topForecast, proportions, { method = 'prop
 }
 
 // ── Middle-Out Reconciliation ─────────────────────────────────────
+/** @param {number[][]} middleForecasts @param {number[][]} hierarchy */
 export function middleOutReconciliation(middleForecasts, upperMapping, lowerMapping, hierarchy) {
   if (!middleForecasts || !middleForecasts.length) return null;
   const upper = upperMapping ? upperMapping.map((_, i) => +middleForecasts.reduce((s, v, j) => upperMapping[j] === i ? s + v : s, 0).toFixed(4)) : [];
@@ -1172,6 +1173,7 @@ export function middleOutReconciliation(middleForecasts, upperMapping, lowerMapp
 }
 
 // ── MinT Reconciliation ───────────────────────────────────────────
+/** @param {number[]} baseForecasts @param {number[][]} S summing matrix. @param {number[][]} residCov */
 export function minTReconciliation(baseForecasts, S, residCov) {
   if (!baseForecasts || !S || !S.length) return null;
   const n = baseForecasts.length;
@@ -1192,7 +1194,7 @@ export function minTReconciliation(baseForecasts, S, residCov) {
 }
 
 // ── Forecast Accuracy ─────────────────────────────────────────────
-/** @param {number[]} actual */
+/** @param {number[]} actual @param {number[]} forecast */
 export function forecastAccuracy(actual, forecast, { metric = 'rmse' } = {}) {
   if (!actual || !forecast || !actual.length || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1230,7 +1232,7 @@ export function markovSwitchingAR(data, { nRegimes = 2, p = 1 } = {}) {
 }
 
 // ── Regime Volatility ─────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<string|number>} states */
 export function regimeVolatility(data, states) {
   if (!data || !states || data.length < 10) return null;
   const n = Math.min(data.length, states.length);
@@ -1245,6 +1247,7 @@ export function regimeVolatility(data, states) {
 }
 
 // ── Transition Matrix ─────────────────────────────────────────────
+/** @param {Array<string|number>} states state sequence. */
 export function transitionMatrix(states) {
   if (!states || states.length < 10) return null;
   const n = states.length;
@@ -1263,7 +1266,7 @@ export function transitionMatrix(states) {
 }
 
 // ── Filtered Probabilities ────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {object} params */
 export function filteredProbabilities(data, params) {
   if (!data || data.length < 10) return null;
   const n = data.length; const k = params?.nRegimes || 2;
@@ -1272,6 +1275,7 @@ export function filteredProbabilities(data, params) {
 }
 
 // ── Expected Duration ─────────────────────────────────────────────
+/** @param {number[][]} transMat */
 export function expectedDuration(transMat) {
   if (!transMat || !transMat.length) return null;
   const k = transMat.length;
@@ -1283,7 +1287,6 @@ export function expectedDuration(transMat) {
 }
 
 // ── PELT Change Point ─────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
 export function peltChangePoint(data, { minSegLen = 10, penalty = null } = {}) {
   if (!data || data.length < 2 * minSegLen) return null;
   const n = data.length;
@@ -1305,7 +1308,6 @@ export function peltChangePoint(data, { minSegLen = 10, penalty = null } = {}) {
 }
 
 // ── Binary Segmentation ───────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
 export function binarySegmentation(data, { minSegLen = 10, maxBreaks = 3 } = {}) {
   if (!data || data.length < 2 * minSegLen) return null;
   const n = data.length;
@@ -1329,7 +1331,6 @@ export function binarySegmentation(data, { minSegLen = 10, maxBreaks = 3 } = {})
 }
 
 // ── AMOC ──────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
 export function singleChangepoint(data) {
   if (!data || data.length < 10) return null;
   const n = data.length;
@@ -1345,7 +1346,6 @@ export function singleChangepoint(data) {
 }
 
 // ── Changepoint Penalty ───────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
 export function changepointPenalty(data, { maxChangepoints = 5 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -1358,7 +1358,7 @@ export function changepointPenalty(data, { maxChangepoints = 5 } = {}) {
 }
 
 // ── Segmented Means ───────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {number[]} breakpoints */
 export function segmentedMeans(breakpoints, data) {
   if (!breakpoints || !data || !data.length) return null;
   const n = data.length;
@@ -1372,7 +1372,7 @@ export function segmentedMeans(breakpoints, data) {
 }
 
 // ── Rolling Origin CV ─────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {(train: number[]) => number} modelFn */
 export function rollingOriginCV(data, modelFn, { initialWindow = 10, horizon = 1 } = {}) {
   if (!data || data.length < initialWindow + horizon) return null;
   const n = data.length;
@@ -1388,7 +1388,7 @@ export function rollingOriginCV(data, modelFn, { initialWindow = 10, horizon = 1
 }
 
 // ── Sliding Window ────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {(train: number[]) => number} modelFn */
 export function slidingWindow(data, modelFn, { windowSize = 20, step = 1 } = {}) {
   if (!data || data.length < windowSize) return null;
   const n = data.length;
@@ -1402,7 +1402,7 @@ export function slidingWindow(data, modelFn, { windowSize = 20, step = 1 } = {})
 }
 
 // ── Gap Validation ────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {(train: number[]) => number} modelFn */
 export function gapValidation(data, modelFn, { gapSize = 0 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -1429,6 +1429,7 @@ export function tsFeatures(series) {
 }
 
 // ── Forecast Reconciliation Diagnostics ───────────────────────────
+/** @param {number[][]} forecasts @param {number[][]} hierarchy @param {number[]} actuals */
 export function forecastReconciliation(forecasts, hierarchy, actuals) {
   if (!forecasts || !hierarchy || !forecasts.length) return null;
   const n = forecasts.length;
@@ -1438,7 +1439,7 @@ export function forecastReconciliation(forecasts, hierarchy, actuals) {
 }
 
 // ── MASE ──────────────────────────────────────────────────────────
-/** @param {number[]} actual */
+/** @param {number[]} actual @param {number[]} forecast @param {number[]} naive */
 export function mase(actual, forecast, naive) {
   if (!actual || !forecast || actual.length < 5 || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1450,7 +1451,7 @@ export function mase(actual, forecast, naive) {
 }
 
 // ── SMAPE ─────────────────────────────────────────────────────────
-/** @param {number[]} actual */
+/** @param {number[]} actual @param {number[]} forecast */
 export function smape(actual, forecast) {
   if (!actual || !forecast || actual.length < 5 || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1461,7 +1462,7 @@ export function smape(actual, forecast) {
 }
 
 // Theil's U
-/** @param {number[]} actual */
+/** @param {number[]} actual @param {number[]} forecast */
 export function theilU(actual, forecast) {
   if (!actual || !forecast || actual.length < 5 || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1475,6 +1476,7 @@ export function theilU(actual, forecast) {
 }
 
 // ── Diebold-Mariano Test ──────────────────────────────────────────
+/** @param {number[]} errors1 @param {number[]} errors2 */
 export function dieboldMariano(errors1, errors2, { h = 1 } = {}) {
   if (!errors1 || !errors2 || errors1.length < 5 || errors1.length !== errors2.length) return null;
   const n = errors1.length;
@@ -1487,7 +1489,7 @@ export function dieboldMariano(errors1, errors2, { h = 1 } = {}) {
 }
 
 // ── Encompassing Test ─────────────────────────────────────────────
-/** @param {number[]} actual */
+/** @param {number[]} actual @param {number[]} forecast1 @param {number[]} forecast2 */
 export function encompassingTest(forecast1, forecast2, actual) {
   if (!forecast1 || !forecast2 || !actual || actual.length < 5) return null;
   const n = Math.min(forecast1.length, forecast2.length, actual.length);
@@ -1642,6 +1644,7 @@ export function vecm(data, yVar, xVars, { p = 1, rank = 1 } = {}) {
 }
 
 // ── Impulse Response with Bootstrap CI ────────────────────────────
+/** @param {object} irf fitted VAR/IRF result. */
 export function impulseResponseCI(irf, { B = 200, p = 1, horizon = 10, shock = 0, respond = 0, seed = 42, alpha = 0.05 } = {}) {
   if (!irf) return null;
   // Backward-compatible analytic band when only a 1-D point IRF is supplied.
@@ -1685,6 +1688,7 @@ export function impulseResponseCI(irf, { B = 200, p = 1, horizon = 10, shock = 0
 }
 
 // ── FEVD with CLI ─────────────────────────────────────────────────
+/** @param {object} varResult */
 export function fevdDecomposition(varResult, { horizon = 10 } = {}) {
   if (!varResult || !varResult.k) return null;
   const k = varResult.k, h = Math.min(horizon, 20);
@@ -1959,7 +1963,7 @@ export function bekkGarch(returns, { p = 1, q = 1 } = {}) {
 }
 
 // ── MGARCH Forecast ───────────────────────────────────────────────
-/** @param {number} [steps] */
+/** @param {number} [steps] @param {object} mgarchResult */
 export function mgarchForecast(mgarchResult, steps = 1) {
   if (!mgarchResult || !mgarchResult.k) return null;
   const k = mgarchResult.k;
@@ -2015,6 +2019,7 @@ export function mgarchForecast(mgarchResult, steps = 1) {
 }
 
 // ── MGARCH Diagnostics ────────────────────────────────────────────
+/** @param {object} mgarchResult */
 export function mgarchDiagnostics(mgarchResult) {
   if (!mgarchResult) return null;
   const n = mgarchResult.n != null ? mgarchResult.n : (mgarchResult.T != null ? mgarchResult.T : 0);

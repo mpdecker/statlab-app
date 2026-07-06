@@ -85,7 +85,7 @@ export function perplexity(logLik, nTokens) {
 }
 
 // ── Matthews Correlation Coefficient ──────────────────────────────
-/** @param {Function} fn */
+/** @param {Function} fn @param {number} tp @param {number} fp @param {number} tn */
 export function matthewsCorrelation(tp, fp, tn, fn) {
   if (tp == null || fp == null || tn == null || fn == null) return null;
   const num = tp * tn - fp * fn;

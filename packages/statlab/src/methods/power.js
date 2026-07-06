@@ -111,7 +111,7 @@ export function powerChiSq(cohenW, df, N, alpha = 0.05) {
 
 // ── Logistic Power ────────────────────────────────────────────────
 
-/** @param {number} [alpha] */
+/** @param {number} [alpha] @param {number} or */
 export function powerLogisticReg(or, pControl, nPerGroup, alpha = 0.05) {
   const p = _powerLogistic(or, pControl, nPerGroup, alpha);
   if (p == null) return null;

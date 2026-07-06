@@ -327,7 +327,6 @@ export function nonparametricMixture(data, k = 2, { seed = 42, bandwidth = null,
 }
 
 // ── Mixture Posterior Probabilities ───────────────────────────────
-/** @param {Array<Record<string, any>>} data */
 export function mixturePosterior(data, gmmResult) {
   if (!data || !data.length || !gmmResult || !gmmResult.mu || !gmmResult.pi) return null;
   const n = data.length;

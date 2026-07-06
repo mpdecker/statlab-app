@@ -112,7 +112,7 @@ export function scenarioComparison(scenarios) {
 }
 
 // ── Threshold Model (Granovetter) ─────────────────────────────────
-/** @param {number} [initialAdopters] */
+/** @param {number} [initialAdopters] @param {number[]} thresholds */
 export function thresholdModel(nAgents, thresholds, initialAdopters = 1) {
   if (!nAgents || nAgents < 3 || !thresholds || thresholds.length < nAgents) return null;
   const sorted = [...thresholds].sort((a, b) => a - b);

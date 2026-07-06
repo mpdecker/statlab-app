@@ -36,7 +36,6 @@ export function chao1Richness(counts) {
 }
 
 // ── Species Accumulation ──────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
 export function speciesAccumulation(data, { nPerm = 50, seed = 42 } = {}) {
   if (!data || !data.length) return null;
   const n = data.length;

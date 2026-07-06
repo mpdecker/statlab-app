@@ -140,7 +140,7 @@ export function parametricVaR(returns, { alpha = 0.05, horizon = 1 } = {}) {
 }
 
 // ── Rolling Window ──────────────────────────────────────────────────────────
-/** @param {Function} fn @param {Array<Record<string, any>>} data */
+/** @param {Function} fn */
 export function rollingWindow(data, fn, windowSize, { step = 1 } = {}) {
   if (!data || !fn || data.length < windowSize) return null;
   const n = data.length;
