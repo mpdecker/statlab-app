@@ -140,6 +140,7 @@ export function thomasProcess(nParents, nOffspring, areaWidth, areaHeight, { see
 // center: verified with N=200,000 samples that equal-width radial bins came
 // out ~equal (~40,000 each) instead of the correct annulus-area-proportional
 // growth (8,000/24,000/40,000/56,000/72,000).
+/** @param {number} nClusters @param {number} [seed] */
 export function maternCluster(nClusters, radius, avgPointsPerCluster, areaWidth, areaHeight, seed = 42) {
   __rng = mulberry32(seed);
   if (!nClusters || nClusters < 2 || !radius || radius <= 0) return null;
@@ -176,6 +177,7 @@ function borderDist(p, minX, maxX, minY, maxY) {
 }
 
 // ── Pair Correlation Function ─────────────────────────────────────
+/** @param {number[]} points */
 export function pairCorrelation(points, { nBins = 20, maxRadius = null } = {}) {
   if (!points || points.length < 20) return null;
   const n = points.length;
@@ -205,6 +207,7 @@ export function pairCorrelation(points, { nBins = 20, maxRadius = null } = {}) {
 }
 
 // ── L-Function ────────────────────────────────────────────────────
+/** @param {number[]} points */
 export function lFunction(points, { nRadii = 15, maxRadius = null } = {}) {
   if (!points || points.length < 20) return null;
   const n = points.length;

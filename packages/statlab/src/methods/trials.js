@@ -23,6 +23,7 @@ export function randomizedBlocks(strata, treatments, { seed = 42, blockSize = 4 
 }
 
 // Simon's Two-Stage
+/** @param {number} [alpha] @param {number} [beta] */
 export function simons2Stage(p0, p1, alpha = 0.05, beta = 0.2) {
   if (!Number.isFinite(p0) || !Number.isFinite(p1) || p0 >= p1) return null;
   const n1 = Math.max(5, Math.ceil(Math.log(0.5) / Math.log(1 - p1)));
@@ -33,6 +34,7 @@ export function simons2Stage(p0, p1, alpha = 0.05, beta = 0.2) {
 }
 
 // ── Sample Size Re-estimation ─────────────────────────────────────
+/** @param {number[]} data @param {number} [stage] */
 export function sampleSizeReestimation(data, target, stage = 1) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -44,6 +46,7 @@ export function sampleSizeReestimation(data, target, stage = 1) {
 }
 
 // ── Stratified Permuted Blocks ────────────────────────────────────
+/** @param {number} [seed] */
 export function stratifiedPermutedBlocks(strata, seed = 42) {
   __rng = mulberry32(seed);
   if (!strata || !strata.length) return null;
@@ -63,6 +66,7 @@ export function stratifiedPermutedBlocks(strata, seed = 42) {
 }
 
 // ── Fisher Exact Design ───────────────────────────────────────────
+/** @param {number} a @param {number} b @param {number} c @param {number} d */
 export function fisherExactDesign(a, b, c, d) {
   if (![a, b, c, d].every(v => v >= 0)) return null;
   const n = a + b + c + d;
@@ -74,6 +78,7 @@ export function fisherExactDesign(a, b, c, d) {
 }
 
 // ── Adaptive Design (Group Sequential with sample size re-estimation) ───
+/** @param {number} [targetPower] @param {number} [alpha] */
 export function adaptiveDesign(effectSize, targetPower = 0.8, alpha = 0.05, { maxStages = 3, nMin = 20 } = {}) {
   if (!Number.isFinite(effectSize) || effectSize <= 0 || maxStages < 2) return null;
   const stages = Array.from({ length: maxStages }, (_, stage) => {

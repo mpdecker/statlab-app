@@ -104,6 +104,7 @@ export function posteriorSummary(samples) {
   };
 }
 
+/** @param {number} [prob] */
 export function hpdInterval(samples, prob = 0.95) {
   if (!samples || samples.length < 10) return null;
   const sorted = [...samples].sort((a, b) => a - b);
@@ -150,6 +151,7 @@ export function waic(mcmcResult, logLikFn, nObservations) {
   return { waic: +waicVal.toFixed(2), pWAIC: +sumPwaic.toFixed(2), lppd: +sumLppd.toFixed(2), n, s: S, apa: `WAIC = ${waicVal.toFixed(1)} (pWAIC = ${sumPwaic.toFixed(1)})` };
 }
 
+/** @param {number[]} data */
 export function normalNormalPosterior(data, priorMean, priorSD, knownSigma) {
   if (!data || data.length < 1 || knownSigma <= 0) return null;
   const n = data.length, xbar = avg(data);
@@ -165,6 +167,7 @@ export function normalNormalPosterior(data, priorMean, priorSD, knownSigma) {
   };
 }
 
+/** @param {number[]} y @param {number[][]} X @param {number} [a0] @param {number} [b0] */
 export function normalInverseGammaPosterior(y, X, a0 = 0.001, b0 = 0.001) {
   if (!y || !X || y.length < 2 || !X.length || X[0].length < 1) return null;
   const n = y.length, k = X[0].length;
@@ -191,6 +194,7 @@ export function normalInverseGammaPosterior(y, X, a0 = 0.001, b0 = 0.001) {
   return { coefficients: coeffs, sigma2: +postSigma2.toFixed(6), aStar, bStar, n, k };
 }
 
+/** @param {number} [priorAlpha] @param {number} [priorBeta] */
 export function betaBinomialPosterior(successes, trials, priorAlpha = 1, priorBeta = 1) {
   if (!Number.isFinite(successes) || !Number.isFinite(trials) || trials < 1 || successes < 0 || successes > trials) return null;
   const postAlpha = priorAlpha + successes;
@@ -212,6 +216,7 @@ export function betaBinomialPosterior(successes, trials, priorAlpha = 1, priorBe
   };
 }
 
+/** @param {number} [priorShape] @param {number} [priorRate] */
 export function gammaPoissonPosterior(counts, priorShape = 1, priorRate = 1) {
   if (!counts || counts.length < 1) return null;
   const n = counts.length;
@@ -251,6 +256,7 @@ export function dirichletMultinomialPosterior(counts, priorAlpha = null) {
   };
 }
 
+/** @param {number[]} y @param {number[][]} X */
 export function bayesianLinearRegression(y, X, { nIter = 0, nBurnin = 2000 } = {}) {
   if (!y || !X || y.length < 2 || !X.length || X[0].length < 1) return null;
   const n = y.length, k = X[0].length;
@@ -302,6 +308,7 @@ export function bayesianLinearRegression(y, X, { nIter = 0, nBurnin = 2000 } = {
 
 // ── Bayes Factor (BIC approximation) ──────────────────────────────
 
+/** @param {number} n */
 export function bicBayesFactor(logLik0, logLik1, n, k0, k1) {
   if (!Number.isFinite(logLik0) || !Number.isFinite(logLik1) || n < 2) return null;
   const BIC0 = -2 * logLik0 + k0 * Math.log(n);
@@ -396,6 +403,7 @@ export function bayesianANOVA(groups, { nIter = 2000, nBurnin = 500 } = {}) {
 
 // ── Bayesian Mixed Model (RI) ─────────────────────────────────────
 
+/** @param {number[]} y @param {number[][]} X */
 export function bayesianMixedModel(y, X, groupIdx, { nIter = 2000, nBurnin = 500 } = {}) {
   if (!y || !X || !groupIdx || y.length < 5 || X.length !== y.length || X[0].length < 1) return null;
   const n = y.length, k = X[0].length;
@@ -448,6 +456,7 @@ export function bayesianMixedModel(y, X, groupIdx, { nIter = 2000, nBurnin = 500
   };
 }
 
+/** @param {number[]} y @param {number[][]} X */
 export function bayesianLogisticRegression(y, X, { nIter = 5000, nBurnin = 1000, priorScale = 2.5 } = {}) {
   if (!y || !X || y.length < 10 || !X.length || X[0].length < 1) return null;
   if (y.some(v => v !== 0 && v !== 1)) return null;
@@ -483,6 +492,7 @@ export function bayesianLogisticRegression(y, X, { nIter = 5000, nBurnin = 1000,
   };
 }
 
+/** @param {number[]} y @param {number[][]} X */
 export function bayesianPoissonRegression(y, X, { nIter = 5000, nBurnin = 1000, priorScale = 2.5 } = {}) {
   if (!y || !X || y.length < 10 || !X.length || X[0].length < 1) return null;
   const n = y.length, k = X[0].length;
@@ -519,6 +529,7 @@ export function bayesianPoissonRegression(y, X, { nIter = 5000, nBurnin = 1000, 
 }
 
 // ── JZS Bayes Factor t-test ───────────────────────────────────────
+/** @param {number[]} a @param {number[]} b */
 export function jszBayesFactorT(a, b, { r = Math.SQRT1_2 } = {}) {
   if (!a || !b || a.length < 2 || b.length < 2) return null;
   const n1 = a.length, n2 = b.length;
@@ -638,6 +649,7 @@ export function posteriorPredictiveCheck(yObs, yRep, { stat = 'mean' } = {}) {
 }
 
 // ── BMA Regression ────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar */
 export function bmaRegression(data, yVar, xCandidates, { nModels = null, seed = 42 } = {}) {
   if (!data || data.length < 15 || !yVar || !xCandidates || xCandidates.length < 2) return null;
   const n = data.length; const k = xCandidates.length;

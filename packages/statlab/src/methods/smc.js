@@ -19,6 +19,7 @@ function multinomialResample(particles, weights) {
 }
 
 // ── Bootstrap Particle Filter ─────────────────────────────────────
+/** @param {number[]} y */
 export function bootstrapFilter(y, initialParticles, { seed = 42, processNoise = 1, obsNoise = 1 } = {}) {
   __rng = mulberry32(seed);
   if (!y || !initialParticles || !initialParticles.length || y.length < 3) return null;
@@ -41,6 +42,7 @@ export function bootstrapFilter(y, initialParticles, { seed = 42, processNoise =
 }
 
 // ── Auxiliary Particle Filter ─────────────────────────────────────
+/** @param {number[]} y */
 export function auxiliaryPF(y, initialParticles, { seed = 42, processNoise = 1, obsNoise = 1 } = {}) {
   __rng = mulberry32(seed);
   if (!y || !initialParticles || !initialParticles.length || y.length < 3) return null;
@@ -70,6 +72,7 @@ export function auxiliaryPF(y, initialParticles, { seed = 42, processNoise = 1, 
 }
 
 // ── Importance Sampling ───────────────────────────────────────────
+/** @param {number} [nSamples] @param {number} [seed] */
 export function importanceSampling(target, proposal, nSamples = 1000, seed = 42) {
   __rng = mulberry32(seed);
   if (!target || !proposal || nSamples < 10) return null;
@@ -87,6 +90,7 @@ export function importanceSampling(target, proposal, nSamples = 1000, seed = 42)
 }
 
 // ── Effective Sample Size (SMC) ───────────────────────────────────
+/** @param {number[]} weights */
 export function effectiveSampleSizeSMC(weights) {
   if (!weights || !weights.length) return null;
   const n = weights.length;
@@ -97,6 +101,7 @@ export function effectiveSampleSizeSMC(weights) {
 }
 
 // ── Multinomial Resample (exported) ───────────────────────────────
+/** @param {number[]} weights @param {number} [seed] */
 export function multinomialResampleExport(particles, weights, seed = 42) {
   __rng = mulberry32(seed);
   if (!particles || !weights || !particles.length || particles.length !== weights.length) return null;

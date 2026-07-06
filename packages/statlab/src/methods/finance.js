@@ -30,6 +30,7 @@ export function capmBeta(stockReturns, marketReturns, { riskFree = 0 } = {}) {
 }
 
 // ── Sharpe Ratio ────────────────────────────────────────────────────────────
+/** @param {number[]} returns */
 export function sharpeRatio(returns, { riskFree = 0, annualize = true } = {}) {
   if (!returns || returns.length < 5) return null;
   const n = returns.length;
@@ -52,6 +53,7 @@ export function sharpeRatio(returns, { riskFree = 0, annualize = true } = {}) {
 }
 
 // ── Sortino Ratio ───────────────────────────────────────────────────────────
+/** @param {number[]} returns */
 export function sortinoRatio(returns, { riskFree = 0, mar = 0 } = {}) {
   if (!returns || returns.length < 5) return null;
   const n = returns.length;
@@ -73,6 +75,7 @@ export function sortinoRatio(returns, { riskFree = 0, mar = 0 } = {}) {
 }
 
 // ── Max Drawdown ────────────────────────────────────────────────────────────
+/** @param {number[]} returns */
 export function maxDrawdown(returns) {
   if (!returns || returns.length < 3) return null;
   const n = returns.length;
@@ -96,6 +99,7 @@ export function maxDrawdown(returns) {
 }
 
 // ── Historical VaR ──────────────────────────────────────────────────────────
+/** @param {number[]} returns */
 export function historicalVaR(returns, { alpha = 0.05 } = {}) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
@@ -115,6 +119,7 @@ export function historicalVaR(returns, { alpha = 0.05 } = {}) {
 }
 
 // ── Parametric VaR ──────────────────────────────────────────────────────────
+/** @param {number[]} returns */
 export function parametricVaR(returns, { alpha = 0.05, horizon = 1 } = {}) {
   if (!returns || returns.length < 5) return null;
   const n = returns.length;
@@ -135,6 +140,7 @@ export function parametricVaR(returns, { alpha = 0.05, horizon = 1 } = {}) {
 }
 
 // ── Rolling Window ──────────────────────────────────────────────────────────
+/** @param {Function} fn */
 export function rollingWindow(data, fn, windowSize, { step = 1 } = {}) {
   if (!data || !fn || data.length < windowSize) return null;
   const n = data.length;
@@ -157,6 +163,7 @@ export function rollingWindow(data, fn, windowSize, { step = 1 } = {}) {
 }
 
 // ── Fama-French 3-Factor ──────────────────────────────────────────
+/** @param {number[]} returns */
 export function famaFrench3F(returns, market, smb, hml) {
   if (!returns || !market || !smb || !hml) return null;
   const n = Math.min(returns.length, market.length, smb.length, hml.length);
@@ -176,6 +183,7 @@ export function famaFrench3F(returns, market, smb, hml) {
 }
 
 // ── Carhart 4-Factor ──────────────────────────────────────────────
+/** @param {number[]} returns */
 export function carhart4F(returns, market, smb, hml, mom) {
   if (!returns || !market || !smb || !hml || !mom) return null;
   const n = Math.min(returns.length, market.length, smb.length, hml.length, mom.length);
@@ -230,6 +238,7 @@ function _garchFit(eps, sigma2From, init) {
 }
 
 // ── EGARCH(1,1) — Gaussian MLE ──────────────────────────────────────────────
+/** @param {number[]} returns */
 export function egarch(returns) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
@@ -259,6 +268,7 @@ export function egarch(returns) {
 }
 
 // ── TGARCH / GJR-GARCH(1,1) — Gaussian MLE ──────────────────────────────────
+/** @param {number[]} returns */
 export function tgarch(returns) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
@@ -291,6 +301,7 @@ export function tgarch(returns) {
 }
 
 // ── Treynor Ratio ─────────────────────────────────────────────────
+/** @param {number[]} returns @param {number} beta @param {number} [riskFree] */
 export function treynorRatio(returns, beta, riskFree = 0) {
   if (!returns || !returns.length || !beta || beta === 0) return null;
   const n = returns.length;
@@ -300,6 +311,7 @@ export function treynorRatio(returns, beta, riskFree = 0) {
 }
 
 // ── Black-Scholes ─────────────────────────────────────────────────
+/** @param {number} time @param {number} sigma @param {string} [type] */
 export function blackScholes(spot, strike, time, rate, sigma, type = 'call') {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || spot <= 0 || strike <= 0 || sigma <= 0) return null;
   const d1 = (Math.log(spot / strike) + (rate + sigma * sigma / 2) * time) / (sigma * Math.sqrt(time));
@@ -311,6 +323,7 @@ export function blackScholes(spot, strike, time, rate, sigma, type = 'call') {
 }
 
 // ── Implied Volatility ────────────────────────────────────────────
+/** @param {number} time @param {string} [type] */
 export function impliedVolatility(marketPrice, spot, strike, time, rate, type = 'call') {
   if (![marketPrice, spot, strike, time, rate].every(Number.isFinite)) return null;
   let lo = 0.01, hi = 3;
@@ -324,6 +337,7 @@ export function impliedVolatility(marketPrice, spot, strike, time, rate, type = 
 }
 
 // ── Option Greeks ─────────────────────────────────────────────────
+/** @param {number} time @param {number} sigma */
 export function optionGreeks(spot, strike, time, rate, sigma) {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite)) return null;
   const d1 = (Math.log(spot / strike) + (rate + sigma * sigma / 2) * time) / (sigma * Math.sqrt(time));
@@ -339,6 +353,7 @@ export function optionGreeks(spot, strike, time, rate, sigma) {
 }
 
 // ── Binomial Tree (CRR) ───────────────────────────────────────────
+/** @param {number} time @param {number} sigma @param {number} [steps] @param {string} [type] */
 export function binomialTree(spot, strike, time, rate, sigma, steps = 100, type = 'call') {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || steps < 2) return null;
   const dt = time / steps;
@@ -356,6 +371,7 @@ export function binomialTree(spot, strike, time, rate, sigma, steps = 100, type 
 }
 
 // ── Monte Carlo Pricing ───────────────────────────────────────────
+/** @param {number} time @param {number} sigma @param {number} [nPaths] @param {string} [type] @param {number} [seed] */
 export function monteCarloPricing(spot, strike, time, rate, sigma, nPaths = 10000, type = 'call', seed = 42) {
   __rng = mulberry32(seed);
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || nPaths < 100) return null;
@@ -383,6 +399,7 @@ export function varReduction(payoffs, target) {
 }
 
 // ── Monte Carlo Option Pricing (extended) ─────────────────────────
+/** @param {number} sigma */
 export function monteCarloOption(S, K, T, r, sigma, { seed = 42, nSim = 1000, type = 'call' } = {}) {
   __rng = mulberry32(seed);
   if (!Number.isFinite(S) || S <= 0 || K <= 0 || T <= 0) return null;
@@ -398,6 +415,7 @@ export function monteCarloOption(S, K, T, r, sigma, { seed = 42, nSim = 1000, ty
 }
 
 // ── Option Greeks ─────────────────────────────────────────────────
+/** @param {number} sigma */
 export function greeks(S, K, T, r, sigma) {
   if (!Number.isFinite(S) || S <= 0 || K <= 0 || T <= 0) return null;
   const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));

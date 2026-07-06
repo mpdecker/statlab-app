@@ -41,6 +41,7 @@ export function collaborativeFilter(ratings, { nNeighbors = 5 } = {}) {
 }
 
 // ── Matrix Factorization (SVD-based) ──────────────────────────────
+/** @param {number} [k] */
 export function matrixFactorize(R, k = 3, { seed = 42, steps = 30, lr = 0.01, lambda = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!R || !R.length || !R[0] || k < 1) return null;

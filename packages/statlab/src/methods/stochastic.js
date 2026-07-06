@@ -110,6 +110,7 @@ export function randomWalkTest(data, { q = 2 } = {}) {
 }
 
 // ── Ornstein-Uhlenbeck Process ────────────────────────────────────
+/** @param {number} [dt] */
 export function ornsteinUhlenbeck(data, dt = 1) {
   if (!data || data.length < 10) return null;
   const n = data.length;
@@ -126,6 +127,7 @@ export function ornsteinUhlenbeck(data, dt = 1) {
 }
 
 // ── Jump Diffusion ────────────────────────────────────────────────
+/** @param {number[]} data @param {number} [dt] */
 export function jumpDiffusion(data, dt = 1) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -145,6 +147,7 @@ export function jumpDiffusion(data, dt = 1) {
 // by the forward-backward (Baum-Welch) algorithm: the E-step computes scaled
 // α/β and the posteriors γ, ξ; the M-step re-estimates the emission means/SDs
 // and the transition matrix each iteration until the log-likelihood converges.
+/** @param {number[]} data */
 export function regimeSwitching(data, { nStates = 2, maxIter = 100, tol = 1e-6 } = {}) {
   if (!data || data.length < 20 || nStates < 2) return null;
   const n = data.length, K = nStates;
@@ -245,6 +248,7 @@ export function regimeSwitching(data, { nStates = 2, maxIter = 100, tol = 1e-6 }
 }
 
 // ── Heston Stochastic Volatility Model ────────────────────────────
+/** @param {number} [dt] */
 export function hestonModel(returns, dt = 1 / 252) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
@@ -288,6 +292,7 @@ function gauss() {
 }
 
 // ── Rough Volatility (fractional Ornstein-Uhlenbeck) ──────────────
+/** @param {number[]} returns @param {number} [H] */
 export function roughVolatility(returns, H = 0.07, { dt = 1/252 } = {}) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
@@ -316,6 +321,7 @@ export function sabrModel(F, K, T, { alpha = 0.3, beta = 0.5, nu = 0.4, rho = -0
 }
 
 // ── Vasicek Interest Rate Model ───────────────────────────────────
+/** @param {number} [dt] */
 export function vasicekModel(data, dt = 1/252) {
   if (!data || data.length < 10) return null;
   const n = data.length;

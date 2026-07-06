@@ -18,6 +18,7 @@ function sourceRow(source, df, ss, ms, F, p) {
 
 // ── Randomized Block ANOVA ────────────────────────────────────────
 
+/** @param {Array<Record<string, any>>} data */
 export function randomizedBlockANOVA(data, { treatment, block, response } = {}) {
   if (!data || data.length < 4 || !treatment || !block || !response) return null;
   const gAvg = avg(data.map(r => +r[response]));
@@ -49,6 +50,7 @@ export function randomizedBlockANOVA(data, { treatment, block, response } = {}) 
 
 // ── Latin Square ANOVA ────────────────────────────────────────────
 
+/** @param {number[][]} matrix */
 export function latinSquareANOVA(matrix) {
   if (!matrix || !matrix.length || !matrix[0]?.length) return null;
   const r = matrix.length, c = matrix[0].length;
@@ -89,6 +91,7 @@ export function latinSquareANOVA(matrix) {
 
 // ── Split-Plot ANOVA ──────────────────────────────────────────────
 
+/** @param {Array<Record<string, any>>} data */
 export function splitPlotANOVA(data, { between, within, subject, response } = {}) {
   if (!data || data.length < 6 || !between || !within || !subject || !response) return null;
   const gAvg = avg(data.map(r => +r[response]));
@@ -149,6 +152,7 @@ export function splitPlotANOVA(data, { between, within, subject, response } = {}
 
 // ── Crossover ANOVA ───────────────────────────────────────────────
 
+/** @param {Array<Record<string, any>>} data */
 export function crossoverANOVA(data, { subject, period, treatment, response, sequence } = {}) {
   if (!data || data.length < 4 || !subject || !period || !treatment || !response) return null;
   const gAvg = avg(data.map(r => +r[response]));
@@ -196,6 +200,7 @@ export function crossoverANOVA(data, { subject, period, treatment, response, seq
   };
 }
 
+/** @param {Array<Record<string, any>>} data */
 export function factorialANOVA(data, { factors, response } = {}) {
   if (!data || data.length < 4 || !factors || factors.length < 1 || !response) return null;
   const N = data.length;
@@ -283,6 +288,7 @@ export function factorialANOVA(data, { factors, response } = {}) {
 }
 
 // ── Nested ANOVA ──────────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function nestedANOVA(data, { primary, nested, response } = {}) {
   if (!data || data.length < 12 || !primary || !nested || !response) return null;
   const valid = data.filter(r => r[primary] != null && r[nested] != null && Number.isFinite(+r[response]));
@@ -346,6 +352,7 @@ export function nestedANOVA(data, { primary, nested, response } = {}) {
 }
 
 // ── Repeated Measures (GLM / Profile Analysis) ────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function repeatedMeasuresGLM(data, { within, subject, response } = {}) {
   if (!data || data.length < 6 || !within || !subject || !response) return null;
   const valid = data.filter(r => r[within] != null && r[subject] != null && Number.isFinite(+r[response]));
@@ -463,6 +470,7 @@ function outerVec(v, scalar = 1) {
 }
 
 // ── Equivalence ANOVA ─────────────────────────────────────────────────────────
+/** @param {number} [alpha] */
 export function equivalenceANOVA(groups, dL, dU, alpha = 0.05) {
   if (!groups || groups.length < 2) return null;
   if (groups.some(g => !g || g.length < 3)) return null;
@@ -516,6 +524,7 @@ function tInvApprox(p, df) {
 }
 
 // ── Central Composite Design ────────────────────────────────────────────────
+/** @param {string[]} factors */
 export function centralCompositeDesign(factors, { alpha = null, centerPoints = 2 } = {}) {
   if (!factors || factors.length < 2 || factors.length > 6) return null;
   const f = factors.length;
@@ -588,6 +597,7 @@ export function centralCompositeDesign(factors, { alpha = null, centerPoints = 2
 }
 
 // ── D-Optimal Design ────────────────────────────────────────────────────────
+/** @param {string[]} factors */
 export function optimalDesign(factors, nRuns, { model = 'linear+interaction', seed = 42 } = {}) {
   if (!factors || factors.length < 2 || nRuns < 2) return null;
   const f = factors.length;
@@ -659,6 +669,7 @@ export function optimalDesign(factors, nRuns, { model = 'linear+interaction', se
 }
 
 // ── Plackett-Burman Design ────────────────────────────────────────
+/** @param {string[]} factors */
 export function plackettBurman(factors) {
   if (!factors || factors.length < 2 || factors.length > 20) return null;
   const k = factors.length;
@@ -676,6 +687,7 @@ export function plackettBurman(factors) {
 }
 
 // ── Taguchi L-Array ───────────────────────────────────────────────
+/** @param {string[]} factors */
 export function taguchiLArray(factors, levels) {
   if (!factors || factors.length < 2 || !levels || levels.length < 2) return null;
   const k = factors.length, L = levels.length;
@@ -695,6 +707,7 @@ export function taguchiLArray(factors, levels) {
 }
 
 // ── DOE Power ─────────────────────────────────────────────────────
+/** @param {number} nFactors @param {number} [alpha] */
 export function doePower(nFactors, nRuns, effectSize, alpha = 0.05) {
   if (!nFactors || nFactors < 2 || nRuns < nFactors + 2) return null;
   const dfError = nRuns - nFactors - 1;
@@ -706,6 +719,7 @@ export function doePower(nFactors, nRuns, effectSize, alpha = 0.05) {
 }
 
 // ── Definitive Screening Design ───────────────────────────────────
+/** @param {string[]} factors */
 export function definitiveScreening(factors) {
   if (!factors || factors.length < 3) return null;
   const k = factors.length;
@@ -724,6 +738,7 @@ export function definitiveScreening(factors) {
 }
 
 // ── Latin Hypercube Sampling ──────────────────────────────────────
+/** @param {number} n @param {number} d */
 export function latinHypercube(n, d, { seed = 42, range = [0, 1] } = {}) {
   __rng = mulberry32(seed);
   if (n < 2 || d < 1 || d > 10) return null;
@@ -738,6 +753,7 @@ export function latinHypercube(n, d, { seed = 42, range = [0, 1] } = {}) {
 }
 
 // ── Gaussian Process Emulator ─────────────────────────────────────
+/** @param {number[]} X @param {number[]} y */
 export function gpEmulator(X, y, { lengthScale = 1, noiseVar = 0.01 } = {}) {
   if (!X || !y || X.length < 5 || y.length < 5) return null;
   const n = X.length;

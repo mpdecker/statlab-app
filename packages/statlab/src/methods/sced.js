@@ -5,6 +5,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Tau-U ─────────────────────────────────────────────────────────
+/** @param {number[]} baseline */
 export function tauU(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
   const nB = baseline.length, nI = intervention.length;
@@ -23,6 +24,7 @@ export function tauU(baseline, intervention) {
 }
 
 // ── PND ───────────────────────────────────────────────────────────
+/** @param {number[]} baseline */
 export function pnd(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5) return null;
   const maxB = Math.max(...baseline);
@@ -32,6 +34,7 @@ export function pnd(baseline, intervention) {
 }
 
 // ── PEM ───────────────────────────────────────────────────────────
+/** @param {number[]} baseline */
 export function pem(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5) return null;
   const medB = baseline.slice().sort((a, b) => a - b)[Math.floor(baseline.length / 2)];
@@ -41,6 +44,7 @@ export function pem(baseline, intervention) {
 }
 
 // ── NAP ───────────────────────────────────────────────────────────
+/** @param {number[]} baseline */
 export function nap(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
   const nB = baseline.length, nI = intervention.length;
@@ -54,6 +58,7 @@ export function nap(baseline, intervention) {
 }
 
 // ── Randomization Test for SCED ───────────────────────────────────
+/** @param {number[]} baseline */
 export function randomizationTest(baseline, intervention, { seed = 42, nPerm = 199 } = {}) {
   __rng = mulberry32(seed);
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
@@ -71,6 +76,7 @@ export function randomizationTest(baseline, intervention, { seed = 42, nPerm = 1
 }
 
 // ── Baseline-Corrected Tau ────────────────────────────────────────
+/** @param {number[]} baseline */
 export function baselineCorrectedTau(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
   const nB = baseline.length, nI = intervention.length;

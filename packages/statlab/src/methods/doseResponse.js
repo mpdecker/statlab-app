@@ -88,6 +88,7 @@ export function hillSlope(model) {
 }
 
 // ── Volcano Plot ───────────────────────────────────────────────────────────
+/** @param {number[]} pValues */
 export function volcanoPlot(log2FC, pValues, { fcThreshold = 1, pThreshold = 0.05 } = {}) {
   if (!log2FC || !pValues || log2FC.length < 3 || log2FC.length !== pValues.length) return null;
   const n = log2FC.length;
@@ -128,6 +129,7 @@ export function log2FoldChange(treatment, control) {
 }
 
 // ── Moderated T-Statistic ──────────────────────────────────────────────────
+/** @param {number[]} values */
 export function moderatedTStatistic(values, groups, { priorDf = 3 } = {}) {
   if (!values || !groups || values.length !== groups.length || values.length < 3) return null;
   const groupNames = [...new Set(groups)];

@@ -12,6 +12,7 @@ function quantile(arr, q) {
 }
 
 // ── Standardize ─────────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function standardize(data, { method = 'zscore' } = {}) {
   if (!data || !data.length) return null;
   const n = data.length;
@@ -61,6 +62,7 @@ export function iqrOutliers(data, { multiplier = 1.5 } = {}) {
 }
 
 // ── MAD Outliers ────────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function madOutliers(data, { threshold = 3.5 } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -82,6 +84,7 @@ export function madOutliers(data, { threshold = 3.5 } = {}) {
 }
 
 // ── One-Hot Encode ──────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function oneHotEncode(data, column) {
   if (!data || !data.length || !column) return null;
   const cats = [...new Set(data.map(r => r[column]))].filter(v => v != null);
@@ -101,6 +104,7 @@ export function oneHotEncode(data, column) {
 }
 
 // ── Equal-Width Binning ─────────────────────────────────────────────────────
+/** @param {number} [nBins] */
 export function equalWidthBinning(data, nBins = 5) {
   if (!data || data.length < nBins) return null;
   const n = data.length;
@@ -121,6 +125,7 @@ export function equalWidthBinning(data, nBins = 5) {
 }
 
 // ── Winsorize ───────────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function winsorize(data, { lower = 0.05, upper = 0.05 } = {}) {
   if (!data || data.length < 3) return null;
   const n = data.length;
@@ -138,6 +143,7 @@ export function winsorize(data, { lower = 0.05, upper = 0.05 } = {}) {
 }
 
 // ── Frequency Encode ────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function frequencyEncode(data, column) {
   if (!data || !data.length || !column) return null;
   const counts = {};
@@ -158,6 +164,7 @@ export function frequencyEncode(data, column) {
 }
 
 // ── SMOTE (Synthetic Minority Oversampling) ───────────────────────
+/** @param {number[][]} X @param {number[]} y */
 export function smote(X, y, { seed = 42, k = 5, multiplier = 1 } = {}) {
   __rng = mulberry32(seed);
   if (!X || !y || X.length < 5 || y.length !== X.length) return null;
@@ -186,6 +193,7 @@ export function smote(X, y, { seed = 42, k = 5, multiplier = 1 } = {}) {
 }
 
 // ── ADASYN ────────────────────────────────────────────────────────
+/** @param {number[]} X @param {number[]} y */
 export function adasyn(X, y, { seed = 42, k = 5, beta = 0.5 } = {}) {
   __rng = mulberry32(seed);
   if (!X || !y || X.length < 5) return null;
@@ -209,6 +217,7 @@ export function adasyn(X, y, { seed = 42, k = 5, beta = 0.5 } = {}) {
 }
 
 // ── Random Undersampling ──────────────────────────────────────────
+/** @param {number[]} X @param {number[]} y @param {number} [seed] */
 export function randomUnderSample(X, y, seed = 42) {
   __rng = mulberry32(seed);
   if (!X || !y || X.length < 3) return null;

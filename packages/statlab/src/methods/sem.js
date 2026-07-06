@@ -340,6 +340,7 @@ export function sem(opts = {}) {
 }
 
 // ── Multi-group SEM ────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} groupVar */
 export function semMultiGroup(data, groupVar, equations) {
   if (!data || !groupVar || !equations) return null;
   const groups = [...new Set(data.map(r => String(r[groupVar])))].sort();
@@ -496,6 +497,7 @@ function _fitStatsFromChi2(chi2, df, nullChi2, nullDf, nTotal) {
 // variances) and a level is "supported" when the added constraint does not
 // significantly worsen fit (Delta chi2 test, p > .05) relative to the
 // previous, less-constrained level.
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} groupVar @param {string} [factorName] */
 export function measurementInvariance(data, vars, groupVar, factorName = 'f1') {
   if (!data || !vars || !groupVar) return null;
   const groups = [...new Set(data.map(r => String(r[groupVar])))].sort();
@@ -569,6 +571,7 @@ export function measurementInvariance(data, vars, groupVar, factorName = 'f1') {
 }
 
 // ── Latent growth model ─────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {number[]} [times] */
 export function latentGrowthModel(data, vars, times = null) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, k = vars.length;
@@ -629,6 +632,7 @@ export function latentGrowthModel(data, vars, times = null) {
 // (The previous version hardcoded indirect=0 and total=direct for every edge,
 // so chained mediation — the entire point of path analysis over separate
 // univariate regressions — was never actually computed.)
+/** @param {Array<Record<string, any>>} data */
 export function pathAnalysis(data, equations) {
   if (!data || data.length < 10 || !equations || !equations.length) return null;
   const parsed = equations.map(eq => {
@@ -787,6 +791,7 @@ export function bifactorModel(data, generalFactor, groupFactors, { maxIter = 50 
 // proportions, then rho is estimated by ML against the observed contingency
 // table for every pair. The resulting polychoric correlation matrix is then
 // fit with a single-factor model using the same RAM-ML machinery as sem().
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function ordinalSEM(data, vars, model, { nThresh = 5 } = {}) {
   if (!data || data.length < 20 || !vars || vars.length < 3 || !model) return null;
   const m = vars.length, n = data.length;

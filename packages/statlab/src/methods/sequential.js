@@ -2,6 +2,7 @@ import { avg, sampleVar } from '../math/core.js';
 import { normalCDF, normalINV } from '../math/distributions.js';
 
 // ── Wald SPRT ─────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function waldSPRT(data, h0, h1, { alpha = 0.05, beta = 0.2 } = {}) {
   if (!data || data.length < 3) return null;
   const n = data.length;
@@ -52,6 +53,7 @@ function _calibrateGSBoundary(K, alpha, boundW) {
 }
 
 // O'Brien-Fleming Boundaries
+/** @param {number} [alpha] */
 export function obrienFleming(stages, alpha = 0.05) {
   if (!stages || stages < 2) return null;
   // O'Brien-Fleming's defining property is a CONSTANT boundary on the raw
@@ -67,6 +69,7 @@ export function obrienFleming(stages, alpha = 0.05) {
 }
 
 // ── Pocock Boundaries ─────────────────────────────────────────────
+/** @param {number} [alpha] */
 export function pocockBoundaries(stages, alpha = 0.05) {
   if (!stages || stages < 2) return null;
   // Pocock's constant boundary c on the standardized statistic Z_k, equal at
@@ -78,6 +81,7 @@ export function pocockBoundaries(stages, alpha = 0.05) {
 }
 
 // ── Group Sequential ──────────────────────────────────────────────
+/** @param {number[]} data */
 export function groupSequential(data, stages, { method = 'of', alpha = 0.05 } = {}) {
   if (!data || data.length < 5 || !stages || stages < 2) return null;
   const n = data.length;
@@ -102,6 +106,7 @@ export function groupSequential(data, stages, { method = 'of', alpha = 0.05 } = 
 }
 
 // ── Lan-DeMets Alpha Spending ─────────────────────────────────────
+/** @param {number[]} data */
 export function lanDemets(data, stages, { alpha = 0.05 } = {}) {
   if (!data || data.length < 5 || stages < 2) return null;
   const n = data.length;
@@ -128,6 +133,7 @@ export function lanDemets(data, stages, { alpha = 0.05 } = {}) {
 }
 
 // ── Conditional Power ─────────────────────────────────────────────
+/** @param {number[]} data @param {number} [alpha] */
 export function conditionalPower(data, nObserved, nPlanned, effectSize, alpha = 0.05) {
   if (!data || !data.length || nObserved < 5 || nPlanned < nObserved) return null;
   const n = data.length;
@@ -140,6 +146,7 @@ export function conditionalPower(data, nObserved, nPlanned, effectSize, alpha = 
 }
 
 // ── Double Triangular Test ────────────────────────────────────────
+/** @param {number[]} data */
 export function doubleTriangular(data, { alpha = 0.05, beta = 0.2, delta = 0.5 } = {}) {
   if (!data || data.length < 10) return null;
   const n = data.length;

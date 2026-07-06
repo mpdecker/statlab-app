@@ -11,6 +11,7 @@ function _tokenize(text, { stopwords = [], minLen = 2 } = {}) {
 }
 
 // ── TF-IDF ──────────────────────────────────────────────────────────────────
+/** @param {string[]} documents */
 export function tfIdf(documents, { vocab = null, stopwords = [], minDf = 1 } = {}) {
   if (!documents || documents.length < 2) return null;
   const nDocs = documents.length;
@@ -47,6 +48,7 @@ export function tfIdf(documents, { vocab = null, stopwords = [], minDf = 1 } = {
 }
 
 // ── Cosine Similarity ───────────────────────────────────────────────────────
+/** @param {number[]} a @param {number[]} b */
 export function cosineSimilarity(a, b) {
   if (!a || !b || !a.length || !b.length) return null;
   let dot = 0, na = 0, nb = 0;
@@ -69,6 +71,7 @@ export function cosineSimilarity(a, b) {
 }
 
 // ── Jaccard Similarity ──────────────────────────────────────────────────────
+/** @param {Array<string|number>} a @param {Array<string|number>} b */
 export function jaccardSimilarity(a, b) {
   if (!a || !b || (!a.length && !b.length)) return null;
   const setA = new Set(a), setB = new Set(b);
@@ -85,6 +88,7 @@ export function jaccardSimilarity(a, b) {
 }
 
 // ── Document-Term Matrix ────────────────────────────────────────────────────
+/** @param {string[]} documents */
 export function documentTermMatrix(documents, { stopwords = [], minDf = 1 } = {}) {
   if (!documents || documents.length < 2) return null;
   const nDocs = documents.length;
@@ -114,6 +118,7 @@ export function documentTermMatrix(documents, { stopwords = [], minDf = 1 } = {}
 }
 
 // ── Term Frequency ──────────────────────────────────────────────────────────
+/** @param {string[]} documents */
 export function termFrequency(documents, { normalize = false, stopwords = [] } = {}) {
   if (!documents || documents.length < 2) return null;
   const tokDocs = documents.map(d => _tokenize(d, { stopwords }));
@@ -141,6 +146,7 @@ export function termFrequency(documents, { normalize = false, stopwords = [] } =
 }
 
 // ── N-gram Extraction ──────────────────────────────────────────────────────
+/** @param {number} [n] */
 export function ngramExtraction(text, n = 2) {
   if (!text || typeof text !== 'string') return null;
   const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 0);
@@ -158,6 +164,7 @@ export function ngramExtraction(text, n = 2) {
 }
 
 // ── LDA Topic Model ─────────────────────────────────────────────────────────
+/** @param {string[]} documents @param {number} [nTopics] */
 export function ldaTopicModel(documents, nTopics = 3, { seed = 42, iterations = 50, alpha = 0.1, beta = 0.01, stopwords = [] } = {}) {
   __rng = mulberry32(seed);
   if (!documents || documents.length < 3 || nTopics < 2) return null;
@@ -219,6 +226,7 @@ export function ldaTopicModel(documents, nTopics = 3, { seed = 42, iterations = 
 }
 
 // ── SVD Word Embeddings ─────────────────────────────────────────────────────
+/** @param {string[]} documents */
 export function svdEmbeddings(documents, { nDims = 50, windowSize = 3, stopwords = [] } = {}) {
   if (!documents || documents.length < 3) return null;
   const tokDocs = documents.map(d => _tokenize(d, { stopwords, minLen: 1 }));
@@ -253,6 +261,7 @@ export function svdEmbeddings(documents, { nDims = 50, windowSize = 3, stopwords
 }
 
 // ── BM25 ─────────────────────────────────────────────────────────────────────
+/** @param {string[]} documents */
 export function bm25(documents, query, { k1 = 1.2, b = 0.75 } = {}) {
   if (!documents || documents.length < 2 || !query || typeof query !== 'string') return null;
   const tokDocs = documents.map(d => _tokenize(d, { minLen: 1 }));
@@ -309,6 +318,7 @@ export function perplexityScore(logProbs, nWords) {
 }
 
 // ── Text Preprocessing Pipeline ──────────────────────────────────────────────
+/** @param {string[]} documents */
 export function textPreprocess(documents, { lowercase = true, removePunct = true, stopwords = [], minLen = 2, stem = false } = {}) {
   if (!documents || !documents.length) return null;
   const simpleStem = (word) => {
@@ -327,6 +337,7 @@ export function textPreprocess(documents, { lowercase = true, removePunct = true
 }
 
 // ── TextRank Keyword Extraction ───────────────────────────────────
+/** @param {string[]} documents */
 export function textRank(documents, { topN = 10, damping = 0.85 } = {}) {
   if (!documents || documents.length < 2) return null;
   const tokens = documents.flatMap(d => _tokenize(d, {}));
@@ -362,6 +373,7 @@ export function textRank(documents, { topN = 10, damping = 0.85 } = {}) {
 }
 
 // ── TF-IDF Similarity Search ──────────────────────────────────────
+/** @param {string[]} documents */
 export function tfidfSimilaritySearch(documents, query, { topN = 3 } = {}) {
   if (!documents || documents.length < 2 || !query) return null;
   const tfidfRes = tfIdf(documents, {});

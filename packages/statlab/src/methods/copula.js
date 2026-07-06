@@ -31,6 +31,7 @@ function pseudoObs(col) {
 }
 
 // ── Gaussian Copula ────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function gaussianCopula(data, vars, { seed = 42 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, d = vars.length;
@@ -67,6 +68,7 @@ export function gaussianCopula(data, vars, { seed = 42 } = {}) {
 }
 
 // ── t-Copula ────────────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function tCopula(data, vars, { nu = 4, seed = 42 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, d = vars.length;
@@ -112,6 +114,7 @@ function math_gamma(shape, rand) {
 }
 
 // ── Clayton Copula ──────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function claytonCopula(data, vars, { theta = 2, seed = 42 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, d = vars.length;
@@ -142,6 +145,7 @@ export function claytonCopula(data, vars, { theta = 2, seed = 42 } = {}) {
 }
 
 // ── Gumbel Copula ───────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function gumbelCopula(data, vars, { theta = 2, seed = 42 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, d = vars.length;
@@ -169,6 +173,7 @@ export function gumbelCopula(data, vars, { theta = 2, seed = 42 } = {}) {
 }
 
 // ── Frank Copula ────────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function frankCopula(data, vars, { theta = 2, seed = 42 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, d = vars.length;
@@ -194,6 +199,7 @@ export function frankCopula(data, vars, { theta = 2, seed = 42 } = {}) {
 }
 
 // ── Copula Fit ──────────────────────────────────────────────────────────────
+/** @param {string[]} vars */
 export function copulaFit(data, vars, { family = 'gaussian', seed = 42 } = {}) {
   if (family === 'gaussian') return gaussianCopula(data, vars, { seed });
   if (family === 't') return tCopula(data, vars, { seed });

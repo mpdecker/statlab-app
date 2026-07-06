@@ -60,6 +60,7 @@ function _estimateCLogit(X, y, groupIdx, k, maxIter = 50) {
 }
 
 // ── Conditional Logit ─────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
 export function conditionalLogit(data, yVar, xVars, groupVar, { maxIter = 50 } = {}) {
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar) return null;
   const n = data.length;
@@ -79,6 +80,7 @@ export function conditionalLogit(data, yVar, xVars, groupVar, { maxIter = 50 } =
 }
 
 // ── IIA Test (Hausman-McFadden) ───────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
 export function iiaTest(data, yVar, xVars, groupVar, altVar) {
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar || !altVar) return null;
   const n = data.length;
@@ -135,6 +137,7 @@ function _fitChoiceModel(data, yVar, xVars, groupVar) {
 }
 
 // ── Mixed Logit ───────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
 export function mixedLogit(data, yVar, xVars, groupVar, { nDraws = 50, seed = 42 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar) return null;
@@ -180,6 +183,7 @@ export function mixedLogit(data, yVar, xVars, groupVar, { nDraws = 50, seed = 42
 }
 
 // ── WTP Space ─────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
 export function wtpSpace(data, yVar, xVars, priceVar, groupVar) {
   if (!data || data.length < 15 || !yVar || !priceVar) return null;
   const priceIdx = xVars.indexOf(priceVar);
@@ -197,6 +201,7 @@ export function wtpSpace(data, yVar, xVars, priceVar, groupVar) {
 }
 
 // ── Nested Logit ──────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
 export function nestedLogit(data, yVar, xVars, groupVar, nestVar, { seed = 42, maxIter = 60 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 15 || !yVar || !nestVar || !groupVar || !xVars?.length) return null;
@@ -256,6 +261,7 @@ export function nestedLogit(data, yVar, xVars, groupVar, nestVar, { seed = 42, m
 }
 
 // ── Latent Class Logit ────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
 export function latentClassLogit(data, yVar, xVars, groupVar, { seed = 42, nClasses = 2, maxIter = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar || nClasses < 2) return null;
@@ -310,6 +316,7 @@ export function latentClassLogit(data, yVar, xVars, groupVar, { seed = 42, nClas
 }
 
 // ── Marginal Effects (Logit) ──────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
 export function marginalEffects(data, yVar, xVars, groupVar) {
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar) return null;
   const n = data.length;
@@ -328,6 +335,7 @@ export function marginalEffects(data, yVar, xVars, groupVar) {
 }
 
 // ── Elasticities ──────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
 export function elasticities(data, yVar, xVars, groupVar) {
   if (!data || data.length < 15 || !yVar || !xVars) return null;
   const xMeans = xVars.map(v => avg(data.map(r => +r[v])));
@@ -341,6 +349,7 @@ export function elasticities(data, yVar, xVars, groupVar) {
 }
 
 // ── Choice Probability ────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
 export function choiceProbability(data, yVar, xVars, groupVar) {
   if (!data || data.length < 15 || !yVar || !xVars) return null;
   const n = data.length;
@@ -368,6 +377,7 @@ export function choiceProbability(data, yVar, xVars, groupVar) {
 }
 
 // ── Value of Time ─────────────────────────────────────────────────
+/** @param {string} yVar @param {string[]} xVars @param {string} timeVar @param {string} groupVar */
 export function valueOfTime(data, yVar, xVars, timeVar, costVar, groupVar) {
   if (!data || data.length < 15 || !yVar || !timeVar || !costVar) return null;
   const timeIdx = xVars.indexOf(timeVar);

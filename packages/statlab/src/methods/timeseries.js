@@ -110,6 +110,7 @@ function _adfP(tauStat, key) {
 // regression instead — so `maxLag`/`trend` never affected the output despite
 // being accepted as parameters; (c) used a crude 4-bucket p-value lookup.
 // Verified against statsmodels.tsa.stattools.adfuller(..., autolag=None).
+/** @param {number[]} series */
 export function adfTest(series, { maxLag = 0, trend = true } = {}) {
   if (!series || series.length < 10) return null;
   const n = series.length;
@@ -157,6 +158,7 @@ export function adfTest(series, { maxLag = 0, trend = true } = {}) {
   };
 }
 
+/** @param {number[]} series @param {number} [maxLag] */
 export function acf(series, maxLag = 20) {
   if (!series || series.length < 4) return null;
   const n = series.length;
@@ -175,6 +177,7 @@ export function acf(series, maxLag = 20) {
   return result;
 }
 
+/** @param {number[]} series @param {number} [maxLag] */
 export function pacf(series, maxLag = 20) {
   if (!series || series.length < 4) return null;
   const n = series.length;
@@ -215,6 +218,7 @@ export function pacf(series, maxLag = 20) {
   return result;
 }
 
+/** @param {number[]} series */
 export function arima(series, { p = 1, d = 0, q = 1, maxIter = 100, tolerance = 1e-5 } = {}) {
   if (!series || series.length < 10 + p + q) return null;
   let Y = series.slice();
@@ -293,6 +297,7 @@ export function arima(series, { p = 1, d = 0, q = 1, maxIter = 100, tolerance = 
   };
 }
 
+/** @param {number[]} series */
 export function autoArima(series, { maxP = 5, maxD = 2, maxQ = 5, criterion = 'AIC' } = {}) {
   if (!series || series.length < 10) return null;
   let best = null;
@@ -311,6 +316,7 @@ export function autoArima(series, { maxP = 5, maxD = 2, maxQ = 5, criterion = 'A
   return best;
 }
 
+/** @param {number[]} series */
 export function simpleExpSmooth(series, { alpha = null, maxIter = 200, tolerance = 1e-5 } = {}) {
   if (!series || series.length < 3) return null;
   const n = series.length;
@@ -350,6 +356,7 @@ export function simpleExpSmooth(series, { alpha = null, maxIter = 200, tolerance
   };
 }
 
+/** @param {number[]} series */
 export function holtsLinearSmooth(series, { alpha = null, beta = null, maxIter = 200, tolerance = 1e-5 } = {}) {
   if (!series || series.length < 3) return null;
   const n = series.length;
@@ -400,6 +407,7 @@ export function holtsLinearSmooth(series, { alpha = null, beta = null, maxIter =
   };
 }
 
+/** @param {number[]} series */
 export function holtWinters(series, { period = 4, alpha = null, beta = null, gamma = null, maxIter = 200, tolerance = 1e-5 } = {}) {
   if (!series || series.length < 2 * period) return null;
   const n = series.length;
@@ -466,6 +474,7 @@ export function holtWinters(series, { period = 4, alpha = null, beta = null, gam
 
 // ── STL Seasonal Decomposition ────────────────────────────────────
 
+/** @param {number[]} series */
 export function seasonalDecompose(series, { period = 4, robust = false, innerIter = 2, outerIter = robust ? 15 : 0 } = {}) {
   if (!series || series.length < 2 * period) return null;
   const n = series.length;
@@ -566,6 +575,7 @@ export function seasonalDecompose(series, { period = 4, robust = false, innerIte
 }
 
 // ── Vector Autoregression ─────────────────────────────────────────────────────
+/** @param {number[]} series @param {number} [p] */
 export function varModel(series, p = 1, { horizon = 10 } = {}) {
   if (!series) return null;
   const names = Array.isArray(series) ? null : Object.keys(series);
@@ -759,6 +769,7 @@ export function varModel(series, p = 1, { horizon = 10 } = {}) {
 }
 
 // ── Granger Causality ─────────────────────────────────────────────────────────
+/** @param {number[]} series @param {number} [maxLag] */
 export function grangerCausality(series, cause, effect, maxLag = 4) {
   if (!series || typeof series !== 'object') return null;
   const names = Array.isArray(series) ? null : Object.keys(series);
@@ -818,6 +829,7 @@ export function grangerCausality(series, cause, effect, maxLag = 4) {
 }
 
 // ── Chow Test for Structural Break ────────────────────────────────────────────
+/** @param {number[]} series */
 export function chowTest(series, breakPoint, { arOrder = 1 } = {}) {
   if (!series || series.length < 10) return null;
   const T = series.length;
@@ -875,6 +887,7 @@ export function chowTest(series, breakPoint, { arOrder = 1 } = {}) {
 }
 
 // ── GARCH ───────────────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function garch(data, { p = 1, q = 1 } = {}) {
   if (!data || data.length < 30) return null;
   const n = data.length;
@@ -986,6 +999,7 @@ export function kalmanFilter(data, { systemNoise = 1, obsNoise = 1, initialState
 }
 
 // ── Johansen Cointegration ──────────────────────────────────────────────────
+/** @param {number[]} series @param {number} p */
 export function johansenTest(series, p, { deterministic = 'const' } = {}) {
   if (!series || !Object.keys(series).length || !p) return null;
   const names = Object.keys(series);
@@ -1176,6 +1190,7 @@ export function minTReconciliation(baseForecasts, S, residCov) {
 }
 
 // ── Forecast Accuracy ─────────────────────────────────────────────
+/** @param {number[]} actual */
 export function forecastAccuracy(actual, forecast, { metric = 'rmse' } = {}) {
   if (!actual || !forecast || !actual.length || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1197,6 +1212,7 @@ export function forecastAccuracy(actual, forecast, { metric = 'rmse' } = {}) {
 }
 
 // ── Markov-Switching AR(1) ────────────────────────────────────────
+/** @param {number[]} data */
 export function markovSwitchingAR(data, { nRegimes = 2, p = 1 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -1388,6 +1404,7 @@ export function gapValidation(data, modelFn, { gapSize = 0 } = {}) {
 }
 
 // ── Time Series Features ──────────────────────────────────────────
+/** @param {number[]} series */
 export function tsFeatures(series) {
   if (!series || series.length < 10) return null;
   const n = series.length;
@@ -1409,6 +1426,7 @@ export function forecastReconciliation(forecasts, hierarchy, actuals) {
 }
 
 // ── MASE ──────────────────────────────────────────────────────────
+/** @param {number[]} actual */
 export function mase(actual, forecast, naive) {
   if (!actual || !forecast || actual.length < 5 || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1420,6 +1438,7 @@ export function mase(actual, forecast, naive) {
 }
 
 // ── SMAPE ─────────────────────────────────────────────────────────
+/** @param {number[]} actual */
 export function smape(actual, forecast) {
   if (!actual || !forecast || actual.length < 5 || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1430,6 +1449,7 @@ export function smape(actual, forecast) {
 }
 
 // Theil's U
+/** @param {number[]} actual */
 export function theilU(actual, forecast) {
   if (!actual || !forecast || actual.length < 5 || actual.length !== forecast.length) return null;
   const n = actual.length;
@@ -1455,6 +1475,7 @@ export function dieboldMariano(errors1, errors2, { h = 1 } = {}) {
 }
 
 // ── Encompassing Test ─────────────────────────────────────────────
+/** @param {number[]} actual */
 export function encompassingTest(forecast1, forecast2, actual) {
   if (!forecast1 || !forecast2 || !actual || actual.length < 5) return null;
   const n = Math.min(forecast1.length, forecast2.length, actual.length);
@@ -1515,6 +1536,7 @@ function _varIRF(A, sigma, horizon) {
 }
 
 // ── VARMAX (ARMAX via Hannan–Rissanen 2-stage) ────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars */
 export function varmax(data, yVar, xVars, { p = 1, q = 1 } = {}) {
   if (!data || data.length < 15 || !yVar) return null;
   const n = data.length;
@@ -1548,6 +1570,7 @@ export function varmax(data, yVar, xVars, { p = 1, q = 1 } = {}) {
 }
 
 // ── Cointegration Rank Selection ──────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function cointegrationRank(data, { maxRank = 3 } = {}) {
   if (!data || (Array.isArray(data) && data.length === 0)) return null;
   // Build a multivariate series object for Johansen: rows×k matrix or column object.
@@ -1575,6 +1598,7 @@ export function cointegrationRank(data, { maxRank = 3 } = {}) {
 }
 
 // ── VECM ──────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars */
 export function vecm(data, yVar, xVars, { p = 1, rank = 1 } = {}) {
   if (!data || data.length < 15 || !yVar) return null;
   const n = data.length;
@@ -1800,6 +1824,7 @@ function _garchVarForecast(fit, steps) {
 }
 
 // ── CCC-GARCH ─────────────────────────────────────────────────────
+/** @param {number[][]} returns */
 export function cccGarch(returns, { p = 1, q = 1 } = {}) {
   if (!returns || returns.length < 20 || !returns[0]) return null;
   const T = returns.length, k = returns[0].length;
@@ -1819,6 +1844,7 @@ export function cccGarch(returns, { p = 1, q = 1 } = {}) {
 }
 
 // ── DCC-GARCH ─────────────────────────────────────────────────────
+/** @param {number[][]} returns */
 export function dccGarch(returns, { p = 1, q = 1 } = {}) {
   if (!returns || returns.length < 20 || !returns[0]) return null;
   const T = returns.length, k = returns[0].length;
@@ -1873,6 +1899,7 @@ export function dccGarch(returns, { p = 1, q = 1 } = {}) {
 
 // ── BEKK ──────────────────────────────────────────────────────────
 // Scalar (variance-targeting) BEKK(1,1): H_t = (1-a-b)*Sigma + a*eps_{t-1}eps_{t-1}' + b*H_{t-1}.
+/** @param {number[][]} returns */
 export function bekkGarch(returns, { p = 1, q = 1 } = {}) {
   if (!returns || returns.length < 20 || !returns[0]) return null;
   const T = returns.length, k = returns[0].length;
@@ -1920,6 +1947,7 @@ export function bekkGarch(returns, { p = 1, q = 1 } = {}) {
 }
 
 // ── MGARCH Forecast ───────────────────────────────────────────────
+/** @param {number} [steps] */
 export function mgarchForecast(mgarchResult, steps = 1) {
   if (!mgarchResult || !mgarchResult.k) return null;
   const k = mgarchResult.k;
@@ -1996,6 +2024,7 @@ export function mgarchDiagnostics(mgarchResult) {
 }
 
 // ── EGARCH ──────────────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function egarch(data, { p = 1, q = 1 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -2031,6 +2060,7 @@ export function egarch(data, { p = 1, q = 1 } = {}) {
 }
 
 // ── State Space Model ──────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} obs */
 export function stateSpace(obs, { F = 1, G = 1, systemVar = 0.1, obsVar = 0.5 } = {}) {
   if (!obs || obs.length < 5) return null;
   const n = obs.length;

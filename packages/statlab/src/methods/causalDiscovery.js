@@ -30,6 +30,7 @@ function residuals(y, X) {
 }
 
 // ── Partial Correlation Test ──────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} xVar @param {string} yVar @param {string[]} zVars */
 export function partialCorrTest(data, vars, xVar, yVar, zVars) {
   if (!data || !vars || vars.length < 1 || !xVar || !yVar) return null;
   const n = data.length;
@@ -43,6 +44,7 @@ export function partialCorrTest(data, vars, xVar, yVar, zVars) {
 }
 
 // ── Skeleton Phase (PC algorithm) ─────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function skeletonPhase(data, vars, { alpha = 0.05 } = {}) {
   if (!data || !vars || vars.length < 3) return null;
   const n = data.length, k = vars.length;
@@ -107,6 +109,7 @@ export function dagAdjacency(skeleton, colliders) {
 }
 
 // ── PC Algorithm (full) ───────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function pcAlgorithm(data, vars, { alpha = 0.05 } = {}) {
   if (!data || !vars || !vars.length || data.length < vars.length * 3) return null;
   const skel = skeletonPhase(data, vars, { alpha });
@@ -118,6 +121,7 @@ export function pcAlgorithm(data, vars, { alpha = 0.05 } = {}) {
 }
 
 // ── LiNGAM ────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function lingam(data, vars, { seed = 42, threshold = 0.15 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 3) return null;
   const k = vars.length;
@@ -174,6 +178,7 @@ export function lingam(data, vars, { seed = 42, threshold = 0.15 } = {}) {
 }
 
 // ── FCI Algorithm ─────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function fciAlgorithm(data, vars, { alpha = 0.05, maxCond = 3 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 3) return null;
   const n = data.length, k = vars.length;

@@ -67,6 +67,7 @@ export function blandAltman(methodA, methodB) {
 }
 
 // ── Diagnostic Accuracy ─────────────────────────────────────────────────────
+/** @param {Function} fn */
 export function diagnosticAccuracy(tp, fp, tn, fn) {
   if (![tp, fp, tn, fn].every(v => Number.isFinite(v) && v >= 0)) return null;
   const N = tp + fp + tn + fn;
@@ -98,6 +99,7 @@ export function diagnosticAccuracy(tp, fp, tn, fn) {
 }
 
 // ── Likelihood Ratios ───────────────────────────────────────────────────────
+/** @param {Function} fn */
 export function likelihoodRatios(tp, fp, tn, fn) {
   if (![tp, fp, tn, fn].every(v => Number.isFinite(v) && v >= 0)) return null;
   if (tp === 0 || fp === 0 || fn === 0 || tn === 0) return null;
@@ -329,6 +331,7 @@ export function blandAltmanRatio(methodA, methodB) {
 }
 
 // ── Diagnostic Odds Ratio ───────────────────────────────────────────────────
+/** @param {Function} fn */
 export function diagnosticOddsRatio(tp, fp, tn, fn) {
   if (![tp, fp, tn, fn].every(v => Number.isFinite(v) && v >= 0)) return null;
   if (tp === 0 || fp === 0 || tn === 0 || fn === 0) return null;
@@ -370,6 +373,7 @@ export function deLongTest(roc1, roc2) {
 }
 
 // ── Partial AUC ───────────────────────────────────────────────────
+/** @param {number[]} actual @param {number[]} scores */
 export function partialAUC(actual, scores, fprRange = [0, 1]) {
   if (!actual || !scores || actual.length < 5 || actual.length !== scores.length) return null;
   const labels = actual.map(v => +v);
@@ -399,6 +403,7 @@ export function partialAUC(actual, scores, fprRange = [0, 1]) {
 }
 
 // ── Optimal Threshold via cost-ratio ──────────────────────────────
+/** @param {number[]} actual @param {number[]} scores */
 export function optimalThreshold(actual, scores, { costRatio = 1 } = {}) {
   if (!actual || !scores || actual.length < 5 || actual.length !== scores.length) return null;
   const labels = actual.map(v => +v);
@@ -425,6 +430,7 @@ export function optimalThreshold(actual, scores, { costRatio = 1 } = {}) {
 }
 
 // Fleiss' Kappa
+/** @param {string[]} items */
 export function fleissKappa(data, raters, items) {
   if (!data || data.length < 5 || !raters || !raters.length || !items || !items.length) return null;
   const n = data.length, m = raters.length, k = items.length;
@@ -458,6 +464,7 @@ export function fleissKappa(data, raters, items) {
 }
 
 // Krippendorff's Alpha
+/** @param {string[]} items */
 export function krippendorffAlpha(data, raters, items, { level = 'nominal' } = {}) {
   if (!data || data.length < 5 || !raters || raters.length < 2 || !items || !items.length) return null;
   const n = data.length, m = raters.length;
@@ -507,6 +514,7 @@ export function krippendorffAlpha(data, raters, items, { level = 'nominal' } = {
 }
 
 // Cliff's Delta
+/** @param {number[]} b */
 export function cliffsDelta(a, b) {
   if (!a || !b || a.length < 5 || b.length < 5) return null;
   const nA = a.length, nB = b.length;
@@ -528,6 +536,7 @@ export function cliffsDelta(a, b) {
 }
 
 // ── Rank-Biserial ─────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} groupVar */
 export function rankBiserial(data, groupVar, scoreVar) {
   if (!data || data.length < 6 || !groupVar || !scoreVar) return null;
   const groups = [...new Set(data.map(r => r[groupVar]))];
@@ -594,6 +603,7 @@ export function populationAttributableFraction(prevalence, or) {
 // previous implementation accepted `confounderPrevalence` but never used it
 // — it just returned the ordinary Wald 95% CI lower bound of the OR, which
 // answers a different question (sampling uncertainty, not confounding).
+/** @param {number} b @param {number} c @param {number} d */
 export function cornfieldBounds(a, b, c, d, confounderPrevalence) {
   if (![a, b, c, d].every(v => v > 0) || !Number.isFinite(confounderPrevalence) || confounderPrevalence <= 0 || confounderPrevalence >= 1) return null;
   const or = a * d / (b * c);
@@ -605,6 +615,7 @@ export function cornfieldBounds(a, b, c, d, confounderPrevalence) {
 }
 
 // ── Hosmer-Lemeshow ───────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar */
 export function hosmerLemeshow(data, yVar, probVar, { nGroups = 10 } = {}) {
   if (!data || data.length < 20 || !yVar || !probVar) return null;
   const n = data.length;
@@ -622,6 +633,7 @@ export function hosmerLemeshow(data, yVar, probVar, { nGroups = 10 } = {}) {
 }
 
 // ── Calibration Plot ──────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar */
 export function calibrationPlot(data, yVar, probVar, { nBins = 10 } = {}) {
   if (!data || data.length < 20 || !yVar || !probVar) return null;
   const n = data.length;
@@ -676,6 +688,7 @@ export function brierScore(probs, yTrue) {
 }
 
 // ── Haybittle-Peto Boundaries ─────────────────────────────────────
+/** @param {number} [alpha] */
 export function haybittlePeto(stages, alpha = 0.05) {
   if (!stages || stages < 1) return null;
   const z = 3.0;
@@ -686,6 +699,7 @@ export function haybittlePeto(stages, alpha = 0.05) {
 }
 
 // ── Wang-Tsiatis Boundarie ────────────────────────────────────────
+/** @param {number} [alpha] @param {number} [delta] */
 export function wangTsiatis(stages, alpha = 0.05, delta = 0.5) {
   if (!stages || stages < 1) return null;
   const t = Array.from({ length: stages }, (_, i) => (i + 1) / stages);
@@ -705,6 +719,7 @@ export function inverseNormal(t1, t2, z1, z2, info1, info2) {
 }
 
 // ── Fisher's Combination Test ─────────────────────────────────────
+/** @param {number[]} pValues */
 export function fisherCombination(pValues) {
   if (!pValues || !pValues.length || pValues.length < 2) return null;
   const chi2 = -2 * pValues.reduce((s, p) => s + Math.log(Math.max(p, 0.0001)), 0);
@@ -723,6 +738,7 @@ export function fisherCombination(pValues) {
 // statistic and information fraction, not just n1/n2) — `method` is
 // currently accepted but not yet used to select an actual boundary/spending
 // function; see BASELINE.md for the follow-up scope.
+/** @param {string} [method] @param {number} [alpha] */
 export function adaptiveDesign(n1, n2, target, method = 'OCP', alpha = 0.05) {
   if (!n1 || !n2 || !Number.isFinite(target)) return null;
   const total = n1 + n2;
@@ -733,6 +749,7 @@ export function adaptiveDesign(n1, n2, target, method = 'OCP', alpha = 0.05) {
 }
 
 // ── Clinical Utility Index ────────────────────────────────────────
+/** @param {number} [benefitWeight] @param {number} [harmWeight] */
 export function clinicalUtility(sens, spec, diseasePrevalence, benefitWeight = 1, harmWeight = 1) {
   if (!Number.isFinite(sens) || !Number.isFinite(spec) || !Number.isFinite(diseasePrevalence)) return null;
   const tpBenefit = sens * diseasePrevalence * benefitWeight;

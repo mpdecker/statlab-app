@@ -106,6 +106,7 @@ export function vonMisesMLE(angles, { degrees = false } = {}) {
 }
 
 // ── Circular Correlation ───────────────────────────────────────────────────
+/** @param {number} alpha @param {number[]} beta */
 export function circularCorrelation(alpha, beta, { degrees = false } = {}) {
   if (!alpha || !beta || alpha.length < 10 || alpha.length !== beta.length) return null;
   const n = alpha.length;
@@ -131,6 +132,7 @@ export function circularCorrelation(alpha, beta, { degrees = false } = {}) {
 }
 
 // ── Circular-Linear Regression ─────────────────────────────────────────────
+/** @param {number} theta @param {number[]} x */
 export function circularLinearRegression(theta, x, { degrees = false } = {}) {
   if (!theta || !x || theta.length < 10 || theta.length !== x.length) return null;
   const n = theta.length;

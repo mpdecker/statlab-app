@@ -2,6 +2,7 @@ import { avg, sampleVar } from '../math/core.js';
 import { normalCDF, lngamma } from '../math/distributions.js';
 
 // ── Weibull Analysis ──────────────────────────────────────────────
+/** @param {number[]} data */
 export function weibullAnalysis(data, { confidence = 0.95 } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -48,6 +49,7 @@ export function acceleratedLife(tempData, stressLevels, { activationEnergy = 0.7
 }
 
 // ── Warranty Prediction ───────────────────────────────────────────
+/** @param {number} [monthsInWarranty] */
 export function warrantyPrediction(failureData, monthsInWarranty = 12, { confidence = 0.9 } = {}) {
   if (!failureData || failureData.length < 5) return null;
   const n = failureData.length;
@@ -69,6 +71,7 @@ export function warrantyPrediction(failureData, monthsInWarranty = 12, { confide
 }
 
 // ── Weibull Bayes (Gamma prior) ───────────────────────────────────
+/** @param {number[]} data */
 export function weibullBayes(data, { shapePrior = [1, 1], scalePrior = [1, 0.01] } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;

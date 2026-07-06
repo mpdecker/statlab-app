@@ -22,6 +22,7 @@ function pava(y) {
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Classical MDS (Torgerson) ─────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function classicalMDS(data, vars, { nDimensions = 2 } = {}) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const n = data.length, m = vars.length;
@@ -78,6 +79,7 @@ export function classicalMDS(data, vars, { nDimensions = 2 } = {}) {
 }
 
 // ── Sammon Mapping ────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function sammonMapping(data, vars, { seed = 42, nDimensions = 2, maxIter = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
@@ -131,6 +133,7 @@ export function sammonMapping(data, vars, { seed = 42, nDimensions = 2, maxIter 
 }
 
 // ── Non-Metric MDS (Shepard-Kruskal) ──────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function nonMetricMDS(data, vars, { seed = 42, nDimensions = 2, maxIter = 100, dissimilarities = null } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 6 || !vars || vars.length < 2) return null;
@@ -196,6 +199,7 @@ export function nonMetricMDS(data, vars, { seed = 42, nDimensions = 2, maxIter =
 }
 
 // ── Sammon Mapping (distance matrix input) ────────────────────────
+/** @param {number[]} D */
 export function sammonMappingDM(D, { seed = 42, nDim = 2, maxIter = 50, lr = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!D || D.length < 3 || !D[0]) return null;
@@ -225,6 +229,7 @@ export function sammonMappingDM(D, { seed = 42, nDim = 2, maxIter = 50, lr = 0.1
 }
 
 // ── Landmark MDS ──────────────────────────────────────────────────
+/** @param {number[]} D */
 export function landmarkMDS(D, { seed = 42, nLandmarks = 10, nDim = 2 } = {}) {
   __rng = mulberry32(seed);
   if (!D || D.length < nLandmarks + 2) return null;

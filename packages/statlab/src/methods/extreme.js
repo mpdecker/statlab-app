@@ -2,6 +2,7 @@ import { avg, sampleSD, sampleVar } from '../math/core.js';
 import { mleFit } from '../math/inference.js';
 
 // ── GEV MLE ────────────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function gevMLE(data) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -42,6 +43,7 @@ export function gevMLE(data) {
 }
 
 // ── GPD MLE ────────────────────────────────────────────────────────────────
+/** @param {number[]} data @param {number} [threshold] */
 export function gpdMLE(data, threshold = null) {
   if (!data || data.length < 15) return null;
   const n = data.length;
@@ -97,6 +99,7 @@ export function returnLevel(gevFit, returnPeriod) {
 }
 
 // ── Block Maxima ────────────────────────────────────────────────────────────
+/** @param {number} [blockSize] */
 export function blockMaxima(data, blockSize = 10) {
   if (!data || data.length < 2 * blockSize) return null;
   const n = data.length;
@@ -113,6 +116,7 @@ export function blockMaxima(data, blockSize = 10) {
 }
 
 // ── Hill Estimator ──────────────────────────────────────────────────────────
+/** @param {number[]} data @param {number} [k] */
 export function hillEstimator(data, k = null) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -132,6 +136,7 @@ export function hillEstimator(data, k = null) {
 }
 
 // ── Peaks Over Threshold ──────────────────────────────────────────
+/** @param {number[]} data @param {number} [threshold] */
 export function peaksOverThreshold(data, threshold = null) {
   if (!data || data.length < 10) return null;
   const n = data.length;

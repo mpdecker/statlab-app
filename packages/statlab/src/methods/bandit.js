@@ -15,6 +15,7 @@ function nextStateFrom(transitions, state, action, nStates, rand) {
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Epsilon-Greedy ──────────────────────────────────────────────────────────
+/** @param {number} arms @param {number[]} rewards @param {number} [nIterations] */
 export function epsilonGreedy(arms, rewards, nIterations = 100, { seed = 42, epsilon = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || !rewards || nIterations < 10) return null;
@@ -51,6 +52,7 @@ export function epsilonGreedy(arms, rewards, nIterations = 100, { seed = 42, eps
 }
 
 // ── Upper Confidence Bound (UCB) ────────────────────────────────────────────
+/** @param {number} arms @param {number[]} rewards @param {number} [nIterations] */
 export function ucb(arms, rewards, nIterations = 100) {
   if (!arms || arms.length < 2 || !rewards || nIterations < 10) return null;
   const k = arms.length;
@@ -83,6 +85,7 @@ export function ucb(arms, rewards, nIterations = 100) {
 }
 
 // ── Thompson Sampling ───────────────────────────────────────────────────────
+/** @param {number} arms @param {number[]} rewards @param {number} [nIterations] */
 export function thompsonSampling(arms, rewards, nIterations = 100, { seed = 42, prior = 'beta' } = {}) {
   __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || !rewards || nIterations < 10) return null;
@@ -108,6 +111,7 @@ export function thompsonSampling(arms, rewards, nIterations = 100, { seed = 42, 
 }
 
 // ── Contextual Bandit (LinUCB) ──────────────────────────────────────────────
+/** @param {number} arms @param {number} [nContext] @param {number} [nIterations] */
 export function contextualBandit(arms, nContext = 2, nIterations = 100, { seed = 42, alpha = 1 } = {}) {
   __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || nContext < 1 || nIterations < 10) return null;
@@ -153,6 +157,7 @@ export function contextualBandit(arms, nContext = 2, nIterations = 100, { seed =
 }
 
 // ── Policy Gradient (REINFORCE) ─────────────────────────────────────────────
+/** @param {number} arms @param {number[]} rewards @param {number} [nEpisodes] */
 export function policyGradient(arms, rewards, nEpisodes = 100, { seed = 42, lr = 0.01 } = {}) {
   __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || !rewards || nEpisodes < 10) return null;
@@ -197,6 +202,7 @@ export function policyGradient(arms, rewards, nEpisodes = 100, { seed = 42, lr =
 }
 
 // ── Softmax Bandit ──────────────────────────────────────────────────────────
+/** @param {number} arms @param {number[]} rewards @param {number} [nIterations] */
 export function softmaxBandit(arms, rewards, nIterations = 100, { seed = 42, tau = 1, cooling = 0.99 } = {}) {
   __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || !rewards || nIterations < 10) return null;
@@ -235,6 +241,7 @@ export function softmaxBandit(arms, rewards, nIterations = 100, { seed = 42, tau
 }
 
 // ── Q-Learning ────────────────────────────────────────────────────
+/** @param {number[]} rewards */
 export function qLearning(nStates, nActions, rewards, transitions, { seed = 42, episodes = 50, lr = 0.1, gamma = 0.9, epsilon = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!nStates || !nActions || nStates < 2 || nActions < 2 || episodes < 5) return null;
@@ -259,6 +266,7 @@ export function qLearning(nStates, nActions, rewards, transitions, { seed = 42, 
 }
 
 // ── SARSA ─────────────────────────────────────────────────────────
+/** @param {number[]} rewards */
 export function sarsa(nStates, nActions, rewards, transitions, { seed = 42, episodes = 50, lr = 0.1, gamma = 0.9, epsilon = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!nStates || !nActions || nStates < 2 || nActions < 2 || episodes < 5) return null;

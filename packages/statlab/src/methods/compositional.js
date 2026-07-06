@@ -26,6 +26,7 @@ function _ilrCoords(data, vars) {
 }
 
 // ── CLR Transform (centered log-ratio) ────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function clrTransform(data, vars) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const result = _clrCoords(data, vars).map(row => row.map(v => +v.toFixed(6)));
@@ -34,6 +35,7 @@ export function clrTransform(data, vars) {
 }
 
 // ── ILR Transform (isometric log-ratio) ───────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function ilrTransform(data, vars) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const p = vars.length;
@@ -42,6 +44,7 @@ export function ilrTransform(data, vars) {
 }
 
 // ── ALR Transform (additive log-ratio) ────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {number} [denominatorIndex] */
 export function alrTransform(data, vars, denominatorIndex = 0) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const X = data.map(r => vars.map(v => +r[v]));
@@ -53,6 +56,7 @@ export function alrTransform(data, vars, denominatorIndex = 0) {
 }
 
 // ── Compositional PCA ─────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function compPCA(data, vars) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const X = _clrCoords(data, vars); // full n×p CLR coords, not the 5-row display slice
@@ -76,6 +80,7 @@ function cumSum(arr) {
 }
 
 // ── Compositional Regression ──────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} [xVars] */
 export function compRegression(data, yVar, compVars, xVars = []) {
   if (!data || data.length < 10 || !yVar || !compVars || compVars.length < 2) return null;
   const ilrCoords = _ilrCoords(data, compVars); // full n×(p-1), not the 5-row display slice

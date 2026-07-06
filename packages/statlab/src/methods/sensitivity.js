@@ -5,6 +5,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Morris Elementary Effects ─────────────────────────────────────
+/** @param {number} model @param {number[][]} X */
 export function morrisMethod(model, X, { seed = 42, levels = 4, grid = 2 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
@@ -26,6 +27,7 @@ export function morrisMethod(model, X, { seed = 42, levels = 4, grid = 2 } = {})
 }
 
 // ── FAST Sensitivity ──────────────────────────────────────────────
+/** @param {number} model @param {number[][]} X */
 export function fastSensitivity(model, X, { seed = 42, M = 4 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
@@ -51,6 +53,7 @@ export function fastSensitivity(model, X, { seed = 42, M = 4 } = {}) {
 }
 
 // ── Model Comparison F-test ───────────────────────────────────────
+/** @param {number} n */
 export function modelComparison(mse1, mse2, n, k1, k2) {
   if (!Number.isFinite(mse1) || !Number.isFinite(mse2) || n < 5) return null;
   const fStat = mse2 > 0 ? mse1 / mse2 : 0;
@@ -61,6 +64,7 @@ export function modelComparison(mse1, mse2, n, k1, k2) {
 
 
 // ── Forecast Combination ──────────────────────────────────────────
+/** @param {number[]} actual */
 export function forecastCombination(forecasts, actual, { method = 'equal' } = {}) {
   if (!forecasts || !actual || !forecasts.length || actual.length < 5) return null;
   const k = forecasts.length, n = actual.length;
@@ -76,6 +80,7 @@ export function forecastCombination(forecasts, actual, { method = 'equal' } = {}
 }
 
 // ── Sobol First Order ─────────────────────────────────────────────
+/** @param {number} model @param {number[][]} X */
 export function sobolFirstOrder(model, X, { seed = 42, nSamples = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
@@ -101,6 +106,7 @@ export function sobolFirstOrder(model, X, { seed = 42, nSamples = 50 } = {}) {
 }
 
 // ── Sobol Total Index ─────────────────────────────────────────────
+/** @param {number} model @param {number[][]} X */
 export function sobolTotalIndex(model, X, { seed = 42, nSamples = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
@@ -127,6 +133,7 @@ export function sobolTotalIndex(model, X, { seed = 42, nSamples = 50 } = {}) {
 }
 
 // ── Delta Method (propagation of error) ───────────────────────────
+/** @param {Function} fn */
 export function deltaMethod(means, ses, fn, h = 1e-6) {
   if (!means || !ses || means.length < 1 || means.length !== ses.length) return null;
   const p = means.length;
@@ -141,6 +148,7 @@ export function deltaMethod(means, ses, fn, h = 1e-6) {
 }
 
 // ── Andrews Plot Data ─────────────────────────────────────────────
+/** @param {number[][]} X @param {number[]} [labels] */
 export function andrewsPlot(X, labels = null, { nPts = 50 } = {}) {
   if (!X || X.length < 2 || !X[0]) return null;
   const n = X.length, p = X[0].length;

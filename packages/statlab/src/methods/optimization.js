@@ -4,6 +4,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Simulated Annealing ───────────────────────────────────────────
+/** @param {Function} fn @param {number[]} init */
 export function simulatedAnnealing(fn, init, { seed = 42, temp = 1000, cooling = 0.99, steps = 200 } = {}) {
   __rng = mulberry32(seed);
   if (!fn || !init) return null;
@@ -46,6 +47,7 @@ export function geneticAlgorithm(fitness, population, { seed = 42, generations =
 }
 
 // ── Particle Swarm ────────────────────────────────────────────────
+/** @param {Function} fn */
 export function particleSwarm(fn, bounds, { seed = 42, nParticles = 20, iterations = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!fn || !bounds || !bounds.length) return null;
@@ -70,6 +72,7 @@ export function particleSwarm(fn, bounds, { seed = 42, nParticles = 20, iteratio
 }
 
 // ── Differential Evolution ────────────────────────────────────────
+/** @param {Function} fn */
 export function differentialEvolution(fn, bounds, { seed = 42, popSize = 20, iterations = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!fn || !bounds || !bounds.length) return null;
@@ -95,6 +98,7 @@ export function differentialEvolution(fn, bounds, { seed = 42, popSize = 20, ite
 }
 
 // ── Grid Search ───────────────────────────────────────────────────
+/** @param {Function} fn */
 export function gridSearch(fn, paramGrid) {
   if (!fn || !paramGrid || !paramGrid.length) return null;
   let bestVal = Infinity; let bestParams = null;
@@ -107,6 +111,7 @@ export function gridSearch(fn, paramGrid) {
 }
 
 // ── BFGS ────────────────────────────────────────────────────────────────────
+/** @param {Function} fn @param {number[]} init */
 export function bfgs(fn, grad, init, { maxIter = 100, tol = 1e-6 } = {}) {
   if (!fn || !grad || !init || !init.length) return null;
   const n = init.length;
@@ -151,6 +156,7 @@ export function bfgs(fn, grad, init, { maxIter = 100, tol = 1e-6 } = {}) {
 }
 
 // ── Nelder-Mead ─────────────────────────────────────────────────────────────
+/** @param {Function} fn @param {number[]} init */
 export function nelderMead(fn, init, { maxIter = 200, alpha = 1, gamma = 2, rho = 0.5, sigma = 0.5 } = {}) {
   if (!fn || !init || !init.length) return null;
   const n = init.length;
@@ -207,6 +213,7 @@ export function nelderMead(fn, init, { maxIter = 200, alpha = 1, gamma = 2, rho 
 }
 
 // ── Conjugate Gradient ──────────────────────────────────────────────────────
+/** @param {Function} fn @param {number[]} init */
 export function conjugateGradient(fn, grad, init, { maxIter = 50, tol = 1e-6 } = {}) {
   if (!fn || !grad || !init || !init.length) return null;
   let x = [...init];
@@ -234,6 +241,7 @@ export function conjugateGradient(fn, grad, init, { maxIter = 50, tol = 1e-6 } =
 }
 
 // ── Trust Region ────────────────────────────────────────────────────────────
+/** @param {Function} fn @param {number[]} init */
 export function trustRegion(fn, grad, hess, init, { maxIter = 30, delta0 = 1, eta = 0.1, tol = 1e-6 } = {}) {
   if (!fn || !grad || !hess || !init || !init.length) return null;
   const n = init.length;
@@ -260,6 +268,7 @@ export function trustRegion(fn, grad, hess, init, { maxIter = 30, delta0 = 1, et
 }
 
 // ── SLSQP ───────────────────────────────────────────────────────────────────
+/** @param {Function} fn @param {number[]} init */
 export function slsqp(fn, grad, init, { constraints = [], maxIter = 50, tol = 1e-6 } = {}) {
   if (!fn || !grad || !init || !init.length) return null;
   let x = [...init];
@@ -287,6 +296,7 @@ export function slsqp(fn, grad, init, { constraints = [], maxIter = 50, tol = 1e
 }
 
 // ── Stochastic Gradient Descent ─────────────────────────────────────────────
+/** @param {Function} fn @param {number[]} init */
 export function gradientDescentOptim(fn, grad, init, { lr = 0.01, maxIter = 200, tol = 1e-6 } = {}) {
   if (!fn || !grad || !init || !init.length) return null;
   let x = [...init];

@@ -16,6 +16,7 @@ function aicBic(logLik, k, n) {
   return { AIC: +(-2 * logLik + 2 * k).toFixed(2), BIC: +(-2 * logLik + k * Math.log(n)).toFixed(2) };
 }
 
+/** @param {number[]} sample */
 export function fitNormal(sample) {
   if (!sample || sample.length < 3) return null;
   const n = sample.length, m = avg(sample), sd = sampleSD(sample);
@@ -34,6 +35,7 @@ export function fitNormal(sample) {
   };
 }
 
+/** @param {number[]} sample */
 export function fitExponential(sample) {
   if (!sample || sample.length < 3) return null;
   const n = sample.length, rate = 1 / avg(sample);
@@ -53,6 +55,7 @@ export function fitExponential(sample) {
   };
 }
 
+/** @param {number[]} sample */
 export function fitGamma(sample) {
   if (!sample || sample.length < 3 || sample.some(x => x <= 0)) return null;
   const n = sample.length, xbar = avg(sample);
@@ -94,6 +97,7 @@ export function fitGamma(sample) {
   };
 }
 
+/** @param {number[]} sample */
 export function fitPoisson(sample) {
   if (!sample || sample.length < 3 || sample.some(x => !Number.isInteger(x) || x < 0)) return null;
   const n = sample.length, lambda = avg(sample);
@@ -129,6 +133,7 @@ export function fitBinomial(successes, trials) {
   };
 }
 
+/** @param {number[]} sample */
 export function fitLogNormal(sample) {
   if (!sample || sample.length < 3 || sample.some(x => x <= 0)) return null;
   const logSample = sample.map(x => Math.log(x));
@@ -151,6 +156,7 @@ export function fitLogNormal(sample) {
   };
 }
 
+/** @param {number[]} sample */
 export function fitWeibull(sample) {
   if (!sample || sample.length < 3 || sample.some(x => x <= 0)) return null;
   const n = sample.length;
@@ -191,6 +197,7 @@ export function fitWeibull(sample) {
   };
 }
 
+/** @param {number[]} sample */
 export function fitUniform(sample) {
   if (!sample || sample.length < 3) return null;
   const n = sample.length, sorted = [...sample].sort((a, b) => a - b);
@@ -212,6 +219,7 @@ export function fitUniform(sample) {
   };
 }
 
+/** @param {number[]} sample */
 export function distributionGoF(sample, fitted, { test = 'KS', B = 999 } = {}) {
   if (!sample || sample.length < 5 || !fitted || !fitted.cdf) return null;
   const n = sample.length;
@@ -267,6 +275,7 @@ export function distributionGoF(sample, fitted, { test = 'KS', B = 999 } = {}) {
   };
 }
 
+/** @param {number[]} sample */
 export function fitBeta(sample) {
   if (!sample || sample.length < 3 || sample.some(x => x <= 0 || x >= 1)) return null;
   const n = sample.length;
@@ -331,6 +340,7 @@ export function fitBeta(sample) {
 }
 
 // ── Anderson-Darling Test ──────────────────────────────────────────────────
+/** @param {number[]} data */
 export function andersonDarling(data, { distribution = 'normal' } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -379,6 +389,7 @@ function erf(x) {
 }
 
 // ── Shapiro-Wilk ───────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function shapiroWilk(data) {
   if (!data || data.length < 4 || data.length > 5000) return null;
   const n = data.length;
@@ -421,6 +432,7 @@ function normalScore(p) {
 }
 
 // ── Cramér-von Mises ──────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function cramerVonMises(data, { distribution = 'normal' } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -447,6 +459,7 @@ export function cramerVonMises(data, { distribution = 'normal' } = {}) {
 }
 
 // ── Lilliefors Test ───────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function lilliefors(data) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -521,6 +534,7 @@ export function chiSquareGOF(observed, { expected = null, nBins = null } = {}) {
 }
 
 // ── Q-Q Correlation ───────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function qqCorrelation(data, { distribution = 'normal' } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;

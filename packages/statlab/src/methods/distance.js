@@ -2,6 +2,7 @@ import { avg } from '../math/core.js';
 import { matInv } from '../math/matrix.js';
 
 // Pairwise distance matrix
+/** @param {number[]} x */
 export function distanceMatrix(x) {
   if (!x || x.length < 5) return null;
   const n = x.length;
@@ -18,6 +19,7 @@ export function distanceMatrix(x) {
 }
 
 // ── Distance Covariance ───────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function distanceCovariance(x, y) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
@@ -50,6 +52,7 @@ export function distanceCovariance(x, y) {
 }
 
 // ── Distance Correlation ──────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function distanceCorrelation(x, y) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const dCov = distanceCovariance(x, y)?.dCov || 0;
@@ -61,6 +64,7 @@ export function distanceCorrelation(x, y) {
 }
 
 // ── Energy Test for Equal Distributions ───────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function energyTest(x, y, { permutations = 199, seed = 42 } = {}) {
   if (!x || !y || x.length < 5 || y.length < 5) return null;
   const nA = x.length, nB = y.length;
@@ -89,6 +93,7 @@ export function energyTest(x, y, { permutations = 199, seed = 42 } = {}) {
 }
 
 // ── Partial Distance Correlation ──────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function partialDistanceCorr(x, y, z) {
   if (!x || !y || !z || x.length < 5) return null;
   const n = x.length;
@@ -117,6 +122,7 @@ export function partialDistanceCorr(x, y, z) {
 }
 
 // ── Mahalanobis Distance ──────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function mahalanobisDistance(x, y, cov) {
   if (!x || !y || x.length < 2 || x.length !== y.length) return null;
   const p = x.length;
@@ -129,6 +135,7 @@ export function mahalanobisDistance(x, y, cov) {
 }
 
 // ── Gower Distance ────────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function gowerDistance(x, y) {
   if (!x || !y || x.length < 2 || x.length !== y.length) return null;
   const p = x.length;

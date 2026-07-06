@@ -2,6 +2,7 @@ import { avg } from '../math/core.js';
 import { normalCDF } from '../math/distributions.js';
 
 // ── RA-CUSUM ──────────────────────────────────────────────────────
+/** @param {number[]} predicted */
 export function raCusum(binary, predicted, { k = 0.5, h = 5 } = {}) {
   if (!binary || !predicted || binary.length < 10 || binary.length !== predicted.length) return null;
   const n = binary.length;
@@ -32,6 +33,7 @@ export function vlad(expected, observed, { smoothing = 5 } = {}) {
 }
 
 // ── RA-SPRT ───────────────────────────────────────────────────────
+/** @param {number[]} predicted */
 export function raSprt(binary, predicted, { h0 = 0, h1 = 0.5 } = {}) {
   if (!binary || !predicted || binary.length < 10 || binary.length !== predicted.length) return null;
   const n = binary.length;
@@ -46,6 +48,7 @@ export function raSprt(binary, predicted, { h0 = 0, h1 = 0.5 } = {}) {
 }
 
 // ── Funnel Plot ───────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar */
 export function funnelPlot(data, yVar, nVar, { controlLimits = 3 } = {}) {
   if (!data || data.length < 5 || !yVar || !nVar) return null;
   const n = data.length;
@@ -62,6 +65,7 @@ export function funnelPlot(data, yVar, nVar, { controlLimits = 3 } = {}) {
 }
 
 // ── C-Chart Risk-Adjusted ─────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar */
 export function cChartRiskAdjusted(data, yVar, riskVar, { controlLimits = 3 } = {}) {
   if (!data || data.length < 12 || !yVar || !riskVar) return null;
   const n = data.length;

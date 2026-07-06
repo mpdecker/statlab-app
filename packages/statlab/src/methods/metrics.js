@@ -85,6 +85,7 @@ export function perplexity(logLik, nTokens) {
 }
 
 // ── Matthews Correlation Coefficient ──────────────────────────────
+/** @param {Function} fn */
 export function matthewsCorrelation(tp, fp, tn, fn) {
   if (tp == null || fp == null || tn == null || fn == null) return null;
   const num = tp * tn - fp * fn;
@@ -95,6 +96,7 @@ export function matthewsCorrelation(tp, fp, tn, fn) {
 }
 
 // ── Precision-Recall Curve ────────────────────────────────────────
+/** @param {number[]} scores @param {number[]} labels */
 export function precisionRecallCurve(scores, labels, { nThresholds = 10 } = {}) {
   if (!scores || !labels || scores.length < 5 || scores.length !== labels.length) return null;
   const n = scores.length;

@@ -17,8 +17,14 @@ for (const [file, funcs] of Object.entries(spec)) {
     const re = new RegExp(`^export\\s+(?:async\\s+)?(?:function\\s+${name}\\b|const\\s+${name}\\s*=)`);
     const declIdx = lines.findIndex((l) => re.test(l));
     if (declIdx < 0) { missing.push(name); continue; }
-    const jsdoc = `/** ${inner} */`;
+    let jsdoc = `/** ${inner} */`;
     if (declIdx > 0 && SINGLE_LINE_JSDOC.test(lines[declIdx - 1])) {
+      // If the spec is tags-only (starts with @), keep the existing description
+      // and append the tags; otherwise the spec's description replaces it.
+      if (inner.startsWith('@')) {
+        const existing = lines[declIdx - 1].replace(/^\s*\/\*\*\s?/, '').replace(/\s*\*\/\s*$/, '').trim();
+        if (existing && !existing.startsWith('@')) jsdoc = `/** ${existing} ${inner} */`;
+      }
       lines[declIdx - 1] = jsdoc;
       replaced++;
     } else {

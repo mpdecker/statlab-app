@@ -10,6 +10,7 @@ const B3 = [0,0,0,0,0,0,0.030,0.118,0.185,0.239,0.284,0.321,0.354,0.382,0.406,0.
 const B4 = [0,0,3.267,2.568,2.266,2.089,1.970,1.882,1.815,1.761,1.716,1.679,1.646,1.618,1.594,1.572,1.552,1.534,1.518,1.503,1.490,1.477,1.466,1.455,1.445];
 
 // ── X-bar Chart ─────────────────────────────────────────────────────────────
+/** @param {number} [subgroupSize] */
 export function xbarChart(data, subgroupSize = 5) {
   if (!data || data.length < 2 * subgroupSize) return null;
   const n = data.length;
@@ -38,6 +39,7 @@ export function xbarChart(data, subgroupSize = 5) {
 }
 
 // ── R Chart ─────────────────────────────────────────────────────────────────
+/** @param {number} [subgroupSize] */
 export function rChart(data, subgroupSize = 5) {
   if (!data || data.length < 2 * subgroupSize) return null;
   const n = data.length;
@@ -62,6 +64,7 @@ export function rChart(data, subgroupSize = 5) {
 }
 
 // ── S Chart ─────────────────────────────────────────────────────────────────
+/** @param {number} [subgroupSize] */
 export function sChart(data, subgroupSize = 5) {
   if (!data || data.length < 2 * subgroupSize) return null;
   const n = data.length;
@@ -126,6 +129,7 @@ export function cChart(defects) {
 }
 
 // ── CUSUM Chart ─────────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function cusumChart(data, { target = null, k = 0.5, h = 5 } = {}) {
   if (!data || data.length < 10) return null;
   const n = data.length;
@@ -152,6 +156,7 @@ export function cusumChart(data, { target = null, k = 0.5, h = 5 } = {}) {
 }
 
 // ── EWMA Chart ──────────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function ewmaChart(data, { lambda = 0.2, L = 3 } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -183,6 +188,7 @@ export function ewmaChart(data, { lambda = 0.2, L = 3 } = {}) {
 }
 
 // ── Process Capability ─────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function processCapability(data, lsl = null, usl = null) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -209,6 +215,7 @@ export function processCapability(data, lsl = null, usl = null) {
 }
 
 // Hotelling T2 Chart
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function hotellingT2Chart(data, vars, { subgroupSize = 5 } = {}) {
   if (!data || data.length < 20 || !vars || vars.length < 2) return null;
   const n = data.length, p = vars.length;
@@ -238,6 +245,7 @@ export function hotellingT2Chart(data, vars, { subgroupSize = 5 } = {}) {
 }
 
 // ── MEWMA Chart ───────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function mewmaChart(data, vars, { lambda = 0.2, subgroupSize = 5 } = {}) {
   if (!data || data.length < 20 || !vars || vars.length < 2) return null;
   const n = data.length, p = vars.length;
@@ -267,6 +275,7 @@ export function mewmaChart(data, vars, { lambda = 0.2, subgroupSize = 5 } = {}) 
 }
 
 // ── OC Curve ──────────────────────────────────────────────────────
+/** @param {number} n @param {number} p */
 export function ocCurve(n, c, p) {
   if (!n || !Number.isFinite(c) || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
@@ -289,6 +298,7 @@ function binomialProb(n, k, p) {
 }
 
 // ── AOQ Curve ─────────────────────────────────────────────────────
+/** @param {number} n @param {number} p */
 export function aoqCurve(n, c, p, N) {
   if (!n || !Number.isFinite(c) || !N || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
@@ -300,6 +310,7 @@ export function aoqCurve(n, c, p, N) {
 }
 
 // ── Rectifying Inspection ─────────────────────────────────────────
+/** @param {number} n @param {number} p */
 export function rectifyingInspection(n, c, p, N) {
   if (!n || !Number.isFinite(c) || !N || !Number.isFinite(p)) return null;
   const pa = ocCurve(n, c, [p])?.curve?.[0]?.Pa || 0;
@@ -317,6 +328,7 @@ export function reliabilitySampling(t, r, { alpha = 0.05, beta = 0.1 } = {}) {
 }
 
 // ── ASN Curve ─────────────────────────────────────────────────────
+/** @param {number} n @param {number} p */
 export function asnCurve(n, c, p) {
   if (!n || !Number.isFinite(c) || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
@@ -325,6 +337,7 @@ export function asnCurve(n, c, p) {
 }
 
 // ── Multivariate Control Chart (Hotelling T2) ─────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function multivariateControl(data, vars, { subgroupSize = 5, alpha = 0.0027 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, p = vars.length;
@@ -353,6 +366,7 @@ export function multivariateControl(data, vars, { subgroupSize = 5, alpha = 0.00
 }
 
 // ── Cpk/Ppk ───────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function cpkPpk(data, lsl, usl) {
   if (!data || data.length < 5 || lsl == null || usl == null || lsl >= usl) return null;
   const n = data.length;

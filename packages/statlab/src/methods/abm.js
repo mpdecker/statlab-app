@@ -13,6 +13,7 @@ let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 // mixing in a self-similarity term, giving I=0.0511 instead of the correct
 // 0.0366 on a 20-agent test case (~40% relative error), and the discrepancy
 // grows/shrinks arbitrarily depending on how S0 happens to compare to n.
+/** @param {string} valueField */
 export function moranIMulti(agents, valueField, { nPerm = 99 } = {}) {
   if (!agents || agents.length < 10 || !valueField) return null;
   const n = agents.length;
@@ -74,6 +75,7 @@ export function sobolSensitivity(inputs, output, { nBootstrap = 100 } = {}) {
 }
 
 // ── Agent Summary Statistics ───────────────────────────────────────────────
+/** @param {string[]} vars */
 export function agentSummaryStats(agents, vars) {
   if (!agents || !agents.length || !vars) return null;
   const n = agents.length;
@@ -110,6 +112,7 @@ export function scenarioComparison(scenarios) {
 }
 
 // ── Threshold Model (Granovetter) ─────────────────────────────────
+/** @param {number} [initialAdopters] */
 export function thresholdModel(nAgents, thresholds, initialAdopters = 1) {
   if (!nAgents || nAgents < 3 || !thresholds || thresholds.length < nAgents) return null;
   const sorted = [...thresholds].sort((a, b) => a - b);
@@ -148,6 +151,7 @@ export function networkDiffusion(adjacency, seeds, { seed = 42, steps = 10, prob
 }
 
 // ── Segregation Index ─────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} groupVar */
 export function segregationIndex(data, groupVar, locationVar) {
   if (!data || data.length < 5 || !groupVar || !locationVar) return null;
   const groups = [...new Set(data.map(r => r[groupVar]))];

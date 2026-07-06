@@ -4,6 +4,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Laplace Mechanism (Differential Privacy) ───────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {number} [epsilon] */
 export function laplaceMechanism(data, epsilon = 1, { seed = 42, sensitivity = null } = {}) {
   __rng = mulberry32(seed);
   if (!data || !data.length) return null;
@@ -19,6 +20,7 @@ export function laplaceMechanism(data, epsilon = 1, { seed = 42, sensitivity = n
 }
 
 // ── Bootstrap Synthetic Data ───────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function bootstrapSynthetic(data, { nRow = null, seed = 42 } = {}) {
   if (!data || !data.length) return null;
   const n = data.length;
@@ -34,6 +36,7 @@ export function bootstrapSynthetic(data, { nRow = null, seed = 42 } = {}) {
 }
 
 // ── K-Anonymity Check ──────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function kAnonymityCheck(data, quasiIdentifiers, { k = 2 } = {}) {
   if (!data || !data.length || !quasiIdentifiers || !quasiIdentifiers.length) return null;
   const groups = {};
@@ -49,6 +52,7 @@ export function kAnonymityCheck(data, quasiIdentifiers, { k = 2 } = {}) {
 }
 
 // ── Differential Privacy Budget ────────────────────────────────────────────
+/** @param {number} epsilon @param {number} [delta] */
 export function differentialPrivacy(queries, epsilon, delta = 0) {
   if (!queries || !queries.length || epsilon <= 0) return null;
   const n = queries.length;
@@ -57,6 +61,7 @@ export function differentialPrivacy(queries, epsilon, delta = 0) {
 }
 
 // ── Data Masking ───────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function dataMasking(data, column, { seed = 42, method = 'swap', pct = 10 } = {}) {
   __rng = mulberry32(seed);
   if (!data || !data.length || !column) return null;
@@ -76,6 +81,7 @@ export function dataMasking(data, column, { seed = 42, method = 'swap', pct = 10
 }
 
 // ── l-Diversity ───────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {number} [l] */
 export function lDiversity(data, qidCols, sensitiveCol, l = 2) {
   if (!data || data.length < 5 || !qidCols || !qidCols.length || !sensitiveCol) return null;
   const n = data.length;
@@ -92,6 +98,7 @@ export function lDiversity(data, qidCols, sensitiveCol, l = 2) {
 }
 
 // ── t-Closeness ───────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {number} [t] */
 export function tCloseness(data, qidCols, sensitiveCol, t = 0.2) {
   if (!data || data.length < 5 || !qidCols || !sensitiveCol) return null;
   const n = data.length;

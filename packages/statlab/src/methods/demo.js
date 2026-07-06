@@ -66,6 +66,7 @@ export function populationGrowth(pop, { t = 1 } = {}) {
 }
 
 // ── Cox Regression for Demography ─────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} timeVar @param {string} eventVar @param {string[]} xVars */
 export function coxRegressionDemo(data, timeVar, eventVar, xVars) {
   if (!data || data.length < 10 || !timeVar || !eventVar || !xVars || !xVars.length) return null;
   // Real Cox proportional-hazards fit (partial-likelihood MLE) via survival.coxPH.
@@ -85,6 +86,7 @@ export function coxRegressionDemo(data, timeVar, eventVar, xVars) {
 }
 
 // ── Kaplan-Meier for Demography ───────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} eventVar */
 export function kaplanMeierDemo(data, ageVar, eventVar) {
   if (!data || data.length < 5 || !ageVar || !eventVar) return null;
   const n = data.length;

@@ -45,6 +45,7 @@ function backfitOne(y, basis, lambda = 0.1) {
 // the function silently returned the intercept-only model, R² ≈ 0, for any
 // input. `smoothVars` are now resolved as trailing-digit variable names
 // (`'x1'`→column 0) or literal column indices.)
+/** @param {number[]} y @param {number[][]} X */
 export function gamBackfitting(y, X, smoothVars, { family = 'gaussian', maxIter = 20 } = {}) {
   if (!y || !X || !smoothVars || !y.length || !X.length) return null;
   const n = y.length, p = X[0].length;
@@ -111,6 +112,7 @@ export function gamBackfitting(y, X, smoothVars, { family = 'gaussian', maxIter 
 // `ReferenceError: n is not defined` had it ever been reached. Also dropped
 // the `.slice(0, 10)` truncation on `fitted`, which silently returned only
 // the first 10 fitted values regardless of input length.)
+/** @param {number[]} y @param {number[][]} X */
 export function gamSpline(y, X, { df = 5, varIdx = 0 } = {}) {
   if (!y || !X || y.length < 10 || X.length !== y.length) return null;
   const n = y.length;
@@ -131,6 +133,7 @@ export function gamSpline(y, X, { df = 5, varIdx = 0 } = {}) {
 }
 
 // ── GAM Local Scoring ─────────────────────────────────────────────
+/** @param {number[]} y @param {number[][]} X */
 export function gamLocalScoring(y, X, { family = 'binomial', maxIter = 10 } = {}) {
   if (!y || !X || !y.length) return null;
   const n = y.length;
@@ -190,6 +193,7 @@ export function gamPredict(gamFit, newData) {
 }
 
 // ── GAM Interaction ───────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar */
 export function gamInteraction(data, yVar, var1, var2, { df = 5 } = {}) {
   if (!data || data.length < 10 || !yVar || !var1 || !var2) return null;
   const y = data.map(r => +r[yVar]);
@@ -218,6 +222,7 @@ export function gamInteraction(data, yVar, var1, var2, { df = 5 } = {}) {
 }
 
 // ── Thin Plate Spline ─────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function thinPlateSpline(x, y, { lambda = 0.1 } = {}) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
@@ -269,6 +274,7 @@ function solveSystem(K, T, y, lambda) {
 }
 
 // ── P-Spline ──────────────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function pSpline(x, y, { nKnots = 10, lambda = 0.1 } = {}) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;

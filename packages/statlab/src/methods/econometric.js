@@ -7,6 +7,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Tobit Model (Type-I censored-normal MLE) ────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars */
 export function tobitModel(data, yVar, xVars, { lowerBound = 0, upperBound = null, maxIter = 100 } = {}) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length, p = xVars.length, k = p + 1; // + intercept
@@ -50,6 +51,7 @@ export function tobitModel(data, yVar, xVars, { lowerBound = 0, upperBound = nul
 }
 
 // ── Heckman 2-Step Selection ───────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string[]} zVars */
 export function heckmanSelection(data, yVar, xVars, selectVar, zVars) {
   if (!data || data.length < 20 || !yVar || !selectVar || !zVars) return null;
   const n = data.length;
@@ -106,6 +108,7 @@ function bvnCDF(a, b, rho) {
 }
 
 // ── Bivariate Probit (full-information maximum likelihood) ───────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} xVars */
 export function bivariateProbit(data, y1Var, y2Var, xVars) {
   if (!data || data.length < 20 || !y1Var || !y2Var || !xVars || !xVars.length) return null;
   const n = data.length, k = xVars.length + 1; // intercept + regressors
@@ -152,6 +155,7 @@ export function bivariateProbit(data, y1Var, y2Var, xVars) {
 }
 
 // ── PSM with Caliper ──────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} outcomeVar @param {string[]} covariates */
 export function psmCaliper(data, treatVar, outcomeVar, covariates, { caliper = 0.2, ratio = 1 } = {}) {
   if (!data || data.length < 20 || !treatVar || !outcomeVar) return null;
   const n = data.length;
@@ -174,6 +178,7 @@ export function psmCaliper(data, treatVar, outcomeVar, covariates, { caliper = 0
 }
 
 // ── Local Linear IV ────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} xVar @param {string} yVar */
 export function localLinearIV(data, xVar, yVar, zVar, { bandwidth = null } = {}) {
   if (!data || data.length < 20 || !xVar || !yVar || !zVar) return null;
   const n = data.length;
@@ -211,6 +216,7 @@ function _panelUnitMeans(data, yVar, xVars, idVar, ids) {
 }
 
 // ── Panel Fixed Effects (within / LSDV estimator) ───────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars */
 export function panelFixedEffects(data, yVar, xVars, { idVar, timeVar } = {}) {
   if (!data || data.length < 10 || !yVar || !xVars || !xVars.length || !idVar) return null;
   const ids = [...new Set(data.map(r => r[idVar]))];
@@ -239,6 +245,7 @@ export function panelFixedEffects(data, yVar, xVars, { idVar, timeVar } = {}) {
 }
 
 // ── Panel Random Effects (Swamy-Arora FGLS) ─────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars */
 export function panelRandomEffects(data, yVar, xVars, { idVar, timeVar } = {}) {
   if (!data || data.length < 10 || !yVar || !xVars || !xVars.length || !idVar) return null;
   const ids = [...new Set(data.map(r => r[idVar]))];
@@ -317,6 +324,7 @@ export function hausmanTest(betaFE, seFE, betaRE, seRE) {
 // periods). Reports the AB AR(2) serial-correlation diagnostic (differenced
 // residuals must be uncorrelated at lag 2 for the instruments to be valid)
 // and a Sargan/Hansen overidentification statistic from the GMM objective.
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} [xVars] */
 export function arellanoBond(data, yVar, xVars = [], { idVar, timeVar, maxLags = 4 } = {}) {
   if (!data || data.length < 15 || !yVar || !idVar) return null;
   const ids = [...new Set(data.map(r => r[idVar]))];
@@ -419,6 +427,7 @@ export function arellanoBond(data, yVar, xVars = [], { idVar, timeVar, maxLags =
 }
 
 // ── Seemingly Unrelated Regression ──────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} yVars @param {string[]} xVars */
 export function sur(data, yVars, xVars, { maxIter = 10 } = {}) {
   if (!data || data.length < 15 || !yVars || yVars.length < 2 || !xVars || !xVars.length) return null;
   const n = data.length;
@@ -450,6 +459,7 @@ export function sur(data, yVars, xVars, { maxIter = 10 } = {}) {
 }
 
 // ── Three-Stage Least Squares ───────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} yVars @param {string[]} xVars @param {string[]} zVars */
 export function threeSLS(data, yVars, xVars, zVars, { maxIter = 5 } = {}) {
   if (!data || data.length < 15 || !yVars || yVars.length < 2 || !xVars?.length || !zVars || !zVars.length) return null;
   const n = data.length;
@@ -488,6 +498,7 @@ export function threeSLS(data, yVars, xVars, zVars, { maxIter = 5 } = {}) {
 }
 
 // ── Generalized Method of Moments ───────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string[]} zVars */
 export function gmm(data, yVar, xVars, zVars) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length || !zVars || !zVars.length) return null;
   const n = data.length, k = xVars.length, q = zVars.length;
@@ -583,6 +594,7 @@ function _mackinnonP(tauStat, N) {
   return 0.5; // at or beyond τ=0: no evidence against a unit root in the residuals
 }
 
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars */
 export function cointegration(data, yVar, xVars) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length, p = xVars.length + 1;
@@ -617,6 +629,7 @@ export function cointegration(data, yVar, xVars) {
 }
 
 // ── Vector Error Correction Model ───────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} yVars */
 export function vecm(data, yVars, { lags = 1, rank = 1 } = {}) {
   if (!data || data.length < 20 || !yVars || yVars.length < 2 || lags < 1) return null;
   const n = data.length;
@@ -631,6 +644,7 @@ export function vecm(data, yVars, { lags = 1, rank = 1 } = {}) {
 }
 
 // ── Structural VAR ──────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} yVars */
 export function structuralVAR(data, yVars, { lags = 1, identification = 'cholesky' } = {}) {
   if (!data || data.length < 20 || !yVars || yVars.length < 2) return null;
   const k = yVars.length;

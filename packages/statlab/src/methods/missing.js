@@ -2,6 +2,7 @@ import { avg, sampleSD, corr, fmtP } from '../math/core.js';
 import { chiPVal, tPVal } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
 
+/** @param {Array<Record<string, any>>} data */
 export function missingnessPattern(data) {
   if (!data || !data.length) return null;
   const vars = Object.keys(data[0]);
@@ -22,6 +23,7 @@ export function missingnessPattern(data) {
   };
 }
 
+/** @param {Array<Record<string, any>>} data */
 export function littlesMCAR(data) {
   if (!data || data.length < 10) return null;
   const numericVars = Object.keys(data[0]).filter(v => {
@@ -69,6 +71,7 @@ export function littlesMCAR(data) {
   };
 }
 
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function meanImpute(data, vars) {
   if (!data || !data.length || !vars || !vars.length) return null;
   const means = {};
@@ -86,6 +89,7 @@ export function meanImpute(data, vars) {
   return imputed;
 }
 
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function regressionImpute(data, vars) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const imputed = data.map(r => ({ ...r }));
@@ -121,6 +125,7 @@ export function regressionImpute(data, vars) {
   return imputed;
 }
 
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function emImpute(data, vars, { maxIter = 100, tolerance = 1e-5 } = {}) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const n = data.length, k = vars.length;
@@ -204,6 +209,7 @@ export function emImpute(data, vars, { maxIter = 100, tolerance = 1e-5 } = {}) {
 }
 
 // ── MICE (Multiple Imputation by Chained Equations) ──────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function mice(data, vars, { m = 5, maxIter = 10, seed = 42 } = {}) {
   if (!data || data.length < 10 || !vars || !vars.length) return null;
   const n = data.length;
@@ -387,6 +393,7 @@ export function fmi(pooledResult) {
 }
 
 // ── Complete Cases ──────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function completeCases(data, vars) {
   if (!data || !data.length || !vars || !vars.length) return null;
   const filtered = data.filter(r => vars.every(v => r[v] != null && Number.isFinite(+r[v])));

@@ -4,6 +4,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Mixture of Regressions ────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y @param {number} [nComponents] */
 export function mixtureOfRegressions(x, y, nComponents = 2, { maxIter = 50, seed = 42 } = {}) {
   __rng = mulberry32(seed);
   if (!x || !y || x.length < 15 || x.length !== y.length || nComponents < 2) return null;
@@ -60,6 +61,7 @@ export function mixtureOfRegressions(x, y, nComponents = 2, { maxIter = 50, seed
 }
 
 // ── Switching Regression ──────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y @param {number} threshold */
 export function switchingRegression(x, y, threshold) {
   if (!x || !y || x.length < 10 || x.length !== y.length || threshold == null) return null;
   const n = x.length;
@@ -88,6 +90,7 @@ export function switchingRegression(x, y, threshold) {
 // with local independence within class (diagonal covariance). Fit by EM with
 // soft responsibilities (not k-means hard assignment); reports logLik/BIC/AIC
 // for the model-selection workflow LPA is normally used for (choosing K).
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {number} [nProfiles] */
 export function latentProfileAnalysis(data, vars, nProfiles = 2, { maxIter = 100, seed = 42, tol = 1e-6 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 20 || !vars || vars.length < 2 || nProfiles < 2) return null;
@@ -157,6 +160,7 @@ export function latentProfileAnalysis(data, vars, nProfiles = 2, { maxIter = 100
 // the (weighted) multinomial cross-entropy. This replaces hard nearest-expert
 // assignment with the soft, jointly-trained gate that defines "mixture of
 // experts" as distinct from a plain mixture of regressions.
+/** @param {number[]} x @param {number[]} y @param {number} [nExperts] */
 export function mixtureOfExperts(x, y, nExperts = 2, { maxIter = 60, seed = 42, gateLR = 0.5, gateSteps = 5 } = {}) {
   __rng = mulberry32(seed);
   if (!x || !y || x.length < 15 || x.length !== y.length || nExperts < 2) return null;
@@ -225,6 +229,7 @@ export function mixtureOfExperts(x, y, nExperts = 2, { maxIter = 60, seed = 42, 
 }
 
 // ── Gaussian Mixture Model (EM) ───────────────────────────────────
+/** @param {number[][]} data @param {number} [k] */
 export function gaussianMixtureModel(data, k = 2, { seed = 42, maxIter = 30, tol = 1e-4 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < k * 3 || k < 2) return null;
@@ -270,6 +275,7 @@ export function gaussianMixtureModel(data, k = 2, { seed = 42, maxIter = 30, tol
 // E-step then updates γ ∝ π_j f_j(x_i) from that nonparametric density — real
 // alternation between a density estimate and soft cluster membership, not a
 // single hard nearest-kernel-mode reassignment.
+/** @param {number[]} data @param {number} [k] */
 export function nonparametricMixture(data, k = 2, { seed = 42, bandwidth = null, maxIter = 40, tol = 1e-6 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 10 || k < 2) return null;
