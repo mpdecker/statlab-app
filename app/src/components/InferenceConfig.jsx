@@ -32,6 +32,18 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     itsTimeStr, setItsTimeStr, itsValStr, setItsValStr, itsCut, setItsCut,
     rddCutoff, setRddCutoff, rddBw, setRddBw, ivInstrument, setIvInstrument,
     scaleMethod, setScaleMethod, reverseItems, setReverseItems,
+    // batch 9
+    abmValueField, setAbmValueField, abmTolerance, setAbmTolerance,
+    abmWindow, setAbmWindow, abmNRuns, setAbmNRuns,
+    abmNAgents, setAbmNAgents, abmSeed, setAbmSeed, abmNSeeds, setAbmNSeeds,
+    banditEpsilon, setBanditEpsilon, banditNIter, setBanditNIter,
+    banditNArms, setBanditNArms, banditSeed, setBanditSeed,
+    banditTemp, setBanditTemp, banditLr, setBanditLr,
+    banditNStates, setBanditNStates, banditNActions, setBanditNActions,
+    banditNEpisodes, setBanditNEpisodes,
+    privEpsilon, setPrivEpsilon, privDelta, setPrivDelta, privPct, setPrivPct,
+    sensSeed, setSensSeed, sensNSamples, setSensNSamples,
+    sensNTrajectories, setSensNTrajectories, sensGridLevels, setSensGridLevels,
   } = state;
 
   const scaffold = txt => (<div style={{ fontSize: 9, color: C.dim, ...mono, lineHeight: 1.45 }}>{txt}</div>);
@@ -366,6 +378,164 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
       </button>
     </>,
     sensitivity: <>{grpCfg}<Inp label="μ₀" value={mu0} onChange={setMu0} /></>,
+
+    // ── batch 9: ABM ──────────────────────────────────────────────────────────
+    abm_morani: <>
+      <Sel label="Value Field" value={abmValueField} onChange={setAbmValueField} options={numeric} width={80} />
+      <Inp label="# Agents" value={abmNAgents} onChange={setAbmNAgents} width={45} />
+      <Inp label="Seed" value={abmSeed} onChange={setAbmSeed} width={45} />
+    </>,
+    abm_conv: <>
+      <Inp label="Window" value={abmWindow} onChange={setAbmWindow} width={45} />
+      <Inp label="Tolerance" value={abmTolerance} onChange={setAbmTolerance} width={50} />
+      <Inp label="# Runs" value={abmNRuns} onChange={setAbmNRuns} width={45} />
+    </>,
+    abm_sobol: <>
+      <Inp label="Seed" value={abmSeed} onChange={setAbmSeed} width={45} />
+      <Inp label="# Agents" value={abmNAgents} onChange={setAbmNAgents} width={50} />
+    </>,
+    abm_summary: <><Inp label="# Agents" value={abmNAgents} onChange={setAbmNAgents} width={50} /></>,
+    abm_scenario: <></>,
+    abm_threshold: <><Inp label="# Agents" value={abmNAgents} onChange={setAbmNAgents} width={50} /></>,
+    abm_diffusion: <><Inp label="Seed" value={abmSeed} onChange={setAbmSeed} width={45} /></>,
+    abm_segregation: <><Inp label="# Agents" value={abmNAgents} onChange={setAbmNAgents} width={50} /></>,
+    // ── batch 9: Bandit ─────────────────────────────────────────────────────
+    bandit_eps: <>
+      <Inp label="Arms" value={banditNArms} onChange={setBanditNArms} width={40} />
+      <Inp label="Iter" value={banditNIter} onChange={setBanditNIter} width={40} />
+      <Inp label="Epsilon" value={banditEpsilon} onChange={setBanditEpsilon} width={50} />
+      <Inp label="Seed" value={banditSeed} onChange={setBanditSeed} width={45} />
+    </>,
+    bandit_ucb: <>
+      <Inp label="Arms" value={banditNArms} onChange={setBanditNArms} width={40} />
+      <Inp label="Iter" value={banditNIter} onChange={setBanditNIter} width={40} />
+    </>,
+    bandit_thompson: <>
+      <Inp label="Arms" value={banditNArms} onChange={setBanditNArms} width={40} />
+      <Inp label="Iter" value={banditNIter} onChange={setBanditNIter} width={40} />
+      <Inp label="Seed" value={banditSeed} onChange={setBanditSeed} width={45} />
+    </>,
+    bandit_context: <>
+      <Inp label="Arms" value={banditNArms} onChange={setBanditNArms} width={40} />
+      <Inp label="Iter" value={banditNIter} onChange={setBanditNIter} width={40} />
+      <Inp label="Seed" value={banditSeed} onChange={setBanditSeed} width={45} />
+    </>,
+    bandit_pg: <>
+      <Inp label="Arms" value={banditNArms} onChange={setBanditNArms} width={40} />
+      <Inp label="Episodes" value={banditNEpisodes} onChange={setBanditNEpisodes} width={50} />
+      <Inp label="LR" value={banditLr} onChange={setBanditLr} width={45} />
+      <Inp label="Seed" value={banditSeed} onChange={setBanditSeed} width={45} />
+    </>,
+    bandit_softmax: <>
+      <Inp label="Arms" value={banditNArms} onChange={setBanditNArms} width={40} />
+      <Inp label="Iter" value={banditNIter} onChange={setBanditNIter} width={40} />
+      <Inp label="Temp" value={banditTemp} onChange={setBanditTemp} width={45} />
+      <Inp label="Seed" value={banditSeed} onChange={setBanditSeed} width={45} />
+    </>,
+    bandit_ql: <>
+      <Inp label="States" value={banditNStates} onChange={setBanditNStates} width={45} />
+      <Inp label="Actions" value={banditNActions} onChange={setBanditNActions} width={45} />
+      <Inp label="Eps" value={banditEpsilon} onChange={setBanditEpsilon} width={45} />
+      <Inp label="LR" value={banditLr} onChange={setBanditLr} width={45} />
+      <Inp label="Episodes" value={banditNEpisodes} onChange={setBanditNEpisodes} width={50} />
+      <Inp label="Seed" value={banditSeed} onChange={setBanditSeed} width={45} />
+    </>,
+    bandit_sarsa: <>
+      <Inp label="States" value={banditNStates} onChange={setBanditNStates} width={45} />
+      <Inp label="Actions" value={banditNActions} onChange={setBanditNActions} width={45} />
+      <Inp label="Eps" value={banditEpsilon} onChange={setBanditEpsilon} width={45} />
+      <Inp label="LR" value={banditLr} onChange={setBanditLr} width={45} />
+      <Inp label="Episodes" value={banditNEpisodes} onChange={setBanditNEpisodes} width={50} />
+      <Inp label="Seed" value={banditSeed} onChange={setBanditSeed} width={45} />
+    </>,
+    bandit_dqn: <>
+      <Inp label="States" value={banditNStates} onChange={setBanditNStates} width={45} />
+      <Inp label="Actions" value={banditNActions} onChange={setBanditNActions} width={45} />
+      <Inp label="Eps" value={banditEpsilon} onChange={setBanditEpsilon} width={45} />
+      <Inp label="LR" value={banditLr} onChange={setBanditLr} width={45} />
+      <Inp label="Episodes" value={banditNEpisodes} onChange={setBanditNEpisodes} width={50} />
+      <Inp label="Seed" value={banditSeed} onChange={setBanditSeed} width={45} />
+    </>,
+    // ── batch 9: Record Linkage ──────────────────────────────────────────────
+    link_thresh: <></>,
+    // ── batch 9: Privacy ─────────────────────────────────────────────────────
+    priv_laplace: <><Inp label="Epsilon" value={privEpsilon} onChange={setPrivEpsilon} width={50} /></>,
+    priv_synthetic: <></>,
+    priv_kanon: <></>,
+    priv_diff: <>
+      <Inp label="Epsilon" value={privEpsilon} onChange={setPrivEpsilon} width={50} />
+      <Inp label="Delta" value={privDelta} onChange={setPrivDelta} width={60} />
+    </>,
+    priv_mask: <><Inp label="Pct" value={privPct} onChange={setPrivPct} width={40} /></>,
+    priv_ldiv: <></>,
+    priv_tclose: <></>,
+    // ── batch 9: Sensitivity ──────────────────────────────────────────────────
+    sens_morris: <>
+      <Inp label="Seed" value={sensSeed} onChange={setSensSeed} width={45} />
+      <Inp label="Levels" value={sensGridLevels} onChange={setSensGridLevels} width={45} />
+    </>,
+    sens_fast: <><Inp label="Seed" value={sensSeed} onChange={setSensSeed} width={45} /></>,
+    sens_modelcomp: <></>,
+    sens_forecast: <></>,
+    sens_sobol1: <>
+      <Inp label="Seed" value={sensSeed} onChange={setSensSeed} width={45} />
+      <Inp label="Samples" value={sensNSamples} onChange={setSensNSamples} width={50} />
+    </>,
+    sens_sobolt: <>
+      <Inp label="Seed" value={sensSeed} onChange={setSensSeed} width={45} />
+      <Inp label="Samples" value={sensNSamples} onChange={setSensNSamples} width={50} />
+    </>,
+    sens_delta: <></>,
+    sens_andrews: <></>,
+    // ── batch 9: Bootstrap ───────────────────────────────────────────────────
+    boot_ci: <>
+      <Inp label="B" value={bsB} onChange={setBsB} width={40} />
+      <Inp label="Seed" value={bsSeed} onChange={setBsSeed} width={45} />
+    </>,
+    boot_se: <>
+      <Inp label="B" value={bsB} onChange={setBsB} width={40} />
+      <Inp label="Seed" value={bsSeed} onChange={setBsSeed} width={45} />
+    </>,
+    boot_test: <>
+      <Inp label="B" value={bsB} onChange={setBsB} width={40} />
+      <Inp label="Seed" value={bsSeed} onChange={setBsSeed} width={45} />
+    </>,
+    boot_jack: <></>,
+    boot_tci: <>
+      <Inp label="B" value={bsB} onChange={setBsB} width={40} />
+      <Inp label="Seed" value={bsSeed} onChange={setBsSeed} width={45} />
+    </>,
+    boot_influence: <></>,
+    boot_mediation: <>
+      <Inp label="B" value={bsB} onChange={setBsB} width={40} />
+      <Inp label="Seed" value={bsSeed} onChange={setBsSeed} width={45} />
+    </>,
+    boot_modmed: <></>,
+    boot_splitconf: <></>,
+    boot_confpval: <></>,
+    boot_jackplus: <></>,
+    // ── batch 9: Power Analysis ──────────────────────────────────────────────
+    pow_cox: <></>,
+    pow_meta: <></>,
+    pow_equiv: <></>,
+    pow_intanova: <></>,
+    pow_corr: <></>,
+    reqn_t: <></>,
+    reqn_corr: <></>,
+    reqn_oneprop: <></>,
+    reqn_twoprop: <></>,
+    reqn_wilcoxon: <></>,
+    reqn_logrank: <></>,
+    reqn_ols: <></>,
+    reqn_anova: <></>,
+    pow_ttest: <></>,
+    pow_oneprop: <></>,
+    pow_twoprop: <></>,
+    pow_wilcoxon: <></>,
+    pow_logrank: <></>,
+    pow_rmanova: <></>,
+    pow_olsapa: <></>,
+    pow_spearman: <></>,
   };
 
   return (

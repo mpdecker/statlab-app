@@ -80,7 +80,7 @@ export function tCopula(data, vars, { nu = 4, seed = 42 } = {}) {
   const rand = lcg(seed);
   const sim = [];
   for (let s = 0; s < 5; s++) {
-    const chi = Math.sqrt(Math.max(0.5, math_gamma(nu / 2, rand())));
+    const chi = Math.sqrt(Math.max(0.5, math_gamma(nu / 2, rand)));
     const z = Array(d).fill(0).map(() => boxMuller(rand) / Math.sqrt(chi * 2 / nu));
     const L = Array.from({ length: d }, () => Array(d).fill(0));
     for (let i = 0; i < d; i++) for (let j = 0; j <= i; j++) {

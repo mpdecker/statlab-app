@@ -42,7 +42,7 @@ describe('InferencePanel', () => {
         setActive={vi.fn()}
       />,
     );
-    const btn = screen.getByRole('button', { name: /RUN/i });
+    const btn = screen.getByRole('button', { name: /^RUN \(B=/ });
     fireEvent.click(btn);
     await waitFor(
       () => expect(screen.getByText(/indirect a×b/i)).toBeTruthy(),

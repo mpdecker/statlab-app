@@ -34,6 +34,17 @@ import {
   runBootstrapCI, runBootstrapMediation,
   runPowerANOVA, runPowerChi, runPowerLogistic, runPowerMixed, runPowerMediation,
 } from '../utils/resampleAsync.js';
+import { moranIMulti, simulationConvergence, sobolSensitivity, agentSummaryStats, scenarioComparison, thresholdModel, networkDiffusion, segregationIndex } from 'statlab/methods/abm';
+import { epsilonGreedy, ucb, thompsonSampling, contextualBandit, policyGradient, softmaxBandit, qLearning, sarsa, deepQNetwork } from 'statlab/methods/bandit';
+import { jaroWinkler, levenshteinDistance, fellegiSunter, recordBlocking, matchThreshold, probabilisticRecordLinkage, deduplication } from 'statlab/methods/linkage';
+import { laplaceMechanism, bootstrapSynthetic, kAnonymityCheck, differentialPrivacy, dataMasking, lDiversity, tCloseness } from 'statlab/methods/privacy';
+import { reliableChangeIndex, minimalImportantDifference, responderAnalysis, eq5dIndex, standardizedResponseMean, clinicalTrialsGov, consortChecklist } from 'statlab/methods/pro';
+import { raCusum, vlad, raSprt, funnelPlot, cChartRiskAdjusted, safetySignal, prrAnalysis } from 'statlab/methods/raMonitor';
+import { collaborativeFilter, matrixFactorize, topNRecommend } from 'statlab/methods/recommendation';
+import { tauU, pnd, pem, nap, randomizationTest, baselineCorrectedTau, betweenCaseSMD } from 'statlab/methods/sced';
+import { morrisMethod, fastSensitivity, modelComparison, forecastCombination, sobolFirstOrder, sobolTotalIndex, deltaMethod, andrewsPlot } from 'statlab/methods/sensitivity';
+import { bootstrapCI, bootstrapSE, bootstrapTest, jackknife, bootstrapT_CI, empiricalInfluence, bootstrapMediation as bsMediation, moderatedMediation, splitConformal, conformalPvalues, jackknifePlus } from 'statlab/methods/bootstrap';
+import { powerCoxPH, powerMetaAnalysis, powerEquivalence, powerInteractionANOVA, powerANOVA, powerChiSq, powerLogisticReg, powerMultilevel, powerCorrelation, powerMediationTest, requiredNT, requiredNCorrelation, requiredNOneProp, requiredNTwoProp, requiredNWilcoxon, requiredNLogRank, requiredNOLS, requiredNANOVA, powerTTestWrapper, powerProportionOne, powerProportionTwo, powerWilcoxonTest, powerLogRankTest, powerRMANOVA, powerOLS_apa, powerSpearmanTest } from 'statlab/methods/power';
 
 const POWER_TESTS = new Set(['pow_anova', 'pow_chi', 'pow_logit', 'pow_mixed', 'pow_med']);
 
@@ -205,6 +216,37 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [ivInstrument, setIvInstrument] = useState(numeric[2] || numeric[0] || '');
   const [scaleMethod, setScaleMethod] = useState('sum');
   const [reverseItems, setReverseItems] = useState([]);
+
+  // ── batch 9: ABM ──────────────────────────────────────────────────────────
+  const [abmValueField, setAbmValueField] = useState(numeric[0] || '');
+  const [abmTolerance, setAbmTolerance] = useState('0.01');
+  const [abmWindow, setAbmWindow] = useState('10');
+  const [abmNRuns, setAbmNRuns] = useState('50');
+  const [abmNAgents, setAbmNAgents] = useState('100');
+  const [abmSeed, setAbmSeed] = useState('42');
+  const [abmNSeeds, setAbmNSeeds] = useState('5');
+
+  // ── batch 9: Bandit ─────────────────────────────────────────────────────
+  const [banditEpsilon, setBanditEpsilon] = useState('0.1');
+  const [banditNIter, setBanditNIter] = useState('500');
+  const [banditNArms, setBanditNArms] = useState('5');
+  const [banditSeed, setBanditSeed] = useState('42');
+  const [banditTemp, setBanditTemp] = useState('1.0');
+  const [banditLr, setBanditLr] = useState('0.01');
+  const [banditNStates, setBanditNStates] = useState('10');
+  const [banditNActions, setBanditNActions] = useState('4');
+  const [banditNEpisodes, setBanditNEpisodes] = useState('50');
+
+  // ── batch 9: Privacy ─────────────────────────────────────────────────────
+  const [privEpsilon, setPrivEpsilon] = useState('1.0');
+  const [privDelta, setPrivDelta] = useState('0.00001');
+  const [privPct, setPrivPct] = useState('20');
+
+  // ── batch 9: Sensitivity ──────────────────────────────────────────────────
+  const [sensSeed, setSensSeed] = useState('42');
+  const [sensNSamples, setSensNSamples] = useState('100');
+  const [sensNTrajectories, setSensNTrajectories] = useState('10');
+  const [sensGridLevels, setSensGridLevels] = useState('4');
 
   // ── bootstrap ──────────────────────────────────────────────────────────────
   const [bsResult, setBsResult]     = useState(null);
@@ -510,6 +552,112 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
         return { test: 'Multiple Comparisons', method: corrMeth, pairs: adjusted, nSig: adjusted.filter(p => p.sig).length };
       }
       if (a === 'sensitivity') return sensitivityLOO(allTgt, v => tOne(v, parseFinite(mu0, 0)));
+      // ── batch 9: ABM ──────────────────────────────────────────────────────────
+      if (a === 'abm_morani') { const nAg = parseInt(abmNAgents, 10) || 100; const agents = Array.from({length: nAg}, (_, i) => ({ id: i, x: i % 10 - 5 + Math.random() * 2, y: Math.floor(i / 10) - 5 + Math.random() * 2, value: Math.random() * 10 })); const r = moranIMulti(agents, abmValueField || 'value'); return r ? { ...r, test: 'Moran\'s I (Agents)' } : null; }
+      if (a === 'abm_conv') { const runs = allTgt.length >= 10 ? allTgt : Array.from({length: 50}, () => Math.random() * 10); const w = parseInt(abmWindow, 10) || 10; const tol = parseFinite(abmTolerance, 0.01); const r = simulationConvergence(runs, { window: w, tolerance: tol }); return r ? { ...r, test: 'Simulation Convergence' } : null; }
+      if (a === 'abm_sobol') { const p = Math.min(3, numeric.length || 3); const n = 30; const inputs = Array.from({length: p}, (_, j) => Array.from({length: n}, () => Math.random() * 10)); const output = inputs[0].map((_, i) => inputs.reduce((s, inp) => s + inp[i] * (1 + i), 0)); const r = sobolSensitivity(inputs, output); return r ? { ...r, test: 'Sobol Sensitivity (ABM)' } : null; }
+      if (a === 'abm_summary') { const nAg = parseInt(abmNAgents, 10) || 100; const agents = Array.from({length: nAg}, (_, i) => ({ id: i, x: Math.random() * 10 - 5, y: Math.random() * 10 - 5, value: Math.random() * 10 })); const r = agentSummaryStats(agents, ['x', 'y', 'value']); return r ? { ...r, test: 'Agent Summary Stats' } : null; }
+      if (a === 'abm_scenario') { if (g1vals.length < 2 && g2vals.length < 2) { const scenarios = [{ name: 'A', values: Array.from({length: 15}, () => Math.random() * 10) }, { name: 'B', values: Array.from({length: 15}, () => Math.random() * 10) }]; const r = scenarioComparison(scenarios); return r ? { ...r, test: 'Scenario Comparison' } : null; } const r = scenarioComparison([{ name: 'A', values: g1vals.slice(0, 15) }, { name: 'B', values: g2vals.slice(0, 15) }]); return r ? { ...r, test: 'Scenario Comparison' } : null; }
+      if (a === 'abm_threshold') { const nAg = parseInt(abmNAgents, 10) || 100; const thresholds = Array.from({length: nAg}, () => Math.random()); const r = thresholdModel(nAg, thresholds, 2); return r ? { ...r, test: 'Threshold Model' } : null; }
+      if (a === 'abm_diffusion') { const n = 10; const sd = parseInt(abmSeed, 10) || 42; const adj = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => i !== j && Math.random() < 0.3 ? 1 : 0)); const r = networkDiffusion(adj, [0], { seed: sd, steps: 5 }); return r ? { ...r, test: 'Network Diffusion' } : null; }
+      if (a === 'abm_segregation') { const nAg = parseInt(abmNAgents, 10) || 100; const dataA = Array.from({length: nAg}, (_, i) => ({ group: i % 3 === 0 ? 'A' : 'B', loc: `L${i % 5}` })); const r = segregationIndex(dataA, 'group', 'loc'); return r ? { ...r, test: 'Segregation Index' } : null; }
+      // ── batch 9: Bandit ─────────────────────────────────────────────────────
+      if (a === 'bandit_eps') { const nArms = parseInt(banditNArms, 10) || 5; const nIter = parseInt(banditNIter, 10) || 500; const eps = parseFinite(banditEpsilon, 0.1); const sd = parseInt(banditSeed, 10) || 42; const arms = Array.from({length: nArms}, (_, i) => i); const rewards = Array.from({length: nArms}, (_, i) => () => Math.random() * (0.2 + i * 0.15)); const r = epsilonGreedy(arms, rewards, nIter, { epsilon: eps, seed: sd }); return r ? { ...r, test: 'Epsilon-Greedy' } : null; }
+      if (a === 'bandit_ucb') { const nArms = parseInt(banditNArms, 10) || 5; const nIter = parseInt(banditNIter, 10) || 500; const arms = Array.from({length: nArms}, (_, i) => i); const rewards = Array.from({length: nArms}, (_, i) => () => Math.random() * (0.2 + i * 0.15)); const r = ucb(arms, rewards, nIter); return r ? { ...r, test: 'UCB' } : null; }
+      if (a === 'bandit_thompson') { const nArms = parseInt(banditNArms, 10) || 5; const nIter = parseInt(banditNIter, 10) || 500; const sd = parseInt(banditSeed, 10) || 42; const arms = Array.from({length: nArms}, (_, i) => i); const rewards = Array.from({length: nArms}, () => () => Math.random() < 0.5 ? 1 : 0); const r = thompsonSampling(arms, rewards, nIter, { seed: sd }); return r ? { ...r, test: 'Thompson Sampling' } : null; }
+      if (a === 'bandit_context') { const nArms = parseInt(banditNArms, 10) || 5; const nIter = parseInt(banditNIter, 10) || 500; const sd = parseInt(banditSeed, 10) || 42; const arms = Array.from({length: nArms}, (_, i) => Array.from({length: 2}, () => (Math.random() - 0.5) * 2)); const r = contextualBandit(arms, 2, nIter, { seed: sd }); return r ? { ...r, test: 'Contextual Bandit (LinUCB)' } : null; }
+      if (a === 'bandit_pg') { const nArms = parseInt(banditNArms, 10) || 5; const nEp = parseInt(banditNEpisodes, 10) || 100; const sd = parseInt(banditSeed, 10) || 42; const lr = parseFinite(banditLr, 0.01); const arms = Array.from({length: nArms}, (_, i) => i); const rewards = Array.from({length: nArms}, (_, i) => () => Math.random() * (0.2 + i * 0.15)); const r = policyGradient(arms, rewards, nEp, { seed: sd, lr }); return r ? { ...r, test: 'Policy Gradient' } : null; }
+      if (a === 'bandit_softmax') { const nArms = parseInt(banditNArms, 10) || 5; const nIter = parseInt(banditNIter, 10) || 500; const sd = parseInt(banditSeed, 10) || 42; const tau = parseFinite(banditTemp, 1); const arms = Array.from({length: nArms}, (_, i) => i); const rewards = Array.from({length: nArms}, (_, i) => () => Math.random() * (0.2 + i * 0.15)); const r = softmaxBandit(arms, rewards, nIter, { seed: sd, tau }); return r ? { ...r, test: 'Softmax Bandit' } : null; }
+      if (a === 'bandit_ql') { const nStates = parseInt(banditNStates, 10) || 10; const nActions = parseInt(banditNActions, 10) || 4; const sd = parseInt(banditSeed, 10) || 42; const eps = parseFinite(banditEpsilon, 0.1); const lr = parseFinite(banditLr, 0.1); const nEp = parseInt(banditNEpisodes, 10) || 50; const r = qLearning(nStates, nActions, null, null, { seed: sd, episodes: nEp, epsilon: eps, lr }); return r ? { ...r, test: 'Q-Learning' } : null; }
+      if (a === 'bandit_sarsa') { const nStates = parseInt(banditNStates, 10) || 10; const nActions = parseInt(banditNActions, 10) || 4; const sd = parseInt(banditSeed, 10) || 42; const eps = parseFinite(banditEpsilon, 0.1); const lr = parseFinite(banditLr, 0.1); const nEp = parseInt(banditNEpisodes, 10) || 50; const r = sarsa(nStates, nActions, null, null, { seed: sd, episodes: nEp, epsilon: eps, lr }); return r ? { ...r, test: 'SARSA' } : null; }
+      if (a === 'bandit_dqn') { const nStates = parseInt(banditNStates, 10) || 10; const nActions = parseInt(banditNActions, 10) || 4; const sd = parseInt(banditSeed, 10) || 42; const eps = parseFinite(banditEpsilon, 0.1); const lr = parseFinite(banditLr, 0.01); const nEp = parseInt(banditNEpisodes, 10) || 30; const r = deepQNetwork(nStates, nActions, { seed: sd, episodes: nEp, epsilon: eps, lr }); return r ? { ...r, test: 'Deep Q-Network' } : null; }
+      // ── batch 9: Record Linkage ──────────────────────────────────────────────
+      if (a === 'link_jaro') { const s1 = String(data[0]?.[cat1] || 'kitten'); const s2 = String(data[1]?.[cat1] || 'sitting'); const r = jaroWinkler(s1, s2); return r ? { ...r, test: 'Jaro-Winkler' } : null; }
+      if (a === 'link_lev') { const s1 = String(data[0]?.[cat1] || 'kitten'); const s2 = String(data[1]?.[cat1] || 'sitting'); const r = levenshteinDistance(s1, s2); return r ? { ...r, test: 'Levenshtein Distance' } : null; }
+      if (a === 'link_fel') { const pairs = data.slice(0, 30).map(r => ({ s1: String(r[cat1] || r[xVar] || ''), s2: String(r[cat2] || r[yVar] || '') })); if (!pairs.length) return null; const r = fellegiSunter(pairs); return r ? { ...r, test: 'Fellegi-Sunter' } : null; }
+      if (a === 'link_block') { const blockVar = cat1 || numeric[0]; if (!blockVar || !data.length) return null; const r = recordBlocking(data.slice(0, 50), blockVar); return r ? { ...r, test: 'Record Blocking' } : null; }
+      if (a === 'link_thresh') { if (!numeric.length) return null; const scores = data.filter(r => rowFinite(r, numeric.slice(0, 1))).map(r => +r[numeric[0]] * 0.1 + 0.5); const labels = data.slice(0, scores.length).map((r, i) => (+r[numeric[0]] || 0) > avg(allTgt) ? 1 : 0); if (!scores.length || scores.length !== labels.length) return null; const r = matchThreshold(scores, labels); return r ? { ...r, test: 'Match Threshold' } : null; }
+      if (a === 'link_prob') { const pairs = data.slice(0, 30).map(r => ({ agree: (+r[numeric[0]] || 0) > (+r[numeric[1]] || 0), compared: Math.min(Math.max(Math.abs(+r[numeric[0]] || 0) % 10, 1), 10) })); if (!pairs.length) return null; const r = probabilisticRecordLinkage(pairs); return r ? { ...r, test: 'Probabilistic Record Linkage' } : null; }
+      if (a === 'link_dedup') { const keyField = cat1 || 'name'; const records = data.slice(0, 20).map((r, i) => ({ id: i, [keyField]: String(r[keyField] || `rec${i}`) })); if (!records.length) return null; const r = deduplication(records, [keyField]); return r ? { ...r, test: 'Deduplication' } : null; }
+      // ── batch 9: Privacy ─────────────────────────────────────────────────────
+      if (a === 'priv_laplace') { const vals = allTgt.length ? allTgt : Array.from({length: 15}, () => Math.random() * 10); const eps = parseFinite(privEpsilon, 1); const sd = parseInt(banditSeed, 10) || 42; const r = laplaceMechanism(vals.slice(0, 15), eps, { seed: sd }); return r ? { ...r, test: 'Laplace Mechanism' } : null; }
+      if (a === 'priv_synthetic') { if (!data.length) return null; const sd = parseInt(banditSeed, 10) || 42; const r = bootstrapSynthetic(data.slice(0, 20), { seed: sd }); return r ? { ...r, test: 'Bootstrap Synthetic' } : null; }
+      if (a === 'priv_kanon') { const qid = cat1 ? [cat1] : categorical.slice(0, 1); if (!qid.length || !data.length) return null; const r = kAnonymityCheck(data.slice(0, 20), qid); return r ? { ...r, test: 'K-Anonymity' } : null; }
+      if (a === 'priv_diff') { const eps = parseFinite(privEpsilon, 1); const delta = parseFinite(privDelta, 0.01); const queries = [() => avg(allTgt.slice(0, 10)), () => avg(allTgt.slice(10, 20) || allTgt.slice(0, 10))]; if (!allTgt.length) return null; const r = differentialPrivacy(queries, eps, delta); return r ? { ...r, test: 'Differential Privacy' } : null; }
+      if (a === 'priv_mask') { if (!data.length || !numeric[0]) return null; const sd = parseInt(banditSeed, 10) || 42; const pct = parseInt(privPct, 10) || 20; const r = dataMasking(data.slice(0, 15), numeric[0], { seed: sd, pct }); return r ? { ...r, test: 'Data Masking' } : null; }
+      if (a === 'priv_ldiv') { const qid = cat1 ? [cat1] : categorical.slice(0, 1); const sc = cat2 || categorical[1] || 'cat2'; if (!qid.length || !data.length) return null; const r = lDiversity(data.slice(0, 20), qid, sc); return r ? { ...r, test: 'l-Diversity' } : null; }
+      if (a === 'priv_tclose') { const qid = cat1 ? [cat1] : categorical.slice(0, 1); const sc = cat2 || categorical[1] || 'cat2'; if (!qid.length || !data.length) return null; const r = tCloseness(data.slice(0, 20), qid, sc); return r ? { ...r, test: 't-Closeness' } : null; }
+      // ── batch 9: Patient-Reported Outcomes ──────────────────────────────────
+      if (a === 'pro_rci') { const bl = g1vals.length >= 3 ? g1vals : allTgt.slice(0, 20); const fu = g2vals.length >= 3 ? g2vals : allTgt.slice(0, 20).map(v => v * 1.1 + 1); if (bl.length < 3 || bl.length !== fu.length) return null; const r = reliableChangeIndex(bl, fu); return r ? { ...r, test: 'Reliable Change Index' } : null; }
+      if (a === 'pro_mid') { if (!numeric.length) return null; const scores = data.filter(r => rowFinite(r, numeric.slice(0, 1))).map(r => +r[numeric[0]] * 10); const anchors = data.filter(r => rowFinite(r, numeric.slice(1, 2))).map(r => +r[numeric[1]] || 0); if (scores.length < 5) return null; const anc = anchors.length >= scores.length ? anchors.slice(0, scores.length) : Array.from({length: scores.length}, (_, i) => i % 2); const r = minimalImportantDifference(scores, anc); return r ? { ...r, test: 'Minimal Important Difference' } : null; }
+      if (a === 'pro_responder') { const bv = numeric[0]; const fv = numeric[1] || numeric[0]; if (!data.length || !bv || !fv) return null; const r = responderAnalysis(data.slice(0, 20), bv, fv, 2); return r ? { ...r, test: 'Responder Analysis' } : null; }
+      if (a === 'pro_eq5d') { const domains = allTgt.length >= 5 ? allTgt.slice(0, 5).map(v => Math.min(5, Math.max(1, Math.round(Math.abs(v * 2) + 1)))) : [2, 3, 1, 1, 2]; const r = eq5dIndex(domains); return r ? { ...r, test: 'EQ-5D Index' } : null; }
+      if (a === 'pro_srm') { const bl = g1vals.length >= 3 ? g1vals : allTgt.slice(0, 20); const fu = g2vals.length >= 3 ? g2vals : allTgt.slice(0, 20).map(v => v * 1.1 + 1); if (bl.length < 3 || bl.length !== fu.length) return null; const r = standardizedResponseMean(bl, fu); return r ? { ...r, test: 'Standardized Response Mean' } : null; }
+      if (a === 'pro_ctgov') { const pv = cat1 || categorical[0]; const sv = cat2 || categorical[1] || categorical[0]; if (!data.length || !pv || !sv) return null; const r = clinicalTrialsGov(data.slice(0, 20), pv, sv); return r ? { ...r, test: 'Clinical Trials Gov' } : null; }
+      if (a === 'pro_consort') { const items = Array.from({length: 10}, (_, i) => i < data.length ? (+data[i]?.[numeric[0]] || 0) > 0 ? 1 : 0 : i % 3 === 0 ? 1 : 0); const r = consortChecklist(items); return r ? { ...r, test: 'CONSORT Checklist' } : null; }
+      // ── batch 9: Risk-Adjusted Monitoring ────────────────────────────────────
+      if (a === 'ram_cusum') { if (!numeric.length) return null; const binary = data.filter(r => rowFinite(r, numeric.slice(0, 1))).map(r => +r[numeric[0]] > 5 ? 1 : 0).slice(0, 20); const predicted = data.filter(r => rowFinite(r, numeric.slice(1, 2))).map(r => Math.max(0, Math.min(1, (+r[numeric[1]] || 5) / 20))).slice(0, 20); if (binary.length < 10) return null; const r = raCusum(binary, predicted); return r ? { ...r, test: 'RA-CUSUM' } : null; }
+      if (a === 'ram_vlad') { if (!numeric.length) return null; const pred = data.filter(r => rowFinite(r, numeric.slice(0, 1))).map(r => Math.max(0, Math.min(1, (+r[numeric[0]] || 5) / 20))).slice(0, 20); const obs = data.filter(r => rowFinite(r, numeric.slice(1, 2))).map(r => +r[numeric[1]] > 5 ? 1 : 0).slice(0, 20); if (pred.length < 5) return null; const r = vlad(pred, obs); return r ? { ...r, test: 'VLAD' } : null; }
+      if (a === 'ram_sprt') { if (!numeric.length) return null; const binary = data.filter(r => rowFinite(r, numeric.slice(0, 1))).map(r => +r[numeric[0]] > 5 ? 1 : 0).slice(0, 20); const predicted = data.filter(r => rowFinite(r, numeric.slice(1, 2))).map(r => Math.max(0, Math.min(1, (+r[numeric[1]] || 5) / 20))).slice(0, 20); if (binary.length < 10) return null; const r = raSprt(binary, predicted); return r ? { ...r, test: 'RA-SPRT' } : null; }
+      if (a === 'ram_funnel') { if (!data.length || !numeric[0] || !numeric[1]) return null; const r = funnelPlot(data.slice(0, 30), numeric[0], numeric[1]); return r ? { ...r, test: 'Funnel Plot' } : null; }
+      if (a === 'ram_cchart') { if (!data.length || !numeric[0] || !numeric[1]) return null; const r = cChartRiskAdjusted(data.slice(0, 30), numeric[0], numeric[1]); return r ? { ...r, test: 'C-Chart Risk-Adjusted' } : null; }
+      if (a === 'ram_safety') { const ev = 3; const ex = 1.5; const ttl = 100; const r = safetySignal(ev, ex, ttl); return r ? { ...r, test: 'Safety Signal' } : null; }
+      if (a === 'ram_prr') { const events = [2, 5, 1, 3, 0, 4, 2, 1]; const expecteds = [1.5, 3.2, 1.1, 2.8, 0.8, 3.5, 1.9, 1.2]; const totals = [100, 150, 80, 120, 60, 180, 100, 90]; const r = prrAnalysis(events, expecteds, totals); return r ? { ...r, test: 'PRR Analysis' } : null; }
+      // ── batch 9: Recommendation ──────────────────────────────────────────────
+      if (a === 'rec_cf') { const nU = 5; const nI = 3; const mat = Array.from({length: nU}, (_, u) => Array.from({length: nI}, (_, i) => u === i ? null : Math.round(Math.random() * 3 + 1))); const r = collaborativeFilter(mat); return r ? { ...r, test: 'Collaborative Filter' } : null; }
+      if (a === 'rec_mf') { const nU = 5; const nI = 3; const mat = Array.from({length: nU}, (_, u) => Array.from({length: nI}, (_, i) => u === i ? null : Math.round(Math.random() * 3 + 1))); const sd = parseInt(banditSeed, 10) || 42; const r = matrixFactorize(mat, 2, { seed: sd }); return r ? { ...r, test: 'Matrix Factorization' } : null; }
+      if (a === 'rec_topn') { const nU = 5; const nI = 3; const mat = Array.from({length: nU}, (_, u) => Array.from({length: nI}, (_, i) => u === i ? null : Math.round(Math.random() * 3 + 1))); const r = topNRecommend(mat, 0); return r ? { ...r, test: 'Top-N Recommendations' } : null; }
+      // ── batch 9: Single-Case Experimental Design ─────────────────────────────
+      if (a === 'sced_tauu') { const bl = g1vals.length >= 5 ? g1vals : allTgt.slice(0, 10); const it = g2vals.length >= 5 ? g2vals : allTgt.slice(0, 10).map(v => v * 1.2 + 1); if (bl.length < 5 || it.length < 5) return null; const r = tauU(bl, it); return r ? { ...r, baseline: bl, intervention: it, test: 'Tau-U' } : null; }
+      if (a === 'sced_pnd') { const bl = g1vals.length >= 5 ? g1vals : allTgt.slice(0, 10); const it = g2vals.length >= 5 ? g2vals : allTgt.slice(0, 10).map(v => v * 1.2 + 1); if (bl.length < 5 || it.length < 5) return null; const r = pnd(bl, it); return r ? { ...r, baseline: bl, intervention: it, test: 'PND' } : null; }
+      if (a === 'sced_pem') { const bl = g1vals.length >= 5 ? g1vals : allTgt.slice(0, 10); const it = g2vals.length >= 5 ? g2vals : allTgt.slice(0, 10).map(v => v * 1.2 + 1); if (bl.length < 5 || it.length < 5) return null; const r = pem(bl, it); return r ? { ...r, baseline: bl, intervention: it, test: 'PEM' } : null; }
+      if (a === 'sced_nap') { const bl = g1vals.length >= 5 ? g1vals : allTgt.slice(0, 10); const it = g2vals.length >= 5 ? g2vals : allTgt.slice(0, 10).map(v => v * 1.2 + 1); if (bl.length < 5 || it.length < 5) return null; const r = nap(bl, it); return r ? { ...r, baseline: bl, intervention: it, test: 'NAP' } : null; }
+      if (a === 'sced_rand') { const bl = g1vals.length >= 5 ? g1vals : allTgt.slice(0, 10); const it = g2vals.length >= 5 ? g2vals : allTgt.slice(0, 10).map(v => v * 1.2 + 1); if (bl.length < 5 || it.length < 5) return null; const sd = parseInt(banditSeed, 10) || 42; const r = randomizationTest(bl, it, { seed: sd }); return r ? { ...r, baseline: bl, intervention: it, test: 'SCED Randomization Test' } : null; }
+      if (a === 'sced_bctau') { const bl = g1vals.length >= 5 ? g1vals : allTgt.slice(0, 10); const it = g2vals.length >= 5 ? g2vals : allTgt.slice(0, 10).map(v => v * 1.2 + 1); if (bl.length < 5 || it.length < 5) return null; const r = baselineCorrectedTau(bl, it); return r ? { ...r, baseline: bl, intervention: it, test: 'Baseline-Corrected Tau' } : null; }
+      if (a === 'sced_bcsmd') { const bl = g1vals.length >= 5 ? g1vals : allTgt.slice(0, 10); const it = g2vals.length >= 5 ? g2vals : allTgt.slice(0, 10).map(v => v * 1.2 + 1); if (bl.length < 5 || it.length < 5) return null; const r = betweenCaseSMD(bl, it); return r ? { ...r, baseline: bl, intervention: it, test: 'Between-Case SMD' } : null; }
+      // ── batch 9: Sensitivity Analysis ────────────────────────────────────────
+      if (a === 'sens_morris') { const p = Math.min(3, numeric.length || 3); const n = scaleMatrix.length || 20; const X = Array.from({length: n}, () => Array.from({length: p}, () => Math.random() * 10)); const model = (x) => x.reduce((s, xi, i) => s + xi * (i + 1), 0); const sd = parseInt(sensSeed, 10) || 42; const lv = parseInt(sensGridLevels, 10) || 4; const r = morrisMethod(model, X, { seed: sd, levels: lv }); return r ? { ...r, test: 'Morris Method' } : null; }
+      if (a === 'sens_fast') { const p = Math.min(3, numeric.length || 3); const n = scaleMatrix.length || 20; const X = Array.from({length: n}, () => Array.from({length: p}, () => Math.random() * 10)); const model = (x) => x.reduce((s, xi, i) => s + xi * (i + 1), 0); const sd = parseInt(sensSeed, 10) || 42; const r = fastSensitivity(model, X, { seed: sd }); return r ? { ...r, test: 'FAST Sensitivity' } : null; }
+      if (a === 'sens_modelcomp') { const r = modelComparison(10, 15, 50, 3, 5); return r ? { ...r, test: 'Model Comparison' } : null; }
+      if (a === 'sens_forecast') { const k = Math.min(3, numeric.length || 3); const n = Math.min(10, allTgt.length || 10); const forecasts = Array.from({length: k}, () => Array.from({length: n}, () => Math.random() * 10)); const actual = allTgt.length >= n ? allTgt.slice(0, n) : Array.from({length: n}, () => Math.random() * 10); if (n < 5) return null; const r = forecastCombination(forecasts, actual); return r ? { ...r, test: 'Forecast Combination' } : null; }
+      if (a === 'sens_sobol1') { const p = Math.min(3, numeric.length || 3); const n = scaleMatrix.length || 20; const X = Array.from({length: n}, () => Array.from({length: p}, () => Math.random() * 10)); const model = (x) => x.reduce((s, xi, i) => s + xi * (i + 1), 0); const sd = parseInt(sensSeed, 10) || 42; const ns = parseInt(sensNSamples, 10) || 50; const r = sobolFirstOrder(model, X, { seed: sd, nSamples: ns }); return r ? { ...r, test: 'Sobol First Order' } : null; }
+      if (a === 'sens_sobolt') { const p = Math.min(3, numeric.length || 3); const n = scaleMatrix.length || 20; const X = Array.from({length: n}, () => Array.from({length: p}, () => Math.random() * 10)); const model = (x) => x.reduce((s, xi, i) => s + xi * (i + 1), 0); const sd = parseInt(sensSeed, 10) || 42; const ns = parseInt(sensNSamples, 10) || 50; const r = sobolTotalIndex(model, X, { seed: sd, nSamples: ns }); return r ? { ...r, test: 'Sobol Total Index' } : null; }
+      if (a === 'sens_delta') { const r = deltaMethod([2], [0.5], x => x[0] ** 2); return r ? { ...r, test: 'Delta Method' } : null; }
+      if (a === 'sens_andrews') { const p = Math.min(3, numeric.length || 3); const n = scaleMatrix.length || 10; const X = Array.from({length: n}, () => Array.from({length: p}, () => Math.random() * 10 - 5)); if (X.length < 2) return null; const r = andrewsPlot(X); return r ? { ...r, test: 'Andrews Plot' } : null; }
+      // ── batch 9: Bootstrap ───────────────────────────────────────────────────
+      if (a === 'boot_ci') { const d = allTgt.length >= 5 ? allTgt : Array.from({length: 30}, () => Math.random() * 10); const stat = (arr) => avg(arr); const sd = parseInt(bsSeed, 10) || 42; const B = parseInt(bsB, 10) || 500; const r = bootstrapCI(d, stat, { B, seed: sd }); return r ? { ...r, test: 'Bootstrap CI' } : null; }
+      if (a === 'boot_se') { const d = allTgt.length >= 5 ? allTgt : Array.from({length: 30}, () => Math.random() * 10); const stat = (arr) => avg(arr); const sd = parseInt(bsSeed, 10) || 42; const B = parseInt(bsB, 10) || 500; const r = bootstrapSE(d, stat, { B, seed: sd }); return r ? { ...r, test: 'Bootstrap SE' } : null; }
+      if (a === 'boot_test') { const d = allTgt.length >= 5 ? allTgt : Array.from({length: 30}, () => Math.random() * 10); const stat = (arr) => avg(arr); const sd = parseInt(bsSeed, 10) || 42; const B = parseInt(bsB, 10) || 500; const r = bootstrapTest(d, stat, 5, { B, seed: sd }); return r ? { ...r, test: 'Bootstrap Test' } : null; }
+      if (a === 'boot_jack') { const d = allTgt.length >= 5 ? allTgt : Array.from({length: 30}, () => Math.random() * 10); const stat = (arr) => avg(arr); const r = jackknife(d, stat); return r ? { ...r, test: 'Jackknife' } : null; }
+      if (a === 'boot_tci') { const d = allTgt.length >= 10 ? allTgt : Array.from({length: 30}, () => Math.random() * 10); const stat = (arr) => avg(arr); const sd = parseInt(bsSeed, 10) || 42; const B = parseInt(bsB, 10) || 500; const r = bootstrapT_CI(d, stat, { B, seed: sd }); return r ? { ...r, test: 'Bootstrap-t CI' } : null; }
+      if (a === 'boot_influence') { const d = allTgt.length >= 5 ? allTgt : Array.from({length: 30}, () => Math.random() * 10); const stat = (arr) => avg(arr); const r = empiricalInfluence(d, stat); return r ? { ...r, test: 'Empirical Influence' } : null; }
+      if (a === 'boot_mediation') { if (!data.length || !numeric[0] || !numeric[1] || !numeric[2]) return null; const sd = parseInt(bsSeed, 10) || 42; const B = parseInt(bsB, 10) || 200; const r = bsMediation(data.slice(0, 30), numeric[0], numeric[1], numeric[2], { B, seed: sd }); return r ? { ...r, test: 'Bootstrap Mediation' } : null; }
+      if (a === 'boot_modmed') { if (!data.length || !numeric[0] || !numeric[1] || !numeric[2] || !numeric[3]) return null; const r = moderatedMediation(data.slice(0, 30), numeric[0], numeric[1], numeric[2], numeric[3]); return r ? { ...r, test: 'Moderated Mediation' } : null; }
+      if (a === 'boot_splitconf') { const d = allTgt.length >= 30 ? allTgt : Array.from({length: 30}, () => Math.random() * 10); const r = splitConformal(d.slice(0, 15), d.slice(15, 30)); return r ? { ...r, test: 'Split Conformal' } : null; }
+      if (a === 'boot_confpval') { const d = allTgt.length >= 30 ? allTgt : Array.from({length: 30}, () => Math.random() * 10); const r = conformalPvalues(d.slice(0, 20), avg(d.slice(20, 30))); return r ? { ...r, test: 'Conformal P-values' } : null; }
+      if (a === 'boot_jackplus') { const X = allTgt.length >= 15 ? allTgt.slice(0, 15) : Array.from({length: 15}, () => Math.random() * 10); const Y = allTgt.length >= 15 ? allTgt.slice(0, 15).map(v => v * 0.8 + 2) : Array.from({length: 15}, () => Math.random() * 10); const r = jackknifePlus(X, Y); return r ? { ...r, test: 'Jackknife+' } : null; }
+      // ── batch 9: Power Analysis ──────────────────────────────────────────────
+      if (a === 'pow_cox') { const r = powerCoxPH(60, 0.6); return r ? { ...r, test: 'Cox PH Power' } : null; }
+      if (a === 'pow_meta') { const r = powerMetaAnalysis(10, 0.3); return r ? { ...r, test: 'Meta-Analysis Power' } : null; }
+      if (a === 'pow_equiv') { const r = powerEquivalence(0.2, 0.1, -0.5, 0.5); return r ? { ...r, test: 'Equivalence Power (TOST)' } : null; }
+      if (a === 'pow_intanova') { const r = powerInteractionANOVA(2, 3, 20, 0.25); return r ? { ...r, test: 'Interaction ANOVA Power' } : null; }
+      if (a === 'pow_corr') { const r = powerCorrelation(50, 0.3); return r ? { ...r, test: 'Correlation Power' } : null; }
+      if (a === 'reqn_t') { const r = requiredNT(0.5); return r ? { ...r, test: 'Required N (t-test)' } : null; }
+      if (a === 'reqn_corr') { const r = requiredNCorrelation(0.3); return r ? { ...r, test: 'Required N (Correlation)' } : null; }
+      if (a === 'reqn_oneprop') { const r = requiredNOneProp(0.5, 0.7); return r ? { ...r, test: 'Required N (One Proportion)' } : null; }
+      if (a === 'reqn_twoprop') { const r = requiredNTwoProp(0.5, 0.7); return r ? { ...r, test: 'Required N (Two Proportions)' } : null; }
+      if (a === 'reqn_wilcoxon') { const r = requiredNWilcoxon(0.5); return r ? { ...r, test: 'Required N (Wilcoxon)' } : null; }
+      if (a === 'reqn_logrank') { const r = requiredNLogRank(0.7); return r ? { ...r, test: 'Required N (Log-Rank)' } : null; }
+      if (a === 'reqn_ols') { const r = requiredNOLS(0.2); return r ? { ...r, test: 'Required N (OLS)' } : null; }
+      if (a === 'reqn_anova') { const r = requiredNANOVA(0.25, 3); return r ? { ...r, test: 'Required N (ANOVA)' } : null; }
+      if (a === 'pow_ttest') { const r = powerTTestWrapper(30, 30, 0.5); return r ? { ...r, test: 'T-Test Power' } : null; }
+      if (a === 'pow_oneprop') { const r = powerProportionOne(50, 0.5, 0.7); return r ? { ...r, test: 'One-Proportion Power' } : null; }
+      if (a === 'pow_twoprop') { const r = powerProportionTwo(50, 50, 0.5, 0.7); return r ? { ...r, test: 'Two-Proportion Power' } : null; }
+      if (a === 'pow_wilcoxon') { const r = powerWilcoxonTest(30, 30, 0.5); return r ? { ...r, test: 'Wilcoxon Power' } : null; }
+      if (a === 'pow_logrank') { const r = powerLogRankTest(60, 0.7); return r ? { ...r, test: 'Log-Rank Power' } : null; }
+      if (a === 'pow_rmanova') { const r = powerRMANOVA(3, 20, 1, 0.25); return r ? { ...r, test: 'RM ANOVA Power' } : null; }
+      if (a === 'pow_olsapa') { const r = powerOLS_apa(0.2, 50, 3); return r ? { ...r, test: 'OLS Power' } : null; }
+      if (a === 'pow_spearman') { const r = powerSpearmanTest(50, 0.3); return r ? { ...r, test: 'Spearman Power' } : null; }
       if (a === 'bootstrap') return null;
     } catch (e) { return { error: String(e) }; }
     return null;
@@ -526,6 +674,12 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     powMedA, powMedB, powMedSea, powMedSeb,
     clusterK, linkage, nLcaClasses, level2Var, treatVar, edgeList,
     itsTimeStr, itsValStr, itsCut, rddCutoff, rddBw, ivInstrument, scaleMethod, reverseItems,
+    // batch 9
+    abmValueField, abmTolerance, abmWindow, abmNRuns, abmNAgents, abmSeed, abmNSeeds,
+    banditEpsilon, banditNIter, banditNArms, banditSeed, banditTemp, banditLr,
+    banditNStates, banditNActions, banditNEpisodes,
+    privEpsilon, privDelta, privPct,
+    sensSeed, sensNSamples, sensNTrajectories, sensGridLevels,
   ]);
 
   const displayResult = POWER_TESTS.has(active) ? powerResult : result;
@@ -570,6 +724,18 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     itsTimeStr, setItsTimeStr, itsValStr, setItsValStr, itsCut, setItsCut,
     rddCutoff, setRddCutoff, rddBw, setRddBw, ivInstrument, setIvInstrument,
     scaleMethod, setScaleMethod, reverseItems, setReverseItems,
+    // batch 9
+    abmValueField, setAbmValueField, abmTolerance, setAbmTolerance,
+    abmWindow, setAbmWindow, abmNRuns, setAbmNRuns,
+    abmNAgents, setAbmNAgents, abmSeed, setAbmSeed, abmNSeeds, setAbmNSeeds,
+    banditEpsilon, setBanditEpsilon, banditNIter, setBanditNIter,
+    banditNArms, setBanditNArms, banditSeed, setBanditSeed,
+    banditTemp, setBanditTemp, banditLr, setBanditLr,
+    banditNStates, setBanditNStates, banditNActions, setBanditNActions,
+    banditNEpisodes, setBanditNEpisodes,
+    privEpsilon, setPrivEpsilon, privDelta, setPrivDelta, privPct, setPrivPct,
+    sensSeed, setSensSeed, sensNSamples, setSensNSamples,
+    sensNTrajectories, setSensNTrajectories, sensGridLevels, setSensGridLevels,
   };
 
   return {

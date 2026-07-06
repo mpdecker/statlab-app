@@ -534,6 +534,626 @@ export const METHOD_NOTES = {
     assumptions: ["Observations are independent", "LOO is a diagnostic, not a formal test", "One observation at a time — does not detect multiple-outlier influence"],
     cite: "Belsley, D. A., Kuh, E., & Welsch, R. E. (1980). Regression diagnostics. Wiley.",
   },
+
+  // ── ROBUST STATISTICS ──
+  theil_sen: {
+    description: "Theil-Sen estimator computes a robust linear slope as the median of all pairwise slopes.",
+    usage: "Use for robust linear trend estimation resistant to outliers.",
+    assumptions: ["Continuous variables", "At least 10 data points"],
+    cite: "N/A",
+  },
+  mm_estimator: {
+    description: "MM-estimator combines high breakdown point with high efficiency for robust regression.",
+    usage: "Use for robust regression when both outlier resistance and statistical efficiency are needed.",
+    assumptions: ["Continuous outcome", "Linear model specification"],
+    cite: "N/A",
+  },
+  mad_scale: {
+    description: "Median Absolute Deviation (MAD) is a robust measure of scale resistant to outliers.",
+    usage: "Use as a robust alternative to standard deviation for detecting outliers or measuring spread.",
+    assumptions: ["Continuous data", "Symmetric distribution preferred"],
+    cite: "N/A",
+  },
+  hampel_m: {
+    description: "Hampel's M-estimator uses a redescending psi-function for robust location estimation.",
+    usage: "Use for robust estimation of central tendency when data contain extreme outliers.",
+    assumptions: ["Continuous variable", "Unimodal distribution"],
+    cite: "N/A",
+  },
+  mcd_cov: {
+    description: "Minimum Covariance Determinant (MCD) estimates a robust covariance matrix by finding the subset with smallest determinant.",
+    usage: "Use for robust multivariate location and scatter estimation under contamination.",
+    assumptions: ["Multivariate continuous data", "Sample size exceeds number of variables"],
+    cite: "N/A",
+  },
+  s_estimator: {
+    description: "S-estimator minimizes a robust M-scale of residuals to achieve high breakdown point in regression.",
+    usage: "Use for robust regression when up to 50% of data may be contaminated.",
+    assumptions: ["Continuous outcome", "Linear model"],
+    cite: "N/A",
+  },
+  lts_reg: {
+    description: "Least Trimmed Squares regression minimizes the sum of the smallest h squared residuals.",
+    usage: "Use for robust regression when a high breakdown point is needed against outliers.",
+    assumptions: ["Continuous outcome", "Adequate sample size relative to trimming proportion"],
+    cite: "N/A",
+  },
+  qq_band: {
+    description: "QQ-plot confidence bands add pointwise confidence envelopes to quantile-quantile plots.",
+    usage: "Use to visually assess normality with formal bounds on expected deviations.",
+    assumptions: ["Independent observations", "Sufficient sample size for band estimation"],
+    cite: "N/A",
+  },
+
+  // ── BAYESIAN MODELING ──
+  bic_bf: {
+    description: "BIC-based Bayes factor approximates the Bayes factor from the difference in BIC values between two models.",
+    usage: "Use for quick Bayesian model comparison without full MCMC sampling.",
+    assumptions: ["Large sample approximation", "Models are nested or comparable"],
+    cite: "N/A",
+  },
+  beta_binom_post: {
+    description: "Beta-Binomial posterior updates a Beta prior with binomial data to obtain a conjugate posterior.",
+    usage: "Use for Bayesian analysis of proportions and binary outcomes with conjugate priors.",
+    assumptions: ["Binary outcomes", "Independent trials"],
+    cite: "N/A",
+  },
+  gamma_pois_post: {
+    description: "Gamma-Poisson posterior updates a Gamma prior with Poisson count data for conjugate inference.",
+    usage: "Use for Bayesian analysis of count data with conjugate Gamma prior.",
+    assumptions: ["Count data", "Independent observations"],
+    cite: "N/A",
+  },
+  norm_norm_post: {
+    description: "Normal-Normal posterior updates a Normal prior with Normal data when variance is known.",
+    usage: "Use for conjugate Bayesian inference on a continuous mean with known variance.",
+    assumptions: ["Normal likelihood", "Known variance"],
+    cite: "N/A",
+  },
+  nig_post: {
+    description: "Normal-Inverse-Gamma posterior provides joint conjugate inference for mean and variance of Normal data.",
+    usage: "Use for full Bayesian inference on both mean and variance of continuous data.",
+    assumptions: ["Normal likelihood", "Independent observations"],
+    cite: "N/A",
+  },
+  bayes_linreg: {
+    description: "Bayesian linear regression estimates posterior distributions for coefficients using conjugate or MCMC methods.",
+    usage: "Use when uncertainty quantification for regression coefficients is needed beyond point estimates.",
+    assumptions: ["Linear model", "Prior specification must be justified"],
+    cite: "N/A",
+  },
+  bayes_logit: {
+    description: "Bayesian logistic regression estimates posterior distributions for binary outcome coefficients.",
+    usage: "Use for binary outcome modeling with full uncertainty quantification via posterior distributions.",
+    assumptions: ["Binary outcome", "Prior specification", "No perfect separation"],
+    cite: "N/A",
+  },
+  bayes_pois: {
+    description: "Bayesian Poisson regression estimates posterior count-rate coefficients with appropriate priors.",
+    usage: "Use for count data modeling with Bayesian uncertainty intervals on rate ratios.",
+    assumptions: ["Count outcome", "Log-linear relationship", "Prior specification"],
+    cite: "N/A",
+  },
+  bayes_dic: {
+    description: "Deviance Information Criterion (DIC) compares Bayesian models using posterior deviance and effective parameters.",
+    usage: "Use for Bayesian model selection when MCMC samples are available.",
+    assumptions: ["Posterior approximately multivariate normal", "Models are comparable"],
+    cite: "N/A",
+  },
+  bma_reg: {
+    description: "Bayesian Model Averaging combines predictions across multiple regression models weighted by posterior probabilities.",
+    usage: "Use to account for model uncertainty in regression by averaging over plausible models.",
+    assumptions: ["Set of candidate models is specified", "Prior model probabilities"],
+    cite: "N/A",
+  },
+
+  // ── MISSING DATA ──
+  little_mcar: {
+    description: "Little's MCAR test evaluates whether data are missing completely at random across the dataset.",
+    usage: "Use to assess the missing data mechanism before choosing an imputation strategy.",
+    assumptions: ["Multivariate normality", "Missingness pattern is testable"],
+    cite: "N/A",
+  },
+  mice_imp: {
+    description: "Multiple Imputation by Chained Equations (MICE) imputes missing values iteratively using conditional models.",
+    usage: "Use for handling arbitrary missing data patterns with multiple imputation.",
+    assumptions: ["Missing at random (MAR)", "Imputation models are correctly specified"],
+    cite: "N/A",
+  },
+  rubin_pool: {
+    description: "Rubin's pooling rules combine estimates and standard errors across multiple imputed datasets.",
+    usage: "Use after multiple imputation to obtain valid point estimates and confidence intervals.",
+    assumptions: ["Imputations are proper", "Between-imputation variance is estimable"],
+    cite: "N/A",
+  },
+  fmi: {
+    description: "Fraction of Missing Information (FMI) quantifies the proportion of uncertainty attributable to missing data.",
+    usage: "Use to assess how much missing data affects inference after multiple imputation.",
+    assumptions: ["Multiple imputation framework", "Pooled estimates available"],
+    cite: "N/A",
+  },
+  em_impute: {
+    description: "EM imputation estimates missing values via Expectation-Maximization under a multivariate normal model.",
+    usage: "Use for single imputation when data are approximately multivariate normal.",
+    assumptions: ["Multivariate normality", "Missing at random (MAR)"],
+    cite: "N/A",
+  },
+  miss_patt: {
+    description: "Missing data pattern analysis tabulates and visualizes the structure of missingness across variables.",
+    usage: "Use to explore which variables have missing data and whether missingness follows a systematic pattern.",
+    assumptions: ["Variables are coded with missing indicators"],
+    cite: "N/A",
+  },
+  complete_cases: {
+    description: "Complete-case analysis restricts analysis to observations with no missing values on any variable.",
+    usage: "Use as a baseline comparison for imputation methods, but generally biased under MAR.",
+    assumptions: ["Missing completely at random (MCAR)", "Loss of power acceptable"],
+    cite: "N/A",
+  },
+
+  // ── AGENT-BASED MODELS ──
+  abm_morani: {
+    description: "Moran's I for ABM output tests spatial autocorrelation across agent-level outcomes.",
+    usage: "Use to detect spatial clustering or dispersion patterns in agent-based simulation results.",
+    assumptions: ["Spatial coordinates are defined", "Continuous or ordinal agent outcomes"],
+    cite: "N/A",
+  },
+  abm_conv: {
+    description: "ABM convergence diagnostics assess whether simulation output has reached a steady state.",
+    usage: "Use to determine appropriate burn-in and run length for agent-based model simulations.",
+    assumptions: ["Time-series output available", "Stable equilibrium exists"],
+    cite: "N/A",
+  },
+  abm_sobol: {
+    description: "Sobol' sensitivity indices for ABM decompose output variance into contributions from each input parameter.",
+    usage: "Use to identify which ABM parameters most influence simulation outcomes.",
+    assumptions: ["Parameters are independent", "Sufficient simulation runs"],
+    cite: "N/A",
+  },
+  abm_summary: {
+    description: "ABM summary statistics aggregate agent-level outputs into population-level descriptive measures.",
+    usage: "Use for summarizing and visualizing aggregate patterns from agent-based simulations.",
+    assumptions: ["Agent-level data available", "Aggregation method is justified"],
+    cite: "N/A",
+  },
+  abm_scenario: {
+    description: "ABM scenario comparison tests differences in simulation outcomes across experimental conditions.",
+    usage: "Use to statistically compare ABM outputs between different parameter settings or policy scenarios.",
+    assumptions: ["Independent simulation runs per scenario", "Comparable run lengths"],
+    cite: "N/A",
+  },
+  abm_threshold: {
+    description: "ABM threshold analysis identifies critical parameter values where model behavior qualitatively changes.",
+    usage: "Use to detect tipping points or phase transitions in agent-based model dynamics.",
+    assumptions: ["Parameter sweep is sufficiently fine-grained", "Outcome is well-defined"],
+    cite: "N/A",
+  },
+  abm_diffusion: {
+    description: "ABM diffusion analysis tracks how innovations, behaviors, or information spread through an agent network.",
+    usage: "Use to model and analyze contagion processes, technology adoption, or information cascades.",
+    assumptions: ["Network structure is defined", "Adoption rules are specified"],
+    cite: "N/A",
+  },
+  abm_segregation: {
+    description: "Schelling segregation analysis measures how individual preferences lead to aggregate segregation patterns.",
+    usage: "Use to study emergent segregation in spatial agent-based models with preference thresholds.",
+    assumptions: ["Agent preferences are defined", "Spatial neighborhood is specified"],
+    cite: "N/A",
+  },
+
+  // ── MULTI-ARMED BANDITS ──
+  bandit_eps: {
+    description: "Epsilon-greedy bandit balances exploration and exploitation by choosing a random arm with probability ε.",
+    usage: "Use for simple online decision problems with a fixed exploration rate.",
+    assumptions: ["Independent arm rewards", "Stationary reward distributions"],
+    cite: "N/A",
+  },
+  bandit_ucb: {
+    description: "Upper Confidence Bound (UCB) bandit selects arms based on optimistic uncertainty estimates.",
+    usage: "Use when principled exploration-exploitation trade-offs are needed with theoretical guarantees.",
+    assumptions: ["Bounded rewards", "Independent arms"],
+    cite: "N/A",
+  },
+  bandit_thompson: {
+    description: "Thompson sampling selects arms by sampling from posterior reward distributions using Bayesian updating.",
+    usage: "Use for Bayesian bandit problems with prior knowledge about reward distributions.",
+    assumptions: ["Reward distribution is correctly specified", "Conjugate priors used"],
+    cite: "N/A",
+  },
+  bandit_context: {
+    description: "Contextual bandit incorporates side information (features) to personalize arm selection.",
+    usage: "Use when arm rewards depend on observed context variables for personalized decisions.",
+    assumptions: ["Context is informative", "Linear or parametric reward model"],
+    cite: "N/A",
+  },
+  bandit_pg: {
+    description: "Policy gradient bandit learns a parameterized policy for arm selection via stochastic gradient ascent.",
+    usage: "Use for bandit problems where direct value estimation is challenging and policy parameterization is preferred.",
+    assumptions: ["Policy is differentiable", "Adequate exploration"],
+    cite: "N/A",
+  },
+  bandit_softmax: {
+    description: "Softmax (Boltzmann) bandit selects arms with probabilities proportional to estimated values via a temperature parameter.",
+    usage: "Use when you want smooth exploration probabilities that adapt to value differences.",
+    assumptions: ["Value estimates are reliable", "Temperature parameter is tuned"],
+    cite: "N/A",
+  },
+  bandit_ql: {
+    description: "Q-learning bandit updates action-value estimates using temporal-difference learning.",
+    usage: "Use for bandit problems that extend toward sequential decision making and reinforcement learning.",
+    assumptions: ["Stationary or slowly changing rewards", "Learning rate is tuned"],
+    cite: "N/A",
+  },
+  bandit_sarsa: {
+    description: "SARSA bandit learns action values on-policy using state-action-reward-state-action tuples.",
+    usage: "Use for sequential bandit problems where the policy being followed matters for learning.",
+    assumptions: ["Markovian environment", "On-policy learning is appropriate"],
+    cite: "N/A",
+  },
+  bandit_dqn: {
+    description: "Deep Q-Network bandit uses a neural network to approximate action values for complex reward structures.",
+    usage: "Use for high-dimensional or complex bandit problems where tabular methods are infeasible.",
+    assumptions: ["Sufficient training data", "Network architecture is appropriate"],
+    cite: "N/A",
+  },
+
+  // ── RECORD LINKAGE ──
+  link_jaro: {
+    description: "Jaro similarity measures string similarity accounting for character transpositions within a window.",
+    usage: "Use for fuzzy name matching in record linkage tasks.",
+    assumptions: ["Strings are comparable", "Window size is appropriate for data"],
+    cite: "N/A",
+  },
+  link_lev: {
+    description: "Levenshtein edit distance counts the minimum number of single-character edits to transform one string into another.",
+    usage: "Use for string comparison and approximate matching in deduplication tasks.",
+    assumptions: ["Strings are comparable", "Edit operations have equal cost"],
+    cite: "N/A",
+  },
+  link_fel: {
+    description: "Fellegi-Sunter probabilistic record linkage estimates match probabilities using agreement patterns across fields.",
+    usage: "Use for formal probabilistic record linkage with match weights and decision thresholds.",
+    assumptions: ["Conditional independence of fields", "Training data or EM estimation"],
+    cite: "N/A",
+  },
+  link_block: {
+    description: "Blocking divides records into mutually exclusive blocks to reduce the number of pairwise comparisons.",
+    usage: "Use as a preprocessing step to make record linkage computationally feasible on large datasets.",
+    assumptions: ["Blocking variables are reliable and complete", "True matches fall within same block"],
+    cite: "N/A",
+  },
+  link_thresh: {
+    description: "Threshold-based record linkage classifies record pairs as matches or non-matches using similarity score cutoffs.",
+    usage: "Use for deterministic linkage when clear decision rules based on similarity scores are available.",
+    assumptions: ["Threshold is appropriately calibrated", "Similarity scores are accurate"],
+    cite: "N/A",
+  },
+  link_prob: {
+    description: "Probabilistic record linkage assigns match probabilities to record pairs using agreement and disagreement weights.",
+    usage: "Use when deterministic matching is too rigid and uncertainty in linkage should be quantified.",
+    assumptions: ["Fields are conditionally independent given match status", "Representative training data"],
+    cite: "N/A",
+  },
+  link_dedup: {
+    description: "Deduplication identifies and merges duplicate records within a single dataset using similarity metrics.",
+    usage: "Use to clean datasets by finding and resolving duplicate entries.",
+    assumptions: ["Similarity metric captures duplicate patterns", "Threshold or model is calibrated"],
+    cite: "N/A",
+  },
+
+  // ── PRIVACY ──
+  priv_laplace: {
+    description: "Laplace mechanism adds calibrated Laplace noise to achieve ε-differential privacy for numeric queries.",
+    usage: "Use for differentially private release of continuous statistics and counts.",
+    assumptions: ["Query sensitivity is bounded", "Privacy budget ε is chosen appropriately"],
+    cite: "N/A",
+  },
+  priv_synthetic: {
+    description: "Synthetic data generation creates artificial datasets that preserve statistical properties of the original data.",
+    usage: "Use for privacy-preserving data sharing when raw data cannot be released.",
+    assumptions: ["Synthetic data preserves target analyses", "Original data distribution is learnable"],
+    cite: "N/A",
+  },
+  priv_kanon: {
+    description: "k-Anonymity ensures each record is indistinguishable from at least k-1 other records on quasi-identifiers.",
+    usage: "Use for privacy-preserving data publishing by generalizing or suppressing identifying attributes.",
+    assumptions: ["Quasi-identifiers are correctly identified", "Homogeneity attacks are considered"],
+    cite: "N/A",
+  },
+  priv_diff: {
+    description: "Differential privacy provides a formal mathematical guarantee that individual records cannot be inferred from output.",
+    usage: "Use when strong, provable privacy guarantees are required for data release or queries.",
+    assumptions: ["Privacy budget ε is finite", "Query sensitivity is bounded"],
+    cite: "N/A",
+  },
+  priv_mask: {
+    description: "Data masking replaces sensitive values with modified but structurally similar data for non-production use.",
+    usage: "Use for creating realistic test datasets that do not expose real personal information.",
+    assumptions: ["Masking preserves data structure", "Re-identification risk is acceptable"],
+    cite: "N/A",
+  },
+  priv_ldiv: {
+    description: "l-Diversity extends k-anonymity by requiring at least l well-represented sensitive values in each equivalence class.",
+    usage: "Use to protect against homogeneity attacks when sensitive attributes are present.",
+    assumptions: ["Sensitive attributes are identified", "Equivalence classes are well-formed"],
+    cite: "N/A",
+  },
+  priv_tclose: {
+    description: "t-Closeness requires the distribution of sensitive values in each equivalence class to be close to the overall distribution.",
+    usage: "Use for stronger privacy protection against skewness and similarity attacks beyond l-diversity.",
+    assumptions: ["Distance metric for distributions is specified", "Threshold t is chosen"],
+    cite: "N/A",
+  },
+
+  // ── PATIENT-REPORTED OUTCOMES ──
+  pro_rci: {
+    description: "Reliable Change Index (RCI) determines whether a patient's change score exceeds what could be due to measurement error.",
+    usage: "Use to classify individual patients as reliably improved, unchanged, or deteriorated.",
+    assumptions: ["Measurement error is estimable", "Test-retest reliability is known"],
+    cite: "N/A",
+  },
+  pro_mid: {
+    description: "Minimal Important Difference (MID) estimates the smallest change in a PRO score that patients perceive as meaningful.",
+    usage: "Use to interpret whether a treatment effect is clinically meaningful, not just statistically significant.",
+    assumptions: ["Anchor-based or distribution-based method is appropriate", "Patient population is well-defined"],
+    cite: "N/A",
+  },
+  pro_responder: {
+    description: "Responder analysis classifies patients as responders or non-responders based on exceeding a predefined threshold of change.",
+    usage: "Use to report the proportion of patients achieving clinically meaningful improvement.",
+    assumptions: ["Responder threshold is clinically justified", "Dichotomization loss of information is acceptable"],
+    cite: "N/A",
+  },
+  pro_eq5d: {
+    description: "EQ-5D analysis computes health utility scores from five dimensions of health-related quality of life.",
+    usage: "Use for health economic evaluations and quality-adjusted life year (QALY) calculations.",
+    assumptions: ["Value set matches the target population", "Five dimensions are complete"],
+    cite: "N/A",
+  },
+  pro_srm: {
+    description: "Standardized Response Mean (SRM) quantifies responsiveness as the mean change divided by the standard deviation of change.",
+    usage: "Use to compare the responsiveness of different PRO instruments.",
+    assumptions: ["Change scores are approximately normal", "Sample is representative"],
+    cite: "N/A",
+  },
+  pro_ctgov: {
+    description: "ClinicalTrials.gov PRO analysis maps patient-reported outcome measures to registered trial outcomes.",
+    usage: "Use to verify that PRO reporting aligns with pre-registered clinical trial endpoints.",
+    assumptions: ["Trial registration is accessible", "PRO measures match registered outcomes"],
+    cite: "N/A",
+  },
+  pro_consort: {
+    description: "CONSORT PRO checklist assesses whether patient-reported outcome reporting meets CONSORT extension standards.",
+    usage: "Use to evaluate the quality of PRO reporting in randomized controlled trials.",
+    assumptions: ["CONSORT-PRO criteria are applicable", "Trial report is complete"],
+    cite: "N/A",
+  },
+
+  // ── RISK-ADJUSTED MONITORING ──
+  ram_cusum: {
+    description: "CUSUM chart cumulatively sums deviations from expected outcomes to detect shifts in performance over time.",
+    usage: "Use for continuous monitoring of surgical or clinical performance with risk adjustment.",
+    assumptions: ["Expected risk is estimable", "Observations are ordered in time"],
+    cite: "N/A",
+  },
+  ram_vlad: {
+    description: "VLAD (Variable Life-Adjusted Display) plots cumulative observed minus expected outcomes for risk-adjusted monitoring.",
+    usage: "Use to visualize trends in clinical outcomes compared to risk-adjusted expectations.",
+    assumptions: ["Risk model is well-calibrated", "Outcomes are independent"],
+    cite: "N/A",
+  },
+  ram_sprt: {
+    description: "SPRT (Sequential Probability Ratio Test) monitors accumulating evidence to signal when performance differs from a target.",
+    usage: "Use for prospective monitoring with formal stopping boundaries for early detection of performance changes.",
+    assumptions: ["Likelihood ratio is correctly specified", "Type I and II error rates are set"],
+    cite: "N/A",
+  },
+  ram_funnel: {
+    description: "Funnel plot charts outcomes against precision to detect outlying institutions or providers.",
+    usage: "Use to compare institutional performance while accounting for varying sample sizes.",
+    assumptions: ["Outcomes are independent", "Overdispersion is considered"],
+    cite: "N/A",
+  },
+  ram_cchart: {
+    description: "C-chart monitors count outcomes using control limits based on the Poisson distribution.",
+    usage: "Use for monitoring adverse event counts in healthcare settings over time.",
+    assumptions: ["Counts follow Poisson distribution", "Events are independent"],
+    cite: "N/A",
+  },
+  ram_safety: {
+    description: "Safety monitoring analysis evaluates adverse event rates with formal stopping rules for clinical trials.",
+    usage: "Use for prospective safety surveillance in clinical trials to detect excess harm early.",
+    assumptions: ["Adverse event definitions are consistent", "Stopping boundaries are pre-specified"],
+    cite: "N/A",
+  },
+  ram_prr: {
+    description: "Proportional Reporting Ratio (PRR) detects disproportionate adverse event reporting in pharmacovigilance data.",
+    usage: "Use for signal detection in spontaneous adverse drug reaction reporting databases.",
+    assumptions: ["Reporting is not differentially biased", "Expected counts are stable"],
+    cite: "N/A",
+  },
+
+  // ── RECOMMENDATION ──
+  rec_cf: {
+    description: "Collaborative filtering recommends items based on similarity patterns across users or items.",
+    usage: "Use for recommendation systems where user-item interactions imply preference patterns.",
+    assumptions: ["Past behavior predicts future preferences", "User-item matrix is sufficiently dense"],
+    cite: "N/A",
+  },
+  rec_mf: {
+    description: "Matrix factorization decomposes the user-item rating matrix into low-rank latent factor representations.",
+    usage: "Use for recommendation systems to discover latent features explaining user preferences.",
+    assumptions: ["Latent factors capture preference structure", "Ratings are available"],
+    cite: "N/A",
+  },
+  rec_topn: {
+    description: "Top-N recommendation evaluates the quality of ranked recommendation lists using precision and recall metrics.",
+    usage: "Use to assess recommendation system performance in retrieving the most relevant items.",
+    assumptions: ["Relevance judgments are available", "N is chosen appropriately for the use case"],
+    cite: "N/A",
+  },
+
+  // ── SINGLE-CASE EXPERIMENTAL DESIGN ──
+  sced_tauu: {
+    description: "Tau-U is a non-overlap effect size for single-case designs that controls for baseline trend.",
+    usage: "Use for single-case experimental design analysis when baseline trend correction is needed.",
+    assumptions: ["Phases are clearly delineated", "Baseline trend is linear"],
+    cite: "N/A",
+  },
+  sced_pnd: {
+    description: "Percentage of Non-overlapping Data (PND) measures the proportion of treatment phase data exceeding the baseline extreme.",
+    usage: "Use for simple effect size quantification in single-case designs with stable baselines.",
+    assumptions: ["Stable baseline", "No baseline trend"],
+    cite: "N/A",
+  },
+  sced_pem: {
+    description: "Percentage of data points Exceeding the Median (PEM) compares treatment phase data to the baseline median.",
+    usage: "Use when baseline contains outliers that would distort PND.",
+    assumptions: ["Baseline median is representative", "Phases are well-defined"],
+    cite: "N/A",
+  },
+  sced_nap: {
+    description: "Non-overlap of All Pairs (NAP) computes the proportion of all pairwise comparisons where treatment exceeds baseline.",
+    usage: "Use for a more robust non-overlap index that uses information from all data points.",
+    assumptions: ["Independence of comparisons is not required", "Phases are distinct"],
+    cite: "N/A",
+  },
+  sced_rand: {
+    description: "Randomization test for SCED evaluates treatment effects by randomly permuting the assignment of measurement occasions to phases.",
+    usage: "Use for statistical inference in single-case designs without distributional assumptions.",
+    assumptions: ["Random assignment of phases", "No carryover effects"],
+    cite: "N/A",
+  },
+  sced_bctau: {
+    description: "Baseline-Corrected Tau adjusts the Tau effect size by subtracting baseline trend from the overall trend estimate.",
+    usage: "Use for single-case effect size estimation when baseline shows a monotonic trend.",
+    assumptions: ["Monotonic baseline trend", "Adequate baseline data points"],
+    cite: "N/A",
+  },
+  sced_bcsmd: {
+    description: "Baseline-Corrected SMD estimates the standardized mean difference in single-case designs with baseline trend correction.",
+    usage: "Use when a standardized effect size comparable to Cohen's d is needed for SCED data.",
+    assumptions: ["Phases have sufficient data points", "Baseline trend is estimable"],
+    cite: "N/A",
+  },
+
+  // ── SENSITIVITY ANALYSIS ──
+  sens_morris: {
+    description: "Morris method estimates elementary effects by varying one parameter at a time across a grid of trajectories.",
+    usage: "Use for screening influential parameters in models with many inputs and moderate computational cost.",
+    assumptions: ["Parameters are independent", "Model is deterministic or noise is moderate"],
+    cite: "N/A",
+  },
+  sens_fast: {
+    description: "Fourier Amplitude Sensitivity Test (FAST) uses Fourier decomposition to estimate first-order and total sensitivity indices.",
+    usage: "Use for global sensitivity analysis when parameter interactions may be important.",
+    assumptions: ["Parameters are independent", "Sufficient sample size for Fourier decomposition"],
+    cite: "N/A",
+  },
+  sens_modelcomp: {
+    description: "Model comparison sensitivity analysis evaluates how inferences change under alternative model specifications.",
+    usage: "Use to assess robustness of conclusions to modeling choices and assumptions.",
+    assumptions: ["Alternative models are plausible", "Comparison criteria are defined"],
+    cite: "N/A",
+  },
+  sens_forecast: {
+    description: "Forecast sensitivity evaluates how predictions change when input assumptions or parameters are perturbed.",
+    usage: "Use to quantify uncertainty in forecasts from models or simulations.",
+    assumptions: ["Forecast model is specified", "Perturbation range is meaningful"],
+    cite: "N/A",
+  },
+  sens_sobol1: {
+    description: "First-order Sobol' indices quantify the proportion of output variance attributable to each input parameter alone.",
+    usage: "Use to rank parameters by their independent contribution to output uncertainty.",
+    assumptions: ["Parameters are independent", "Sufficient Monte Carlo samples"],
+    cite: "N/A",
+  },
+  sens_sobolt: {
+    description: "Total-effect Sobol' indices capture both first-order and all interaction effects of each parameter on output variance.",
+    usage: "Use to identify parameters that influence output through any pathway, including interactions.",
+    assumptions: ["Parameters are independent", "Sufficient Monte Carlo samples"],
+    cite: "N/A",
+  },
+  sens_delta: {
+    description: "Delta method sensitivity approximates the variance of a function of random variables using first-order Taylor expansion.",
+    usage: "Use to propagate uncertainty from input parameters to model outputs analytically.",
+    assumptions: ["Function is differentiable", "Variances are small enough for linear approximation"],
+    cite: "N/A",
+  },
+  sens_andrews: {
+    description: "Andrews' sensitivity analysis systematically varies key parameters and plots how conclusions change across the range.",
+    usage: "Use for visual exploration of how inferences depend on critical assumptions or parameter values.",
+    assumptions: ["Parameter ranges are defensible", "Model is well-defined"],
+    cite: "N/A",
+  },
+
+  // ── BOOTSTRAP ──
+  boot_ci: {
+    description: "Bootstrap confidence intervals construct CIs by resampling with replacement and using empirical percentiles.",
+    usage: "Use when the sampling distribution of a statistic is unknown or non-normal.",
+    assumptions: ["Sample is representative", "Bootstrap replicates are sufficient"],
+    cite: "N/A",
+  },
+  boot_se: {
+    description: "Bootstrap standard error estimates the variability of a statistic by computing its standard deviation across resamples.",
+    usage: "Use to obtain standard errors when no analytical formula exists.",
+    assumptions: ["Sample is representative", "Bootstrap replicates are sufficient"],
+    cite: "N/A",
+  },
+  boot_test: {
+    description: "Bootstrap hypothesis test computes p-values by comparing the observed statistic to the bootstrap null distribution.",
+    usage: "Use for nonparametric hypothesis testing when parametric assumptions are violated.",
+    assumptions: ["Null hypothesis can be simulated via resampling", "Test statistic is pivotal or approximately so"],
+    cite: "N/A",
+  },
+  boot_jack: {
+    description: "Jackknife resampling estimates bias and standard error by systematically leaving out one observation at a time.",
+    usage: "Use for bias estimation and variance estimation with a deterministic resampling scheme.",
+    assumptions: ["Statistic is smooth", "Observations are independent"],
+    cite: "N/A",
+  },
+  boot_tci: {
+    description: "Bootstrap-t confidence intervals studentize the bootstrap distribution for improved coverage accuracy.",
+    usage: "Use when higher-order accurate confidence intervals are needed for pivotal statistics.",
+    assumptions: ["Standard error is estimable within each bootstrap sample", "Statistic is approximately pivotal"],
+    cite: "N/A",
+  },
+  boot_influence: {
+    description: "Bootstrap influence analysis assesses how individual observations affect bootstrap estimates.",
+    usage: "Use to identify influential data points that disproportionately affect bootstrap results.",
+    assumptions: ["Observations are independent", "Influence metric is appropriate"],
+    cite: "N/A",
+  },
+  boot_mediation: {
+    description: "Bootstrap mediation constructs CIs for the indirect effect using resampling rather than normal-theory assumptions.",
+    usage: "Use for mediation analysis when the Sobel test normality assumption is untenable.",
+    assumptions: ["Causal ordering is correctly specified", "Bootstrap replicates are sufficient"],
+    cite: "N/A",
+  },
+  boot_modmed: {
+    description: "Bootstrap moderated mediation tests conditional indirect effects across levels of a moderator using resampling.",
+    usage: "Use when indirect effects are hypothesized to vary as a function of a moderator variable.",
+    assumptions: ["Model is correctly specified", "Sufficient sample at each moderator level"],
+    cite: "N/A",
+  },
+  boot_splitconf: {
+    description: "Split-sample bootstrap confidence evaluates overfitting by repeatedly splitting data into training and validation sets.",
+    usage: "Use to assess model stability and estimate prediction error without a separate validation dataset.",
+    assumptions: ["Splits are random and representative", "Model fitting is reproducible"],
+    cite: "N/A",
+  },
+  boot_confpval: {
+    description: "Bootstrap confidence p-value inverts confidence intervals to obtain p-values via resampling.",
+    usage: "Use when analytical p-values are unavailable or unreliable due to distributional violations.",
+    assumptions: ["Confidence interval is properly calibrated", "Bootstrap replicates are sufficient"],
+    cite: "N/A",
+  },
+  boot_jackplus: {
+    description: "Jackknife+ provides prediction intervals with guaranteed coverage for any regression algorithm.",
+    usage: "Use for distribution-free prediction intervals in machine learning and regression.",
+    assumptions: ["Data are exchangeable", "Base model is fit to leave-one-out datasets"],
+    cite: "N/A",
+  },
 };
 
 /** Simplified implementation notes used as fallback when an educational note doesn't exist. */

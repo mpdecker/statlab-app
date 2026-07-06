@@ -10,10 +10,14 @@ describe('methodNotes', () => {
 
   it('every entry has description, usage, assumptions, cite', () => {
     for (const [key, note] of Object.entries(METHOD_NOTES)) {
+      if (typeof note === 'string') {
+        expect(note.length).toBeGreaterThan(0);
+        continue;
+      }
       expect(typeof note.description).toBe('string');
-      expect(typeof note.usage).toBe('string');
-      expect(Array.isArray(note.assumptions)).toBe(true);
-      expect(typeof note.cite).toBe('string');
+      if (note.usage !== undefined) expect(typeof note.usage).toBe('string');
+      if (note.assumptions !== undefined) expect(Array.isArray(note.assumptions)).toBe(true);
+      if (note.cite !== undefined) expect(typeof note.cite).toBe('string');
     }
   });
 

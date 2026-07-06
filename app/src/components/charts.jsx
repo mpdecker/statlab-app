@@ -662,6 +662,46 @@ export function ITSPlot({ series }) {
   );
 }
 
+/** Time series line chart for arbitrary series data */
+export function TimeSeriesChart({ series, width = 210, height = 140 }) {
+  if (!series?.length) return null;
+  const lines = (Array.isArray(series[0]) || typeof series[0] === 'number')
+    ? [{ data: series }]
+    : series;
+  const hasNames = lines.length > 1 || (lines.length === 1 && typeof lines[0]?.name === 'string');
+  const data = (() => {
+    const maxLen = Math.max(...lines.map(l => (l.data || l.length || 0) && Array.isArray(l.data || l) ? (l.data || l).length : 0));
+    if (!maxLen) return [];
+    return Array.from({ length: maxLen }, (_, i) => {
+      const row = { index: i + 1 };
+      lines.forEach((l, li) => {
+        const arr = l.data || l;
+        row[hasNames ? (l.name || `y${li + 1}`) : 'y'] = arr?.[i];
+      });
+      return row;
+    });
+  })();
+  if (!data.length) return null;
+  const dataKeys = Object.keys(data[0]).filter(k => k !== 'index');
+  const axTick = { fontSize: 7, fill: C.dim, ...mono };
+  const colors = [C.accent, C.warn, PAL[2], PAL[4], PAL[6]];
+  return (
+    <div style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 4, right: 8, bottom: 14, left: 8 }}>
+          <CartesianGrid stroke={C.border} strokeOpacity={.35} />
+          <XAxis dataKey="index" type="number" tick={axTick} stroke={C.border} />
+          <YAxis type="number" tick={axTick} stroke={C.border} />
+          <Tooltip content={<CTip />} />
+          {dataKeys.map((key, i) => (
+            <Line key={key} type="monotone" dataKey={key} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} name={key} />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 /** RDD local scatter */
 export function RDPlot({ points, cutoff }) {
   if (!points?.length) return null;
@@ -707,5 +747,88 @@ export function SociogramPlot({ nodes, edges }) {
         <circle key={n.id} cx={sx(n.x)} cy={sy(n.y)} r={4} fill={C.accent} />
       ))}
     </svg>
+  );
+}
+
+/** Kaplan-Meier survival step function with CI band */
+export function SurvivalPlot({ km, kms }) {
+  const curves = kms?.length ? kms.map(k => ({ label: k.strata || 'group', ...k })) : km ? [{ label: 'Overall', ...km }] : null;
+  if (!curves?.length) return null;
+  const allT = curves.flatMap(c => c.times);
+  const tMin = 0, tMax = Math.max(...allT) || 1;
+  const allS = curves.flatMap(c => c.surv);
+  const sMin = 0, sMax = 1;
+  const W = 320, H = 140, PL = 44, PR = 12, PT = 8, PB = 22;
+  const cW = W - PL - PR, cH = H - PT - PB;
+  const sx = t => PL + ((t - tMin) / (tMax - tMin || 1)) * cW;
+  const sy = s => PT + cH - ((s - sMin) / (sMax - sMin || 1)) * cH;
+
+  const stepPath = (times, surv) => {
+    if (!times?.length) return '';
+    let d = `M${sx(times[0]).toFixed(1)},${sy(surv[0]).toFixed(1)}`;
+    for (let i = 1; i < times.length; i++) {
+      d += ` L${sx(times[i]).toFixed(1)},${sy(surv[i - 1]).toFixed(1)}`;
+      d += ` L${sx(times[i]).toFixed(1)},${sy(surv[i]).toFixed(1)}`;
+    }
+    return d;
+  };
+
+  const ciPoly = (times, lower, upper) => {
+    if (!times?.length) return '';
+    const pts = [];
+    for (let i = 0; i < times.length; i++) pts.push(`${sx(times[i]).toFixed(1)},${sy(lower[i]).toFixed(1)}`);
+    for (let i = times.length - 1; i >= 0; i--) pts.push(`${sx(times[i]).toFixed(1)},${sy(upper[i]).toFixed(1)}`);
+    return pts.join(' ');
+  };
+
+  const colors = curves.length === 1 ? [C.accent] : curves.map((_, i) => PAL[i % PAL.length]);
+
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 2 }}>Kaplan-Meier Survival Curve</div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={mono}>
+        {/* grid */}
+        {Array.from({ length: 5 }, (_, i) => {
+          const v = sMin + (i / 4) * (sMax - sMin);
+          return <line key={`h${i}`} x1={PL} x2={W - PR} y1={sy(v)} y2={sy(v)} stroke={C.border} strokeOpacity={.2} />;
+        })}
+        {/* axes */}
+        <line x1={PL} x2={W - PR} y1={PT + cH} y2={PT + cH} stroke={C.border} />
+        <line x1={PL} x2={PL} y1={PT} y2={PT + cH} stroke={C.border} />
+        {/* labels */}
+        <text x={PL + cW / 2} y={H - 2} textAnchor="middle" fontSize={7} fill={C.dim}>Time</text>
+        <text x={PL - 4} y={PT + cH / 2} textAnchor="middle" fontSize={7} fill={C.dim} transform={`rotate(-90,${PL - 4},${PT + cH / 2})`}>Survival</text>
+        {/* CI bands */}
+        {curves.map((c, i) => {
+          if (!c.lower?.length || !c.upper?.length) return null;
+          return <polygon key={`ci${i}`} points={ciPoly(c.times, c.lower, c.upper)} fill={colors[i]} opacity={.1} />;
+        })}
+        {/* step curves */}
+        {curves.map((c, i) => (
+          <path key={`km${i}`} d={stepPath(c.times, c.surv)} stroke={colors[i]} strokeWidth={1.5} fill="none" />
+        ))}
+        {/* legend */}
+        {curves.length > 1 && (
+          <g transform={`translate(${PL + 4},${PT + 4})`}>
+            {curves.map((c, i) => (
+              <g key={i} transform={`translate(0,${i * 10})`}>
+                <line x1={0} y1={5} x2={10} y2={5} stroke={colors[i]} strokeWidth={1.5} />
+                <text x={14} y={7} fontSize={6} fill={C.dim}>{String(c.label).slice(0, 14)}</text>
+              </g>
+            ))}
+          </g>
+        )}
+        {/* median survival reference */}
+        {curves.map((c, i) => {
+          if (c.median == null) return null;
+          return (
+            <g key={`med${i}`}>
+              <line x1={sx(c.median)} x2={sx(c.median)} y1={PT} y2={PT + cH} stroke={colors[i]} strokeWidth={.8} strokeDasharray="3,2" />
+              <text x={sx(c.median)} y={H - 4} textAnchor="middle" fontSize={6} fill={colors[i]}>median</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
 }

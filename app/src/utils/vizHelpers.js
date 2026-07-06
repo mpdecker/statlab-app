@@ -44,6 +44,7 @@ export const CHART_MODE_LABELS = {
   its: 'ITS',
   rddplot: 'RDD',
   sociogram: 'Sociogram',
+  timeseries: 'Time Series',
 };
 
 export function exploreChartLabel(mode) {
@@ -63,22 +64,36 @@ export const EXPLORE_PANEL_CHART_FOR_MODE = {
   heatmap: 'Correlogram',
   mosaic: 'Mosaic',
   loading: 'Load. heatmap',
-  forest: 'Bar+CI',
+  forest: 'Forest',
   path: 'Scatter+fit',
   qq: 'ECDF',
   scree: 'PCA biplot',
   residual: 'Scatter+fit',
-  boot: 'Histogram',
+  boot: 'Bootstrap',
   power: 'Histogram',
   slopes: 'Simp. slopes',
   box: 'Box',
-  irtplot: 'Histogram',
+  irtplot: 'IRT',
   lca: 'Mosaic',
   spaghetti: 'Violin',
-  caterpillar: 'Bar+CI',
-  its: 'Interact. plot',
-  rddplot: 'Scatter+fit',
+  caterpillar: 'Caterpillar',
+  its: 'Time series',
+  rddplot: 'RDD',
   sociogram: 'Dendrogram',
+  survival: 'Survival',
+  correlogram: 'Bar+CI',
+  timeseries: 'Time series',
+  decomposition: 'Scatter+fit',
+  impulse: 'Scatter+fit',
+  blandaltman: 'Scatter+fit',
+  envelope: 'Scatter+fit',
+  spectrum: 'Scatter+fit',
+  spectrogram: 'Histogram',
+  lorenz: 'Line',
+  manhattan: 'Bar+CI',
+  circular: 'Scatter+fit',
+  threshold: 'Scatter+fit',
+  variogram: 'Scatter+fit',
 };
 
 const EXPLORE_PANEL_LABEL_ALIASES = {
@@ -127,7 +142,7 @@ export function fitOLS(xs, ys) {
 }
 
 export const EXPLORE_CHARTS_XY = new Set([
-  'Scatter+fit', 'Histogram', 'Box', 'Violin', 'Rain-cloud', 'ECDF',
+  'Scatter+fit', 'Line', 'Histogram', 'Box', 'Violin', 'Rain-cloud', 'ECDF', 'Q-Q',
   'Bubble', 'Interact. plot', 'Simp. slopes', 'Spotlight',
 ]);
 
@@ -228,7 +243,104 @@ export function resolveQuickViewVars(activeTest, header, inference) {
   };
 }
 
+export function seriesFromResult(result, activeTest) {
+  if (!result) return null;
+  const t = activeTest || '';
+
+  if (t.startsWith('sced_')) {
+    const s = [];
+    if (result.baseline?.length) s.push({ name: 'Baseline', data: result.baseline });
+    if (result.intervention?.length) s.push({ name: 'Intervention', data: result.intervention });
+    if (s.length) return s;
+  }
+  if (t.startsWith('bandit_')) {
+    const hist = result.history;
+    if (Array.isArray(hist) && hist.length) {
+      const reward = hist.map(h => h?.reward).filter(v => v != null);
+      const arm = hist.map(h => h?.arm).filter(v => v != null);
+      if (reward.length) return [{ name: 'Reward', data: reward }];
+      if (arm.length) return [{ data: arm }];
+      const fld = Object.keys(hist[0]).find(k => typeof hist[0][k] === 'number');
+      if (fld) return [{ data: hist.map(h => h[fld]) }];
+    }
+  }
+  if (t.startsWith('abm_diffusion')) {
+    const hist = result.history;
+    if (Array.isArray(hist) && hist.length) {
+      const infected = hist.map(h => h?.nInfected).filter(v => v != null);
+      if (infected.length) return [{ data: infected }];
+    }
+  }
+  if (t === 'ram_cusum' && Array.isArray(result.cusum)) return [{ data: result.cusum }];
+  if (t === 'ram_vlad' && Array.isArray(result.vlad)) return [{ data: result.vlad }];
+  if (t === 'ram_sprt' && Array.isArray(result.llr)) return [{ data: result.llr }];
+  if (t === 'ram_cchart' && Array.isArray(result.points)) return [{ data: result.points.map(p => p.observed) }];
+
+  if (t === 'sens_forecast') {
+    const s = [];
+    if (result.actual?.length) s.push({ name: 'Actual', data: result.actual });
+    if (result.combined?.length) s.push({ name: 'Combined', data: result.combined });
+    if (s.length) return s;
+  }
+
+  // generic: scan result for first number[] field
+  for (const k of Object.keys(result)) {
+    if (k === 'test' || k === 'apa') continue;
+    const v = result[k];
+    if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'number') return [{ data: v }];
+  }
+  return null;
+}
+
 export function barGroupsFromResult(result, activeTest, data, groupVar, yVar) {
+  if (result?.effects?.length) {
+    return result.effects.map((e, i) => ({
+      name: e.param ?? e.factor ?? `X${i + 1}`,
+      mean: e.muStar ?? e.mu ?? e.sensitivity ?? 0,
+      se: 0,
+    }));
+  }
+  if (result?.Si?.length) {
+    return result.Si.map((v, i) => ({ name: `X${i + 1}`, mean: v, se: 0 }));
+  }
+  if (result?.totalIndices?.length) {
+    return result.totalIndices.map((v, i) => ({ name: `X${i + 1}`, mean: v, se: 0 }));
+  }
+  if (result?.indices?.length) {
+    return result.indices.map(e => ({
+      name: `F${e.factor}`,
+      mean: e.sensitivity ?? e.r ?? 0,
+      se: 0,
+    }));
+  }
+  if (result?.results?.length) {
+    return result.results.map(r => ({
+      name: r.name ?? String(r.index ?? ''),
+      mean: r.prr ?? r.rate ?? 0,
+      se: 0,
+    }));
+  }
+  if (result?.summaries?.length) {
+    return result.summaries.map(s => ({
+      name: s.variable ?? s.var ?? s.name ?? '',
+      mean: s.mean ?? 0,
+      se: (s.sd ?? 0) / Math.sqrt((s.n || 1)),
+    }));
+  }
+  if (result?.values?.length) {
+    return result.values.map(v => ({
+      name: v.name ?? '',
+      mean: v.mean ?? 0,
+      se: (v.sd ?? 0) / Math.sqrt((v.n || 1)),
+    }));
+  }
+  if (result?.influence?.length) {
+    return result.influence.map(e => ({
+      name: String(e.index ?? ''),
+      mean: e.value ?? 0,
+      se: 0,
+    }));
+  }
   if (result?.gMeans?.length) {
     return result.gMeans.map(g => ({
       name: g.name,
