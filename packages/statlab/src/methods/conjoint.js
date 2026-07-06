@@ -5,6 +5,7 @@ import { solveNormalEquations } from '../math/matrix.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Part-Worth Utilities ──────────────────────────────────────────
+/** @param {number[]} ratings @param {number[][]} profiles @param {string[]} attrs */
 export function partWorthUtilities(ratings, profiles, attrs) {
   if (!ratings || !profiles || ratings.length < 5 || !attrs || attrs.length < 2) return null;
   const n = ratings.length;
@@ -43,6 +44,7 @@ export function partWorthUtilities(ratings, profiles, attrs) {
 }
 
 // ── Attribute Importance ──────────────────────────────────────────
+/** @param {object} pwResult */
 export function attributeImportance(pwResult) {
   if (!pwResult || !pwResult.utilities) return null;
   const ranges = pwResult.utilities.map(attr => {
@@ -58,6 +60,7 @@ export function attributeImportance(pwResult) {
 }
 
 // ── Choice Simulation ─────────────────────────────────────────────
+/** @param {number[][]} profiles @param {string[]} attrs */
 export function choiceSimulation(profiles, attrs, { seed = 42, nRespondents = 50, partWorths = null, scale = 1 } = {}) {
   if (!profiles || profiles.length < 3 || !attrs || attrs.length < 2) return null;
   const k = profiles.length;
@@ -80,6 +83,7 @@ export function choiceSimulation(profiles, attrs, { seed = 42, nRespondents = 50
 }
 
 // ── Orthogonal Design ─────────────────────────────────────────────
+/** @param {string[]} attrs @param {number[]} levels */
 export function orthogonalDesign(attrs, levels) {
   if (!attrs || attrs.length < 2 || !levels || levels.length !== attrs.length) return null;
   const runs = [];
@@ -97,6 +101,7 @@ export function orthogonalDesign(attrs, levels) {
 }
 
 // ── Market Simulator ──────────────────────────────────────────────
+/** @param {object} pwResult @param {number[][]} scenarioProfiles */
 export function marketSimulator(pwResult, scenarioProfiles) {
   if (!pwResult || !scenarioProfiles || scenarioProfiles.length < 2) return null;
   const totalU = scenarioProfiles.map((prof, pi) => {

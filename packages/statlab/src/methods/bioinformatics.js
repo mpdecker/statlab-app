@@ -1,6 +1,7 @@
 import { avg, sampleVar } from '../math/core.js';
 
 // ── Enrichment Analysis (hypergeometric) ──────────────────────────
+/** @param {number} geneset @param {number} background @param {number} pathwaySize @param {number} overlap @param {number} [totalGenes] */
 export function enrichmentAnalysis(geneset, background, pathwaySize, overlap, totalGenes = null) {
   const total = totalGenes || Math.max(background, geneset * 10);
   if (!overlap || overlap < 1) return null;
@@ -18,7 +19,7 @@ export function enrichmentAnalysis(geneset, background, pathwaySize, overlap, to
 }
 
 // ── Volcano Test ──────────────────────────────────────────────────
-/** @param {number[]} pValues */
+/** @param {number[]} pValues @param {number[]} logFC @param {string[]} [names] */
 export function volcanoTest(logFC, pValues, names = null) {
   if (!logFC || !pValues || logFC.length < 3 || logFC.length !== pValues.length) return null;
   const n = logFC.length;
@@ -32,6 +33,7 @@ export function volcanoTest(logFC, pValues, names = null) {
 }
 
 // ── Fold Change ───────────────────────────────────────────────────
+/** @param {number[]} groupA @param {number[]} groupB */
 export function foldChange(groupA, groupB) {
   if (!groupA || !groupB || groupA.length < 3 || groupB.length < 3) return null;
   const mA = avg(groupA), mB = avg(groupB);
@@ -59,7 +61,7 @@ export function fdrCorrection(pValues, alpha = 0.05) {
 }
 
 // ── Heatmap Data ──────────────────────────────────────────────────
-/** @param {number[][]} matrix */
+/** @param {number[][]} matrix @param {string[]} [rowNames] @param {string[]} [colNames] */
 export function heatmapData(matrix, rowNames = null, colNames = null) {
   if (!matrix || !matrix.length || !matrix[0]) return null;
   const h = matrix.length, w = matrix[0].length;

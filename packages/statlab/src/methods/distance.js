@@ -93,7 +93,7 @@ export function energyTest(x, y, { permutations = 199, seed = 42 } = {}) {
 }
 
 // ── Partial Distance Correlation ──────────────────────────────────
-/** @param {number[]} x @param {number[]} y */
+/** @param {number[]} x @param {number[]} y @param {number[]} z */
 export function partialDistanceCorr(x, y, z) {
   if (!x || !y || !z || x.length < 5) return null;
   const n = x.length;
@@ -122,7 +122,7 @@ export function partialDistanceCorr(x, y, z) {
 }
 
 // ── Mahalanobis Distance ──────────────────────────────────────────
-/** @param {number[]} x @param {number[]} y */
+/** @param {number[]} x @param {number[]} y @param {number[][]} cov */
 export function mahalanobisDistance(x, y, cov) {
   if (!x || !y || x.length < 2 || x.length !== y.length) return null;
   const p = x.length;

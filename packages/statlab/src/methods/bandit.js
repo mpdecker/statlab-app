@@ -241,7 +241,7 @@ export function softmaxBandit(arms, rewards, nIterations = 100, { seed = 42, tau
 }
 
 // ── Q-Learning ────────────────────────────────────────────────────
-/** @param {number[]} rewards */
+/** @param {number[]} rewards @param {number} nStates @param {number} nActions @param {number[][]} transitions */
 export function qLearning(nStates, nActions, rewards, transitions, { seed = 42, episodes = 50, lr = 0.1, gamma = 0.9, epsilon = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!nStates || !nActions || nStates < 2 || nActions < 2 || episodes < 5) return null;
@@ -266,7 +266,7 @@ export function qLearning(nStates, nActions, rewards, transitions, { seed = 42, 
 }
 
 // ── SARSA ─────────────────────────────────────────────────────────
-/** @param {number[]} rewards */
+/** @param {number[]} rewards @param {number} nStates @param {number} nActions @param {number[][]} transitions */
 export function sarsa(nStates, nActions, rewards, transitions, { seed = 42, episodes = 50, lr = 0.1, gamma = 0.9, epsilon = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!nStates || !nActions || nStates < 2 || nActions < 2 || episodes < 5) return null;
@@ -291,6 +291,7 @@ export function sarsa(nStates, nActions, rewards, transitions, { seed = 42, epis
 }
 
 // ── Deep Q-Network (simplified neural Q-function) ─────────────────
+/** @param {number} nStates @param {number} nActions */
 export function deepQNetwork(nStates, nActions, { seed = 42, episodes = 30, lr = 0.01, gamma = 0.9, hiddenSize = 8, rewards = null, transitions = null, epsilon = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!nStates || !nActions || nStates < 2 || nActions < 2 || episodes < 5) return null;

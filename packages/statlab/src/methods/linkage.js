@@ -1,6 +1,7 @@
 import { avg } from '../math/core.js';
 
 // ── Jaro-Winkler Similarity ──────────────────────────────────────────────
+/** @param {string} s1 @param {string} s2 */
 export function jaroWinkler(s1, s2, { prefixWeight = 0.1 } = {}) {
   if (!s1 || !s2) return null;
   if (s1 === s2) return { test: 'Jaro-Winkler', similarity: 1, n1: s1.length, n2: s2.length, apa: `JW = 1.000` };
@@ -28,6 +29,7 @@ export function jaroWinkler(s1, s2, { prefixWeight = 0.1 } = {}) {
 }
 
 // ── Levenshtein Distance ──────────────────────────────────────────────────
+/** @param {string} s1 @param {string} s2 */
 export function levenshteinDistance(s1, s2) {
   if (s1 == null || s2 == null) return null;
   const m = s1.length, n = s2.length;
@@ -44,6 +46,7 @@ export function levenshteinDistance(s1, s2) {
 }
 
 // ── Fellegi-Sunter Probabilistic Matching ─────────────────────────────────
+/** @param {object[]} pairs */
 export function fellegiSunter(pairs, { uProb = 0.3, mProb = 0.9 } = {}) {
   if (!pairs || !pairs.length) return null;
   const n = pairs.length;
@@ -57,7 +60,7 @@ export function fellegiSunter(pairs, { uProb = 0.3, mProb = 0.9 } = {}) {
 }
 
 // ── Record Blocking ───────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string} blockVar */
 export function recordBlocking(data, blockVar, { blockSize = 100 } = {}) {
   if (!data || !blockVar || !data.length) return null;
   const blocks = {};
@@ -95,6 +98,7 @@ export function matchThreshold(scores, labels, { nThresholds = 20 } = {}) {
 }
 
 // ── Probabilistic Record Linkage (Fellegi-Sunter) ─────────────────
+/** @param {object[]} pairs @param {number[]} matchWeights */
 export function probabilisticRecordLinkage(pairs, matchWeights) {
   if (!pairs || !pairs.length) return null;
   const n = pairs.length;
@@ -109,6 +113,7 @@ export function probabilisticRecordLinkage(pairs, matchWeights) {
 }
 
 // ── Deduplication ─────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} records @param {string[]} keyFields */
 export function deduplication(records, keyFields) {
   if (!records || records.length < 2 || !keyFields || !keyFields.length) return null;
   const seen = new Map();

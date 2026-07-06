@@ -117,6 +117,7 @@ export function fitPoisson(sample) {
   };
 }
 
+/** @param {number} successes @param {number} trials */
 export function fitBinomial(successes, trials) {
   if (!Number.isFinite(successes) || !Number.isFinite(trials) || trials < 1 || successes < 0 || successes > trials) return null;
   const p = successes / trials, seP = Math.sqrt(p * (1 - p) / trials);
@@ -219,7 +220,7 @@ export function fitUniform(sample) {
   };
 }
 
-/** @param {number[]} sample */
+/** @param {number[]} sample @param {object} fitted fitted distribution with a cdf method. */
 export function distributionGoF(sample, fitted, { test = 'KS', B = 999 } = {}) {
   if (!sample || sample.length < 5 || !fitted || !fitted.cdf) return null;
   const n = sample.length;
@@ -486,6 +487,7 @@ export function lilliefors(data) {
 }
 
 // ── Chi-Square GOF ────────────────────────────────────────────────────────
+/** @param {number[]} observed */
 export function chiSquareGOF(observed, { expected = null, nBins = null } = {}) {
   if (!observed || observed.length < 2) return null;
   const n = observed.length;

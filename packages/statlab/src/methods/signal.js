@@ -408,6 +408,7 @@ export function waveletSignificance(power, n, { alpha = 0.05 } = {}) {
 }
 
 // ── Wavelet Ridge ─────────────────────────────────────────────────
+/** @param {number[][]} cwt @param {number[]} scales */
 export function waveletRidge(cwt, scales) {
   if (!cwt || !cwt.length) return null;
   const ridge = cwt[0].map((_, t) => {

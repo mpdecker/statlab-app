@@ -132,7 +132,7 @@ export function jensenShannonDivergence(p, q) {
 }
 
 // ── AICc ───────────────────────────────────────────────────────────────────
-/** @param {number} n */
+/** @param {number} n @param {number} logLik @param {number} nParams */
 export function aicc(logLik, nParams, n) {
   if (!Number.isFinite(logLik) || !Number.isFinite(nParams) || !Number.isFinite(n)) return null;
   if (n <= nParams + 1) return null;
@@ -145,6 +145,7 @@ export function aicc(logLik, nParams, n) {
 }
 
 // ── BIC Weights ────────────────────────────────────────────────────────────
+/** @param {Array<{bic: number}>} models */
 export function bicWeights(models) {
   if (!models || models.length < 2) return null;
   const valid = models.filter(m => Number.isFinite(m.bic));

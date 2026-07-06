@@ -129,7 +129,7 @@ export function semivariogram(points, valueField, { nLags = 10, maxDistance = nu
 }
 
 // ── Ordinary Kriging ─────────────────────────────────────────────────────────
-/** @param {number[]} points @param {string} valueField */
+/** @param {number[]} points @param {string} valueField @param {Array<Record<string, number>>} predictPoints */
 export function ordinaryKriging(points, valueField, predictPoints, { variogram = null } = {}) {
   if (!points || points.length < 5 || !valueField || !predictPoints || !predictPoints.length) return null;
   const n = points.length;
@@ -202,7 +202,7 @@ export function ordinaryKriging(points, valueField, predictPoints, { variogram =
 }
 
 // ── Inverse Distance Weighting ──────────────────────────────────────────────
-/** @param {number[]} points @param {string} valueField */
+/** @param {number[]} points @param {string} valueField @param {Array<Record<string, number>>} predictPoints */
 export function idw(points, valueField, predictPoints, { power = 2, nNeighbors = 10 } = {}) {
   if (!points || points.length < 3 || !valueField || !predictPoints || !predictPoints.length) return null;
   const n = points.length;

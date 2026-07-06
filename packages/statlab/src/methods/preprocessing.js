@@ -84,7 +84,7 @@ export function madOutliers(data, { threshold = 3.5 } = {}) {
 }
 
 // ── One-Hot Encode ──────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string} column */
 export function oneHotEncode(data, column) {
   if (!data || !data.length || !column) return null;
   const cats = [...new Set(data.map(r => r[column]))].filter(v => v != null);
@@ -143,7 +143,7 @@ export function winsorize(data, { lower = 0.05, upper = 0.05 } = {}) {
 }
 
 // ── Frequency Encode ────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string} column */
 export function frequencyEncode(data, column) {
   if (!data || !data.length || !column) return null;
   const counts = {};

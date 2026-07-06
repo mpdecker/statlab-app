@@ -85,6 +85,7 @@ export function variationalAutoencoder(X, { seed = 42, latentSize = 2, epochs = 
 }
 
 // ── GAN (simplified) ──────────────────────────────────────────────
+/** @param {number[][]} realData */
 export function gan(realData, { seed = 42, latentSize = 10, epochs = 30, lr = 0.01 } = {}) {
   __rng = mulberry32(seed);
   if (!realData || realData.length < 5 || !realData[0]) return null;
@@ -128,6 +129,7 @@ export function gan(realData, { seed = 42, latentSize = 10, epochs = 30, lr = 0.
 }
 
 // ── Attention Mechanism (Scaled Dot-Product) ──────────────────────
+/** @param {number[][]} Q @param {number[][]} K @param {number[][]} V */
 export function attention(Q, K, V) {
   if (!Q || !K || !V || !Q.length || !K[0] || !V[0]) return null;
   const n = Q.length, dk = K[0].length;

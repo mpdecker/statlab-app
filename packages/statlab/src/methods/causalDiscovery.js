@@ -71,7 +71,7 @@ export function skeletonPhase(data, vars, { alpha = 0.05 } = {}) {
 }
 
 // ── Collider Detection ────────────────────────────────────────────
-/** @param {number} nVars */
+/** @param {number} nVars @param {Array<{from: number, to: number}>} edges */
 export function colliderDetection(edges, nVars) {
   if (!edges || !edges.length) return null;
   const colliders = [];
@@ -92,6 +92,7 @@ export function colliderDetection(edges, nVars) {
 }
 
 // ── DAG Adjacency ─────────────────────────────────────────────────
+/** @param {object[]} skeleton @param {object[]} colliders */
 export function dagAdjacency(skeleton, colliders) {
   if (!skeleton || !colliders) return null;
   const adj = Array.isArray(skeleton) ? skeleton.map(e => ({

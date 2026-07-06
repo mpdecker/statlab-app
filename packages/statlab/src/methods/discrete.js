@@ -80,7 +80,7 @@ export function conditionalLogit(data, yVar, xVars, groupVar, { maxIter = 50 } =
 }
 
 // ── IIA Test (Hausman-McFadden) ───────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar @param {string} altVar */
 export function iiaTest(data, yVar, xVars, groupVar, altVar) {
   if (!data || data.length < 15 || !yVar || !xVars || !groupVar || !altVar) return null;
   const n = data.length;
@@ -183,7 +183,7 @@ export function mixedLogit(data, yVar, xVars, groupVar, { nDraws = 50, seed = 42
 }
 
 // ── WTP Space ─────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar @param {string} priceVar */
 export function wtpSpace(data, yVar, xVars, priceVar, groupVar) {
   if (!data || data.length < 15 || !yVar || !priceVar) return null;
   const priceIdx = xVars.indexOf(priceVar);
@@ -201,7 +201,7 @@ export function wtpSpace(data, yVar, xVars, priceVar, groupVar) {
 }
 
 // ── Nested Logit ──────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar @param {string} nestVar */
 export function nestedLogit(data, yVar, xVars, groupVar, nestVar, { seed = 42, maxIter = 60 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 15 || !yVar || !nestVar || !groupVar || !xVars?.length) return null;
@@ -377,7 +377,7 @@ export function choiceProbability(data, yVar, xVars, groupVar) {
 }
 
 // ── Value of Time ─────────────────────────────────────────────────
-/** @param {string} yVar @param {string[]} xVars @param {string} timeVar @param {string} groupVar */
+/** @param {string} yVar @param {string[]} xVars @param {string} timeVar @param {string} groupVar @param {Array<Record<string, any>>} data @param {string} costVar */
 export function valueOfTime(data, yVar, xVars, timeVar, costVar, groupVar) {
   if (!data || data.length < 15 || !yVar || !timeVar || !costVar) return null;
   const timeIdx = xVars.indexOf(timeVar);

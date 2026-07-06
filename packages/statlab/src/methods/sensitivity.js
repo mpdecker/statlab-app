@@ -53,7 +53,7 @@ export function fastSensitivity(model, X, { seed = 42, M = 4 } = {}) {
 }
 
 // ── Model Comparison F-test ───────────────────────────────────────
-/** @param {number} n */
+/** @param {number} n @param {number} mse1 @param {number} mse2 @param {number} k1 @param {number} k2 */
 export function modelComparison(mse1, mse2, n, k1, k2) {
   if (!Number.isFinite(mse1) || !Number.isFinite(mse2) || n < 5) return null;
   const fStat = mse2 > 0 ? mse1 / mse2 : 0;
@@ -64,7 +64,7 @@ export function modelComparison(mse1, mse2, n, k1, k2) {
 
 
 // ── Forecast Combination ──────────────────────────────────────────
-/** @param {number[]} actual */
+/** @param {number[]} actual @param {number[][]} forecasts */
 export function forecastCombination(forecasts, actual, { method = 'equal' } = {}) {
   if (!forecasts || !actual || !forecasts.length || actual.length < 5) return null;
   const k = forecasts.length, n = actual.length;
@@ -133,7 +133,7 @@ export function sobolTotalIndex(model, X, { seed = 42, nSamples = 50 } = {}) {
 }
 
 // ── Delta Method (propagation of error) ───────────────────────────
-/** @param {Function} fn */
+/** @param {Function} fn @param {number[]} means @param {number[]} ses */
 export function deltaMethod(means, ses, fn, h = 1e-6) {
   if (!means || !ses || means.length < 1 || means.length !== ses.length) return null;
   const p = means.length;

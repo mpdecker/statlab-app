@@ -210,6 +210,7 @@ export function copulaFit(data, vars, { family = 'gaussian', seed = 42 } = {}) {
 }
 
 // ── Tail Dependence ─────────────────────────────────────────────────────────
+/** @param {object} copulaFit */
 export function tailDependence(copulaFit) {
   if (!copulaFit || !copulaFit.tailDependence) return null;
   return {

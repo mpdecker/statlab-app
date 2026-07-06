@@ -116,6 +116,7 @@ function _mantelR(matrix1, matrix2, order) {
   return den > 0 ? num / den : 0;
 }
 
+/** @param {number[][]} matrix1 @param {number[][]} matrix2 */
 export function mantelTest(matrix1, matrix2, { seed = 42, permutations = 999 } = {}) {
   __rng = mulberry32(seed);
   if (!matrix1 || !matrix2 || matrix1.length < 5 || matrix1.length !== matrix2.length) return null;
@@ -185,7 +186,7 @@ export function procrustes(X, Y) {
 }
 
 // ── CCA Preparation ────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string[]} envVars @param {string[]} speciesVars */
 export function ccaPrep(data, envVars, speciesVars) {
   if (!data || data.length < 10 || !envVars || !speciesVars) return null;
   const n = data.length;
@@ -199,6 +200,7 @@ export function ccaPrep(data, envVars, speciesVars) {
 }
 
 // ── envfit (Environmental Vector Fitting) ─────────────────────────
+/** @param {object} ordination @param {Array<Record<string, any>>} envData @param {string} envVar */
 export function envfit(ordination, envData, envVar, { permutations = 999, seed = 42 } = {}) {
   if (!ordination || !ordination.points || !envData || !envVar || envData.length < ordination.points.length) return null;
   const n = Math.min(ordination.points.length, envData.length);
@@ -222,6 +224,7 @@ export function envfit(ordination, envData, envVar, { permutations = 999, seed =
 function corr(a, b) { const m = avg(a); const m2 = avg(b); return a.reduce((s, v, i) => s + (v - m) * (b[i] - m2), 0) / Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) * b.reduce((s, v) => s + (v - m2) ** 2, 0) + 1e-10); }
 
 // ── Variation Partitioning ────────────────────────────────────────
+/** @param {number} R2total @param {number} R2part */
 export function varpart(R2total, R2part) {
   if (!R2part || R2part.length < 2) return null;
   const ab = R2part[0], bc = R2part[1];
@@ -235,6 +238,7 @@ export function varpart(R2total, R2part) {
 }
 
 // ── MSO (Multivariate Seriation Ordering) ─────────────────────────
+/** @param {number[][]} distanceMatrix */
 export function mso(distanceMatrix) {
   if (!distanceMatrix || distanceMatrix.length < 3) return null;
   const n = distanceMatrix.length;

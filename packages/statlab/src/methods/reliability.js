@@ -19,6 +19,7 @@ export function weibullAnalysis(data, { confidence = 0.95 } = {}) {
 }
 
 // ── Reliability Growth (Duane model) ──────────────────────────────
+/** @param {number[]} cumFailures @param {number[]} cumTime */
 export function reliabilityGrowth(cumFailures, cumTime, { confidence = 0.9 } = {}) {
   if (!cumFailures || !cumTime || cumFailures.length < 5) return null;
   const n = cumFailures.length;
@@ -34,6 +35,7 @@ export function reliabilityGrowth(cumFailures, cumTime, { confidence = 0.9 } = {
 }
 
 // ── Accelerated Life Testing (Arrhenius) ──────────────────────────
+/** @param {number[]} tempData @param {number[]} stressLevels */
 export function acceleratedLife(tempData, stressLevels, { activationEnergy = 0.7 } = {}) {
   if (!tempData || !stressLevels || tempData.length < 3 || tempData.length !== stressLevels.length) return null;
   const k = 8.617e-5;
@@ -49,7 +51,7 @@ export function acceleratedLife(tempData, stressLevels, { activationEnergy = 0.7
 }
 
 // ── Warranty Prediction ───────────────────────────────────────────
-/** @param {number} [monthsInWarranty] */
+/** @param {number} [monthsInWarranty] @param {number[]} failureData */
 export function warrantyPrediction(failureData, monthsInWarranty = 12, { confidence = 0.9 } = {}) {
   if (!failureData || failureData.length < 5) return null;
   const n = failureData.length;
@@ -84,6 +86,7 @@ export function weibullBayes(data, { shapePrior = [1, 1], scalePrior = [1, 0.01]
 }
 
 // ── Repairable Systems (NHPP Power Law) ───────────────────────────
+/** @param {number[]} failureTimes @param {number} endTime */
 export function repairableSystems(failureTimes, endTime) {
   if (!failureTimes || failureTimes.length < 3 || !endTime) return null;
   const n = failureTimes.length;
@@ -95,6 +98,7 @@ export function repairableSystems(failureTimes, endTime) {
 }
 
 // ── Competing Risks (Reliability context) ─────────────────────────
+/** @param {number[]} timeData @param {Array<string|number>} causeData */
 export function competingRisksReliability(timeData, causeData) {
   if (!timeData || !causeData || timeData.length < 5 || timeData.length !== causeData.length) return null;
   const n = timeData.length;

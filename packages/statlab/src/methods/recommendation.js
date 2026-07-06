@@ -4,6 +4,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Collaborative Filtering (user-based) ──────────────────────────
+/** @param {number[][]} ratings */
 export function collaborativeFilter(ratings, { nNeighbors = 5 } = {}) {
   if (!ratings || !ratings.length) return null;
   const nUsers = ratings.length, nItems = ratings[0]?.length || 0;
@@ -41,7 +42,7 @@ export function collaborativeFilter(ratings, { nNeighbors = 5 } = {}) {
 }
 
 // ── Matrix Factorization (SVD-based) ──────────────────────────────
-/** @param {number} [k] */
+/** @param {number} [k] @param {number[][]} R */
 export function matrixFactorize(R, k = 3, { seed = 42, steps = 30, lr = 0.01, lambda = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!R || !R.length || !R[0] || k < 1) return null;
@@ -71,6 +72,7 @@ export function matrixFactorize(R, k = 3, { seed = 42, steps = 30, lr = 0.01, la
 }
 
 // ── Top-N Recommendations ─────────────────────────────────────────
+/** @param {number[][]} ratings @param {number} userIndex */
 export function topNRecommend(ratings, userIndex, { n = 5, excludeRated = true } = {}) {
   if (!ratings || !ratings.length || userIndex == null || userIndex >= ratings.length) return null;
   const ur = ratings[userIndex];

@@ -345,6 +345,7 @@ export function mice(data, vars, { m = 5, maxIter = 10, seed = 42 } = {}) {
 }
 
 // ── Rubin's Pooling Rules ────────────────────────────────────────────────────
+/** @param {Array<Array<Record<string, any>>>} imputedDatasets @param {(dataset: any[]) => object} analysisFn */
 export function rubinPool(imputedDatasets, analysisFn) {
   if (!imputedDatasets || imputedDatasets.length < 2 || !analysisFn) return null;
   const m = imputedDatasets.length;
@@ -380,6 +381,7 @@ export function rubinPool(imputedDatasets, analysisFn) {
 }
 
 // ── Fraction of Missing Information ──────────────────────────────────────────
+/** @param {object} pooledResult */
 export function fmi(pooledResult) {
   if (!pooledResult || !pooledResult.estimates || !pooledResult.estimates.length) return null;
   const fmis = pooledResult.estimates.map(e => ({ name: e.name, fmi: e.fmi }));

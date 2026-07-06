@@ -5,6 +5,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Randomized Blocks ─────────────────────────────────────────────
+/** @param {Array<string|number>} strata @param {Array<string|number>} treatments */
 export function randomizedBlocks(strata, treatments, { seed = 42, blockSize = 4 } = {}) {
   __rng = mulberry32(seed);
   if (!strata || !strata.length || !treatments || treatments.length < 2) return null;
@@ -34,7 +35,7 @@ export function simons2Stage(p0, p1, alpha = 0.05, beta = 0.2) {
 }
 
 // ── Sample Size Re-estimation ─────────────────────────────────────
-/** @param {number[]} data @param {number} [stage] */
+/** @param {number[]} data @param {number} [stage] @param {number} target */
 export function sampleSizeReestimation(data, target, stage = 1) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -46,7 +47,7 @@ export function sampleSizeReestimation(data, target, stage = 1) {
 }
 
 // ── Stratified Permuted Blocks ────────────────────────────────────
-/** @param {number} [seed] */
+/** @param {number} [seed] @param {Array<string|number>} strata */
 export function stratifiedPermutedBlocks(strata, seed = 42) {
   __rng = mulberry32(seed);
   if (!strata || !strata.length) return null;
@@ -78,7 +79,7 @@ export function fisherExactDesign(a, b, c, d) {
 }
 
 // ── Adaptive Design (Group Sequential with sample size re-estimation) ───
-/** @param {number} [targetPower] @param {number} [alpha] */
+/** @param {number} [targetPower] @param {number} [alpha] @param {number} effectSize */
 export function adaptiveDesign(effectSize, targetPower = 0.8, alpha = 0.05, { maxStages = 3, nMin = 20 } = {}) {
   if (!Number.isFinite(effectSize) || effectSize <= 0 || maxStages < 2) return null;
   const stages = Array.from({ length: maxStages }, (_, stage) => {

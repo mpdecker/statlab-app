@@ -173,7 +173,7 @@ export function empiricalInfluence(data, statistic) {
 }
 
 // ── Bootstrap Mediation ───────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} outcomeVar */
+/** @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} outcomeVar @param {string} mediator */
 export function bootstrapMediation(data, treatVar, mediator, outcomeVar, { B = 500, seed = 42 } = {}) {
   if (!data || data.length < 15 || !treatVar || !mediator || !outcomeVar) return null;
   const n = data.length;
@@ -197,7 +197,7 @@ export function bootstrapMediation(data, treatVar, mediator, outcomeVar, { B = 5
 }
 
 // ── Moderated Mediation ───────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} outcomeVar */
+/** @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} outcomeVar @param {string} mediator @param {string} moderator */
 export function moderatedMediation(data, treatVar, mediator, moderator, outcomeVar) {
   if (!data || data.length < 20 || !treatVar || !mediator || !moderator || !outcomeVar) return null;
   const n = data.length;
@@ -227,6 +227,7 @@ export function moderatedMediation(data, treatVar, mediator, moderator, outcomeV
 // conformal radius — the classical split-conformal guarantee. If covariate
 // arrays (xTrain/xCal) are supplied the model is OLS y = a + b·x fit on the
 // training fold; otherwise it falls back to the constant (mean) predictor.
+/** @param {number[]} yTrain @param {number[]} yCal */
 export function splitConformal(yTrain, yCal, { alpha = 0.1, xTrain = null, xCal = null } = {}) {
   if (!yTrain || !yCal || yTrain.length < 10 || yCal.length < 10) return null;
   const nCal = yCal.length;
@@ -253,7 +254,7 @@ export function splitConformal(yTrain, yCal, { alpha = 0.1, xTrain = null, xCal 
 }
 
 // ── Conformal P-values ────────────────────────────────────────────
-/** @param {number[]} scores */
+/** @param {number[]} scores @param {number} testScore */
 export function conformalPvalues(scores, testScore) {
   if (!scores || !scores.length || !Number.isFinite(testScore)) return null;
   const n = scores.length;

@@ -80,6 +80,7 @@ export function atkinsonIndex(data, { epsilon = 1 } = {}) {
 }
 
 // ── Concentration Index (health) ──────────────────────────────────
+/** @param {number[]} health @param {number[]} rank */
 export function concentrationIndex(health, rank) {
   if (!health || !rank || health.length < 5 || health.length !== rank.length) return null;
   const n = health.length;
@@ -124,7 +125,7 @@ export function palmaRatio(data) {
 }
 
 // ── Inequality Decomposition (Theil within/between) ───────────────
-/** @param {number[]} data */
+/** @param {number[]} data @param {Array<string|number>} groups */
 export function decomposition(data, groups) {
   if (!data || !groups || data.length < 3 || data.length !== groups.length) return null;
   const n = data.length;

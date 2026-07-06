@@ -5,7 +5,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── FPCA via B-spline expansion ───────────────────────────────────
-/** @param {number[][]} data */
+/** @param {number[][]} data @param {number[]} timePoints */
 export function fpca(data, timePoints, { nBasis = 5 } = {}) {
   if (!data || !timePoints || data.length < 5 || !data[0] || data[0].length !== timePoints.length) return null;
   const n = data.length, m = timePoints.length;
@@ -65,7 +65,7 @@ export function functionalCovariance(data) {
 }
 
 // ── Scalar-on-Function Regression ─────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {number[]} y */
+/** @param {Array<Record<string, any>>} data @param {number[]} y @param {number[]} timePoints */
 export function scalarOnFunction(data, y, timePoints) {
   if (!data || !y || data.length < 5 || data.length !== y.length) return null;
   const n = data.length, m = data[0]?.length || 0;

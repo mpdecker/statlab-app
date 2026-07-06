@@ -85,6 +85,7 @@ export function gpdMLE(data, threshold = null) {
 }
 
 // ── Return Level ────────────────────────────────────────────────────────────
+/** @param {object} gevFit @param {number} returnPeriod */
 export function returnLevel(gevFit, returnPeriod) {
   if (!gevFit || !returnPeriod || returnPeriod < 2) return null;
   const { mu, sigma, xi } = gevFit;

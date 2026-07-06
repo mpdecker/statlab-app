@@ -470,7 +470,7 @@ function outerVec(v, scalar = 1) {
 }
 
 // ── Equivalence ANOVA ─────────────────────────────────────────────────────────
-/** @param {number} [alpha] */
+/** @param {number} [alpha] @param {number[][]} groups @param {number} dL @param {number} dU */
 export function equivalenceANOVA(groups, dL, dU, alpha = 0.05) {
   if (!groups || groups.length < 2) return null;
   if (groups.some(g => !g || g.length < 3)) return null;
@@ -597,7 +597,7 @@ export function centralCompositeDesign(factors, { alpha = null, centerPoints = 2
 }
 
 // ── D-Optimal Design ────────────────────────────────────────────────────────
-/** @param {string[]} factors */
+/** @param {string[]} factors @param {number} nRuns */
 export function optimalDesign(factors, nRuns, { model = 'linear+interaction', seed = 42 } = {}) {
   if (!factors || factors.length < 2 || nRuns < 2) return null;
   const f = factors.length;
@@ -687,7 +687,7 @@ export function plackettBurman(factors) {
 }
 
 // ── Taguchi L-Array ───────────────────────────────────────────────
-/** @param {string[]} factors */
+/** @param {string[]} factors @param {number[]} levels */
 export function taguchiLArray(factors, levels) {
   if (!factors || factors.length < 2 || !levels || levels.length < 2) return null;
   const k = factors.length, L = levels.length;
@@ -707,7 +707,7 @@ export function taguchiLArray(factors, levels) {
 }
 
 // ── DOE Power ─────────────────────────────────────────────────────
-/** @param {number} nFactors @param {number} [alpha] */
+/** @param {number} nFactors @param {number} [alpha] @param {number} nRuns @param {number} effectSize */
 export function doePower(nFactors, nRuns, effectSize, alpha = 0.05) {
   if (!nFactors || nFactors < 2 || nRuns < nFactors + 2) return null;
   const dfError = nRuns - nFactors - 1;
@@ -780,6 +780,7 @@ export function gpEmulator(X, y, { lengthScale = 1, noiseVar = 0.01 } = {}) {
 }
 
 // ── Expected Improvement ──────────────────────────────────────────
+/** @param {number[]} gpMean @param {number[]} gpStd @param {number} bestObserved */
 export function expectedImprovement(gpMean, gpStd, bestObserved) {
   if (!gpMean || !gpStd || gpMean.length < 2) return null;
   const n = gpMean.length;

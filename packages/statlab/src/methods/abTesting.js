@@ -5,6 +5,7 @@ import { mulberry32, randBeta } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Sample Ratio Mismatch ─────────────────────────────────────────
+/** @param {number[]} control @param {number[]} treatment @param {number} expectedRatio */
 export function sampleRatioMismatch(control, treatment, expectedRatio) {
   if (!control || !treatment || !control.length || !treatment.length) return null;
   const nC = control.length, nT = treatment.length;
@@ -16,6 +17,7 @@ export function sampleRatioMismatch(control, treatment, expectedRatio) {
 }
 
 // ── Sequential Testing ────────────────────────────────────────────
+/** @param {number[]} control @param {number[]} treatment */
 export function sequentialTest(control, treatment, { alpha = 0.05, spending = 'obrienFleming' } = {}) {
   if (!control || !treatment || control.length < 5 || treatment.length < 5) return null;
   const n = Math.min(control.length, treatment.length);
@@ -32,6 +34,7 @@ export function sequentialTest(control, treatment, { alpha = 0.05, spending = 'o
 }
 
 // ── Unequal Allocation T-test ─────────────────────────────────────
+/** @param {number[]} control @param {number[]} treatment @param {number} ratio */
 export function unequalAllocationT(control, treatment, ratio) {
   if (!control || !treatment || control.length < 5 || treatment.length < 5) return null;
   const nC = control.length, nT = treatment.length;
@@ -59,7 +62,7 @@ export function minimumDetectableEffect(n, alpha = 0.05, beta = 0.2, baseline = 
 }
 
 // ── Required Sample Size ──────────────────────────────────────────
-/** @param {number[]} baseline @param {number} [alpha] @param {number} [beta] */
+/** @param {number[]} baseline @param {number} [alpha] @param {number} [beta] @param {number} mde */
 export function requiredSampleSize(baseline, mde, alpha = 0.05, beta = 0.2) {
   if (!baseline || baseline <= 0 || baseline >= 1 || !mde || mde <= 0) return null;
   const za = normalINV(1 - alpha / 2);
@@ -69,6 +72,7 @@ export function requiredSampleSize(baseline, mde, alpha = 0.05, beta = 0.2) {
 }
 
 // ── Bayesian A/B Test ─────────────────────────────────────────────
+/** @param {number[]} dataA @param {number[]} dataB */
 export function bayesianABTest(dataA, dataB, { seed = 42, nSim = 1000 } = {}) {
   __rng = mulberry32(seed);
   if (!dataA || !dataB || dataA.length < 3 || dataB.length < 3) return null;

@@ -80,7 +80,7 @@ function cumSum(arr) {
 }
 
 // ── Compositional Regression ──────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} [xVars] */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} [xVars] @param {string[]} compVars */
 export function compRegression(data, yVar, compVars, xVars = []) {
   if (!data || data.length < 10 || !yVar || !compVars || compVars.length < 2) return null;
   const ilrCoords = _ilrCoords(data, compVars); // full n×(p-1), not the 5-row display slice

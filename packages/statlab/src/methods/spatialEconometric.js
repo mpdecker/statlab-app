@@ -139,6 +139,7 @@ export function spatialPanel(data, yVar, xVars, W, { idVar, timeVar } = {}) {
 }
 
 // ── Spatial Hausman Test ──────────────────────────────────────────
+/** @param {number[]} betaFE @param {number[]} seFE @param {number[]} betaRE @param {number[]} seRE */
 export function spatialHausman(betaFE, seFE, betaRE, seRE) {
   if (!betaFE || !betaRE || betaFE.length !== betaRE.length) return null;
   const k = betaFE.length;
@@ -153,6 +154,7 @@ export function spatialHausman(betaFE, seFE, betaRE, seRE) {
 }
 
 // ── Direct and Indirect Effects ───────────────────────────────────
+/** @param {object} durbinResult */
 export function directIndirectEffects(durbinResult) {
   if (!durbinResult || !durbinResult.coefficients) return null;
   const n = durbinResult.n || 0;

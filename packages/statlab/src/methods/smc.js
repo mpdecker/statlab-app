@@ -19,7 +19,7 @@ function multinomialResample(particles, weights) {
 }
 
 // ── Bootstrap Particle Filter ─────────────────────────────────────
-/** @param {number[]} y */
+/** @param {number[]} y @param {number[]} initialParticles */
 export function bootstrapFilter(y, initialParticles, { seed = 42, processNoise = 1, obsNoise = 1 } = {}) {
   __rng = mulberry32(seed);
   if (!y || !initialParticles || !initialParticles.length || y.length < 3) return null;
@@ -42,7 +42,7 @@ export function bootstrapFilter(y, initialParticles, { seed = 42, processNoise =
 }
 
 // ── Auxiliary Particle Filter ─────────────────────────────────────
-/** @param {number[]} y */
+/** @param {number[]} y @param {number[]} initialParticles */
 export function auxiliaryPF(y, initialParticles, { seed = 42, processNoise = 1, obsNoise = 1 } = {}) {
   __rng = mulberry32(seed);
   if (!y || !initialParticles || !initialParticles.length || y.length < 3) return null;
@@ -72,7 +72,7 @@ export function auxiliaryPF(y, initialParticles, { seed = 42, processNoise = 1, 
 }
 
 // ── Importance Sampling ───────────────────────────────────────────
-/** @param {number} [nSamples] @param {number} [seed] */
+/** @param {number} [nSamples] @param {number} [seed] @param {Function} target @param {Function} proposal */
 export function importanceSampling(target, proposal, nSamples = 1000, seed = 42) {
   __rng = mulberry32(seed);
   if (!target || !proposal || nSamples < 10) return null;
@@ -101,7 +101,7 @@ export function effectiveSampleSizeSMC(weights) {
 }
 
 // ── Multinomial Resample (exported) ───────────────────────────────
-/** @param {number[]} weights @param {number} [seed] */
+/** @param {number[]} weights @param {number} [seed] @param {number[]} particles */
 export function multinomialResampleExport(particles, weights, seed = 42) {
   __rng = mulberry32(seed);
   if (!particles || !weights || !particles.length || particles.length !== weights.length) return null;
@@ -110,6 +110,7 @@ export function multinomialResampleExport(particles, weights, seed = 42) {
 }
 
 // ── Particle MCMC ─────────────────────────────────────────────────
+/** @param {() => number[]} prior @param {(params: number[]) => number} likelihood */
 export function particleMCMC(prior, likelihood, { nParticles = 100, nIter = 50, seed = 42 } = {}) {
   if (!prior || !likelihood || nParticles < 10) return null;
   const rand = mulberry32(seed);
@@ -135,6 +136,7 @@ export function particleMCMC(prior, likelihood, { nParticles = 100, nIter = 50, 
 }
 
 // ── Annealed Importance Sampling ──────────────────────────────────
+/** @param {Function} target @param {Function} proposal */
 export function annealedImportance(target, proposal, { nSamples = 50, nTemps = 5, logBase = null, stepSize = 1, seed = 42, nMH = 5 } = {}) {
   if (!target || !proposal || nSamples < 5) return null;
   const rand = mulberry32(seed);
