@@ -44,6 +44,12 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     privEpsilon, setPrivEpsilon, privDelta, setPrivDelta, privPct, setPrivPct,
     sensSeed, setSensSeed, sensNSamples, setSensNSamples,
     sensNTrajectories, setSensNTrajectories, sensGridLevels, setSensGridLevels,
+    robSeed, setRobSeed,
+    bbPriorA, setBbPriorA, bbPriorB, setBbPriorB,
+    gpPriorShape, setGpPriorShape, gpPriorRate, setGpPriorRate,
+    nnPriorMean, setNnPriorMean, nnPriorSD, setNnPriorSD, nnKnownSigma, setNnKnownSigma,
+    bayesMcmcIter, setBayesMcmcIter,
+    missPct, setMissPct, missSeed, setMissSeed,
   } = state;
 
   const scaffold = txt => (<div style={{ fontSize: 9, color: C.dim, ...mono, lineHeight: 1.45 }}>{txt}</div>);
@@ -67,6 +73,7 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     <Sel label="X" value={xVar} onChange={setXVar} options={numeric} width={130} />
     <Sel label="Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
   </>;
+  const singleVarCfg = <Sel label="Variable" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />;
   const tbl2x2 = <>
     <div style={{ fontSize: 8, color: C.dim, ...mono, textTransform: 'uppercase', marginBottom: 3 }}>2×2 table</div>
     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -536,6 +543,93 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     pow_rmanova: <></>,
     pow_olsapa: <></>,
     pow_spearman: <></>,
+    // ── robust statistics ────────────────────────────────────────────────────
+    theil_sen: xyPick,
+    mm_estimator: <>{xyPick}<Inp label="Seed" value={robSeed} onChange={setRobSeed} width={55} /></>,
+    mad_scale: singleVarCfg,
+    hampel_m: singleVarCfg,
+    mcd_cov: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Seed" value={robSeed} onChange={setRobSeed} width={55} />
+    </>,
+    s_estimator: xyPick,
+    lts_reg: <>{xyPick}<Inp label="Seed" value={robSeed} onChange={setRobSeed} width={55} /></>,
+    qq_band: singleVarCfg,
+    // ── Bayesian modeling ────────────────────────────────────────────────────
+    bic_bf: xyPick,
+    beta_binom_post: <>
+      <Inp label="k (successes)" value={binoK} onChange={setBinoK} width={65} />
+      <Inp label="n (trials)" value={binoN} onChange={setBinoN} width={65} />
+      <Inp label="Prior α" value={bbPriorA} onChange={setBbPriorA} width={60} />
+      <Inp label="Prior β" value={bbPriorB} onChange={setBbPriorB} width={60} />
+    </>,
+    gamma_pois_post: <>
+      {singleVarCfg}
+      <Inp label="Prior shape" value={gpPriorShape} onChange={setGpPriorShape} width={70} />
+      <Inp label="Prior rate" value={gpPriorRate} onChange={setGpPriorRate} width={70} />
+    </>,
+    norm_norm_post: <>
+      {singleVarCfg}
+      <Inp label="Prior mean" value={nnPriorMean} onChange={setNnPriorMean} width={70} />
+      <Inp label="Prior SD" value={nnPriorSD} onChange={setNnPriorSD} width={65} />
+      <Inp label="Known σ" value={nnKnownSigma} onChange={setNnKnownSigma} width={65} />
+    </>,
+    nig_post: xyPick,
+    bayes_linreg: xyPick,
+    bayes_logit: <>
+      <Sel label="Binary outcome" value={cat1} onChange={setCat1} options={categorical} width={130} />
+      <CheckList label="Predictors" items={numeric} selected={preds} onChange={setPreds} />
+      <Inp label="MCMC iter" value={bayesMcmcIter} onChange={setBayesMcmcIter} width={70} />
+    </>,
+    bayes_pois: <>
+      <Sel label="Count outcome Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <CheckList label="Predictors X" items={numeric.filter(c => c !== yVar)} selected={preds} onChange={setPreds} />
+      <Inp label="MCMC iter" value={bayesMcmcIter} onChange={setBayesMcmcIter} width={70} />
+    </>,
+    bayes_dic: xyPick,
+    bma_reg: <>
+      <Sel label="Outcome Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <CheckList label="Candidate predictors (2+)" items={numeric.filter(c => c !== yVar)} selected={preds} onChange={setPreds} />
+    </>,
+    // ── missing data ─────────────────────────────────────────────────────────
+    little_mcar: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+      <div style={{ fontSize: 7, color: C.dim, ...mono }}>Missingness injected for demo — real data has none.</div>
+    </>,
+    mice_imp: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
+    rubin_pool: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Sel label="Pool estimate for" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
+    fmi: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Sel label="Pool estimate for" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
+    em_impute: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
+    miss_patt: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
+    complete_cases: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
   };
 
   return (

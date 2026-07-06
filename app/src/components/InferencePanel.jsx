@@ -45,6 +45,29 @@ import { tauU, pnd, pem, nap, randomizationTest, baselineCorrectedTau, betweenCa
 import { morrisMethod, fastSensitivity, modelComparison, forecastCombination, sobolFirstOrder, sobolTotalIndex, deltaMethod, andrewsPlot } from 'statlab/methods/sensitivity';
 import { bootstrapCI, bootstrapSE, bootstrapTest, jackknife, bootstrapT_CI, empiricalInfluence, bootstrapMediation as bsMediation, moderatedMediation, splitConformal, conformalPvalues, jackknifePlus } from 'statlab/methods/bootstrap';
 import { powerCoxPH, powerMetaAnalysis, powerEquivalence, powerInteractionANOVA, powerANOVA, powerChiSq, powerLogisticReg, powerMultilevel, powerCorrelation, powerMediationTest, requiredNT, requiredNCorrelation, requiredNOneProp, requiredNTwoProp, requiredNWilcoxon, requiredNLogRank, requiredNOLS, requiredNANOVA, powerTTestWrapper, powerProportionOne, powerProportionTwo, powerWilcoxonTest, powerLogRankTest, powerRMANOVA, powerOLS_apa, powerSpearmanTest } from 'statlab/methods/power';
+import { theilSenSlope, mmEstimator, madScale, hampelM, mcdCovariance, sEstimator, ltsRegression, qqConfidence } from 'statlab/methods/robust';
+import {
+  bicBayesFactor, betaBinomialPosterior, gammaPoissonPosterior, normalNormalPosterior,
+  normalInverseGammaPosterior, bayesianLinearRegression, bayesianLogisticRegression,
+  bayesianPoissonRegression, bayesianDIC, bmaRegression,
+} from 'statlab/methods/bayesian';
+import { littlesMCAR, mice, rubinPool, fmi as fractionMissingInfo, emImpute, missingnessPattern, completeCases } from 'statlab/methods/missing';
+import { mulberry32 } from 'statlab/math/rng';
+
+function injectMissing(data, vars, pct, seed) {
+  if (!data?.length || !vars?.length) return data;
+  const rng = mulberry32(seed);
+  return data.map(row => {
+    const r = { ...row };
+    for (const v of vars) if (rng() * 100 < pct) r[v] = null;
+    return r;
+  });
+}
+
+function gaussianLogLik(ssRes, n) {
+  const ss = Math.max(ssRes, 1e-12);
+  return -0.5 * n * Math.log(2 * Math.PI) - 0.5 * n * Math.log(ss / n) - 0.5 * n;
+}
 
 const POWER_TESTS = new Set(['pow_anova', 'pow_chi', 'pow_logit', 'pow_mixed', 'pow_med']);
 
@@ -247,6 +270,23 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [sensNSamples, setSensNSamples] = useState('100');
   const [sensNTrajectories, setSensNTrajectories] = useState('10');
   const [sensGridLevels, setSensGridLevels] = useState('4');
+
+  // ── robust statistics ──────────────────────────────────────────────────────
+  const [robSeed, setRobSeed] = useState('42');
+
+  // ── Bayesian modeling ────────────────────────────────────────────────────
+  const [bbPriorA, setBbPriorA] = useState('1');
+  const [bbPriorB, setBbPriorB] = useState('1');
+  const [gpPriorShape, setGpPriorShape] = useState('1');
+  const [gpPriorRate, setGpPriorRate] = useState('1');
+  const [nnPriorMean, setNnPriorMean] = useState('0');
+  const [nnPriorSD, setNnPriorSD] = useState('10');
+  const [nnKnownSigma, setNnKnownSigma] = useState('1');
+  const [bayesMcmcIter, setBayesMcmcIter] = useState('800');
+
+  // ── missing data ─────────────────────────────────────────────────────────
+  const [missPct, setMissPct] = useState('15');
+  const [missSeed, setMissSeed] = useState('42');
 
   // ── bootstrap ──────────────────────────────────────────────────────────────
   const [bsResult, setBsResult]     = useState(null);
@@ -658,6 +698,91 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'pow_rmanova') { const r = powerRMANOVA(3, 20, 1, 0.25); return r ? { ...r, test: 'RM ANOVA Power' } : null; }
       if (a === 'pow_olsapa') { const r = powerOLS_apa(0.2, 50, 3); return r ? { ...r, test: 'OLS Power' } : null; }
       if (a === 'pow_spearman') { const r = powerSpearmanTest(50, 0.3); return r ? { ...r, test: 'Spearman Power' } : null; }
+      // ── robust statistics ────────────────────────────────────────────────────
+      if (a === 'theil_sen') return theilSenSlope(xy.xs, xy.ys);
+      if (a === 'mm_estimator') return mmEstimator(xy.xs, xy.ys, parseInt(robSeed, 10) || 42);
+      if (a === 'mad_scale') return madScale(allTgt);
+      if (a === 'hampel_m') return hampelM(allTgt);
+      if (a === 'mcd_cov') {
+        const vars = scaleVars.filter(c => numeric.includes(c));
+        if (vars.length < 2) return null;
+        const res = mcdCovariance(data, vars, { seed: parseInt(robSeed, 10) || 42 });
+        if (!res) return null;
+        // mcdCovariance's own `p`/`h` mean "# variables" / "MCD subset size" — rename
+        // before returning so they don't collide with the UI's generic p-value / Cohen's h chips.
+        const { p: nVars, h: subsetH, ...rest } = res;
+        return { ...rest, nVars, subsetH };
+      }
+      if (a === 's_estimator') return sEstimator(xy.xs, xy.ys);
+      if (a === 'lts_reg') {
+        const res = ltsRegression(xy.xs, xy.ys, { seed: parseInt(robSeed, 10) || 42 });
+        if (!res) return null;
+        // ltsRegression's `h` means "trimmed subset size", not Cohen's h — rename
+        // so it doesn't collide with the UI's generic Cohen's h chip.
+        const { h: subsetH, ...rest } = res;
+        return { ...rest, subsetH };
+      }
+      if (a === 'qq_band') return qqConfidence(allTgt);
+      // ── Bayesian modeling ────────────────────────────────────────────────────
+      if (a === 'bic_bf') {
+        if (xy.xs.length < 5) return null;
+        const my = avg(xy.ys);
+        const ssRes0 = xy.ys.reduce((s, y) => s + (y - my) ** 2, 0);
+        const fit = simpleOLS(xy.xs, xy.ys);
+        if (!fit) return null;
+        const ssRes1 = fit.mse * (fit.n - 2);
+        const logLik0 = gaussianLogLik(ssRes0, fit.n);
+        const logLik1 = gaussianLogLik(ssRes1, fit.n);
+        return bicBayesFactor(logLik0, logLik1, fit.n, 1, 2);
+      }
+      if (a === 'beta_binom_post') { const r = betaBinomialPosterior(+binoK, +binoN, parseFinite(bbPriorA, 1), parseFinite(bbPriorB, 1)); return r ? { ...r, test: 'Beta-Binomial Posterior', apa: `Posterior mean = ${r.posteriorMean.toFixed(4)}, 95% credible [${r.credible95[0]}, ${r.credible95[1]}]` } : null; }
+      if (a === 'gamma_pois_post') { const counts = allTgt.filter(v => v >= 0).map(v => Math.round(v)); if (counts.length < 1) return null; const r = gammaPoissonPosterior(counts, parseFinite(gpPriorShape, 1), parseFinite(gpPriorRate, 1)); return r ? { ...r, test: 'Gamma-Poisson Posterior', apa: `Posterior mean = ${r.posteriorMean.toFixed(4)}, 95% credible [${r.credible95[0]}, ${r.credible95[1]}]` } : null; }
+      if (a === 'norm_norm_post') { const r = normalNormalPosterior(allTgt, parseFinite(nnPriorMean, 0), parseFinite(nnPriorSD, 10), parseFinite(nnKnownSigma, 1)); return r ? { ...r, test: 'Normal-Normal Posterior', apa: `Posterior mean = ${r.posteriorMean.toFixed(4)} (SD=${r.posteriorSD.toFixed(4)}), 95% credible [${r.credible95[0]}, ${r.credible95[1]}]` } : null; }
+      if (a === 'nig_post') { if (xy.xs.length < 5) return null; const X = xy.xs.map(x => [1, x]); const r = normalInverseGammaPosterior(xy.ys, X); return r ? { ...r, test: 'Normal-Inverse-Gamma Posterior', apa: `β = ${r.coefficients.map(c => c.posteriorMean.toFixed(3)).join(', ')}, σ² = ${r.sigma2.toFixed(4)}` } : null; }
+      if (a === 'bayes_linreg') { if (xy.xs.length < 5) return null; const X = xy.xs.map(x => [1, x]); return bayesianLinearRegression(xy.ys, X); }
+      if (a === 'bayes_logit') {
+        const Xc = preds.filter(c => c);
+        if (!Xc.length || !cat1) return null;
+        const cats = [...new Set(data.map(r => r[cat1]))].filter(v => v != null).sort();
+        const posVal = cats[1] || cats[0];
+        const rows = data.filter(r => cats.includes(r[cat1]) && rowFinite(r, Xc));
+        if (rows.length < 10) return null;
+        return bayesianLogisticRegression(rows.map(r => r[cat1] === posVal ? 1 : 0), rows.map(r => Xc.map(c => +r[c])), { nIter: Math.max(200, parseInt(bayesMcmcIter, 10) || 800), nBurnin: Math.max(100, Math.floor((parseInt(bayesMcmcIter, 10) || 800) / 3)) });
+      }
+      if (a === 'bayes_pois') {
+        const Xc = preds.filter(c => c && c !== yVar);
+        if (!Xc.length || !yVar) return null;
+        const rows = data.filter(r => rowFinite(r, [yVar, ...Xc]) && +r[yVar] >= 0);
+        if (rows.length < 10) return null;
+        return bayesianPoissonRegression(rows.map(r => Math.round(+r[yVar])), rows.map(r => Xc.map(c => +r[c])), { nIter: Math.max(200, parseInt(bayesMcmcIter, 10) || 800), nBurnin: Math.max(100, Math.floor((parseInt(bayesMcmcIter, 10) || 800) / 3)) });
+      }
+      if (a === 'bayes_dic') { if (xy.xs.length < 5) return null; const fit = simpleOLS(xy.xs, xy.ys); if (!fit) return null; const ssRes = fit.mse * (fit.n - 2); const ll = gaussianLogLik(ssRes, fit.n); return bayesianDIC(ll, 2, null); }
+      if (a === 'bma_reg') { const Xc = preds.filter(c => c && c !== yVar); if (Xc.length < 2 || !yVar) return null; return bmaRegression(data, yVar, Xc); }
+      // ── missing data ─────────────────────────────────────────────────────────
+      if (['little_mcar', 'mice_imp', 'rubin_pool', 'fmi', 'em_impute', 'miss_patt', 'complete_cases'].includes(a)) {
+        const vars = scaleVars.filter(c => numeric.includes(c));
+        if (vars.length < 2) return null;
+        const holey = injectMissing(data, vars, parseFinite(missPct, 15), parseInt(missSeed, 10) || 42);
+        if (a === 'little_mcar') return littlesMCAR(holey);
+        if (a === 'miss_patt') return missingnessPattern(holey.map(r => Object.fromEntries(vars.map(v => [v, r[v]]))));
+        if (a === 'complete_cases') return completeCases(holey, vars);
+        if (a === 'em_impute') return emImpute(holey, vars);
+        if (a === 'mice_imp') return mice(holey, vars, { seed: parseInt(missSeed, 10) || 42 });
+        if (a === 'rubin_pool' || a === 'fmi') {
+          const mi = mice(holey, vars, { seed: parseInt(missSeed, 10) || 42 });
+          if (!mi) return null;
+          const target = tgtVar && vars.includes(tgtVar) ? tgtVar : vars[0];
+          const pooled = rubinPool(mi.imputedDatasets, ds => {
+            const v = finiteNums(ds.map(r => +r[target]));
+            if (v.length < 2) return null;
+            const m = avg(v), se = sampleSD(v) / Math.sqrt(v.length);
+            return { estimates: [{ name: target, estimate: m, se }] };
+          });
+          if (!pooled) return null;
+          return a === 'rubin_pool' ? pooled : fractionMissingInfo(pooled);
+        }
+        return null;
+      }
       if (a === 'bootstrap') return null;
     } catch (e) { return { error: String(e) }; }
     return null;
@@ -680,6 +805,8 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     banditNStates, banditNActions, banditNEpisodes,
     privEpsilon, privDelta, privPct,
     sensSeed, sensNSamples, sensNTrajectories, sensGridLevels,
+    robSeed, bbPriorA, bbPriorB, gpPriorShape, gpPriorRate,
+    nnPriorMean, nnPriorSD, nnKnownSigma, bayesMcmcIter, missPct, missSeed,
   ]);
 
   const displayResult = POWER_TESTS.has(active) ? powerResult : result;
@@ -736,6 +863,12 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     privEpsilon, setPrivEpsilon, privDelta, setPrivDelta, privPct, setPrivPct,
     sensSeed, setSensSeed, sensNSamples, setSensNSamples,
     sensNTrajectories, setSensNTrajectories, sensGridLevels, setSensGridLevels,
+    robSeed, setRobSeed,
+    bbPriorA, setBbPriorA, bbPriorB, setBbPriorB,
+    gpPriorShape, setGpPriorShape, gpPriorRate, setGpPriorRate,
+    nnPriorMean, setNnPriorMean, nnPriorSD, setNnPriorSD, nnKnownSigma, setNnKnownSigma,
+    bayesMcmcIter, setBayesMcmcIter,
+    missPct, setMissPct, missSeed, setMissSeed,
   };
 
   return {
