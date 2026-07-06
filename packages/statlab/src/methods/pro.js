@@ -90,7 +90,7 @@ export function clinicalTrialsGov(data, phaseVar, statusVar) {
 export function consortChecklist(items) {
   if (!items || !items.length) return null;
   const required = ['title','abstract','background','objectives','outcomes','sampleSize','randomization','blinding','statMethods','participantFlow','recruitment','baseline','outcomes','harms','limitations','interpretation','registration','protocol','funding'];
-  const completed = required.filter(r => items.some(i => i.toLowerCase().includes(r.toLowerCase())));
+  const completed = required.filter(r => items.some(i => String(i).toLowerCase().includes(r.toLowerCase())));
   const score = required.length > 0 ? completed.length / required.length : 0;
   return { test: 'CONSORT Checklist', completed, missing: required.filter(r => !completed.includes(r)), score: +score.toFixed(4), total: required.length, apa: `CONSORT: ${completed.length}/${required.length} (${(score*100).toFixed(0)}%)` };
 }

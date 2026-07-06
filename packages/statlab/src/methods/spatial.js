@@ -5,7 +5,7 @@ import { mulberry32 } from '../math/rng.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
-function _spatialWeights(points, valueField, { type = 'inverseDistance', threshold = null, k = 5 } = {}) {
+export function buildSpatialWeights(points, valueField, { type = 'inverseDistance', threshold = null, k = 5 } = {}) {
   const n = points.length;
   const coords = points.map(p => [p.x, p.y]);
   const val = points.map(p => +p[valueField]);
@@ -50,7 +50,7 @@ function _spatialWeights(points, valueField, { type = 'inverseDistance', thresho
 /** @param {number[]} points @param {string} valueField */
 export function moransI(points, valueField, { weightType = 'inverseDistance', threshold = null } = {}) {
   if (!points || points.length < 10 || !valueField) return null;
-  const { W, val, n } = _spatialWeights(points, valueField, { type: weightType, threshold });
+  const { W, val, n } = buildSpatialWeights(points, valueField, { type: weightType, threshold });
   const valMean = avg(val);
   const z = val.map(v => v - valMean);
   let num = 0, den = 0;
@@ -78,7 +78,7 @@ export function moransI(points, valueField, { weightType = 'inverseDistance', th
 /** @param {number[]} points @param {string} valueField */
 export function gearysC(points, valueField, { weightType = 'inverseDistance', threshold = null } = {}) {
   if (!points || points.length < 10 || !valueField) return null;
-  const { W, val, n } = _spatialWeights(points, valueField, { type: weightType, threshold });
+  const { W, val, n } = buildSpatialWeights(points, valueField, { type: weightType, threshold });
   const valMean = avg(val);
   let num = 0, den = 0;
   for (let i = 0; i < n; i++) {
@@ -304,7 +304,7 @@ export function spatialErrorModel(data, valueField, points, { weightType = 'inve
   if (!data || data.length < 20 || !valueField || !points || points.length < 20) return null;
   const n = data.length;
   const y = data.map(r => +r[valueField]);
-  const { W } = _spatialWeights(points, valueField, { type: weightType });
+  const { W } = buildSpatialWeights(points, valueField, { type: weightType });
   const Wy = W.map((row, i) => row.reduce((s, w, j) => s + w * y[j], 0));
   const rhoNum = y.reduce((s, yi, i) => s + (yi - avg(y)) * (Wy[i] - avg(Wy)), 0);
   const rhoDen = Wy.reduce((s, wy) => s + (wy - avg(Wy)) ** 2, 0);
@@ -321,7 +321,7 @@ export function spatialLagModel(data, valueField, points, { weightType = 'invers
   if (!data || data.length < 20 || !valueField || !points || points.length < 20) return null;
   const n = data.length;
   const y = data.map(r => +r[valueField]);
-  const { W } = _spatialWeights(points, valueField, { type: weightType });
+  const { W } = buildSpatialWeights(points, valueField, { type: weightType });
   const Wy = W.map((row, i) => row.reduce((s, w, j) => s + w * y[j], 0));
   const rhoNum = y.reduce((s, yi, i) => s + (yi - avg(y)) * (Wy[i] - avg(Wy)), 0);
   const rhoDen = Wy.reduce((s, wy) => s + (wy - avg(Wy)) ** 2, 0);
