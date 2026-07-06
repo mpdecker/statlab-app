@@ -662,6 +662,46 @@ export function ITSPlot({ series }) {
   );
 }
 
+/** Time series line chart for arbitrary series data */
+export function TimeSeriesChart({ series, width = 210, height = 140 }) {
+  if (!series?.length) return null;
+  const lines = (Array.isArray(series[0]) || typeof series[0] === 'number')
+    ? [{ data: series }]
+    : series;
+  const hasNames = lines.length > 1 || (lines.length === 1 && typeof lines[0]?.name === 'string');
+  const data = (() => {
+    const maxLen = Math.max(...lines.map(l => (l.data || l.length || 0) && Array.isArray(l.data || l) ? (l.data || l).length : 0));
+    if (!maxLen) return [];
+    return Array.from({ length: maxLen }, (_, i) => {
+      const row = { index: i + 1 };
+      lines.forEach((l, li) => {
+        const arr = l.data || l;
+        row[hasNames ? (l.name || `y${li + 1}`) : 'y'] = arr?.[i];
+      });
+      return row;
+    });
+  })();
+  if (!data.length) return null;
+  const dataKeys = Object.keys(data[0]).filter(k => k !== 'index');
+  const axTick = { fontSize: 7, fill: C.dim, ...mono };
+  const colors = [C.accent, C.warn, PAL[2], PAL[4], PAL[6]];
+  return (
+    <div style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 4, right: 8, bottom: 14, left: 8 }}>
+          <CartesianGrid stroke={C.border} strokeOpacity={.35} />
+          <XAxis dataKey="index" type="number" tick={axTick} stroke={C.border} />
+          <YAxis type="number" tick={axTick} stroke={C.border} />
+          <Tooltip content={<CTip />} />
+          {dataKeys.map((key, i) => (
+            <Line key={key} type="monotone" dataKey={key} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} name={key} />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 /** RDD local scatter */
 export function RDPlot({ points, cutoff }) {
   if (!points?.length) return null;
