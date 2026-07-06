@@ -86,14 +86,47 @@ const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 // ── Left navigator ────────────────────────────────────────────────────────────
 export function Navigator({ active, setActive }) {
   const [expandedNote, setExpandedNote] = useState(null);
+  const [navSearch, setNavSearch] = useState('');
+  const [collapsedCats, setCollapsedCats] = useState(() => new Set());
+
+  const q = navSearch.trim().toLowerCase();
+  const searching = q.length > 0;
+  const visibleTree = useMemo(() => {
+    if (!searching) return TREE;
+    return TREE
+      .map(cat => ({ ...cat, tests: cat.tests.filter(t => t.label.toLowerCase().includes(q) || t.tag.toLowerCase().includes(q) || cat.cat.toLowerCase().includes(q)) }))
+      .filter(cat => cat.tests.length > 0);
+  }, [searching, q]);
+  const totalCount = useMemo(() => TREE.reduce((s, c) => s + c.tests.length, 0), []);
+  const visibleCount = useMemo(() => visibleTree.reduce((s, c) => s + c.tests.length, 0), [visibleTree]);
+
+  const toggleCat = cat => setCollapsedCats(s => { const next = new Set(s); next.has(cat) ? next.delete(cat) : next.add(cat); return next; });
+
   return (
-    <div style={{ width: 200, borderRight: `1px solid ${C.border}`, overflowY: 'auto', flexShrink: 0 }}>
-      {TREE.map(cat => (
+    <div style={{ width: 200, borderRight: `1px solid ${C.border}`, overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: 6, borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, background: C.bg, zIndex: 1 }}>
+        <input
+          value={navSearch}
+          onChange={e => setNavSearch(e.target.value)}
+          placeholder={`search ${totalCount} tests…`}
+          style={{ width: '100%', background: C.panel, border: `1px solid ${C.border}`, color: C.text, ...mono, fontSize: 10, padding: '4px 6px', borderRadius: 3, outline: 'none', boxSizing: 'border-box' }}
+        />
+        {searching && <div style={{ fontSize: 8, ...mono, color: C.dim, marginTop: 3 }}>{visibleCount} of {totalCount} match</div>}
+      </div>
+      {searching && visibleTree.length === 0 && (
+        <div style={{ padding: 10, fontSize: 10, ...mono, color: C.dim }}>No tests match "{navSearch}".</div>
+      )}
+      {visibleTree.map(cat => (
         <div key={cat.cat}>
-          <div style={{ fontSize: 8, ...mono, color: cat.color, textTransform: 'uppercase', letterSpacing: '.12em', padding: '5px 10px 2px', borderBottom: `1px solid ${C.border}`, fontWeight: 600 }}>
+          <div
+            onClick={() => !searching && toggleCat(cat.cat)}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 8, ...mono, color: cat.color, textTransform: 'uppercase', letterSpacing: '.12em', padding: '5px 10px 2px', borderBottom: `1px solid ${C.border}`, fontWeight: 600, cursor: searching ? 'default' : 'pointer' }}
+          >
+            <span style={{ fontSize: 7, opacity: .8 }}>{searching || !collapsedCats.has(cat.cat) ? '▾' : '▸'}</span>
             {cat.cat}
+            <span style={{ marginLeft: 'auto', opacity: .6, fontWeight: 400 }}>{cat.tests.length}</span>
           </div>
-          {cat.tests.map(t => (
+          {(searching || !collapsedCats.has(cat.cat)) && cat.tests.map(t => (
             <div key={t.id}>
               <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                 <button

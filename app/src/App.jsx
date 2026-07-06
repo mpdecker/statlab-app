@@ -8,6 +8,7 @@ import {
   seriesFromResult,
 } from './utils/vizHelpers.js';
 import { CHART_FOR_TEST } from './config/chartMap.js';
+import { TREE } from './config/tree.js';
 import { computeStats, corr, avg, sampleSD } from 'statlab/math/core';
 import { barHeightPct } from './utils/parse.js';
 import { useInference, Navigator } from './components/InferencePanel.jsx';
@@ -253,7 +254,7 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
         <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: '.05em', color: '#fff' }}>
           STAT<span style={{ color: C.accent }}>LAB</span>
         </div>
-        <div style={{ fontSize: 8, color: C.dim, ...mono }}>{'v7 \u00B7 84 tests \u00B7 social science edition'}</div>
+        <div style={{ fontSize: 8, color: C.dim, ...mono }}>{`v7 \u00B7 ${TOTAL_TEST_COUNT} tests \u00B7 social science edition`}</div>
       </div>
 
       {/* Dataset pills */}
@@ -444,22 +445,36 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
 }
 
 // ── Landing page ──────────────────────────────────────────────────────────────
-const TEST_CATEGORIES = [
-  { cat: "COMPARE MEANS",       n: 6,  color: '#44dd88' },
-  { cat: "ANOVA",               n: 8,  color: '#60a5fa' },
-  { cat: "NONPARAMETRIC",       n: 2,  color: '#f0c040' },
-  { cat: "CORRELATION",         n: 5,  color: '#c4ff00' },
-  { cat: "REGRESSION",          n: 11, color: '#ff6bd6' },
-  { cat: "CATEGORICAL",         n: 7,  color: '#b980ff' },
-  { cat: "EQUIVALENCE & BAYES", n: 3,  color: '#34d399' },
-  { cat: "MULTIVARIATE",        n: 9,  color: '#34d399' },
-  { cat: "PSYCHOMETRICS",       n: 5,  color: '#f472b6' },
-  { cat: "MULTILEVEL MODELS",   n: 3,  color: '#2dd4bf' },
-  { cat: "CLUSTERING",          n: 3,  color: '#fb923c' },
-  { cat: "NETWORK",             n: 3,  color: '#a78bfa' },
-  { cat: "META & CAUSAL",       n: 6,  color: '#fbbf24' },
-  { cat: "DIAGNOSTICS & TOOLS", n: 13, color: '#ff4444' },
+// Headline categories get their own row; everything else (diagnostics, power
+// calculators, and the long tail of specialty categories) is bucketed into
+// "DIAGNOSTICS & TOOLS" so the summary stays readable as TREE grows. Counts are
+// derived from TREE directly rather than hand-maintained, so they can't go stale.
+const HEADLINE_CATS = [
+  { cat: "COMPARE MEANS",       color: '#44dd88' },
+  { cat: "ANALYSIS OF VARIANCE", label: "ANOVA", color: '#60a5fa' },
+  { cat: "NONPARAMETRIC",       color: '#f0c040' },
+  { cat: "CORRELATION",         color: '#c4ff00' },
+  { cat: "REGRESSION",          color: '#ff6bd6' },
+  { cat: "CATEGORICAL",         color: '#b980ff' },
+  { cat: "EQUIVALENCE & BAYES", color: '#34d399' },
+  { cat: "MULTIVARIATE",        color: '#34d399' },
+  { cat: "PSYCHOMETRICS",       color: '#f472b6' },
+  { cat: "MULTILEVEL MODELS",   color: '#2dd4bf' },
+  { cat: "CLUSTERING",          color: '#fb923c' },
+  { cat: "NETWORK",             color: '#a78bfa' },
+  { cat: "META-ANALYSIS & CAUSAL", label: "META & CAUSAL", color: '#fbbf24' },
 ];
+const TEST_CATEGORIES = (() => {
+  const headlineNames = new Set(HEADLINE_CATS.map(h => h.cat));
+  const rows = HEADLINE_CATS.map(h => ({
+    cat: h.label || h.cat, color: h.color,
+    n: TREE.find(c => c.cat === h.cat)?.tests.length || 0,
+  }));
+  const rest = TREE.filter(c => !headlineNames.has(c.cat)).reduce((s, c) => s + c.tests.length, 0);
+  rows.push({ cat: "DIAGNOSTICS & TOOLS", n: rest, color: '#ff4444' });
+  return rows;
+})();
+const TOTAL_TEST_COUNT = TREE.reduce((s, c) => s + c.tests.length, 0);
 
 function LandingPage({ onLaunch }) {
   return (
@@ -471,7 +486,7 @@ function LandingPage({ onLaunch }) {
           STAT<span style={{ color: C.accent }}>LAB</span>
         </div>
         <p style={{ fontSize: 18, lineHeight: 1.5, color: C.text, marginBottom: 6 }}>
-          84 statistical tests in your browser.
+          {`${TOTAL_TEST_COUNT} statistical tests in your browser.`}
         </p>
         <p style={{ fontSize: 14, lineHeight: 1.5, color: C.dim, marginBottom: 20 }}>
           No install, no account, no data leaves your machine.
@@ -823,7 +838,7 @@ export default function App() {
           {activeTab === 'inference' && (
             <>
               <div style={{ padding: '3px 10px', borderBottom: `1px solid ${C.border}`, fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em', flexShrink: 0 }}>
-                {'\u22A2 84 statistical tests \u00B7 mediation \u00B7 moderation \u00B7 TOST \u00B7 Bayes \u00B7 PCA/EFA \u00B7 ICC \u00B7 meta-analysis \u00B7 DiD \u00B7 APA 7 output'}
+                {`\u22A2 ${TOTAL_TEST_COUNT} statistical tests \u00B7 mediation \u00B7 moderation \u00B7 TOST \u00B7 Bayes \u00B7 PCA/EFA \u00B7 ICC \u00B7 meta-analysis \u00B7 DiD \u00B7 APA 7 output`}
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
                 {/* Bootstrap mediation path + CI */}
