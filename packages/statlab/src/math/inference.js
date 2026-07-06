@@ -4,6 +4,10 @@ import { matInv } from './matrix.js';
  * Central-difference gradient of a scalar function f(theta).
  * Step ~ eps·max(|θ|,1) (eps≈cube-root of machine precision) to balance
  * truncation against round-off.
+ * @param {number[]} theta point at which to evaluate the gradient.
+ * @param {(theta: number[]) => number} f scalar objective.
+ * @param {number} [eps=1e-6] relative step size.
+ * @returns {number[]} the gradient vector.
  */
 export function numericGradient(theta, f, eps = 1e-6) {
   const k = theta.length, g = Array(k).fill(0);
@@ -21,6 +25,10 @@ export function numericGradient(theta, f, eps = 1e-6) {
  * Step ~ eps·max(|θ|,1) with eps≈4th-root of machine precision; using a step
  * that does not collapse to eps² when a parameter is 0 avoids catastrophic
  * cancellation in the second difference.
+ * @param {number[]} theta point at which to evaluate the Hessian.
+ * @param {(theta: number[]) => number} f scalar objective.
+ * @param {number} [eps=1e-4] relative step size.
+ * @returns {number[][]} the symmetric Hessian matrix.
  */
 export function numericHessian(theta, f, eps = 1e-4) {
   const k = theta.length;
@@ -46,8 +54,10 @@ export function numericHessian(theta, f, eps = 1e-4) {
  * Returns { theta, cov, se, converged } where cov is the inverse observed
  * information (asymptotic covariance) and se = sqrt(diag(cov)).
  *
- * @param theta0    initial parameter vector
- * @param negLogLik function θ → −log L(θ) to minimise
+ * @param {number[]} theta0 initial parameter vector.
+ * @param {(theta: number[]) => number} negLogLik function θ → −log L(θ) to minimise.
+ * @param {{maxIter?: number, tol?: number, ridge?: number}} [options]
+ * @returns {{theta: number[], cov: number[][]|null, se: number[], converged: boolean}}
  */
 export function mleFit(theta0, negLogLik, { maxIter = 60, tol = 1e-7, ridge = 1e-8 } = {}) {
   let theta = theta0.slice();

@@ -2,6 +2,7 @@ import { avg } from '../math/core.js';
 import { normalINV } from '../math/distributions.js';
 
 // ── AUC Trapezoidal ────────────────────────────────────────────────────────
+/** @param {number[]} time @param {number[]} concentration */
 export function aucTrapezoidal(time, concentration) {
   if (!time || !concentration || time.length < 3 || time.length !== concentration.length) return null;
   const n = time.length;
@@ -24,6 +25,7 @@ export function aucTrapezoidal(time, concentration) {
 }
 
 // ── AUC Linear-Log ─────────────────────────────────────────────────────────
+/** @param {number[]} time @param {number[]} concentration */
 export function aucLinearLog(time, concentration) {
   if (!time || !concentration || time.length < 3 || time.length !== concentration.length) return null;
   const n = time.length;
@@ -49,6 +51,7 @@ export function aucLinearLog(time, concentration) {
 }
 
 // ── PK Parameters ──────────────────────────────────────────────────────────
+/** @param {number[]} time @param {number[]} concentration */
 export function pkParameters(time, concentration, { dose = null } = {}) {
   if (!time || !concentration || time.length < 4 || time.length !== concentration.length) return null;
   const n = time.length;
@@ -86,6 +89,7 @@ export function pkParameters(time, concentration, { dose = null } = {}) {
 }
 
 // ── Terminal Half-Life ─────────────────────────────────────────────────────
+/** @param {number[]} time @param {number[]} concentration */
 export function terminalHalfLife(time, concentration, { nPoints = 3 } = {}) {
   if (!time || !concentration || time.length < 4 || time.length !== concentration.length) return null;
   const n = time.length;
@@ -120,6 +124,7 @@ export function terminalHalfLife(time, concentration, { nPoints = 3 } = {}) {
 }
 
 // ── Clearance ──────────────────────────────────────────────────────────────
+/** @param {number[]} dose */
 export function clearance(dose, auc) {
   if (!(dose > 0) || !(auc > 0)) return null;
   const cl = dose / auc;
@@ -133,6 +138,7 @@ export function clearance(dose, auc) {
 }
 
 // ── One-Compartment IV ─────────────────────────────────────────────────────
+/** @param {number[]} time @param {number[]} concentration */
 export function oneCompartmentIV(time, concentration, { dose = null } = {}) {
   if (!time || !concentration || time.length < 4 || time.length !== concentration.length) return null;
   const n = time.length;
@@ -194,6 +200,7 @@ export function bioequivalence(testAUC, refAUC, { alpha = 0.05 } = {}) {
 }
 
 // ── Emax Model ────────────────────────────────────────────────────
+/** @param {number[]} dose @param {number[]} response */
 export function emaxModel(dose, response) {
   if (!dose || !response || dose.length < 5 || dose.length !== response.length) return null;
   const n = dose.length;
@@ -215,6 +222,7 @@ export function emaxModel(dose, response) {
 }
 
 // ── Sigmoid Emax ──────────────────────────────────────────────────
+/** @param {number[]} dose @param {number[]} response */
 export function sigmoidEmax(dose, response) {
   if (!dose || !response || dose.length < 6 || dose.length !== response.length) return null;
   const n = dose.length;
@@ -244,6 +252,7 @@ export function sigmoidEmax(dose, response) {
 }
 
 // ── Indirect Response ─────────────────────────────────────────────
+/** @param {number[]} time @param {number[]} concentration @param {number[]} response */
 export function indirectResponse(time, concentration, response) {
   if (!time || !concentration || !response || time.length < 5) return null;
   const n = Math.min(time.length, concentration.length, response.length);
@@ -295,6 +304,7 @@ export function pkpdLink(conc, effect) {
 }
 
 // ── Superposition ─────────────────────────────────────────────────
+/** @param {number[]} times */
 export function superposition(doses, times, ke, Vd, { tau = 24 } = {}) {
   if (!doses || !times || !doses.length || doses.length !== times.length) return null;
   const n = doses.length;
@@ -324,6 +334,7 @@ export function aucRatio(testAUC, refAUC) {
 }
 
 // ── Turnover Model (Indirect Response) ────────────────────────────
+/** @param {number[]} time @param {number[]} response */
 export function turnoverModel(time, conc, response, { kin = 1, kout = 0.3 } = {}) {
   if (!time || !conc || !response || time.length < 5) return null;
   const n = Math.min(time.length, conc.length, response.length);
@@ -336,6 +347,7 @@ export function turnoverModel(time, conc, response, { kin = 1, kout = 0.3 } = {}
 }
 
 // ── Transit Compartment ───────────────────────────────────────────
+/** @param {number[]} time @param {number[]} dose */
 export function transitCompartment(dose, time, { nCompartments = 3, k = 0.5 } = {}) {
   if (!dose || !time || !time.length || nCompartments < 1) return null;
   const n = time.length;
@@ -352,6 +364,7 @@ export function transitCompartment(dose, time, { nCompartments = 3, k = 0.5 } = 
 }
 
 // ── TMDD Model (Target-Mediated Drug Disposition) ─────────────────
+/** @param {number[]} time @param {number} [dose] */
 export function tmddModel(time, conc, dose = 1) {
   if (!time || !conc || time.length < 5 || time.length !== conc.length) return null;
   const n = time.length;
@@ -397,6 +410,7 @@ export function tmddModel(time, conc, dose = 1) {
 }
 
 // ── Non-Compartmental Analysis Expanded ───────────────────────────
+/** @param {number[]} time */
 export function nonCompartmentalExpanded(time, conc) {
   if (!time || !conc || time.length < 4 || time.length !== conc.length) return null;
   const n = time.length;

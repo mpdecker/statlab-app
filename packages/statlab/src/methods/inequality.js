@@ -1,6 +1,7 @@
 import { avg } from '../math/core.js';
 
 // ── Gini Coefficient ──────────────────────────────────────────────
+/** @param {number[]} data */
 export function giniCoefficient(data) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -15,6 +16,7 @@ export function giniCoefficient(data) {
 }
 
 // ── Lorenz Curve ──────────────────────────────────────────────────
+/** @param {number[]} data */
 export function lorenzCurve(data) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -36,6 +38,7 @@ export function lorenzCurve(data) {
 // exactly a factor of `mean` — e.g. 21.5x too large on a dataset with mean
 // 21.5. x·ln(x)→0 as x→0+, so v_i=0 contributes 0 (guarded explicitly since
 // JS's 0*(-Infinity) is NaN, not 0).
+/** @param {number[]} data */
 export function theilIndex(data, { groupVals = null, groupSizes = null } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -60,6 +63,7 @@ export function theilIndex(data, { groupVals = null, groupSizes = null } = {}) {
 }
 
 // ── Atkinson Index ────────────────────────────────────────────────
+/** @param {number[]} data */
 export function atkinsonIndex(data, { epsilon = 1 } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -92,6 +96,7 @@ export function concentrationIndex(health, rank) {
 }
 
 // ── Hoover Index (Robin Hood Index) ───────────────────────────────
+/** @param {number[]} data */
 export function hooverIndex(data) {
   if (!data || data.length < 3) return null;
   const n = data.length;
@@ -105,6 +110,7 @@ export function hooverIndex(data) {
 }
 
 // ── Palma Ratio ───────────────────────────────────────────────────
+/** @param {number[]} data */
 export function palmaRatio(data) {
   if (!data || data.length < 10) return null;
   const n = data.length;
@@ -118,6 +124,7 @@ export function palmaRatio(data) {
 }
 
 // ── Inequality Decomposition (Theil within/between) ───────────────
+/** @param {number[]} data */
 export function decomposition(data, groups) {
   if (!data || !groups || data.length < 3 || data.length !== groups.length) return null;
   const n = data.length;

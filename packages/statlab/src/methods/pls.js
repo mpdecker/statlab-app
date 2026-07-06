@@ -2,6 +2,7 @@ import { avg, corr } from '../math/core.js';
 import { jacobiEigen, matInv } from '../math/matrix.js';
 
 // ── PLS1 ──────────────────────────────────────────────────────────
+/** @param {number[][]} X @param {number[]} y @param {number} [nComponents] */
 export function pls1(X, y, nComponents = 2) {
   if (!X || !y || X.length < 10 || X.length !== y.length || !X[0]) return null;
   const n = X.length, p = X[0].length;
@@ -35,6 +36,7 @@ export function pls1(X, y, nComponents = 2) {
 }
 
 // ── PLS2 ──────────────────────────────────────────────────────────
+/** @param {number[][]} X @param {number[][]} Y @param {number} [nComponents] */
 export function pls2(X, Y, nComponents = 2) {
   if (!X || !Y || X.length < 10 || X.length !== Y.length || !X[0] || !Y[0]) return null;
   const n = X.length, p = X[0].length, m = Y[0].length;
@@ -93,6 +95,7 @@ export function vipScores(plsModel) {
 }
 
 // ── RDA ───────────────────────────────────────────────────────────
+/** @param {number[][]} X */
 export function rda(Y, X, { permutations = 199, seed = 42 } = {}) {
   if (!Y || !X || Y.length < 10 || X.length < 10) return null;
   const n = Math.min(Y.length, X.length);
@@ -133,6 +136,7 @@ export function rda(Y, X, { permutations = 199, seed = 42 } = {}) {
 }
 
 // ── db-RDA ────────────────────────────────────────────────────────
+/** @param {number[]} D @param {number[][]} X */
 export function dbRDA(D, X, { permutations = 199 } = {}) {
   if (!D || !X || D.length < 10 || X.length < 10) return null;
   const n = Math.min(D.length, X.length);
@@ -146,6 +150,7 @@ export function dbRDA(D, X, { permutations = 199 } = {}) {
 }
 
 // ── Sparse PLS Regression ─────────────────────────────────────────
+/** @param {number[][]} X @param {number[]} y */
 export function sPLSRegression(X, y, { nComp = 2, lambda = 0.5, maxIter = 20 } = {}) {
   if (!X || !y || X.length < 5 || y.length < 5 || nComp < 1) return null;
   const n = X.length, p = X[0].length;
@@ -175,6 +180,7 @@ export function sPLSRegression(X, y, { nComp = 2, lambda = 0.5, maxIter = 20 } =
 }
 
 // ── Sparse PLS (simpler variant) ──────────────────────────────────
+/** @param {number[][]} X */
 export function sparsePLS(X, y, { nComp = 2, keepX = null } = {}) {
   if (!X || !y || X.length < 5 || nComp < 1) return null;
   const p = X[0].length;

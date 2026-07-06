@@ -2,6 +2,7 @@ import { avg, sampleSD, corr } from '../math/core.js';
 import { normalCDF } from '../math/distributions.js';
 
 // ── Reliable Change Index ──────────────────────────────────────────────────
+/** @param {number[]} baseline */
 export function reliableChangeIndex(baseline, followUp, { reliability = 0.8, sdBaseline = null } = {}) {
   if (!baseline || !followUp || baseline.length !== followUp.length || baseline.length < 3) return null;
   const n = baseline.length;
@@ -16,6 +17,7 @@ export function reliableChangeIndex(baseline, followUp, { reliability = 0.8, sdB
 }
 
 // ── Minimal Important Difference ───────────────────────────────────────────
+/** @param {number[]} scores */
 export function minimalImportantDifference(scores, anchors, { method = 'anchor' } = {}) {
   if (!scores || !anchors || scores.length < 5 || scores.length !== anchors.length) return null;
   const n = scores.length;
@@ -29,6 +31,7 @@ export function minimalImportantDifference(scores, anchors, { method = 'anchor' 
 }
 
 // ── Responder Analysis ─────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {number} threshold */
 export function responderAnalysis(data, baselineVar, followUpVar, threshold, { groupVar = null } = {}) {
   if (!data || !data.length || !baselineVar || !followUpVar) return null;
   const n = data.length;
@@ -56,6 +59,7 @@ export function eq5dIndex(domainScores, { country = 'UK' } = {}) {
 }
 
 // ── Standardized Response Mean ─────────────────────────────────────────────
+/** @param {number[]} baseline */
 export function standardizedResponseMean(baseline, followUp) {
   if (!baseline || !followUp || baseline.length < 3 || baseline.length !== followUp.length) return null;
   const n = baseline.length;
@@ -67,6 +71,7 @@ export function standardizedResponseMean(baseline, followUp) {
 }
 
 // ── Clinical Trials Gov Summary ───────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function clinicalTrialsGov(data, phaseVar, statusVar) {
   if (!data || data.length < 5 || !phaseVar || !statusVar) return null;
   const n = data.length;
@@ -80,6 +85,7 @@ export function clinicalTrialsGov(data, phaseVar, statusVar) {
 }
 
 // ── CONSORT Checklist ─────────────────────────────────────────────
+/** @param {string[]} items */
 export function consortChecklist(items) {
   if (!items || !items.length) return null;
   const required = ['title','abstract','background','objectives','outcomes','sampleSize','randomization','blinding','statMethods','participantFlow','recruitment','baseline','outcomes','harms','limitations','interpretation','registration','protocol','funding'];

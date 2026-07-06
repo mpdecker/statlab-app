@@ -2,6 +2,7 @@ import { avg } from '../math/core.js';
 import { solveNormalEquations, jacobiEigen } from '../math/matrix.js';
 
 // ── Interval Mean ─────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function intervalMean(data, loVar, hiVar) {
   if (!data || data.length < 3 || !loVar || !hiVar) return null;
   const n = data.length;
@@ -11,6 +12,7 @@ export function intervalMean(data, loVar, hiVar) {
 }
 
 // ── Interval Variance ─────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function intervalVariance(data, loVar, hiVar) {
   if (!data || data.length < 3 || !loVar || !hiVar) return null;
   const n = data.length;
@@ -21,6 +23,7 @@ export function intervalVariance(data, loVar, hiVar) {
 }
 
 // ── Interval Correlation ──────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function intervalCorrelation(data, loVar1, hiVar1, loVar2, hiVar2) {
   if (!data || data.length < 5 || !loVar1 || !loVar2) return null;
   const n = data.length;
@@ -33,6 +36,7 @@ export function intervalCorrelation(data, loVar1, hiVar1, loVar2, hiVar2) {
 }
 
 // ── Interval PCA ──────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function intervalPCA(data, loVars, hiVars) {
   if (!data || data.length < 5 || !loVars || !loVars.length) return null;
   const n = data.length; const p = loVars.length;
@@ -66,6 +70,7 @@ export function histogramDistance(hist1, hist2) {
 }
 
 // ── Histogram PCA ─────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function histogramPCA(data, histCols) {
   if (!data || data.length < 5 || !histCols || histCols.length < 2) return null;
   const n = data.length, p = histCols.length;
@@ -89,6 +94,7 @@ export function histogramPCA(data, histCols) {
 }
 
 // ── Symbolic Regression (on interval data) ────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars */
 export function symbolicRegression(data, yVar, xVars) {
   if (!data || data.length < 5 || !yVar || !xVars || xVars.length < 1) return null;
   const n = data.length;

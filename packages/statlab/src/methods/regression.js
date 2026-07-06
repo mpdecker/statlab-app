@@ -17,6 +17,7 @@ import { mulberry32, bootstrapIndices } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Pearson r ─────────────────────────────────────────────────────────────────
+/** Pearson correlation with significance test. @param {number[]} xs @param {number[]} ys */
 export function pearsonTest(xs, ys) {
   if (xs.length < 3) return null;
   const n = xs.length, r = corr(xs, ys), t = r * Math.sqrt((n - 2) / (1 - r ** 2 + 1e-14));
@@ -31,6 +32,7 @@ export function pearsonTest(xs, ys) {
 }
 
 // ── Spearman ρ ────────────────────────────────────────────────────────────────
+/** Spearman rank correlation. @param {number[]} xs @param {number[]} ys */
 export function spearman(xs, ys) {
   if (xs.length < 3) return null;
   const n = xs.length, rx = rank(xs), ry = rank(ys), rho = corr(rx, ry);
@@ -42,6 +44,7 @@ export function spearman(xs, ys) {
 }
 
 // ── Kendall τ-b ───────────────────────────────────────────────────────────────
+/** Kendall's tau-b rank correlation. @param {number[]} xs @param {number[]} ys */
 export function kendallTau(xs, ys) {
   if (xs.length < 3) return null;
   const n = xs.length; let C = 0, D = 0, Tx = 0, Ty = 0;
@@ -64,6 +67,7 @@ export function kendallTau(xs, ys) {
 }
 
 // ── Partial correlation (controlling for Z) ───────────────────────────────────
+/** Partial correlation of xs and ys controlling for zs. @param {number[]} xs @param {number[]} ys @param {number[]} zs */
 export function partialCorr(xs, ys, zs) {
   if (xs.length < 4) return null;
   const r_xy = corr(xs, ys), r_xz = corr(xs, zs), r_yz = corr(ys, zs);
@@ -79,6 +83,7 @@ export function partialCorr(xs, ys, zs) {
 }
 
 // ── Point-biserial r ──────────────────────────────────────────────────────────
+/** Point-biserial correlation. @param {number[]} binary 0/1 grouping. @param {number[]} cont continuous variable. */
 export function pointBiserial(binary, cont) {
   if (binary.length < 3) return null;
   const n = binary.length;
@@ -98,6 +103,7 @@ export function pointBiserial(binary, cont) {
 }
 
 // ── Simple OLS ────────────────────────────────────────────────────────────────
+/** Simple (one-predictor) OLS regression. @param {number[]} xs @param {number[]} ys */
 export function simpleOLS(xs, ys) {
   const n = xs.length; if (n < 3) return null;
   const mx = avg(xs), my = avg(ys);
@@ -132,6 +138,7 @@ export function simpleOLS(xs, ys) {
 }
 
 // ── Multiple OLS (with VIF, standardised β) ───────────────────────────────────
+/** Multiple OLS regression. @param {number[]} Y response. @param {number[][]} Xraw predictor rows (no intercept). @param {string[]} [names=[]] */
 export function multipleOLS(Y, Xraw, names = []) {
   const n = Y.length, p = Xraw[0].length;
   if (n < p + 2) return null;
@@ -182,6 +189,7 @@ export function multipleOLS(Y, Xraw, names = []) {
 }
 
 // ── Polynomial regression ─────────────────────────────────────────────────────
+/** Polynomial OLS regression. @param {number[]} xs @param {number[]} ys @param {number} [degree=2] */
 export function polynomialOLS(xs, ys, degree = 2) {
   const Xraw = xs.map(x => Array.from({ length: degree }, (_, i) => x ** (i + 1)));
   const res = multipleOLS(ys, Xraw, Array.from({ length: degree }, (_, i) => `X^${i + 1}`));
@@ -189,6 +197,7 @@ export function polynomialOLS(xs, ys, degree = 2) {
 }
 
 // ── Hierarchical regression (model comparison) ────────────────────────────────
+/** Hierarchical OLS (block entry) with ΔR² test. @param {number[]} Y @param {number[][]} X1raw block-1 predictors. @param {number[][]} X2raw block-2 predictors. @param {number} n1 @param {number} n2 */
 export function hierarchicalOLS(Y, X1raw, X2raw, n1, n2) {
   const m1 = multipleOLS(Y, X1raw, n1);
   const combined = X1raw.map((r, i) => [...r, ...X2raw[i]]);
@@ -213,6 +222,7 @@ export function hierarchicalOLS(Y, X1raw, X2raw, n1, n2) {
 }
 
 // ── Logistic regression (Newton-Raphson) ──────────────────────────────────────
+/** Binary logistic regression (IRLS). @param {number[]} Y 0/1 response. @param {number[][]} Xraw predictor rows. @param {string[]} [names=[]] */
 export function logisticReg(Y, Xraw, names = []) {
   const n = Y.length, p = Xraw[0].length;
   if (n < p + 5) return null;
@@ -272,6 +282,7 @@ export function logisticReg(Y, Xraw, names = []) {
 }
 
 // ── Mediation (Baron-Kenny + Sobel) ──────────────────────────────────────────
+/** Simple mediation (Baron–Kenny + Sobel). @param {number[]} X @param {number[]} M @param {number[]} Y */
 export function mediation(X, M, Y) {
   if (!X.length || X.length !== M.length || X.length !== Y.length) return null;
   const c = simpleOLS(X, Y), a = simpleOLS(X, M);
@@ -309,6 +320,7 @@ export function mediation(X, M, Y) {
   };
 }
 
+/** Bootstrap indirect effect for mediation. @param {number[]} X @param {number[]} M @param {number[]} Y @param {number} [B=1999] @param {number} [alpha=0.05] @param {number} [seed=42] */
 export function bootstrapMediation(X, M, Y, B = 1999, alpha = .05, seed = 42) {
   const n = X.length;
   if (!n || n !== M.length || n !== Y.length) return null;
@@ -332,6 +344,7 @@ export function bootstrapMediation(X, M, Y, B = 1999, alpha = .05, seed = 42) {
 }
 
 // ── Moderation (interaction X×Z) ─────────────────────────────────────────────
+/** Moderated regression with an interaction term. @param {number[]} X @param {number[]} Z @param {number[]} Y @param {string} [xL='X'] @param {string} [zL='Z'] */
 export function moderation(X, Z, Y, xL = "X", zL = "Z") {
   if (!X.length || X.length !== Z.length || X.length !== Y.length) return null;
   const xZ = X.map((x, i) => x * Z[i]);
@@ -385,6 +398,7 @@ function waldCoeffs(beta, covB, names, { bDec = 4, orPredictorsOnly = false, orA
 /** logits P(Y≤j|x)=σ(α_j + x′β); j=0…K−2; Monotone α via α_0=τ₀, α_q=α_{q−1}+softplus(u_{q−1}). */
 
 // ── Ordinal Logistic (proportional odds) ──────────────────────────
+/** Proportional-odds ordinal logistic regression. @param {number[]} y ordinal response. @param {number[][]} Xraw predictor rows. @param {string[]} [names=[]] @param {number} [maxIter=120] */
 export function ordinalLogisticRegression(y, Xraw, names = [], maxIter = 120) {
   const n = y.length;
   const pPlus1 = Xraw[0]?.length + 1;
@@ -609,6 +623,7 @@ function nbLogPmfy(yi, mu, theta) {
 /** Count outcome y ≥ 0; Xraw rows omit intercept (prepended internally). */
 
 // ── Poisson Regression ────────────────────────────────────────────
+/** Poisson regression (log link). @param {number[]} y counts. @param {number[][]} Xraw predictor rows. @param {string[]} [names=[]] @param {number} [maxIter=60] */
 export function poissonRegression(y, Xraw, names = [], maxIter = 60) {
   const n = y.length;
   const pPlus1 = Xraw[0]?.length + 1;
@@ -699,6 +714,7 @@ export function poissonRegression(y, Xraw, names = [], maxIter = 60) {
 /** GLM NB2 alternating IRLS for θ fixed; Pearson update for θ. */
 
 // ── Negative Binomial (NB2) ───────────────────────────────────────
+/** Negative binomial regression. @param {number[]} y counts. @param {number[][]} Xraw predictor rows. @param {string[]} [names=[]] @param {number} [maxAlt=20] @param {number} [innerIter=12] */
 export function negativeBinomialRegression(y, Xraw, names = [], maxAlt = 20, innerIter = 12) {
   const n = y.length;
   const pPlus1 = Xraw[0]?.length + 1;
@@ -785,6 +801,7 @@ export function negativeBinomialRegression(y, Xraw, names = [], maxAlt = 20, inn
 }
 
 // ── Regression diagnostics ──────────────────────────────────────────────────
+/** Cook's distance for each observation. @param {number[][]} X design rows. @param {number[]} y */
 export function cooksDistance(X, y) {
   if (!X || !y || X.length !== y.length || X.length < 3) return null;
   const n = y.length, k = X[0].length;
@@ -835,6 +852,7 @@ export function cooksDistance(X, y) {
 
 // ── DFBETAS ───────────────────────────────────────────────────────
 
+/** DFBETAS influence diagnostics. @param {number[][]} X @param {number[]} y */
 export function dfbetas(X, y) {
   if (!X || !y || X.length !== y.length || X.length < 5) return null;
   const n = y.length, k = X[0].length;
@@ -891,6 +909,7 @@ export function dfbetas(X, y) {
 
 // ── VIF (Variance Inflation Factor) ───────────────────────────────
 
+/** Variance inflation factors for all predictors. @param {number[][]} X */
 export function fullVIF(X) {
   if (!X || X.length < 3 || !X[0]) return null;
   const n = X.length, k = X[0].length;
@@ -926,6 +945,7 @@ export function fullVIF(X) {
 }
 
 // ── Zero-Inflated Poisson ─────────────────────────────────────────────────────
+/** Zero-inflated Poisson regression. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars @param {{maxIter?: number, tolerance?: number}} [options] */
 export function zeroInflatedPoisson(data, yVar, xVars, { maxIter = 100, tolerance = 1e-5 } = {}) {
   const valid = data.filter(r => Number.isFinite(+r[yVar]) && Number.isInteger(+r[yVar]) && +r[yVar] >= 0 && xVars.every(c => Number.isFinite(r[c])));
   const n = valid.length;
@@ -1075,6 +1095,7 @@ function factorialApprox(x) {
 }
 
 // ── Zero-Inflated Negative Binomial ───────────────────────────────────────────
+/** Zero-inflated negative binomial regression. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars @param {{maxIter?: number, tolerance?: number}} [options] */
 export function zeroInflatedNegBin(data, yVar, xVars, { maxIter = 100, tolerance = 1e-5 } = {}) {
   const valid = data.filter(r => Number.isFinite(+r[yVar]) && Number.isInteger(+r[yVar]) && +r[yVar] >= 0 && xVars.every(c => Number.isFinite(r[c])));
   const n = valid.length;
@@ -1208,6 +1229,7 @@ export function zeroInflatedNegBin(data, yVar, xVars, { maxIter = 100, tolerance
 }
 
 // ── Quantile Regression (IRLS) ────────────────────────────────────────────────
+/** Quantile regression at level tau. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars @param {number} [tau=0.5] @param {{maxIter?: number, tolerance?: number}} [options] */
 export function quantileRegression(data, yVar, xVars, tau = 0.5, { maxIter = 50, tolerance = 1e-6 } = {}) {
   if (!(tau > 0 && tau < 1)) return null;
   const valid = data.filter(r => Number.isFinite(+r[yVar]) && xVars.every(c => Number.isFinite(r[c])));
@@ -1288,6 +1310,7 @@ export function quantileRegression(data, yVar, xVars, tau = 0.5, { maxIter = 50,
 }
 
 // ── Sandwich Robust SE ────────────────────────────────────────────────────────
+/** Heteroskedasticity-robust (sandwich) standard errors. @param {object} res fitted OLS result. @param {number[][]} X @param {number[]} Y @param {'HC0'|'HC1'|'HC2'|'HC3'} [type='HC3'] */
 export function sandwichSE(res, X, Y, type = 'HC3') {
   if (!res || !X || !Y || !X.length || !Y.length) return null;
   const n = X.length;
@@ -1354,6 +1377,7 @@ export function sandwichSE(res, X, Y, type = 'HC3') {
 }
 
 // ── Cluster-Robust SE ─────────────────────────────────────────────────────────
+/** Cluster-robust standard errors. @param {object} res fitted OLS result. @param {number[][]} X @param {number[]} Y @param {number[]} clusterVar cluster ids. */
 export function clusterSE(res, X, Y, clusterVar) {
   if (!res || !X || !Y || !clusterVar) return null;
   const n = X.length;
@@ -1411,6 +1435,7 @@ export function clusterSE(res, X, Y, clusterVar) {
 }
 
 // ── Brant Test ─────────────────────────────────────────────────────────────
+/** Brant test of the proportional-odds assumption. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars */
 export function brantTest(data, yVar, xVars) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const y = data.map(r => +r[yVar]);
@@ -1478,6 +1503,7 @@ export function brantTest(data, yVar, xVars) {
 }
 
 // ── Adjacent-Category Logit ────────────────────────────────────────────────
+/** Adjacent-category logit model. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars @param {{maxIter?: number, tolerance?: number}} [options] */
 export function adjacentCategoryLogit(data, yVar, xVars, { maxIter = 50, tolerance = 1e-5 } = {}) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const y = data.map(r => +r[yVar]);
@@ -1519,6 +1545,7 @@ export function adjacentCategoryLogit(data, yVar, xVars, { maxIter = 50, toleran
 }
 
 // ── Continuation-Ratio Logit ───────────────────────────────────────────────
+/** Continuation-ratio logit model. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars @param {{maxIter?: number, tolerance?: number}} [options] */
 export function continuationRatioLogit(data, yVar, xVars, { maxIter = 50, tolerance = 1e-5 } = {}) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const y = data.map(r => +r[yVar]);
@@ -1562,6 +1589,7 @@ export function continuationRatioLogit(data, yVar, xVars, { maxIter = 50, tolera
 }
 
 // ── Multinomial Logistic ───────────────────────────────────────────────────
+/** Multinomial logistic regression. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars @param {{refCategory?: number|null, maxIter?: number, tolerance?: number}} [options] */
 export function multinomialLogit(data, yVar, xVars, { refCategory = null, maxIter = 50, tolerance = 1e-5 } = {}) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const y = data.map(r => r[yVar]);
@@ -1620,6 +1648,7 @@ export function multinomialLogit(data, yVar, xVars, { refCategory = null, maxIte
 }
 
 // ── Stereotype Logit ──────────────────────────────────────────────
+/** Stereotype logistic regression. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars @param {{refCategory?: number|null, maxIter?: number, tolerance?: number}} [options] */
 export function stereotypeLogit(data, yVar, xVars, { refCategory = null, maxIter = 50, tolerance = 1e-5 } = {}) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const y = data.map(r => r[yVar]);
@@ -1670,6 +1699,7 @@ export function stereotypeLogit(data, yVar, xVars, { refCategory = null, maxIter
 }
 
 // ── Forward Selection ─────────────────────────────────────────────
+/** Forward stepwise variable selection. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xCandidates @param {{criterion?: string, pEntry?: number}} [options] */
 export function forwardSelection(data, yVar, xCandidates, { criterion = 'aic', pEntry = 0.05 } = {}) {
   if (!data || data.length < 10 || !yVar || !xCandidates || xCandidates.length < 2) return null;
   const n = data.length;
@@ -1701,6 +1731,7 @@ export function forwardSelection(data, yVar, xCandidates, { criterion = 'aic', p
 }
 
 // ── Backward Elimination ──────────────────────────────────────────
+/** Backward stepwise elimination. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xCandidates @param {{criterion?: string, pStay?: number}} [options] */
 export function backwardElimination(data, yVar, xCandidates, { criterion = 'aic', pStay = 0.10 } = {}) {
   if (!data || data.length < 10 || !yVar || !xCandidates || xCandidates.length < 2) return null;
   const n = data.length;
@@ -1729,6 +1760,7 @@ export function backwardElimination(data, yVar, xCandidates, { criterion = 'aic'
 }
 
 // ── Best Subsets ──────────────────────────────────────────────────
+/** Best-subsets model search. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xCandidates @param {{maxVars?: number|null, criterion?: string}} [options] */
 export function bestSubsets(data, yVar, xCandidates, { maxVars = null, criterion = 'r2' } = {}) {
   if (!data || data.length < 10 || !yVar || !xCandidates || xCandidates.length < 2) return null;
   const n = data.length;
@@ -1766,6 +1798,7 @@ export function bestSubsets(data, yVar, xCandidates, { maxVars = null, criterion
 }
 
 // ── Beta Regression ───────────────────────────────────────────────
+/** Beta regression for (0,1) responses. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars */
 export function betaRegression(data, yVar, xVars) {
   if (!data || data.length < 15 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length;
@@ -1801,6 +1834,7 @@ export function betaRegression(data, yVar, xVars) {
 }
 
 // ── Zero-Inflated Beta ────────────────────────────────────────────
+/** Zero-inflated beta regression. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars */
 export function zeroInflatedBeta(data, yVar, xVars) {
   if (!data || data.length < 15 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length;
@@ -1811,6 +1845,7 @@ export function zeroInflatedBeta(data, yVar, xVars) {
 }
 
 // ── One-Inflated Beta ─────────────────────────────────────────────
+/** One-inflated beta regression. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars */
 export function oneInflatedBeta(data, yVar, xVars) {
   if (!data || data.length < 15 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length;
@@ -1820,6 +1855,7 @@ export function oneInflatedBeta(data, yVar, xVars) {
 }
 
 // ── Tobit Type I ──────────────────────────────────────────────────
+/** Type-I Tobit (censored) regression. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars @param {{lower?: number|null, upper?: number|null}} [options] */
 export function tobitTypeI(data, yVar, xVars, { lower = 0, upper = null } = {}) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const n = data.length;
@@ -1859,6 +1895,7 @@ export function tobitTypeI(data, yVar, xVars, { lower = 0, upper = null } = {}) 
 }
 
 // ── Heckman Two-Step ──────────────────────────────────────────────
+/** Heckman two-step selection model. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars @param {string} selectVar @param {string[]} zVars */
 export function heckman2Step(data, yVar, xVars, selectVar, zVars) {
   if (!data || data.length < 20 || !yVar || !selectVar || !zVars || !zVars.length) return null;
   const n = data.length;
@@ -1879,6 +1916,7 @@ export function heckman2Step(data, yVar, xVars, selectVar, zVars) {
 }
 
 // ── Censored Quantile Regression ──────────────────────────────────
+/** Censored quantile regression (Powell). @param {number[]} y @param {number[][]} x design rows. @param {number} [tau=0.5] @param {{lower?: number|null, upper?: number|null}} [options] */
 export function censoredQuantile(y, x, tau = 0.5, { lower = null, upper = null } = {}) {
   if (!y || !x || y.length < 10 || x.length !== y.length) return null;
   const n = y.length;
@@ -1897,6 +1935,7 @@ export function censoredQuantile(y, x, tau = 0.5, { lower = null, upper = null }
 }
 
 // Mallow's Cp Weight
+/** Mallows' Cp weights across models. @param {object[]} models @param {Array<Record<string, number>>} data @param {string} yVar */
 export function mallowCpWeight(models, data, yVar) {
   if (!models || !models.length) return null;
   const n = data.length;
@@ -1914,6 +1953,7 @@ export function mallowCpWeight(models, data, yVar) {
 }
 
 // ── Frequentist Stacking ──────────────────────────────────────────
+/** Frequentist model stacking weights. @param {object[]} models @param {Array<Record<string, number>>} data @param {string} yVar */
 export function frequentistStacking(models, data, yVar) {
   if (!models || models.length < 2 || !data || data.length < 5) return null;
   const n = data.length; const k = models.length;
@@ -1929,6 +1969,7 @@ export function frequentistStacking(models, data, yVar) {
 }
 
 // ── AIC Weights ───────────────────────────────────────────────────
+/** Akaike weights from AIC values. @param {number[]} aicValues */
 export function aicWeights(aicValues) {
   if (!aicValues || !aicValues.length) return null;
   const minAIC = Math.min(...aicValues);
@@ -1940,6 +1981,7 @@ export function aicWeights(aicValues) {
 }
 
 // ── Model Confidence Set ──────────────────────────────────────────
+/** Model confidence set (Hansen et al.). @param {object[]} models @param {{seed?: number, alpha?: number}} [options] */
 export function modelConfidenceSet(models, { seed = 42, alpha = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!models || !models.length) return null;
@@ -1951,6 +1993,7 @@ export function modelConfidenceSet(models, { seed = 42, alpha = 0.1 } = {}) {
 }
 
 // ── Diagnostic for Averaged Models ────────────────────────────────
+/** Diagnostics for a model-averaged fit. @param {object} avgModel @param {Array<Record<string, number>>} data @param {string} yVar */
 export function diagnosticAveraged(avgModel, data, yVar) {
   if (!avgModel || !data || data.length < 5 || !yVar) return null;
   const n = data.length;
@@ -1964,6 +2007,7 @@ export function diagnosticAveraged(avgModel, data, yVar) {
 }
 
 // ── Runs Test on Residuals ────────────────────────────────────────
+/** Runs test on residual signs. @param {number[]} residuals */
 export function runsTestResiduals(residuals) {
   if (!residuals || residuals.length < 10) return null;
   const n = residuals.length;
@@ -1978,6 +2022,7 @@ export function runsTestResiduals(residuals) {
 }
 
 // ── Studentized Residuals ─────────────────────────────────────────
+/** Externally studentized residuals. @param {object} model fitted OLS result. @param {number[][]} X @param {number[]} y */
 export function studentizedResiduals(model, X, y) {
   if (!model || !X || !y || X.length < 5) return null;
   const n = X.length; const p = X[0]?.length || 0;
@@ -1990,6 +2035,7 @@ export function studentizedResiduals(model, X, y) {
 }
 
 // ── Leverage Values ───────────────────────────────────────────────
+/** Hat-matrix leverage values. @param {number[][]} X */
 export function leverageValues(X) {
   if (!X || X.length < 5) return null;
   const n = X.length; const p = X[0]?.length || 0;
@@ -2006,6 +2052,7 @@ export function leverageValues(X) {
 }
 
 // ── Partial Correlation Plot Data ─────────────────────────────────
+/** Partial (added-variable) plot data for one predictor. @param {number[][]} X @param {number[]} y @param {string} varname @param {number} idx predictor index. */
 export function partialCorrelationPlot(X, y, varname, idx) {
   if (!X || !y || !varname) return null;
   const n = X.length;
@@ -2017,6 +2064,7 @@ export function partialCorrelationPlot(X, y, varname, idx) {
 }
 
 // ── Variance Decomposition Proportions ────────────────────────────
+/** Belsley variance-decomposition proportions. @param {number[][]} X */
 export function varianceDecompositionProportions(X) {
   if (!X || X.length < 5) return null;
   const n = X.length; const p = X[0]?.length || 0;
@@ -2028,6 +2076,7 @@ export function varianceDecompositionProportions(X) {
 }
 
 // ── Akaike Weights ────────────────────────────────────────────────
+/** Akaike weights across models. @param {Array<{aic: number}>} models */
 export function akaikeWeights(models) {
   if (!models || models.length < 2) return null;
   const aics = models.map(m => m.aic || 9999);
@@ -2040,6 +2089,7 @@ export function akaikeWeights(models) {
 }
 
 // ── PRESS Statistic ───────────────────────────────────────────────
+/** PRESS statistic (leave-one-out prediction error). @param {number[][]} X @param {number[]} y */
 export function pressStatistic(X, y) {
   if (!X || !y || X.length < 5 || X.length !== y.length) return null;
   const n = X.length;

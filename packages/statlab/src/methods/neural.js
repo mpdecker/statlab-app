@@ -13,6 +13,7 @@ export function softmax(logits) {
 }
 
 // ── Activation functions ──────────────────────────────────────────
+/** @param {number[]} x @param {string} [type] */
 export function activate(x, type = 'relu') {
   if (Array.isArray(x)) {
     const y = x.map(v => type === 'relu' ? Math.max(0, v) : type === 'sigmoid' ? 1 / (1 + Math.exp(-v)) : Math.tanh(v));
@@ -35,6 +36,7 @@ export function softmaxCrossEntropy(logits, targets) {
 }
 
 // ── Gradient Descent (Mini-batch SGD for linear model) ────────────
+/** @param {number[]} X @param {number[]} y */
 export function gradientDescent(X, y, { lr = 0.01, epochs = 100, batchSize = null } = {}) {
   if (!X || !y || X.length < 5 || X.length !== y.length) return null;
   const n = X.length, p = X[0]?.length || 0;
@@ -78,6 +80,7 @@ export function adamUpdate(params, grads, mom, vel, { lr = 0.001, beta1 = 0.9, b
 }
 
 // ── Xavier Initialization ─────────────────────────────────────────
+/** @param {number} [seed] */
 export function xavierInit(nIn, nOut, seed = 42) {
   __rng = mulberry32(seed);
   if (!nIn || !nOut || nIn < 1 || nOut < 1) return null;
@@ -89,6 +92,7 @@ export function xavierInit(nIn, nOut, seed = 42) {
 }
 
 // ── Backpropagation (simple 2-layer MLP) ──────────────────────────
+/** @param {number[][]} X @param {number[]} y @param {number} [nHidden] */
 export function backpropagation(X, y, nHidden = 4, { seed = 42, lr = 0.01, epochs = 100 } = {}) {
   __rng = mulberry32(seed);
   if (!X || !y || X.length < 5 || y.length < 5 || X.length !== y.length) return null;
@@ -123,6 +127,7 @@ export function backpropagation(X, y, nHidden = 4, { seed = 42, lr = 0.01, epoch
 }
 
 // ── 1D Convolution ────────────────────────────────────────────────
+/** @param {number[]} signal @param {number[]} kernel */
 export function convolution1D(signal, kernel) {
   if (!signal || !kernel || signal.length < kernel.length) return null;
   const n = signal.length, k = kernel.length;
@@ -136,6 +141,7 @@ export function convolution1D(signal, kernel) {
 }
 
 // ── 2D Convolution ────────────────────────────────────────────────
+/** @param {number[]} kernel */
 export function conv2D(input, kernel, { stride = 1, padding = 0 } = {}) {
   if (!input || !kernel || !input.length || !input[0] || kernel.length > input.length) return null;
   const h = input.length, w = input[0].length, kh = kernel.length, kw = kernel[0].length;
@@ -182,6 +188,7 @@ export function maxPooling(input, { poolSize = 2, stride = null } = {}) {
 }
 
 // ── Batch Normalization ───────────────────────────────────────────
+/** @param {number[][]} X */
 export function batchNorm(X, { eps = 1e-5 } = {}) {
   if (!X || X.length < 2 || !X[0]) return null;
   const n = X.length, d = X[0].length;
@@ -195,6 +202,7 @@ export function batchNorm(X, { eps = 1e-5 } = {}) {
 }
 
 // ── Dropout ───────────────────────────────────────────────────────
+/** @param {number[][]} X @param {number} [rate] */
 export function dropout(X, rate = 0.5, { seed = 42 } = {}) {
   if (!X || !X.length || !X[0] || rate < 0 || rate >= 1) return null;
   const n = X.length, d = X[0].length;

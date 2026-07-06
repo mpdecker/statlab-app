@@ -39,6 +39,7 @@ function weightedOLS(Y, X, weights = null) {
   return { coefficients: coeffs, fitted, resid, n, k };
 }
 
+/** @param {number[]} y @param {number[][]} X */
 export function elasticNet(y, X, { lambda = 0.1, alpha = 0.5, maxIter = 200, tolerance = 1e-5 } = {}) {
   if (!y || !X || y.length < 3 || lambda < 0 || alpha < 0 || alpha > 1) return null;
   const n = y.length;
@@ -89,6 +90,7 @@ export function elasticNet(y, X, { lambda = 0.1, alpha = 0.5, maxIter = 200, tol
   };
 }
 
+/** @param {number[]} y @param {number[][]} X */
 export function elasticNetCV(y, X, { alpha = 0.5, k = 5, lambdaGrid = null, maxIter = 200 } = {}) {
   if (!y || !X || y.length < 10) return null;
   const n = y.length;
@@ -125,6 +127,7 @@ export function elasticNetCV(y, X, { alpha = 0.5, k = 5, lambdaGrid = null, maxI
   };
 }
 
+/** @param {number[]} X @param {number[]} y */
 export function kFoldCV(X, y, trainFn, predictFn, { k = 5 } = {}) {
   if (!X || !y || !trainFn || !predictFn || X.length < k) return null;
   const n = X.length;
@@ -153,6 +156,7 @@ export function kFoldCV(X, y, trainFn, predictFn, { k = 5 } = {}) {
 
 // ── Huber Regression ──────────────────────────────────────────────
 
+/** @param {number[]} y @param {number[][]} X */
 export function huberRegression(y, X, { c = 1.345, maxIter = 50, tolerance = 1e-6 } = {}) {
   if (!y || !X || y.length < 3) return null;
   const n = y.length;
@@ -182,6 +186,7 @@ export function huberRegression(y, X, { c = 1.345, maxIter = 50, tolerance = 1e-
   };
 }
 
+/** @param {number[]} y @param {number[][]} X */
 export function tukeyBisquareRegression(y, X, { c = 4.685, maxIter = 50, tolerance = 1e-6 } = {}) {
   if (!y || !X || y.length < 3) return null;
   const n = y.length;
@@ -211,6 +216,7 @@ export function tukeyBisquareRegression(y, X, { c = 4.685, maxIter = 50, toleran
   };
 }
 
+/** @param {number[]} xs @param {number[]} ys */
 export function lowess(xs, ys, { bandwidth = 0.3, deg = 1 } = {}) {
   if (!xs || !ys || xs.length < 5 || xs.length !== ys.length) return null;
   if (bandwidth <= 0 || bandwidth > 1) return null;
@@ -367,6 +373,7 @@ function treePredict(node, X) {
 }
 
 // ── Random Forest ────────────────────────────────────────────────────────────
+/** @param {number[][]} X @param {number[]} y */
 export function randomForest(X, y, { nTrees = 100, maxDepth = 5, type = 'regression', seed = 42 } = {}) {
   if (!X || !y || y.length < 5 || !X.length || X[0].length !== y.length) return null;
   const n = y.length;
@@ -464,6 +471,7 @@ export function randomForest(X, y, { nTrees = 100, maxDepth = 5, type = 'regress
 }
 
 // ── Gradient Boosting ────────────────────────────────────────────────────────
+/** @param {number[][]} X @param {number[]} y */
 export function gradientBoosting(X, y, { nTrees = 50, learningRate = 0.1, maxDepth = 3, type = 'regression' } = {}) {
   if (!X || !y || y.length < 5 || !X.length || X[0].length !== y.length) return null;
   const n = y.length;
@@ -506,6 +514,7 @@ export function gradientBoosting(X, y, { nTrees = 50, learningRate = 0.1, maxDep
 }
 
 // ── Confusion Matrix ─────────────────────────────────────────────────────────
+/** @param {number[]} actual @param {number[]} predicted @param {number[]} [labels] */
 export function confusionMatrix(actual, predicted, labels = null) {
   if (!actual || !predicted || actual.length !== predicted.length || actual.length < 2) return null;
   const labs = labels || [...new Set([...actual, ...predicted])].sort();
@@ -543,6 +552,7 @@ export function confusionMatrix(actual, predicted, labels = null) {
 }
 
 // ── ROC AUC ──────────────────────────────────────────────────────────────────
+/** @param {number[]} actual @param {number[]} scores */
 export function rocAUC(actual, scores) {
   if (!actual || !scores || actual.length !== scores.length || actual.length < 5) return null;
   const labels = actual.map(v => +v);
@@ -570,6 +580,7 @@ export function rocAUC(actual, scores) {
 }
 
 // ── Classification Report ────────────────────────────────────────────────────
+/** @param {number[]} actual @param {number[]} predicted @param {number[]} [labels] */
 export function classificationReport(actual, predicted, labels = null) {
   const cm = confusionMatrix(actual, predicted, labels);
   if (!cm) return null;
@@ -599,6 +610,7 @@ export function classificationReport(actual, predicted, labels = null) {
 }
 
 // ── Label Propagation ─────────────────────────────────────────────
+/** @param {number[]} X @param {number[]} y */
 export function labelPropagation(X, y, { sigma = 1, maxIter = 20 } = {}) {
   if (!X || !y || X.length < 5 || X.length !== y.length) return null;
   const n = X.length;
@@ -621,6 +633,7 @@ export function labelPropagation(X, y, { sigma = 1, maxIter = 20 } = {}) {
 }
 
 // ── Local Outlier Factor ──────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function localOutlierFactor(data, vars, { k = 5 } = {}) {
   if (!data || data.length < k + 2 || !vars || !vars.length) return null;
   const n = data.length;
@@ -638,6 +651,7 @@ export function localOutlierFactor(data, vars, { k = 5 } = {}) {
 }
 
 // ── Isolation Score (simplified isolation forest) ─────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function isolationScore(data, vars, { seed = 42, nTrees = 100 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 5 || !vars || !vars.length) return null;
@@ -660,6 +674,7 @@ export function isolationScore(data, vars, { seed = 42, nTrees = 100 } = {}) {
 }
 
 // ── Self-Training (SSL) ───────────────────────────────────────────
+/** @param {number[]} X @param {number[]} y */
 export function selfTraining(X, y, { nIterations = 5 } = {}) {
   if (!X || !y || X.length < 5 || X.length !== y.length) return null;
   const n = X.length;
@@ -682,6 +697,7 @@ export function selfTraining(X, y, { nIterations = 5 } = {}) {
 }
 
 // ── Anomaly Threshold ─────────────────────────────────────────────
+/** @param {number[]} scores */
 export function anomalyThreshold(scores, { pct = 95 } = {}) {
   if (!scores || !scores.length) return null;
   const n = scores.length;
@@ -692,6 +708,7 @@ export function anomalyThreshold(scores, { pct = 95 } = {}) {
 }
 
 // ── Partial Dependence ────────────────────────────────────────────
+/** @param {number} model @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function partialDependence(model, data, vars, targetVar, { grid = 10 } = {}) {
   if (!model || !data || !data.length || !vars || targetVar == null) return null;
   const n = data.length;
@@ -712,6 +729,7 @@ export function partialDependence(model, data, vars, targetVar, { grid = 10 } = 
 }
 
 // ── Accumulated Local Effects ─────────────────────────────────────
+/** @param {number} model @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function accumulatedLE(model, data, vars, targetVar, { grid = 10 } = {}) {
   if (!model || !data || !data.length || !vars || targetVar == null) return null;
   const n = data.length;
@@ -737,6 +755,7 @@ export function accumulatedLE(model, data, vars, targetVar, { grid = 10 } = {}) 
 }
 
 // ── Permutation Importance ────────────────────────────────────────
+/** @param {number[]} X @param {number} y */
 export function permutationImportance(model, X, y, { seed = 42, nPerm = 10 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || !y || !X.length) return null;
@@ -755,6 +774,7 @@ export function permutationImportance(model, X, y, { seed = 42, nPerm = 10 } = {
 }
 
 // ── SHAP Approximation ────────────────────────────────────────────
+/** @param {number} model @param {number[]} baseline */
 export function shapleyApprox(model, X, baseline, { nSamples = 50 } = {}) {
   if (!model || !X || !baseline || !X.length) return null;
   const n = X.length; const p = X[0]?.length || 0;
@@ -777,6 +797,7 @@ export function shapleyApprox(model, X, baseline, { nSamples = 50 } = {}) {
 }
 
 // ── Feature Interaction ───────────────────────────────────────────
+/** @param {number} model */
 export function featureInteraction(model, X, i, j) {
   if (!model || !X || X.length < 3 || !X[0] || i == null || j == null) return null;
   const n = X.length;

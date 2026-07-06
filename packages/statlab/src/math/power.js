@@ -2,6 +2,7 @@ import { normalCDF, tInv2, fPVal, chiPVal, normalINV, ncChiSqCDF, ncFCDF } from 
 import { avg } from './core.js';
 import { mulberry32, boxMullerN } from './rng.js';
 
+/** Upper-tail F critical value at level alpha. @param {number} alpha @param {number} df1 @param {number} df2 @returns {number} */
 export function fCritUpper(alpha, df1, df2) {
   let lo = 1e-4, hi = 1000 + df2 * df1;
   for (let i = 0; i < 100; i++) {
@@ -11,6 +12,7 @@ export function fCritUpper(alpha, df1, df2) {
   return (lo + hi) / 2;
 }
 
+/** Upper-tail chi-square critical value at level alpha. @param {number} alpha @param {number} df @returns {number} */
 export function chiCrit(alpha, df) {
   let lo = 1e-4, hi = df * 60 + 200;
   for (let i = 0; i < 110; i++) {
@@ -29,7 +31,7 @@ function groupMeansForF(cohenF, k, sigma = 1) {
   return centered.map(x => x * sc);
 }
 
-/** Balanced one-way ANOVA — Monte Carlo empirical power for Cohen's f */
+/** Balanced one-way ANOVA — Monte Carlo empirical power for Cohen's f. @param {number} cohenF @param {number} k groups. @param {number} nPerGroup @param {number} [alpha=0.05] @param {number} [seed=42] @returns {number|null} */
 export function powerANOVA(cohenF, k, nPerGroup, alpha = .05, seed = 42) {
   if (k < 2 || nPerGroup < 2 || !(cohenF >= 0)) return null;
   const rand = mulberry32(seed ?? 42);
@@ -66,7 +68,8 @@ export function powerANOVA(cohenF, k, nPerGroup, alpha = .05, seed = 42) {
 /** χ² power vs Cohen's w via the exact noncentral χ² CDF (Poisson-mixture
  * series; verified against scipy.stats.ncx2 — the previous normal
  * approximation to the noncentral χ² mean/variance could be off by several
- * percentage points, e.g. 6+ points for moderate noncentrality). */
+ * percentage points, e.g. 6+ points for moderate noncentrality).
+ * @param {number} cohenW @param {number} df @param {number} sampleN @param {number} [alpha=0.05] @returns {number|null} */
 export function powerChi(cohenW, df, sampleN, alpha = .05) {
   if (df < 1 || sampleN < 2 || !(cohenW >= 0)) return null;
   const crit = chiCrit(alpha, df);
@@ -75,7 +78,7 @@ export function powerChi(cohenW, df, sampleN, alpha = .05) {
   return +Math.min(.9999, Math.max(0, pow)).toFixed(4);
 }
 
-/** Two-group logistic effect (OR vs control p) Wald power heuristic */
+/** Two-group logistic effect (OR vs control p) Wald power heuristic. @param {number} or odds ratio. @param {number} pControl @param {number} nPerGroup @param {number} [alpha=0.05] @returns {number|null} */
 export function powerLogistic(or, pControl, nPerGroup, alpha = .05) {
   if (or <= 0 || !(pControl > 0 && pControl < 1) || nPerGroup < 5) return null;
   const oddC = pControl / (1 - pControl);
@@ -88,7 +91,7 @@ export function powerLogistic(or, pControl, nPerGroup, alpha = .05) {
   return +(normalCDF(zStat - zc)).toFixed(4);
 }
 
-/** ICC design effect power (two-cluster arms, pooled t heuristic) */
+/** ICC design-effect power (two-cluster arms, pooled-t heuristic). @param {number} ICC @param {number} mClustersEach @param {number} subjectsPerCluster @param {number} CohenD @param {number} [alpha=0.05] @returns {number|null} */
 export function powerMixed(ICC, mClustersEach, subjectsPerCluster, CohenD, alpha = .05) {
   if (!(ICC >= 0 && ICC < 1) || mClustersEach < 2 || subjectsPerCluster < 1 || CohenD <= 0) return null;
   const deff = Math.max(1, 1 + (subjectsPerCluster - 1) * ICC);
@@ -101,7 +104,7 @@ export function powerMixed(ICC, mClustersEach, subjectsPerCluster, CohenD, alpha
   return +(normalCDF(Math.abs(zp) - tc)).toFixed(4);
 }
 
-/** Mediation indirect effect power — Sobel statistic MC from asymptotic normals */
+/** Mediation indirect-effect power — Sobel statistic Monte Carlo from asymptotic normals. @param {number} aHat @param {number} bHat @param {number} seA @param {number} seB @param {number} [B=2000] @param {number} [alpha=0.05] @param {number} [seed=42] @returns {{powerMC:number,powerAsymp:number,zObs:number}|null} */
 export function powerMediation(aHat, bHat, seA, seB, B = 2000, alpha = .05, seed = 42) {
   if (!Number.isFinite(aHat) || !Number.isFinite(bHat)) return null;
   if (!(seA > 0) || !(seB > 0) || B < 100) return null;
@@ -124,7 +127,7 @@ export function powerMediation(aHat, bHat, seA, seB, B = 2000, alpha = .05, seed
   return { powerMC: +(hit / B).toFixed(4), powerAsymp: asym, zObs: +zObs.toFixed(4) };
 }
 
-/** Two-sample t-test power — analytical non-central t via delta method */
+/** Two-sample t-test power (analytical non-central t; Monte Carlo for df≤30). @param {number} n1 @param {number} n2 @param {number} d Cohen's d. @param {number} [alpha=0.05] @param {number} [seed=42] @returns {number} */
 export function computePowerT(n1, n2, d, alpha = .05, seed = 42) {
   const df = n1 + n2 - 2;
   if (df < 1 || !Number.isFinite(d)) return 0;
@@ -144,20 +147,20 @@ export function computePowerT(n1, n2, d, alpha = .05, seed = 42) {
   return hits / R;
 }
 
-/** Pearson r power via Fisher z */
+/** Pearson r power via the Fisher z transform. @param {number} n @param {number} r @param {number} [alpha=0.05] @returns {number} */
 export function computePowerCorr(n, r, alpha = .05) {
   const z = .5 * Math.log((1 + r) / (1 - r)), se = 1 / Math.sqrt(n - 3), zc = normalINV(1 - alpha / 2);
   return normalCDF(Math.abs(z) / se - zc);
 }
 
-/** Required sample size per group for two-sample t-test */
+/** Required per-group sample size for a two-sample t-test. @param {number} d Cohen's d. @param {number} [power=0.8] @param {number} [alpha=0.05] @returns {number} */
 export function requiredN(d, power = .8, alpha = .05) {
   let n = 4;
   while (n < 10000) { if (computePowerT(n, n, Math.abs(d), alpha) >= power) return n; n++; }
   return n;
 }
 
-/** Required sample size for correlation power */
+/** Required sample size for correlation power. @param {number} r @param {number} [power=0.8] @param {number} [alpha=0.05] @returns {number} */
 export function requiredNCorr(r, power = .8, alpha = .05) {
   let n = 5;
   while (n < 10000) { if (computePowerCorr(n, Math.abs(r), alpha) >= power) return n; n++; }
@@ -165,6 +168,7 @@ export function requiredNCorr(r, power = .8, alpha = .05) {
 }
 
 // ── Unified t-test power ───────────────────────────────────────────────────────
+/** Unified t-test power (two-sample, paired, or one-sample). @param {number} n1 @param {number} [n2=n1] @param {number} d Cohen's d. @param {'two-sample'|'paired'|'one-sample'} [type='two-sample'] @param {number} [alpha=0.05] @returns {{power:number,type:string,d:number,alpha:number,apa:string,n?:number,n1?:number,n2?:number}|null} */
 export function powerTTest(n1, n2 = n1, d, type = 'two-sample', alpha = .05) {
   if (n1 < 2 || !Number.isFinite(d) || !(alpha > 0 && alpha < 1)) return null;
   if (type === 'paired') {
@@ -187,6 +191,7 @@ export function powerTTest(n1, n2 = n1, d, type = 'two-sample', alpha = .05) {
 }
 
 // ── Proportion power ───────────────────────────────────────────────────────────
+/** One-proportion z-test power. @param {number} n @param {number} p0 @param {number} p1 @param {number} [alpha=0.05] @returns {{power:number,n:number,p0:number,p1:number,alpha:number,apa:string}|null} */
 export function powerOneProportion(n, p0, p1, alpha = .05) {
   if (n < 5 || !(p0 > 0 && p0 < 1) || !(p1 > 0 && p1 < 1) || p0 === p1) return null;
   const se = Math.sqrt(p1 * (1 - p1) / n);
@@ -195,6 +200,7 @@ export function powerOneProportion(n, p0, p1, alpha = .05) {
   return { power: +normalCDF(delta - zc).toFixed(4), n, p0, p1, alpha, apa: `Power = ${normalCDF(delta - zc).toFixed(3)} (one proportion, n = ${n}, p = ${p0} vs ${p1})` };
 }
 
+/** Two-proportion z-test power. @param {number} n1 @param {number} n2 @param {number} p1 @param {number} p2 @param {number} [alpha=0.05] @returns {{power:number,n1:number,n2:number,p1:number,p2:number,alpha:number,apa:string}|null} */
 export function powerTwoProportion(n1, n2, p1, p2, alpha = .05) {
   if (n1 < 5 || n2 < 5 || !(p1 >= 0 && p2 >= 0 && p1 <= 1 && p2 <= 1)) return null;
   const pBar = (n1 * p1 + n2 * p2) / (n1 + n2);
@@ -205,6 +211,7 @@ export function powerTwoProportion(n1, n2, p1, p2, alpha = .05) {
 }
 
 // ── Wilcoxon power (Pitman ARE) ────────────────────────────────────────────────
+/** Mann–Whitney/Wilcoxon power via Pitman asymptotic relative efficiency. @param {number} n1 @param {number} [n2=n1] @param {number} d @param {number} [alpha=0.05] @returns {object|null} */
 export function powerWilcoxon(n1, n2 = n1, d, alpha = .05) {
   const ARE = 0.955;
   const neff = Math.round((n1 + n2) * ARE);
@@ -216,6 +223,7 @@ export function powerWilcoxon(n1, n2 = n1, d, alpha = .05) {
 }
 
 // ── Log-rank test power (Schoenfeld 1983) ──────────────────────────────────────
+/** Log-rank test power (Schoenfeld 1983). @param {number} nEvents @param {number} hr hazard ratio. @param {number} [alpha=0.05] @returns {{power:number,nEvents:number,hr:number,alpha:number,apa:string}|null} */
 export function powerLogRank(nEvents, hr, alpha = .05) {
   if (!Number.isFinite(nEvents) || nEvents < 4 || !Number.isFinite(hr) || hr <= 0) return null;
   const zc = normalINV(1 - alpha / 2);
@@ -229,6 +237,7 @@ export function powerLogRank(nEvents, hr, alpha = .05) {
 // F by a normal density integrated numerically over x in steps of 0.2 — a
 // double approximation (normal-to-noncentral-F, then a coarse Riemann sum)
 // that could be off by several percentage points.
+/** Repeated-measures ANOVA power via the exact noncentral F CDF. @param {number} k measurements. @param {number} n subjects. @param {number} epsilon sphericity. @param {number} f Cohen's f. @param {number} [alpha=0.05] @returns {{power:number,k:number,n:number,epsilon:number,f:number,alpha:number,apa:string}|null} */
 export function powerRMANOVA(k, n, epsilon, f, alpha = .05) {
   if (k < 2 || n < 3 || !(epsilon > 0 && epsilon <= 1) || !(f >= 0)) return null;
   const df1 = (k - 1) * epsilon;
@@ -245,6 +254,7 @@ export function powerRMANOVA(k, n, epsilon, f, alpha = .05) {
 // normal approximation to the noncentral F could overstate power by several
 // percentage points at moderate-to-large effect sizes (e.g. R²=0.13, n=100,
 // k=3: normal approx gave 0.970 vs. the exact 0.905).
+/** OLS regression F-test power via the exact noncentral F CDF. @param {number} rSquared @param {number} n @param {number} k predictors. @param {number} [alpha=0.05] @returns {{power:number,rSquared:number,n:number,k:number,alpha:number,apa:string}|null} */
 export function powerOLS(rSquared, n, k, alpha = .05) {
   if (!(rSquared >= 0 && rSquared < 1) || n < k + 2 || k < 1) return null;
   const f2 = rSquared / (1 - rSquared);
@@ -257,6 +267,7 @@ export function powerOLS(rSquared, n, k, alpha = .05) {
 }
 
 // ── Spearman power ─────────────────────────────────────────────────────────────
+/** Spearman rank-correlation power via the Fisher z transform. @param {number} n @param {number} rho @param {number} [alpha=0.05] @returns {{power:number,n:number,rho:number,alpha:number,apa:string}|null} */
 export function powerSpearman(n, rho, alpha = .05) {
   if (n < 5 || !(rho >= -1 && rho <= 1)) return null;
   const z = 0.5 * Math.log((1 + rho) / (1 - rho));
@@ -266,6 +277,7 @@ export function powerSpearman(n, rho, alpha = .05) {
 }
 
 // ── Required-N functions ───────────────────────────────────────────────────────
+/** Required sample size for a t-test at target power (binary search). @param {number} d @param {'two-sample'|'paired'|'one-sample'} [type='two-sample'] @param {number} [power=0.8] @param {number} [alpha=0.05] @returns {number|null} */
 export function requiredNTTest(d, type = 'two-sample', power = .8, alpha = .05) {
   if (!Number.isFinite(d) || d <= 0) return null;
   let lo = 3, hi = 5000;
@@ -277,6 +289,7 @@ export function requiredNTTest(d, type = 'two-sample', power = .8, alpha = .05) 
   return hi;
 }
 
+/** Required sample size for a one-proportion test. @param {number} p0 @param {number} p1 @param {number} [power=0.8] @param {number} [alpha=0.05] @returns {number} */
 export function requiredNOneProp(p0, p1, power = .8, alpha = .05) {
   let lo = 5, hi = 20000;
   for (let i = 0; i < 60; i++) {
@@ -287,6 +300,7 @@ export function requiredNOneProp(p0, p1, power = .8, alpha = .05) {
   return hi;
 }
 
+/** Required per-group sample size for a two-proportion test. @param {number} p1 @param {number} p2 @param {number} [power=0.8] @param {number} [alpha=0.05] @returns {number} */
 export function requiredNTwoProp(p1, p2, power = .8, alpha = .05) {
   let lo = 5, hi = 20000;
   for (let i = 0; i < 60; i++) {
@@ -297,6 +311,7 @@ export function requiredNTwoProp(p1, p2, power = .8, alpha = .05) {
   return hi;
 }
 
+/** Required sample size for a Mann–Whitney test. @param {number} d @param {number} [power=0.8] @param {number} [alpha=0.05] @returns {number} */
 export function requiredNWilcoxon(d, power = .8, alpha = .05) {
   let lo = 3, hi = 5000;
   for (let i = 0; i < 60; i++) {
@@ -307,6 +322,7 @@ export function requiredNWilcoxon(d, power = .8, alpha = .05) {
   return hi;
 }
 
+/** Required number of events for a log-rank test. @param {number} hr hazard ratio. @param {number} [power=0.8] @param {number} [alpha=0.05] @returns {number} */
 export function requiredNLogRank(hr, power = .8, alpha = .05) {
   let lo = 4, hi = 20000;
   for (let i = 0; i < 60; i++) {
@@ -317,6 +333,7 @@ export function requiredNLogRank(hr, power = .8, alpha = .05) {
   return hi;
 }
 
+/** Required sample size for an OLS regression F-test. @param {number} rSquared @param {number} [k=1] predictors. @param {number} [power=0.8] @param {number} [alpha=0.05] @returns {number} */
 export function requiredNOLS(rSquared, k = 1, power = .8, alpha = .05) {
   let lo = k + 5, hi = 5000;
   for (let i = 0; i < 60; i++) {
@@ -328,6 +345,7 @@ export function requiredNOLS(rSquared, k = 1, power = .8, alpha = .05) {
 }
 
 // ── Power curve generator ──────────────────────────────────────────────────────
+/** Sweep one parameter and evaluate a power function across a range. @param {(params: object) => ({power?: number}|null)} powerFn @param {string} varyParam parameter name to sweep. @param {[number, number]} varyRange inclusive [lo, hi]. @param {object} fixedParams other parameters held constant. @param {{steps?: number}} [options] @returns {Array<object>} */
 export function powerCurve(powerFn, varyParam, varyRange, fixedParams, options = {}) {
   const { steps = 40 } = options;
   const [lo, hi] = varyRange;
@@ -341,6 +359,7 @@ export function powerCurve(powerFn, varyParam, varyRange, fixedParams, options =
   return pts;
 }
 
+/** Inverse standard-normal CDF by bisection. @param {number} target cumulative probability. @returns {number} */
 export function binaryInvNormalCDF(target) {
   let lo = -8, hi = 8;
   for (let i = 0; i < 100; i++) {

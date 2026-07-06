@@ -9,6 +9,7 @@ function _median(arr) {
   const s = [...arr].sort((a, b) => a - b), m = s.length;
   return m % 2 === 0 ? (s[m / 2 - 1] + s[m / 2]) / 2 : s[(m - 1) / 2];
 }
+/** @param {number[]} x @param {number[]} y */
 export function theilSenSlope(x, y) {
   if (!x || !y || x.length < 10 || x.length !== y.length) return null;
   const n = x.length;
@@ -40,6 +41,7 @@ export function theilSenSlope(x, y) {
 }
 
 // ── MM Estimator ───────────────────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y @param {number} [seed] */
 export function mmEstimator(x, y, seed = 42) {
   __rng = mulberry32(seed);
   if (!x || !y || x.length < 10 || x.length !== y.length) return null;
@@ -91,6 +93,7 @@ function median(arr) {
 }
 
 // ── MAD Scale ──────────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function madScale(data) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -104,6 +107,7 @@ export function madScale(data) {
 }
 
 // ── Hampel M-Estimator ─────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function hampelM(data, { a = 1.5, b = 3, c = 8 } = {}) {
   if (!data || data.length < 8) return null;
   const n = data.length;
@@ -128,6 +132,7 @@ export function hampelM(data, { a = 1.5, b = 3, c = 8 } = {}) {
 }
 
 // ── MCD Covariance ─────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars */
 export function mcdCovariance(data, vars, { alpha = 0.75, nStarts = 50, seed = 42 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2) return null;
   const n = data.length, p = vars.length;
@@ -193,6 +198,7 @@ export function mcdCovariance(data, vars, { alpha = 0.75, nStarts = 50, seed = 4
 }
 
 // ── S-Estimator ───────────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function sEstimator(x, y, { bdp = 0.5, maxIter = 20 } = {}) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
@@ -230,6 +236,7 @@ export function sEstimator(x, y, { bdp = 0.5, maxIter = 20 } = {}) {
 }
 
 // ── LTS Regression ────────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function ltsRegression(x, y, { seed = 42, h = null } = {}) {
   __rng = mulberry32(seed);
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
@@ -258,6 +265,7 @@ function simpleOLS(x, y) {
 }
 
 // ── QQ Confidence Band ────────────────────────────────────────────
+/** @param {number[]} data */
 export function qqConfidence(data, { nSim = 100 } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;

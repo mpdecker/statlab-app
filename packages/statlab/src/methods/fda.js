@@ -5,6 +5,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── FPCA via B-spline expansion ───────────────────────────────────
+/** @param {number[][]} data */
 export function fpca(data, timePoints, { nBasis = 5 } = {}) {
   if (!data || !timePoints || data.length < 5 || !data[0] || data[0].length !== timePoints.length) return null;
   const n = data.length, m = timePoints.length;
@@ -37,6 +38,7 @@ export function fpca(data, timePoints, { nBasis = 5 } = {}) {
 }
 
 // ── Functional Mean ───────────────────────────────────────────────
+/** @param {number[][]} data */
 export function functionalMean(data) {
   if (!data || !data.length || !data[0]) return null;
   const n = data.length, m = data[0].length;
@@ -49,6 +51,7 @@ export function functionalMean(data) {
 }
 
 // ── Functional Covariance ─────────────────────────────────────────
+/** @param {number[][]} data */
 export function functionalCovariance(data) {
   if (!data || data.length < 3 || !data[0]) return null;
   const n = data.length, m = data[0].length;
@@ -62,6 +65,7 @@ export function functionalCovariance(data) {
 }
 
 // ── Scalar-on-Function Regression ─────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {number[]} y */
 export function scalarOnFunction(data, y, timePoints) {
   if (!data || !y || data.length < 5 || data.length !== y.length) return null;
   const n = data.length, m = data[0]?.length || 0;
@@ -81,6 +85,7 @@ export function scalarOnFunction(data, y, timePoints) {
 }
 
 // ── Functional Clustering ─────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {number} [nClusters] */
 export function functionalClustering(data, nClusters = 2) {
   if (!data || data.length < 5 || !data[0]) return null;
   const n = data.length;
@@ -96,6 +101,7 @@ export function functionalClustering(data, nClusters = 2) {
 }
 
 // ── FPCA Expanded (with smoothed eigenfunctions) ──────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} timeVar @param {string} idVar */
 export function fpcaExpanded(data, vars, timeVar, idVar, { seed = 42, nBasis = 10, nComponents = 3 } = {}) {
   if (!data || data.length < 10 || !vars || vars.length < 2 || !timeVar) return null;
   const ids = [...new Set(data.map(r => r[idVar] || r[timeVar]))];
@@ -127,6 +133,7 @@ export function fpcaExpanded(data, vars, timeVar, idVar, { seed = 42, nBasis = 1
 }
 
 // ── Functional Regression ─────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string} xVar @param {string} timeVar @param {string} idVar */
 export function functionalRegression(data, yVar, xVar, timeVar, idVar, { ridge = 1e-6 } = {}) {
   if (!data || data.length < 10 || !yVar || !xVar || !timeVar) return null;
   const ids = [...new Set(data.map(r => r[idVar] || r[timeVar]))];

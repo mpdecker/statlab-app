@@ -18,6 +18,7 @@ export function enrichmentAnalysis(geneset, background, pathwaySize, overlap, to
 }
 
 // ── Volcano Test ──────────────────────────────────────────────────
+/** @param {number[]} pValues */
 export function volcanoTest(logFC, pValues, names = null) {
   if (!logFC || !pValues || logFC.length < 3 || logFC.length !== pValues.length) return null;
   const n = logFC.length;
@@ -42,6 +43,7 @@ export function foldChange(groupA, groupB) {
 }
 
 // ── FDR Correction (Benjamini-Hochberg) ───────────────────────────
+/** @param {number[]} pValues @param {number} [alpha] */
 export function fdrCorrection(pValues, alpha = 0.05) {
   if (!pValues || pValues.length < 2) return null;
   const n = pValues.length;
@@ -57,6 +59,7 @@ export function fdrCorrection(pValues, alpha = 0.05) {
 }
 
 // ── Heatmap Data ──────────────────────────────────────────────────
+/** @param {number[][]} matrix */
 export function heatmapData(matrix, rowNames = null, colNames = null) {
   if (!matrix || !matrix.length || !matrix[0]) return null;
   const h = matrix.length, w = matrix[0].length;

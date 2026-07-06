@@ -20,6 +20,7 @@ function _ksProb(lambda) {
   return 1; // failed to converge (λ too small for the asymptotic form) — conservative
 }
 
+/** One-sample Kolmogorov–Smirnov test against a theoretical CDF. @param {number[]} sample @param {(x: number) => number} cdf */
 export function ksTestOneSample(sample, cdf) {
   if (!sample || sample.length < 5) return null;
   const n = sample.length;
@@ -44,6 +45,7 @@ export function ksTestOneSample(sample, cdf) {
   };
 }
 
+/** Two-sample Kolmogorov–Smirnov test. @param {number[]} a @param {number[]} b */
 export function ksTestTwoSample(a, b) {
   if (!a || !b || a.length < 5 || b.length < 5) return null;
   const combined = [...a, ...b].sort((c, d) => c - d);
@@ -67,6 +69,7 @@ export function ksTestTwoSample(a, b) {
   };
 }
 
+/** Two-group permutation test of an arbitrary statistic. @param {number[]} a @param {number[]} b @param {(a: number[], b: number[]) => number} statisticFn @param {{nPerms?: number}} [options] */
 export function permutationTest(a, b, statisticFn, { nPerms = 9999 } = {}) {
   if (!a || !b || a.length < 3 || b.length < 3) return null;
   const seed = 42;
@@ -96,6 +99,7 @@ export function permutationTest(a, b, statisticFn, { nPerms = 9999 } = {}) {
   };
 }
 
+/** Wald–Wolfowitz runs test on a binary sequence. @param {Array<number|boolean>} binarySeq */
 export function runsTestWaldWolfowitz(binarySeq) {
   if (!binarySeq || binarySeq.length < 10) return null;
   const n = binarySeq.length;
@@ -120,6 +124,7 @@ export function runsTestWaldWolfowitz(binarySeq) {
   };
 }
 
+/** Runs test above/below the median. @param {number[]} continuousSeq */
 export function runsTestAboveBelowMedian(continuousSeq) {
   if (!continuousSeq || continuousSeq.length < 10) return null;
   const med = continuousSeq.slice().sort((a, b) => a - b)[Math.floor(continuousSeq.length / 2)];
@@ -129,6 +134,7 @@ export function runsTestAboveBelowMedian(continuousSeq) {
   return { ...result, test: "Runs Test (above/below median)", median: med };
 }
 
+/** Mann–Whitney U test (tie-corrected normal approximation). @param {number[]} a @param {number[]} b */
 export function mannWhitney(a, b) {
   if (a.length < 2 || b.length < 2) return null;
   const na = a.length, nb = b.length, N = na + nb;
@@ -160,6 +166,7 @@ export function mannWhitney(a, b) {
   };
 }
 
+/** Wilcoxon signed-rank test (paired if b given, else one-sample). @param {number[]} a @param {number[]|null} [b=null] */
 export function wilcoxonSR(a, b = null) {
   const diffs = b ? a.map((v, i) => v - (b[i] ?? 0)) : a;
   const nonzero = diffs.filter(d => d !== 0), n = nonzero.length;
@@ -201,6 +208,7 @@ function gaussKernel(z) {
 
 // ── Kernel Density Estimation ─────────────────────────────────────
 
+/** Gaussian kernel density estimate. @param {number[]} vals @param {number|null} [bandwidth=null] Silverman's rule if null. @param {number} [nPoints=100] */
 export function kde(vals, bandwidth = null, nPoints = 100) {
   if (!vals || vals.length < 3) return null;
   const n = vals.length;
@@ -231,6 +239,7 @@ export function kde(vals, bandwidth = null, nPoints = 100) {
 }
 
 // ── Nadaraya-Watson kernel regression ────────────────────────────────────────
+/** Nadaraya–Watson kernel regression. @param {number[]} xs @param {number[]} ys @param {number|null} [bandwidth=null] @param {number[]|null} [xEval=null] */
 export function nadarayaWatson(xs, ys, bandwidth = null, xEval = null) {
   if (!xs || !ys || xs.length !== ys.length || xs.length < 5) return null;
   const n = xs.length;
@@ -281,6 +290,7 @@ export function nadarayaWatson(xs, ys, bandwidth = null, xEval = null) {
 }
 
 // Mood's Median Test
+/** Mood's median test. @param {number[][]} groups */
 export function moodsMedian(groups) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 3);
@@ -316,6 +326,7 @@ export function moodsMedian(groups) {
 }
 
 // ── Jonckheere-Terpstra Test ──────────────────────────────────────
+/** Jonckheere–Terpstra trend test for ordered groups. @param {number[][]} groups */
 export function jonckheereTerpstra(groups) {
   if (!groups || groups.length < 3) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 2);
@@ -355,6 +366,7 @@ export function jonckheereTerpstra(groups) {
 }
 
 // ── Siegel-Tukey Test ─────────────────────────────────────────────
+/** Siegel–Tukey test for scale differences. @param {number[]} a @param {number[]} b */
 export function siegelTukey(a, b) {
   if (!a || !b || a.length < 5 || b.length < 5) return null;
   const n1 = a.length, n2 = b.length;
@@ -400,6 +412,7 @@ export function siegelTukey(a, b) {
 }
 
 // ── LOESS Smoother ────────────────────────────────────────────────
+/** LOESS locally weighted smoother. @param {number[]} x @param {number[]} y @param {{span?: number, degree?: number, iterations?: number}} [options] */
 export function loessSmoother(x, y, { span = 0.5, degree = 1, iterations = 2 } = {}) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
@@ -428,6 +441,7 @@ export function loessSmoother(x, y, { span = 0.5, degree = 1, iterations = 2 } =
 }
 
 // ── Local Polynomial ──────────────────────────────────────────────
+/** Local polynomial regression. @param {number[]} x @param {number[]} y @param {{degree?: number, bandwidth?: number|null}} [options] */
 export function localPolynomial(x, y, { degree = 2, bandwidth = null } = {}) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
@@ -443,6 +457,7 @@ export function localPolynomial(x, y, { degree = 2, bandwidth = null } = {}) {
 }
 
 // ── GCV Bandwidth Selection ───────────────────────────────────────
+/** Generalized cross-validation bandwidth selection. @param {number[]} x @param {number[]} y @param {{degree?: number, bandwidths?: number[]|null}} [options] */
 export function gcvBandwidth(x, y, { degree = 2, bandwidths = null } = {}) {
   if (!x || !y || x.length < 5) return null;
   const cand = bandwidths || [0.1, 0.2, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0];
@@ -464,6 +479,7 @@ export function gcvBandwidth(x, y, { degree = 2, bandwidths = null } = {}) {
 }
 
 // ── LOESS Classification ──────────────────────────────────────────
+/** LOESS-smoothed classification curve from rows. @param {Array<Record<string, number>>} data @param {string} yVar @param {string} xVar @param {{span?: number}} [options] */
 export function loessClassification(data, yVar, xVar, { span = 0.5 } = {}) {
   if (!data || data.length < 10 || !yVar || !xVar) return null;
   const n = data.length;
@@ -475,6 +491,7 @@ export function loessClassification(data, yVar, xVar, { span = 0.5 } = {}) {
 }
 
 // ── Local Likelihood ──────────────────────────────────────────────
+/** Local likelihood regression. @param {number[]} x @param {number[]} y @param {{family?: string, bandwidth?: number|null}} [options] */
 export function localLikelihood(x, y, { family = 'gaussian', bandwidth = null } = {}) {
   if (!x || !y || x.length < 10 || x.length !== y.length) return null;
   const n = x.length;
@@ -492,6 +509,7 @@ export function localLikelihood(x, y, { family = 'gaussian', bandwidth = null } 
 }
 
 // ── Kernel Regression (Nadaraya-Watson) ───────────────────────────
+/** Kernel regression with a fixed bandwidth. @param {number[]} x @param {number[]} y @param {number|null} [h=null] */
 export function kernelRegression(x, y, h = null) {
   if (!x || !y || x.length < 10 || x.length !== y.length) return null;
   const n = x.length;
@@ -512,6 +530,7 @@ export function kernelRegression(x, y, h = null) {
 }
 
 // ── Loess CV ──────────────────────────────────────────────────────
+/** Cross-validation for LOESS bandwidths. @param {number[]} x @param {number[]} y @param {number[]|null} [bandwidths=null] */
 export function loessCV(x, y, bandwidths = null) {
   if (!x || !y || x.length < 10 || x.length !== y.length) return null;
   const n = x.length;
@@ -538,6 +557,7 @@ export function loessCV(x, y, bandwidths = null) {
 }
 
 // ── Isotonic Regression (PAVA) ────────────────────────────────────
+/** Isotonic (monotone) regression via pool-adjacent-violators. @param {number[]} y */
 export function isotonicRegression(y) {
   if (!y || y.length < 3) return null;
   const n = y.length;

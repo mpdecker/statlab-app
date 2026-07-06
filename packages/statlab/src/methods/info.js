@@ -1,6 +1,7 @@
 import { avg } from '../math/core.js';
 
 // ── Shannon Entropy ────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function shannonEntropy(data, { discrete = true, bins = null } = {}) {
   if (!data || data.length < 3) return null;
   const n = data.length;
@@ -36,6 +37,7 @@ export function shannonEntropy(data, { discrete = true, bins = null } = {}) {
 }
 
 // ── Mutual Information ─────────────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function mutualInformation(x, y, { discrete = true, bins = 10 } = {}) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
@@ -89,6 +91,7 @@ export function mutualInformation(x, y, { discrete = true, bins = 10 } = {}) {
 }
 
 // ── KL Divergence ──────────────────────────────────────────────────────────
+/** @param {number} p @param {number} q */
 export function klDivergence(p, q, { smoothing = 1e-10 } = {}) {
   if (!p || !q || p.length !== q.length || p.length < 2) return null;
   const n = p.length;
@@ -108,6 +111,7 @@ export function klDivergence(p, q, { smoothing = 1e-10 } = {}) {
 }
 
 // ── Jensen-Shannon Divergence ──────────────────────────────────────────────
+/** @param {number} p @param {number} q */
 export function jensenShannonDivergence(p, q) {
   if (!p || !q || p.length !== q.length || p.length < 2) return null;
   const n = p.length;
@@ -128,6 +132,7 @@ export function jensenShannonDivergence(p, q) {
 }
 
 // ── AICc ───────────────────────────────────────────────────────────────────
+/** @param {number} n */
 export function aicc(logLik, nParams, n) {
   if (!Number.isFinite(logLik) || !Number.isFinite(nParams) || !Number.isFinite(n)) return null;
   if (n <= nParams + 1) return null;

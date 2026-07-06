@@ -57,6 +57,7 @@ export function fellegiSunter(pairs, { uProb = 0.3, mProb = 0.9 } = {}) {
 }
 
 // ── Record Blocking ───────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function recordBlocking(data, blockVar, { blockSize = 100 } = {}) {
   if (!data || !blockVar || !data.length) return null;
   const blocks = {};
@@ -70,6 +71,7 @@ export function recordBlocking(data, blockVar, { blockSize = 100 } = {}) {
 }
 
 // ── Match Threshold ────────────────────────────────────────────────────────
+/** @param {number[]} scores @param {number[]} labels */
 export function matchThreshold(scores, labels, { nThresholds = 20 } = {}) {
   if (!scores || !labels || scores.length !== labels.length) return null;
   const n = scores.length;

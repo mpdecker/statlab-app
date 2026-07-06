@@ -2,6 +2,7 @@ import { avg, sampleSD, clamp } from './core.js';
 import { mulberry32, bootstrapIndices, boxMullerN } from './rng.js';
 
 // ── Special functions ─────────────────────────────────────────────────────────
+/** Log gamma function ln Γ(x) (Lanczos approximation). @param {number} x @returns {number} */
 export function lngamma(x) {
   const c = [76.18009172947146,-86.50532032941677,24.01409824083091,
              -1.231739572450155,1.208650973866179e-3,-5.395239384953e-6];
@@ -12,6 +13,7 @@ export function lngamma(x) {
   return -tmp + Math.log(2.5066282746310005 * ser / x);
 }
 
+/** Log binomial coefficient ln C(n, k). @param {number} n @param {number} k @returns {number} */
 export function lnBinom(n, k) {
   return lngamma(n + 1) - lngamma(k + 1) - lngamma(n - k + 1);
 }
@@ -20,6 +22,7 @@ export function lnBinom(n, k) {
 // algorithm: recur ψ(x)=ψ(x+1)-1/x (resp. ψ'(x)=ψ'(x+1)+1/x²) up to x≥6, where
 // the asymptotic expansion is accurate, then apply it. Verified against
 // scipy.special.digamma/polygamma(1,·) to ~9 significant figures for x∈[0.5,10].
+/** Digamma function ψ(x). @param {number} x @returns {number} */
 export function digamma(x) {
   let result = 0;
   while (x < 6) { result -= 1 / x; x += 1; }
@@ -27,6 +30,7 @@ export function digamma(x) {
   result += Math.log(x) - 0.5 / x - f * (1 / 12 - f * (1 / 120 - f * (1 / 252 - f * (1 / 240 - f * (1 / 132 - f * (691 / 32760 - f / 12))))));
   return result;
 }
+/** Trigamma function ψ′(x). @param {number} x @returns {number} */
 export function trigamma(x) {
   let result = 0;
   while (x < 6) { result += 1 / (x * x); x += 1; }
@@ -52,6 +56,7 @@ function betacf(a, b, x) {
   return h;
 }
 
+/** Regularized incomplete beta I_x(a, b). @param {number} a @param {number} b @param {number} x @returns {number} */
 export function ibeta(a, b, x) {
   if (x <= 0) return 0; if (x >= 1) return 1;
   const bt = Math.exp(lngamma(a + b) - lngamma(a) - lngamma(b)
@@ -62,6 +67,7 @@ export function ibeta(a, b, x) {
 }
 
 // ── CDF / PDF ─────────────────────────────────────────────────────────────────
+/** Standard normal CDF Φ(z). @param {number} z @returns {number} */
 export function normalCDF(z) {
   const abs = Math.abs(z);
   if (abs === 0) return 0.5;
@@ -80,6 +86,7 @@ export function normalCDF(z) {
   return z >= 0 ? p : 1 - p;
 }
 
+/** Standard normal quantile Φ⁻¹(p). @param {number} p @returns {number} */
 export function normalINV(p) {
   if (p <= 0) return -Infinity; if (p >= 1) return Infinity;
   const r = p < .5 ? p : 1 - p, s = Math.sqrt(-2 * Math.log(r));
@@ -88,6 +95,7 @@ export function normalINV(p) {
   return p < .5 ? -x : x;
 }
 
+/** Student-t probability density. @param {number} t @param {number} df @returns {number} */
 export function tPDF(t, df) {
   return Math.exp(
     lngamma((df + 1) / 2) - lngamma(df / 2) -
@@ -97,8 +105,11 @@ export function tPDF(t, df) {
 }
 
 // ── p-value functions ─────────────────────────────────────────────────────────
+/** Two-tailed Student-t p-value. @param {number} t @param {number} df @returns {number} */
 export const tPVal   = (t, df)       => ibeta(df / 2, .5, df / (df + t * t));
+/** Upper-tail F p-value. @param {number} F @param {number} df1 @param {number} df2 @returns {number} */
 export const fPVal   = (F, df1, df2) => ibeta(df2 / 2, df1 / 2, df2 / (df2 + df1 * F));
+/** Regularized lower incomplete gamma P(a, x). @param {number} a @param {number} x @returns {number} */
 export function lowerIncGamma(a, x) {
   if (x <= 0) return 0;
   const logA = lngamma(a);
@@ -126,6 +137,7 @@ export function lowerIncGamma(a, x) {
   return 1 - Math.exp(-x + a * Math.log(x) - logA) * h;
 }
 
+/** Upper-tail chi-square p-value. @param {number} chi2 @param {number} df @returns {number} */
 export const chiPVal = (chi2, df) => {
   if (df <= 0 || chi2 < 0) return 1;
   if (chi2 === 0) return 1;
@@ -135,6 +147,7 @@ export const chiPVal = (chi2, df) => {
 // ── Noncentral chi-square / F CDFs (Poisson-mixture-of-central series) ────────
 // P(X<=x | df, ncp) = Σⱼ Poisson(ncp/2, j)·P(central χ²_{df+2j} <= x). Verified
 // against scipy.stats.ncx2.cdf to ~1e-9 for ncp up to several hundred.
+/** Noncentral chi-square CDF. @param {number} x @param {number} df @param {number} ncp noncentrality parameter. @returns {number} */
 export function ncChiSqCDF(x, df, ncp) {
   if (ncp <= 0) return df > 0 && x >= 0 ? lowerIncGamma(df / 2, x / 2) : (x >= 0 ? 1 : 0);
   if (x <= 0) return 0;
@@ -151,6 +164,7 @@ export function ncChiSqCDF(x, df, ncp) {
 
 // P(F<=f | df1, df2, ncp) = Σⱼ Poisson(ncp/2, j)·I_{x}(df1/2+j, df2/2), where
 // x = df1·f/(df1·f+df2). Verified against scipy.stats.ncf.cdf to ~1e-9.
+/** Noncentral F CDF. @param {number} f @param {number} df1 @param {number} df2 @param {number} ncp noncentrality parameter. @returns {number} */
 export function ncFCDF(f, df1, df2, ncp) {
   if (f <= 0) return 0;
   if (ncp <= 0) return ibeta(df1 / 2, df2 / 2, df1 * f / (df1 * f + df2));
@@ -167,6 +181,7 @@ export function ncFCDF(f, df1, df2, ncp) {
 }
 
 // ── Inverse t (two-tailed) ────────────────────────────────────────────────────
+/** Two-tailed inverse Student-t critical value. @param {number} alpha @param {number} df @returns {number} */
 export function tInv2(alpha, df) {
   if (df > 1e4) return normalINV(1 - alpha / 2);
   let lo = 0, hi = 200;
@@ -181,6 +196,7 @@ export function tInv2(alpha, df) {
 export { computePowerT, computePowerCorr, requiredN, requiredNCorr } from './power.js';
 
 // ── Normality tests ───────────────────────────────────────────────────────────
+/** D'Agostino–Pearson omnibus normality test. @param {number[]} vals @returns {{stat:number,p:number,normal:boolean}|null} */
 export function normalityDP(vals) {
   const n = vals.length; if (n < 8) return null;
   const m = avg(vals), s = sampleSD(vals);
@@ -196,6 +212,7 @@ export function normalityDP(vals) {
   return { stat: +K2.toFixed(4), p, normal: p > .05 };
 }
 
+/** Shapiro–Wilk normality test (Royston AS R94). @param {number[]} x @returns {{stat:number,p:number,normal:boolean,approximate:boolean}|null} */
 export function shapiroWilk(x) {
   const n = x.length; if (n < 3 || n > 5000) return null;
   const s = [...x].sort((a, b) => a - b), xbar = avg(x);
@@ -225,6 +242,7 @@ export function shapiroWilk(x) {
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
+/** Nonparametric bootstrap percentile confidence interval for a statistic. @param {number[]} vals @param {(sample: number[]) => number} fn statistic to resample. @param {number} [B=1999] resample count. @param {number} [alpha=0.05] two-tailed level. @param {number} [seed=42] @returns {{lo:number,hi:number,dist:number[],B:number,seed:number}|null} */
 export function bootstrapCI(vals, fn, B = 1999, alpha = .05, seed = 42) {
   const clean = vals.filter(Number.isFinite);
   const n = clean.length;

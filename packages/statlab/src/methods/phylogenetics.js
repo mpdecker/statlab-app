@@ -163,6 +163,7 @@ export function picCorrelation(trait1, trait2, tree) {
 // and fabricated a covariance matrix from each row's ARRAY INDEX distance
 // (`exp(-|i-j|·0.5)`) instead of any phylogenetic relationship. It also had a
 // numerically unstable λ→1 singularity (`1/(1-lambda+1e-10)` blows up).
+/** @param {Array<Record<string, any>>} data @param {string} xVar @param {string} yVar @param {number} [lambda] */
 export function pglsRegression(data, xVar, yVar, lambda = 1, { tree = null } = {}) {
   if (!data || data.length < 5 || !xVar || !yVar) return null;
   const n = data.length;
@@ -187,6 +188,7 @@ export function diversificationRate(branchLengths) {
 }
 
 // ── OU Trait Model (Ornstein-Uhlenbeck on phylogeny) ──────────────
+/** @param {Array<Record<string, any>>} data */
 export function ouTraitModel(data, traitVar, { tree = null } = {}) {
   if (!data || data.length < 5 || !traitVar) return null;
   const n = data.length;

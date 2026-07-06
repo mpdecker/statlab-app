@@ -17,6 +17,7 @@ function distanceMatrix(data, vars) {
 }
 
 // ── PERMANOVA ──────────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} groupVar */
 export function permanova(data, vars, groupVar, { seed = 42, permutations = 999 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 10 || !vars || !groupVar) return null;
@@ -56,6 +57,7 @@ export function permanova(data, vars, groupVar, { seed = 42, permutations = 999 
 }
 
 // ── ANOSIM ─────────────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} groupVar */
 export function anosim(data, vars, groupVar, { seed = 42, permutations = 999 } = {}) {
   __rng = mulberry32(seed);
   if (!data || data.length < 10 || !vars || !groupVar) return null;
@@ -133,6 +135,7 @@ export function mantelTest(matrix1, matrix2, { seed = 42, permutations = 999 } =
 }
 
 // ── SIMPER ─────────────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} groupVar */
 export function simperAnalysis(data, vars, groupVar) {
   if (!data || data.length < 10 || !vars || !groupVar) return null;
   const n = data.length;
@@ -153,6 +156,7 @@ export function simperAnalysis(data, vars, groupVar) {
 }
 
 // ── Procrustes ─────────────────────────────────────────────────────────────
+/** @param {number[][]} X @param {number[][]} Y */
 export function procrustes(X, Y) {
   if (!X || !Y || !X.length || X.length !== Y.length || !X[0] || X[0].length !== Y[0].length) return null;
   const n = X.length, p = X[0].length;
@@ -181,6 +185,7 @@ export function procrustes(X, Y) {
 }
 
 // ── CCA Preparation ────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function ccaPrep(data, envVars, speciesVars) {
   if (!data || data.length < 10 || !envVars || !speciesVars) return null;
   const n = data.length;

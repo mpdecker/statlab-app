@@ -19,6 +19,7 @@ function _bootstrapSamples(n, B, seed) {
 }
 
 // ── Bootstrap CI ────────────────────────────────────────────────────────────
+/** Bootstrap confidence interval (percentile, basic, or BCa) for an arbitrary statistic. @param {any[]} data sample to resample. @param {(sample: any[]) => number} statistic */
 export function bootstrapCI(data, statistic, { method = 'percentile', B = 2000, alpha = 0.05, seed = 42 } = {}) {
   if (!data || data.length < 5 || !statistic) return null;
   const n = data.length;
@@ -57,6 +58,7 @@ export function bootstrapCI(data, statistic, { method = 'percentile', B = 2000, 
 }
 
 // ── Bootstrap SE ────────────────────────────────────────────────────────────
+/** Bootstrap standard error of a statistic. @param {any[]} data @param {(sample: any[]) => number} statistic */
 export function bootstrapSE(data, statistic, { B = 2000, seed = 42 } = {}) {
   if (!data || data.length < 5 || !statistic) return null;
   const n = data.length;
@@ -72,6 +74,7 @@ export function bootstrapSE(data, statistic, { B = 2000, seed = 42 } = {}) {
 }
 
 // ── Bootstrap Test ──────────────────────────────────────────────────────────
+/** Bootstrap hypothesis test of a statistic against a null value. @param {any[]} data @param {(sample: any[]) => number} statistic @param {number} nullValue */
 export function bootstrapTest(data, statistic, nullValue, { B = 2000, alternative = 'two-sided', seed = 42 } = {}) {
   if (!data || data.length < 5 || !statistic) return null;
   const n = data.length;
@@ -100,6 +103,7 @@ export function bootstrapTest(data, statistic, nullValue, { B = 2000, alternativ
 }
 
 // ── Jackknife ───────────────────────────────────────────────────────────────
+/** Jackknife (leave-one-out) bias and SE of a statistic. @param {any[]} data @param {(sample: any[]) => number} statistic */
 export function jackknife(data, statistic) {
   if (!data || data.length < 5 || !statistic) return null;
   const n = data.length;
@@ -120,6 +124,7 @@ export function jackknife(data, statistic) {
 }
 
 // ── Bootstrap-t CI ──────────────────────────────────────────────────────────
+/** Bootstrap-t confidence interval. @param {any[]} data @param {(sample: any[]) => number} statistic */
 export function bootstrapT_CI(data, statistic, { B = 2000, alpha = 0.05, seed = 42 } = {}) {
   if (!data || data.length < 10 || !statistic) return null;
   const n = data.length;
@@ -150,6 +155,7 @@ export function bootstrapT_CI(data, statistic, { B = 2000, alpha = 0.05, seed = 
 }
 
 // ── Empirical Influence ─────────────────────────────────────────────────────
+/** Empirical influence values of a statistic. @param {any[]} data @param {(sample: any[]) => number} statistic */
 export function empiricalInfluence(data, statistic) {
   if (!data || data.length < 5 || !statistic) return null;
   const n = data.length;
@@ -167,6 +173,7 @@ export function empiricalInfluence(data, statistic) {
 }
 
 // ── Bootstrap Mediation ───────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} outcomeVar */
 export function bootstrapMediation(data, treatVar, mediator, outcomeVar, { B = 500, seed = 42 } = {}) {
   if (!data || data.length < 15 || !treatVar || !mediator || !outcomeVar) return null;
   const n = data.length;
@@ -190,6 +197,7 @@ export function bootstrapMediation(data, treatVar, mediator, outcomeVar, { B = 5
 }
 
 // ── Moderated Mediation ───────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} treatVar @param {string} outcomeVar */
 export function moderatedMediation(data, treatVar, mediator, moderator, outcomeVar) {
   if (!data || data.length < 20 || !treatVar || !mediator || !moderator || !outcomeVar) return null;
   const n = data.length;
@@ -245,6 +253,7 @@ export function splitConformal(yTrain, yCal, { alpha = 0.1, xTrain = null, xCal 
 }
 
 // ── Conformal P-values ────────────────────────────────────────────
+/** @param {number[]} scores */
 export function conformalPvalues(scores, testScore) {
   if (!scores || !scores.length || !Number.isFinite(testScore)) return null;
   const n = scores.length;
@@ -261,6 +270,7 @@ export function conformalPvalues(scores, testScore) {
 // quantile of f_{-i}(xNew) + R_i ] — the asymmetric min/max construction
 // that gives Jackknife+ its distribution-free coverage guarantee (unlike a
 // plain quantile of centered residuals around a single full-data fit).
+/** @param {number[]} X @param {number[]} y */
 export function jackknifePlus(X, y, { alpha = 0.1, xNew = null } = {}) {
   if (!X || !y || X.length < 10 || X.length !== y.length) return null;
   const n = X.length;

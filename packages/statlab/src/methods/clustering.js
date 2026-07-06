@@ -93,6 +93,7 @@ function _kmeansOnce(X, k, maxIter, rng) {
 }
 
 // ── k-Means ───────────────────────────────────────────────────────
+/** k-means clustering. @param {Array<Record<string, number>>} data @param {string[]} vars @param {number} [k=3] @param {number} [maxIter=100] @param {number} [seed=42] */
 export function kmeans(data, vars, k = 3, maxIter = 100, seed = 42) {
   const rows = data.filter(r => vars.every(v => Number.isFinite(+r[v])));
   const X = rows.map(r => vars.map(v => +r[v]));
@@ -157,6 +158,7 @@ function clusterDist(A, B, linkage = 'ward') {
 /** Agglomerative hierarchical clustering (Ward/single/complete) */
 
 // ── Hierarchical Cluster ──────────────────────────────────────────
+/** Agglomerative hierarchical clustering. @param {Array<Record<string, number>>} data @param {string[]} vars @param {string} [linkage='ward'] */
 export function hierarchicalCluster(data, vars, linkage = 'ward') {
   const rows = data.filter(r => vars.every(v => Number.isFinite(+r[v])));
   const X = rows.map(r => vars.map(v => +r[v]));
@@ -204,6 +206,7 @@ export function hierarchicalCluster(data, vars, linkage = 'ward') {
 /** Latent class analysis — EM for binary/categorical indicators (2–4 classes) */
 
 // ── Latent Class Analysis ─────────────────────────────────────────
+/** Latent class analysis for categorical indicators. @param {Array<Record<string, any>>} data @param {string[]} catVars @param {number} [nClasses=2] */
 export function latentClassAnalysis(data, catVars, nClasses = 2) {
   const rows = data.filter(r => catVars.every(v => r[v] != null));
   const n = rows.length;
@@ -271,6 +274,7 @@ export function latentClassAnalysis(data, catVars, nClasses = 2) {
 }
 
 // ── Silhouette Score (public export) ──────────────────────────────────────────
+/** Mean silhouette width for a labeling. @param {Array<Record<string, number>>} data @param {string[]} vars @param {number[]} labels @param {number} k */
 export function silhouetteScore(data, vars, labels, k) {
   const X = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
   const sil = _silhouette(X, labels, k);
@@ -284,6 +288,7 @@ export function silhouetteScore(data, vars, labels, k) {
 }
 
 // ── DBSCAN ────────────────────────────────────────────────────────────────────
+/** DBSCAN density-based clustering. @param {Array<Record<string, number>>} data @param {string[]} vars @param {number} [eps=0.5] @param {number} [minPts=5] */
 export function dbscan(data, vars, eps = 0.5, minPts = 5) {
   const X = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
   const n = X.length;
@@ -353,6 +358,7 @@ export function dbscan(data, vars, eps = 0.5, minPts = 5) {
 }
 
 // ── Gaussian Mixture Model ────────────────────────────────────────────────────
+/** Gaussian mixture model via EM. @param {Array<Record<string, number>>} data @param {string[]} vars @param {number} [nComponents=2] @param {{maxIter?: number, tolerance?: number, seed?: number}} [options] */
 export function gaussianMixture(data, vars, nComponents = 2, { maxIter = 100, tolerance = 1e-5, seed = 42 } = {}) {
   const X = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
   const n = X.length;
@@ -453,6 +459,7 @@ export function gaussianMixture(data, vars, nComponents = 2, { maxIter = 100, to
 }
 
 // ── Calinski-Harabasz Index ───────────────────────────────────────────────────
+/** Calinski–Harabasz cluster validity index. @param {Array<Record<string, number>>} data @param {string[]} vars @param {number[]} labels @param {number} k */
 export function calinskiHarabasz(data, vars, labels, k) {
   const Xraw = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
   const n = Xraw.length;
@@ -490,6 +497,7 @@ export function calinskiHarabasz(data, vars, labels, k) {
 }
 
 // ── Davies-Bouldin Index ──────────────────────────────────────────────────────
+/** Davies–Bouldin cluster validity index. @param {Array<Record<string, number>>} data @param {string[]} vars @param {number[]} labels @param {number} k */
 export function daviesBouldin(data, vars, labels, k) {
   const Xraw = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
   const n = Xraw.length;
@@ -534,6 +542,7 @@ export function daviesBouldin(data, vars, labels, k) {
 }
 
 // ── Optimal k ─────────────────────────────────────────────────────────────────
+/** Optimal cluster count search. @param {Array<Record<string, number>>} data @param {string[]} vars @param {number} [maxK=8] @param {{method?: string, seed?: number}} [options] */
 export function optimalK(data, vars, maxK = 8, { method = 'silhouette', seed = 42 } = {}) {
   const Xraw = data.filter(r => vars.every(v => Number.isFinite(+r[v]))).map(r => vars.map(v => +r[v]));
   const n = Xraw.length;
@@ -574,6 +583,7 @@ export function optimalK(data, vars, maxK = 8, { method = 'silhouette', seed = 4
 }
 
 // ── Affinity Matrix ───────────────────────────────────────────────
+/** Gaussian affinity (similarity) matrix. @param {Array<Record<string, number>>} data @param {string[]} vars @param {{sigma?: number|null}} [options] */
 export function affinityMatrix(data, vars, { sigma = null } = {}) {
   if (!data || data.length < 5 || !vars || vars.length < 2) return null;
   const n = data.length;
@@ -592,6 +602,7 @@ export function affinityMatrix(data, vars, { sigma = null } = {}) {
 }
 
 // ── Normalized Laplacian ──────────────────────────────────────────
+/** Normalized graph Laplacian. @param {number[][]} A adjacency/affinity matrix. @param {{type?: string}} [options] */
 export function normalizedLaplacian(A, { type = 'symmetric' } = {}) {
   if (!A || !A.length || A.length < 2) return null;
   const n = A.length;
@@ -607,6 +618,7 @@ export function normalizedLaplacian(A, { type = 'symmetric' } = {}) {
 }
 
 // ── Spectral Embedding ────────────────────────────────────────────
+/** Spectral embedding from an affinity matrix. @param {number[][]} A @param {number} [nClusters=2] @param {{type?: string}} [options] */
 export function spectralEmbedding(A, nClusters = 2, { type = 'symmetric' } = {}) {
   if (!A || !A.length || nClusters < 2 || nClusters >= A.length) return null;
   const L = normalizedLaplacian(A, { type });
@@ -623,6 +635,7 @@ export function spectralEmbedding(A, nClusters = 2, { type = 'symmetric' } = {})
 }
 
 // ── Eigengap ──────────────────────────────────────────────────────
+/** Eigengap heuristic for cluster count. @param {number[]} values sorted eigenvalues. */
 export function eigengap(values) {
   if (!values || values.length < 2) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -635,6 +648,7 @@ export function eigengap(values) {
 }
 
 // ── Spectral Clustering ───────────────────────────────────────────
+/** Spectral clustering. @param {Array<Record<string, number>>} data @param {string[]} vars @param {number} [nClusters=2] @param {{type?: string, sigma?: number|null, seed?: number}} [options] */
 export function spectralClustering(data, vars, nClusters = 2, { type = 'symmetric', sigma = null, seed = 42 } = {}) {
   if (!data || !vars || data.length < 5) return null;
   const A = affinityMatrix(data, vars, { sigma });

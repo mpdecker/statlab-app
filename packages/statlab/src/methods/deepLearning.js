@@ -4,6 +4,7 @@ import { mulberry32, boxMullerN } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Autoencoder ───────────────────────────────────────────────────
+/** @param {number[][]} X */
 export function autoencoder(X, { seed = 42, hiddenSize = 5, epochs = 100, lr = 0.01 } = {}) {
   __rng = mulberry32(seed);
   if (!X || X.length < 5 || !X[0]) return null;
@@ -44,6 +45,7 @@ export function autoencoder(X, { seed = 42, hiddenSize = 5, epochs = 100, lr = 0
 }
 
 // ── Variational Autoencoder ───────────────────────────────────────
+/** @param {number[][]} X */
 export function variationalAutoencoder(X, { seed = 42, latentSize = 2, epochs = 50, lr = 0.01, beta = 1 } = {}) {
   __rng = mulberry32(seed);
   if (!X || X.length < 5 || !X[0]) return null;
@@ -143,6 +145,7 @@ export function attention(Q, K, V) {
 }
 
 // ── Transformer Block (simplified) ────────────────────────────────
+/** @param {number[][]} X */
 export function transformerBlock(X, { dModel = 8, nHeads = 2, seed = 42, dFF = null } = {}) {
   if (!X || X.length < 2 || !X[0]) return null;
   const n = X.length, d = X[0].length;

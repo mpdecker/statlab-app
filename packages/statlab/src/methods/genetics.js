@@ -3,6 +3,7 @@ import { chiPVal } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
 
 // ── Polygenic Risk Score ──────────────────────────────────────────
+/** @param {number[]} weights */
 export function prsScore(genotypes, weights) {
   if (!genotypes || !genotypes.length || !weights || weights.length !== genotypes[0]?.length) return null;
   const n = genotypes.length;
@@ -73,6 +74,7 @@ export function polygenicPrediction(phenotype, genotypes) {
 }
 
 // ── Manhattan Plot Data ───────────────────────────────────────────
+/** @param {number[]} pValues */
 export function manhattanData(pValues, positions, chromosomes) {
   if (!pValues || !positions || !chromosomes || !pValues.length) return null;
   const n = pValues.length;
@@ -100,6 +102,7 @@ export function heritabilityGCTA(GRM, phenotype) {
 }
 
 // ── LD Score Regression ───────────────────────────────────────────
+/** @param {number} n */
 export function ldScoreRegression(chi2, ldScores, n) {
   if (!chi2 || !ldScores || chi2.length < 10 || chi2.length !== ldScores.length) return null;
   const m = chi2.length;

@@ -12,6 +12,7 @@ function cmult(ar, ai, br, bi) {
 }
 
 // ── Radix-2 FFT (Cooley-Tukey) ────────────────────────────────────────────
+/** @param {number[]} signal */
 export function fft(signal) {
   if (!signal || signal.length < 2) return null;
   const N = nextPow2(signal.length);
@@ -62,6 +63,7 @@ export function fft(signal) {
 }
 
 // ── Power Spectrum ─────────────────────────────────────────────────────────
+/** @param {number[]} signal */
 export function powerSpectrum(signal, { samplingRate = 1 } = {}) {
   if (!signal || signal.length < 4) return null;
   const N = nextPow2(signal.length);
@@ -81,6 +83,7 @@ export function powerSpectrum(signal, { samplingRate = 1 } = {}) {
 }
 
 // ── Autocorrelation ────────────────────────────────────────────────────────
+/** @param {number[]} signal */
 export function autocorrelation(signal, { maxLag = null } = {}) {
   if (!signal || signal.length < 5) return null;
   const n = signal.length;
@@ -102,6 +105,7 @@ export function autocorrelation(signal, { maxLag = null } = {}) {
 }
 
 // ── Cross-Correlation ──────────────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function crossCorrelation(x, y, { maxLag = null } = {}) {
   if (!x || !y || x.length < 5 || x.length !== y.length) return null;
   const n = x.length;
@@ -123,6 +127,7 @@ export function crossCorrelation(x, y, { maxLag = null } = {}) {
 }
 
 // ── Haar Wavelet Decomposition ─────────────────────────────────────────────
+/** @param {number[]} signal */
 export function haarWavelet(signal) {
   if (!signal || signal.length < 4) return null;
   const n = signal.length;
@@ -154,6 +159,7 @@ export function haarWavelet(signal) {
 }
 
 // ── Hilbert Transform ──────────────────────────────────────────────────────
+/** @param {number[]} signal */
 export function hilbertTransform(signal) {
   if (!signal || signal.length < 4) return null;
   const N = nextPow2(signal.length);
@@ -198,6 +204,7 @@ export function hilbertTransform(signal) {
 }
 
 // ── Spectrogram ────────────────────────────────────────────────────────────
+/** @param {number[]} signal */
 export function spectrogram(signal, { windowSize = 256, overlap = 128, samplingRate = 1 } = {}) {
   if (!signal || signal.length < windowSize) return null;
   const n = signal.length;
@@ -229,6 +236,7 @@ export function spectrogram(signal, { windowSize = 256, overlap = 128, samplingR
 }
 
 // ── Welch PSD ─────────────────────────────────────────────────────
+/** @param {number[]} signal */
 export function welchPSD(signal, { windowSize = 256, overlap = 128, samplingRate = 1 } = {}) {
   if (!signal || signal.length < windowSize) return null;
   const step = windowSize - overlap;
@@ -251,6 +259,7 @@ export function welchPSD(signal, { windowSize = 256, overlap = 128, samplingRate
 }
 
 // ── Coherence ─────────────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function coherence(x, y, { windowSize = 256, overlap = 128 } = {}) {
   if (!x || !y || x.length !== y.length || x.length < windowSize) return null;
   const step = windowSize - overlap;
@@ -281,6 +290,7 @@ export function coherence(x, y, { windowSize = 256, overlap = 128 } = {}) {
 }
 
 // ── Cross-Spectral Density ────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function crossSpectralDensity(x, y, { windowSize = 256 } = {}) {
   if (!x || !y || x.length !== y.length || x.length < windowSize) return null;
   const n = x.length;
@@ -302,6 +312,7 @@ export function crossSpectralDensity(x, y, { windowSize = 256 } = {}) {
 }
 
 // ── Phase Spectrum ────────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function phaseSpectrum(x, y) {
   if (!x || !y || x.length !== y.length || x.length < 10) return null;
   const csd = crossSpectralDensity(x, y);
@@ -311,6 +322,7 @@ export function phaseSpectrum(x, y) {
 }
 
 // ── Transfer Function ─────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function transferFunction(x, y) {
   if (!x || !y || x.length !== y.length || x.length < 10) return null;
   const csd = crossSpectralDensity(x, y);
@@ -323,6 +335,7 @@ export function transferFunction(x, y) {
 }
 
 // ── Wavelet Transform (CWT via Morlet) ────────────────────────────
+/** @param {number[]} signal */
 export function waveletTransform(signal, { nScales = 10 } = {}) {
   if (!signal || signal.length < 8) return null;
   const n = signal.length;
@@ -343,6 +356,7 @@ export function waveletTransform(signal, { nScales = 10 } = {}) {
 }
 
 // ── Wavelet Coherence ─────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function waveletCoherence(x, y, { nScales = 8 } = {}) {
   if (!x || !y || x.length !== y.length || x.length < 10) return null;
   const n = x.length;
@@ -362,6 +376,7 @@ export function waveletCoherence(x, y, { nScales = 8 } = {}) {
 }
 
 // ── Cross-Wavelet ─────────────────────────────────────────────────
+/** @param {number[]} x @param {number[]} y */
 export function crossWavelet(x, y, { nScales = 8 } = {}) {
   if (!x || !y || x.length !== y.length || x.length < 10) return null;
   const n = x.length;
@@ -381,6 +396,7 @@ export function crossWavelet(x, y, { nScales = 8 } = {}) {
 // white-noise background level P_k is estimated as the mean power across all
 // scales/times — the standard practical stand-in when no separate noise
 // model (e.g. AR(1) red noise) is fit.
+/** @param {number} power @param {number} n */
 export function waveletSignificance(power, n, { alpha = 0.05 } = {}) {
   if (!power || !power.length) return null;
   const flat = power.flat();
@@ -405,6 +421,7 @@ export function waveletRidge(cwt, scales) {
 }
 
 // ── Short-Time Fourier Transform ──────────────────────────────────
+/** @param {number[]} signal */
 export function stft(signal, { windowSize = 64, hopSize = null, window = 'hann' } = {}) {
   if (!signal || signal.length < windowSize) return null;
   const hop = hopSize || Math.floor(windowSize / 2);
@@ -423,6 +440,7 @@ export function stft(signal, { windowSize = 64, hopSize = null, window = 'hann' 
 }
 
 // ── Cepstrum ──────────────────────────────────────────────────────
+/** @param {number[]} signal */
 export function cepstrum(signal) {
   if (!signal || signal.length < 10) return null;
   const n = signal.length;
@@ -438,6 +456,7 @@ export function cepstrum(signal) {
 }
 
 // ── Mel Spectrogram ───────────────────────────────────────────────
+/** @param {number[]} signal */
 export function melSpectrogram(signal, { nMels = 40, fftSize = 512, hopSize = 256, sampleRate = 16000 } = {}) {
   if (!signal || signal.length < fftSize) return null;
   const nFrames = Math.floor((signal.length - fftSize) / hopSize) + 1;

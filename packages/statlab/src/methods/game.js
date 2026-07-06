@@ -1,4 +1,5 @@
 // ── Nash Equilibrium for 2x2 game ─────────────────────────────────
+/** @param {number[][]} matrix */
 export function nashEquilibrium(matrix) {
   if (!matrix || matrix.length !== 2 || !matrix[0] || matrix[0].length !== 2) return null;
   const [[a, b], [c, d]] = matrix[0].map((_, i) => matrix.map(r => r[i]));
@@ -33,6 +34,7 @@ export function shapleyValue(players, coalitionValues) {
 }
 
 // ── Dominated Strategies ──────────────────────────────────────────
+/** @param {number[][]} matrix */
 export function dominatedStrategies(matrix) {
   if (!matrix || !matrix.length) return null;
   const n = matrix.length; const m = matrix[0]?.length || 0;
@@ -60,6 +62,7 @@ export function paretoOptimal(outcomes) {
 }
 
 // ── Auction Revenue ───────────────────────────────────────────────
+/** @param {string} [type] */
 export function auctionRevenue(bids, type = 'first') {
   if (!bids || !bids.length || bids.length < 2) return null;
   const sorted = [...bids].sort((a, b) => b - a);

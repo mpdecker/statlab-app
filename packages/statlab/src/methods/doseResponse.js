@@ -4,6 +4,7 @@ import { matInv } from '../math/matrix.js';
 import { mleFit } from '../math/inference.js';
 
 // ── 4-Parameter Logistic (4PL) ─────────────────────────────────────────────
+/** @param {number[]} dose @param {number[]} response */
 export function fourPL(dose, response, { maxIter = 100, tolerance = 1e-6 } = {}) {
   if (!dose || !response || dose.length < 6 || dose.length !== response.length) return null;
   const n = dose.length;
@@ -88,6 +89,7 @@ export function hillSlope(model) {
 }
 
 // ── Volcano Plot ───────────────────────────────────────────────────────────
+/** @param {number[]} pValues */
 export function volcanoPlot(log2FC, pValues, { fcThreshold = 1, pThreshold = 0.05 } = {}) {
   if (!log2FC || !pValues || log2FC.length < 3 || log2FC.length !== pValues.length) return null;
   const n = log2FC.length;
@@ -128,6 +130,7 @@ export function log2FoldChange(treatment, control) {
 }
 
 // ── Moderated T-Statistic ──────────────────────────────────────────────────
+/** @param {number[]} values */
 export function moderatedTStatistic(values, groups, { priorDf = 3 } = {}) {
   if (!values || !groups || values.length !== groups.length || values.length < 3) return null;
   const groupNames = [...new Set(groups)];

@@ -2,6 +2,7 @@ import { avg } from '../math/core.js';
 import { solveNormalEquations, matInv } from '../math/matrix.js';
 
 // ── STAR Model ────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {number[]} W */
 export function starModel(data, yVar, xVars, W, { p = 1 } = {}) {
   if (!data || data.length < 10 || !yVar || !xVars || !W) return null;
   const n = data.length, k = xVars.length;
@@ -26,6 +27,7 @@ export function starModel(data, yVar, xVars, W, { p = 1 } = {}) {
 }
 
 // ── GSTAR ─────────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {number[]} W */
 export function gstarModel(data, yVar, xVars, W, { p = 1, q = 1 } = {}) {
   if (!data || data.length < 10 || !yVar || !W) return null;
   const n = data.length;
@@ -46,6 +48,7 @@ export function gstarModel(data, yVar, xVars, W, { p = 1, q = 1 } = {}) {
 }
 
 // ── Space-Time Interaction ────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} timeVar */
 export function spaceTimeInteraction(data, yVar, xVars, timeVar) {
   if (!data || data.length < 10 || !yVar || !timeVar) return null;
   const n = data.length;
@@ -63,6 +66,7 @@ export function spaceTimeInteraction(data, yVar, xVars, timeVar) {
 }
 
 // ── Spatiotemporal Moran's I ──────────────────────────────────────
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string} timeVar @param {number[]} [W] */
 export function spatiotemporalMoran(data, yVar, timeVar, W = null) {
   if (!data || data.length < 10 || !yVar || !timeVar) return null;
   const n = data.length;
@@ -92,6 +96,7 @@ export function spatiotemporalMoran(data, yVar, timeVar, W = null) {
 // y_{t+h} = ρ·W·y_{t+h-1} + Xβ (X held at its last observed values), which converges
 // geometrically to the fixed point (I-ρW)⁻¹Xβ. Falls back to a scalar ρ^h decay when
 // no spatial state (W, X, y) is available on the model.
+/** @param {number} [nSteps] */
 export function spaceTimeForecast(model, nSteps = 1) {
   if (!model || model.rho == null || nSteps < 1) return null;
   const rho = model._rho != null ? model._rho : model.rho;

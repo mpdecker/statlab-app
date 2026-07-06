@@ -4,6 +4,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Local Outlier Factor ──────────────────────────────────────────
+/** @param {number[][]} X */
 export function localOutlierFactor(X, { k = 5 } = {}) {
   if (!X || X.length < k + 2 || !X[0]) return null;
   const n = X.length, p = X[0].length;
@@ -31,6 +32,7 @@ export function localOutlierFactor(X, { k = 5 } = {}) {
 }
 
 // ── Isolation Forest (simplified) ─────────────────────────────────
+/** @param {number[][]} X */
 export function isolationForest(X, { seed = 42, nTrees = 50, sampleSize = 64 } = {}) {
   __rng = mulberry32(seed);
   if (!X || X.length < 5 || !X[0]) return null;

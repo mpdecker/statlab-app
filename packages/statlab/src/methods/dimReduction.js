@@ -5,6 +5,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── t-SNE (Barnes-Hut style simplified) ───────────────────────────
+/** @param {number[][]} X */
 export function tsne(X, { seed = 42, perplexity = 30, nComponents = 2, maxIter = 300, lr = 0.5 } = {}) {
   __rng = mulberry32(seed);
   if (!X || X.length < 5 || !X[0]) return null;
@@ -65,6 +66,7 @@ export function tsne(X, { seed = 42, perplexity = 30, nComponents = 2, maxIter =
 }
 
 // ── ISOMAP ────────────────────────────────────────────────────────
+/** @param {number[][]} X */
 export function isomap(X, { nNeighbors = 5, nComponents = 2 } = {}) {
   if (!X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length;
@@ -117,6 +119,7 @@ export function isomap(X, { nNeighbors = 5, nComponents = 2 } = {}) {
 }
 
 // ── LLE (Locally Linear Embedding) ────────────────────────────────
+/** @param {number[][]} X */
 export function lle(X, { nNeighbors = 5, nComponents = 2 } = {}) {
   if (!X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length, k = Math.min(nNeighbors, n - 1);
@@ -166,6 +169,7 @@ export function lle(X, { nNeighbors = 5, nComponents = 2 } = {}) {
 }
 
 // ── UMAP-style simplified approximation ───────────────────────────
+/** @param {number[][]} X */
 export function umapApprox(X, { nNeighbors = 5, nComponents = 2, minDist = 0.1, seed = 42, epochs = 300, lr = 1 } = {}) {
   if (!X || X.length < 5 || !X[0]) return null;
   const n = X.length, p = X[0].length, k = Math.min(nNeighbors, n - 1), d = nComponents;

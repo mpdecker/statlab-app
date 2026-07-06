@@ -6,6 +6,7 @@ import { mleFit } from '../math/inference.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Hawkes Intensity ──────────────────────────────────────────────
+/** @param {number[]} events */
 export function hawkesIntensity(events, { mu = 0.1, alpha = 0.2, beta = 0.5 } = {}) {
   if (!events || events.length < 5) return null;
   const n = events.length;
@@ -29,6 +30,7 @@ export function hawkesIntensity(events, { mu = 0.1, alpha = 0.2, beta = 0.5 } = 
 // a uniform one at all: verified that a uniform stream and a heavily bursty
 // stream with the same n and span produced nearly identical "fitted"
 // parameters, e.g. alpha=0.0051 vs 0.0055.)
+/** @param {number[]} events */
 export function hawkesFit(events, { kernel = 'exp' } = {}) {
   if (!events || events.length < 10) return null;
   const n = events.length;
@@ -71,6 +73,7 @@ export function coxProcess(surface, { seed = 42, n = 100 } = {}) {
 }
 
 // ── Inter-Arrival Test ────────────────────────────────────────────
+/** @param {number[]} events */
 export function interArrivalTest(events) {
   if (!events || events.length < 10) return null;
   const n = events.length;
@@ -82,6 +85,7 @@ export function interArrivalTest(events) {
 }
 
 // ── Burstiness Index ──────────────────────────────────────────────
+/** @param {number[]} events */
 export function burstinessIndex(events) {
   if (!events || events.length < 10) return null;
   const n = events.length;
@@ -140,6 +144,7 @@ export function thomasProcess(nParents, nOffspring, areaWidth, areaHeight, { see
 // center: verified with N=200,000 samples that equal-width radial bins came
 // out ~equal (~40,000 each) instead of the correct annulus-area-proportional
 // growth (8,000/24,000/40,000/56,000/72,000).
+/** @param {number} nClusters @param {number} [seed] */
 export function maternCluster(nClusters, radius, avgPointsPerCluster, areaWidth, areaHeight, seed = 42) {
   __rng = mulberry32(seed);
   if (!nClusters || nClusters < 2 || !radius || radius <= 0) return null;
@@ -176,6 +181,7 @@ function borderDist(p, minX, maxX, minY, maxY) {
 }
 
 // ── Pair Correlation Function ─────────────────────────────────────
+/** @param {number[]} points */
 export function pairCorrelation(points, { nBins = 20, maxRadius = null } = {}) {
   if (!points || points.length < 20) return null;
   const n = points.length;
@@ -205,6 +211,7 @@ export function pairCorrelation(points, { nBins = 20, maxRadius = null } = {}) {
 }
 
 // ── L-Function ────────────────────────────────────────────────────
+/** @param {number[]} points */
 export function lFunction(points, { nRadii = 15, maxRadius = null } = {}) {
   if (!points || points.length < 20) return null;
   const n = points.length;

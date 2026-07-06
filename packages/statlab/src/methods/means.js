@@ -3,6 +3,7 @@ import { tPVal, tInv2, normalCDF, computePowerT, requiredN, lnBinom } from '../m
 import { requiredNTTest } from '../math/power.js';
 
 // ── Welch two-sample t-test ───────────────────────────────────────────────────
+/** Welch's two-sample t-test (unequal variances). @param {number[]} a @param {number[]} b */
 export function tWelch(a, b) {
   if (a.length < 2 || b.length < 2) return null;
   const na = a.length, nb = b.length, ma = avg(a), mb = avg(b);
@@ -26,6 +27,7 @@ export function tWelch(a, b) {
 }
 
 // ── One-sample t-test ─────────────────────────────────────────────────────────
+/** One-sample t-test against mu0. @param {number[]} vals @param {number} [mu0=0] */
 export function tOne(vals, mu0 = 0) {
   if (vals.length < 2) return null;
   const n = vals.length, m = avg(vals), sd = sampleSD(vals), se = sd / Math.sqrt(n);
@@ -41,6 +43,7 @@ export function tOne(vals, mu0 = 0) {
 }
 
 // ── Paired t-test ─────────────────────────────────────────────────────────────
+/** Paired-samples t-test. @param {number[]} a @param {number[]} b */
 export function tPaired(a, b) {
   if (a.length !== b.length || a.length < 2) return null;
   const diffs = a.map((v, i) => v - b[i]), r = corr(a, b);
@@ -50,6 +53,7 @@ export function tPaired(a, b) {
 }
 
 // ── Yuen's trimmed t-test (robust) ───────────────────────────────────────────
+/** Yuen's trimmed-means t-test. @param {number[]} a @param {number[]} b @param {number} [p=0.2] trim proportion. */
 export function yuentTest(a, b, p = 0.2) {
   const wa = winsorize(a, p), wb = winsorize(b, p);
   const na = a.length, nb = b.length;
@@ -79,6 +83,7 @@ export function yuentTest(a, b, p = 0.2) {
 }
 
 // ── z-test (known σ) ──────────────────────────────────────────────────────────
+/** One-sample z-test with known population SD. @param {number} xbar @param {number} mu0 @param {number} sigma @param {number} n */
 export function zTestKnownSD(xbar, mu0, sigma, n) {
   if (!Number.isFinite(n) || n < 1 || !Number.isFinite(sigma) || sigma <= 0) return null;
   const se = sigma / Math.sqrt(n), z = (xbar - mu0) / se;
@@ -92,6 +97,7 @@ export function zTestKnownSD(xbar, mu0, sigma, n) {
 }
 
 // ── Sign test ─────────────────────────────────────────────────────────────────
+/** Sign test against mu0. @param {number[]} a @param {number} [mu0=0] */
 export function signTest(a, mu0 = 0) {
   const pos = a.filter(x => x > mu0).length;
   const neg = a.filter(x => x < mu0).length;
@@ -109,6 +115,7 @@ export function signTest(a, mu0 = 0) {
 }
 
 // Cohen's d (from group data)
+/** Cohen's d for two independent groups. @param {number[]} group1 @param {number[]} group2 */
 export function cohensDGroup(group1, group2) {
   if (!group1 || !group2 || group1.length < 3 || group2.length < 3) return null;
   const m1 = avg(group1), m2 = avg(group2);
@@ -129,6 +136,7 @@ export function cohensDGroup(group1, group2) {
 function _tUpperP(t, df) {
   return t >= 0 ? tPVal(t, df) / 2 : 1 - tPVal(-t, df) / 2;
 }
+/** Two one-sided tests (TOST) equivalence via t. @param {number[]} group1 @param {number[]} group2 @param {number} dL lower bound. @param {number} dU upper bound. @param {number} [alpha=0.05] */
 export function equivalenceT(group1, group2, dL, dU, alpha = 0.05) {
   if (!group1 || !group2 || group1.length < 3 || group2.length < 3 || dL >= dU) return null;
   const m1 = avg(group1), m2 = avg(group2);
@@ -149,6 +157,7 @@ export function equivalenceT(group1, group2, dL, dU, alpha = 0.05) {
 // the actual t-critical at each candidate df via powerTTest/tInv2) instead of
 // the fixed-z closed-form the old code used — which also silently ignored
 // whatever `alpha`/`power` the caller passed in.
+/** Required sample size for a t-test. @param {number} d Cohen's d. @param {number} [power=0.8] @param {number} [alpha=0.05] @param {'two-sample'|'paired'|'one-sample'} [type='two-sample'] */
 export function sampleSizeT(d, power = 0.8, alpha = 0.05, type = 'two-sample') {
   if (!Number.isFinite(d) || d <= 0) return null;
   const isPaired = type === 'pair' || type === 'paired' || type === 'one-sample';
