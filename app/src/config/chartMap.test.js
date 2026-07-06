@@ -38,7 +38,7 @@ const CORE_CHARTS = {
   pow_med: 'power',
   meta: 'forest',
   pca: 'scree',
-  bootstrap: 'histogram',
+  bootstrap: 'boot',
 };
 
 describe('CHART_FOR_TEST', () => {
@@ -47,8 +47,8 @@ describe('CHART_FOR_TEST', () => {
     expect(missing, `missing: ${missing.join(', ')}`).toHaveLength(0);
   });
 
-  test('has exactly 84 mappings', () => {
-    expect(Object.keys(CHART_FOR_TEST).length).toBe(84);
+  test('has exactly 206 mappings', () => {
+    expect(Object.keys(CHART_FOR_TEST).length).toBe(206);
   });
 
   test('all chart mode strings are non-empty', () => {
