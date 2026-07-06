@@ -5,6 +5,7 @@ import { BUILTIN, detectCols, loadDataset, _cache, DATASET_DEFAULTS } from './da
 import {
   resolveQuickViewVars, barGroupsFromResult, loadingFromResult,
   formatInferenceSummary, CHART_MODE_LABELS, exploreChartLabel, explorePanelChartFromMode,
+  seriesFromResult,
 } from './utils/vizHelpers.js';
 import { CHART_FOR_TEST } from './config/chartMap.js';
 import { computeStats, corr, avg, sampleSD } from 'statlab/math/core';
@@ -18,7 +19,7 @@ import {
   QuickScatter, QuickScatterFit, ViolinPlot, BarCI, HistogramDensity, HeatmapCorr, MosaicPlot,
   PowerCurve, PathDiagram, ForestPlot, QQPlot, ScreePlot, ResidualPlot, BootstrapHist,
   QuickSlopes, BoxPlotGrid, IRTCurves, LCAProfiles, SpaghettiPlot, CaterpillarPlot,
-  ITSPlot, RDPlot, SociogramPlot,
+  ITSPlot, RDPlot, SociogramPlot, TimeSeriesChart,
 } from './components/charts.jsx';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -31,6 +32,8 @@ const CHART_ICONS = [
   { id: 'barci', label: '\u229F', title: 'Bar + CI' },
   { id: 'heatmap', label: '\u229E', title: 'Correlogram' },
   { id: 'mosaic', label: '\u22A0', title: 'Mosaic' },
+  { id: 'timeseries', label: '\u223F', title: 'Time Series' },
+  { id: 'boot', label: 'B', title: 'Bootstrap' },
 ];
 
 function computeCorrMatrix(data, vars) {
@@ -106,6 +109,11 @@ function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, grou
       return inferenceResult?.dist
         ? <BootstrapHist dist={inferenceResult.dist} lo={inferenceResult.lo} hi={inferenceResult.hi} />
         : <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
+    case 'timeseries': {
+      const tsSeries = seriesFromResult(inferenceResult, activeTest);
+      if (tsSeries?.length) return <TimeSeriesChart series={tsSeries} width={210} height={140} />;
+      return <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
+    }
     case 'histogram':
       return <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
     case 'barci':
@@ -623,10 +631,12 @@ export default function App() {
         catX: resolved.catX,
         catY: resolved.catY,
         includeVars: [...inc].filter((v, i, a) => v && a.indexOf(v) === i),
+        inferenceResult,
+        activeTest,
       });
     }
     setActiveTab(tab);
-  }, [activeTab, activeTest, xVar, yVar, colorVar, ds, inferenceContext]);
+  }, [activeTab, activeTest, xVar, yVar, colorVar, ds, inferenceContext, inferenceResult]);
 
   const handleBridgeToInference = useCallback(({ row, col }) => {
     setXVar(row);

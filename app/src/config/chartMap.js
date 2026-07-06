@@ -87,7 +87,7 @@ export const CHART_FOR_TEST = {
 
   normality: 'qq',
   homogeneity: 'barci',
-  bootstrap: 'histogram',
+  bootstrap: 'boot',
   samplesize: 'power',
   grubbs: 'histogram',
 
@@ -100,4 +100,83 @@ export const CHART_FOR_TEST = {
   effectconv: 'histogram',
   corrections: 'histogram',
   sensitivity: 'barci',
+
+  // AGENT-BASED MODELS
+  abm_morani: 'histogram', abm_conv: 'timeseries',
+  abm_sobol: 'barci', abm_summary: 'barci',
+  abm_scenario: 'barci', abm_threshold: 'scatter',
+  abm_diffusion: 'timeseries', abm_segregation: 'heatmap',
+  // MULTI-ARMED BANDITS
+  bandit_eps: 'timeseries', bandit_ucb: 'timeseries',
+  bandit_thompson: 'timeseries', bandit_context: 'timeseries',
+  bandit_pg: 'timeseries', bandit_softmax: 'timeseries',
+  bandit_ql: 'timeseries', bandit_sarsa: 'timeseries',
+  bandit_dqn: 'barci',
+  // RECORD LINKAGE
+  link_jaro: 'barci', link_lev: 'barci',
+  link_fel: 'barci', link_block: 'barci',
+  link_thresh: 'barci', link_prob: 'barci',
+  link_dedup: 'barci',
+  // GHOST: ROBUST
+  theil_sen: 'scatterfit', mm_estimator: 'scatterfit',
+  mad_scale: 'histogram', hampel_m: 'histogram',
+  mcd_cov: 'heatmap', s_estimator: 'scatterfit',
+  lts_reg: 'scatterfit', qq_band: 'qq',
+  outlier_lof: 'barci', outlier_iforest: 'barci',
+  // GHOST: BAYESIAN
+  bic_bf: 'barci', beta_binom_post: 'histogram',
+  gamma_pois_post: 'histogram', norm_norm_post: 'histogram',
+  nig_post: 'histogram', bayes_linreg: 'scatterfit',
+  bayes_logit: 'histogram', bayes_pois: 'histogram',
+  bayes_dic: 'barci', bma_reg: 'barci',
+  // GHOST: MISSING DATA
+  little_mcar: 'barci', mice_imp: 'barci',
+  rubin_pool: 'barci', fmi: 'barci',
+  em_impute: 'barci', miss_patt: 'heatmap',
+  complete_cases: 'barci',
+  // PRIVACY
+  priv_laplace: 'histogram', priv_synthetic: 'barci',
+  priv_kanon: 'barci', priv_diff: 'barci',
+  priv_mask: 'barci', priv_ldiv: 'barci',
+  priv_tclose: 'barci',
+  // PRO
+  pro_rci: 'barci', pro_mid: 'barci',
+  pro_responder: 'barci', pro_eq5d: 'barci',
+  pro_srm: 'barci', pro_ctgov: 'barci',
+  pro_consort: 'barci',
+  // RISK-ADJUSTED MONITORING
+  ram_cusum: 'timeseries', ram_vlad: 'timeseries',
+  ram_sprt: 'timeseries', ram_funnel: 'scatter',
+  ram_cchart: 'timeseries', ram_safety: 'barci',
+  ram_prr: 'barci',
+  // RECOMMENDATION
+  rec_cf: 'barci', rec_mf: 'heatmap', rec_topn: 'barci',
+  // SCED
+  sced_tauu: 'timeseries', sced_pnd: 'timeseries',
+  sced_pem: 'timeseries', sced_nap: 'timeseries',
+  sced_rand: 'timeseries', sced_bctau: 'timeseries',
+  sced_bcsmd: 'timeseries',
+  // SENSITIVITY ANALYSIS
+  sens_morris: 'barci', sens_fast: 'barci',
+  sens_modelcomp: 'histogram', sens_forecast: 'timeseries',
+  sens_sobol1: 'barci', sens_sobolt: 'barci',
+  sens_delta: 'histogram', sens_andrews: 'scatter',
+  // BOOTSTRAP
+  boot_ci: 'boot', boot_se: 'boot',
+  boot_test: 'boot', boot_jack: 'barci',
+  boot_tci: 'boot', boot_influence: 'barci',
+  boot_mediation: 'barci', boot_modmed: 'barci',
+  boot_splitconf: 'histogram', boot_confpval: 'histogram',
+  boot_jackplus: 'histogram',
+  // POWER ANALYSIS
+  pow_cox: 'histogram', pow_meta: 'histogram', pow_equiv: 'histogram',
+  pow_intanova: 'histogram',
+  pow_corr: 'histogram', reqn_t: 'histogram', reqn_corr: 'histogram',
+  reqn_oneprop: 'histogram', reqn_twoprop: 'histogram',
+  reqn_wilcoxon: 'histogram', reqn_logrank: 'histogram',
+  reqn_ols: 'histogram', reqn_anova: 'histogram',
+  pow_ttest: 'histogram', pow_oneprop: 'histogram',
+  pow_twoprop: 'histogram', pow_wilcoxon: 'histogram',
+  pow_logrank: 'histogram', pow_rmanova: 'histogram',
+  pow_olsapa: 'histogram', pow_spearman: 'histogram',
 };

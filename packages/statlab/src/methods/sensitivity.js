@@ -76,7 +76,7 @@ export function forecastCombination(forecasts, actual, { method = 'equal' } = {}
   }
   let mse = 0;
   for (let i = 0; i < n; i++) mse += (combined[i] - actual[i]) ** 2;
-  return { test: 'Forecast Combination', mse: +(mse / n).toFixed(4), method, n, k, apa: `Combination: MSE = ${(mse / n).toFixed(4)}` };
+  return { test: 'Forecast Combination', mse: +(mse / n).toFixed(4), method, n, k, combined, actual, apa: `Combination: MSE = ${(mse / n).toFixed(4)}` };
 }
 
 // ── Sobol First Order ─────────────────────────────────────────────

@@ -1,7 +1,9 @@
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, LineChart,
-  Scatter, ScatterChart, BarChart, ReferenceLine, ErrorBar,
+  Scatter, ScatterChart, BarChart, ReferenceLine, ErrorBar, CartesianGrid,
 } from 'recharts';
+import { normalINV } from 'statlab/math/distributions';
+import { avg, sampleSD } from 'statlab/math/core';
 import { ViolinPlot, BoxPlot, HeatmapCorr, MosaicPlot } from './charts.jsx';
 import { fitOLS } from '../utils/vizHelpers.js';
 
@@ -620,6 +622,108 @@ export function ExSilhouette({ data, vars, k = 3, width = 400, height = 280 }) {
       ))}
       <line x1={pad.l + w / 2} y1={pad.t} x2={pad.l + w / 2} y2={height - pad.b} stroke="#444" strokeWidth={1} />
       <text x={pad.l + w / 2} y={height - 4} textAnchor="middle" fontSize={8} fill="#555">Silhouette score →</text>
+    </svg>
+  );
+}
+
+// ── Trend line chart (time series / index) ────────────────────────────────────
+
+export function ExLineChart({ data, xVar, yVar, width = 400, height = 280 }) {
+  if (!data?.length) return <span style={{ color: '#333', fontSize: 10 }}>No data</span>;
+  const pts = data.map((r, i) => ({
+    x: xVar != null ? +r[xVar] : i + 1,
+    y: yVar != null ? +r[yVar] : (xVar != null ? i + 1 : 0),
+  })).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+  if (!pts.length) return <span style={{ color: '#333', fontSize: 10 }}>No valid data points</span>;
+  return (
+    <ResponsiveContainer width={width} height={height}>
+      <LineChart data={pts} margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
+        <CartesianGrid stroke="#1e1e1e" strokeOpacity={0.5} />
+        <XAxis dataKey="x" tick={{ fill: '#555', fontSize: 9 }} type="number" />
+        <YAxis dataKey="y" tick={{ fill: '#555', fontSize: 9 }} type="number" />
+        <Line type="monotone" dataKey="y" stroke="#c4ff00" strokeWidth={2} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Q-Q plot (hand-rolled SVG) ────────────────────────────────────────────────
+
+export function ExQQPlot({ data, xVar, width = 400, height = 280 }) {
+  if (!data?.length) return <span style={{ color: '#333', fontSize: 10 }}>No data</span>;
+  const vals = data.map(r => r[xVar]).filter(v => typeof v === 'number').sort((a, b) => a - b);
+  if (vals.length < 4) return <span style={{ color: '#333', fontSize: 10 }}>Need ≥4 values</span>;
+  const n = vals.length, m = avg(vals), sd = sampleSD(vals);
+  const pts = vals.map((v, i) => ({ th: normalINV((i + 0.5) / n), sa: v }));
+  const thVals = pts.map(p => p.th);
+  const thMin = Math.min(...thVals), thMax = Math.max(...thVals);
+  const saMin = Math.min(...vals), saMax = Math.max(...vals);
+  const pad = { t: 16, r: 16, b: 28, l: 44 };
+  const w = width - pad.l - pad.r, h = height - pad.t - pad.b;
+  const sx = th => pad.l + ((th - thMin) / (thMax - thMin || 1)) * w;
+  const sy = sa => pad.t + h - ((sa - saMin) / (saMax - saMin || 1)) * h;
+  const refX1 = thMin, refY1 = m + sd * thMin;
+  const refX2 = thMax, refY2 = m + sd * thMax;
+  return (
+    <svg width={width} height={height}>
+      <line x1={sx(refX1)} y1={sy(refY1)} x2={sx(refX2)} y2={sy(refY2)} stroke="#ff4d6d" strokeWidth={1} strokeDasharray="4,2" />
+      {pts.map((p, i) => (
+        <circle key={i} cx={sx(p.th)} cy={sy(p.sa)} r={2.5} fill="#c4ff00" fillOpacity={0.6} />
+      ))}
+      <line x1={pad.l} y1={pad.t + h} x2={width - pad.r} y2={pad.t + h} stroke="#222" strokeWidth={1} />
+      <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + h} stroke="#222" strokeWidth={1} />
+      <text x={pad.l + w / 2} y={height - 4} textAnchor="middle" fontSize={9} fill="#555">Theoretical N(0,1)</text>
+      <text x={pad.l - 8} y={pad.t + h / 2} textAnchor="middle" fontSize={9} fill="#555" transform={`rotate(-90,${pad.l - 8},${pad.t + h / 2})`}>Sample</text>
+    </svg>
+  );
+}
+
+// ── Parallel coordinates (SVG) ────────────────────────────────────────────────
+
+export function ExParallelCoords({ data, vars, groupVar, width = 500, height = 320 }) {
+  if (!vars?.length || !data?.length) return <span style={{ color: '#333', fontSize: 10 }}>Select ≥2 numeric variables</span>;
+  const numData = data.filter(r => vars.every(v => typeof r[v] === 'number'));
+  if (numData.length < 2) return <span style={{ color: '#333', fontSize: 10 }}>Insufficient numeric data</span>;
+  const groups = groupVar ? [...new Set(numData.map(r => r[groupVar]))] : [];
+  const colors = ['#c4ff00', '#4daaff', '#ff4d6d', '#ff9f40', '#9f7fff', '#4dffd2', '#ff69b4', '#ffe44d'];
+  const groupIdx = groupVar ? Object.fromEntries(groups.map((g, i) => [g, colors[i % colors.length]])) : {};
+  const ranges = vars.map(v => ({
+    v,
+    min: Math.min(...numData.map(r => r[v])),
+    max: Math.max(...numData.map(r => r[v])),
+  }));
+  const pad = { t: 16, r: 24, b: 24, l: 24 };
+  const w = width - pad.l - pad.r, h = height - pad.t - pad.b;
+  const colX = Array.from({ length: vars.length }, (_, i) => pad.l + (i / (vars.length - 1 || 1)) * w);
+  const scaleY = (v, ri) => {
+    const r = ranges[ri];
+    return pad.t + h - ((v - r.min) / (r.max - r.min || 1)) * h;
+  };
+  return (
+    <svg width={width} height={height}>
+      {vars.map((v, i) => (
+        <g key={v}>
+          <line x1={colX[i]} y1={pad.t} x2={colX[i]} y2={pad.t + h} stroke="#1e1e1e" strokeWidth={1} />
+          <text x={colX[i]} y={height - 8} textAnchor="middle" fontSize={9} fill="#555">{v}</text>
+          <text x={colX[i]} y={pad.t - 6} textAnchor="middle" fontSize={8} fill="#444">{ranges[i].max.toPrecision(3)}</text>
+          <text x={colX[i]} y={pad.t + h + 10} textAnchor="middle" fontSize={8} fill="#444">{ranges[i].min.toPrecision(3)}</text>
+        </g>
+      ))}
+      {numData.map((r, ri) => {
+        const color = groupVar ? (groupIdx[r[groupVar]] || '#333') : '#c4ff00';
+        const d = vars.map((v, i) => `${i === 0 ? 'M' : 'L'}${colX[i].toFixed(1)},${scaleY(r[v], i).toFixed(1)}`).join(' ');
+        return <path key={ri} d={d} stroke={color} strokeWidth={0.8} fill="none" opacity={0.4} />;
+      })}
+      {groupVar && groups.length > 0 && (
+        <g transform={`translate(${pad.l + 4},${pad.t + 4})`}>
+          {groups.slice(0, 8).map((g, i) => (
+            <g key={g} transform={`translate(0,${i * 12})`}>
+              <rect x={0} y={0} width={10} height={8} fill={groupIdx[g]} fillOpacity={0.8} />
+              <text x={14} y={8} fontSize={7} fill="#555">{String(g).slice(0, 12)}</text>
+            </g>
+          ))}
+        </g>
+      )}
     </svg>
   );
 }

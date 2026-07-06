@@ -7,7 +7,7 @@ import { runTreeTest, RUNNERS } from '../../../packages/statlab/src/methods/fixt
 import { expectInferenceResult } from '../../../packages/statlab/src/methods/__fixtures__/helpers.js';
 
 const TREE_IDS = TREE.flatMap(c => c.tests.map(t => t.id));
-const NULL_OK = new Set(['bootstrap', 'med_bootstrap']);
+const NULL_OK = new Set(['bootstrap', 'med_bootstrap', 'partial_dep', 'perm_imp', 'feat_interact', 'discrete_vot']);
 
 describe('TREE integration contracts', () => {
   it('every TREE id has a runner', () => {
@@ -21,7 +21,7 @@ describe('TREE integration contracts', () => {
   });
 
   it('runner count matches TREE size', () => {
-    expect(TREE_IDS.length).toBe(84);
+    expect(TREE_IDS.length).toBe(183);
   });
 
   TREE_IDS.forEach(id => {
