@@ -253,7 +253,7 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
         <div style={{ fontSize: 18, fontWeight: 900, letterSpacing: '.05em', color: '#fff' }}>
           STAT<span style={{ color: C.accent }}>LAB</span>
         </div>
-        <div style={{ fontSize: 8, color: C.dim, ...mono }}>v7 \u00B7 84 tests \u00B7 social science edition</div>
+        <div style={{ fontSize: 8, color: C.dim, ...mono }}>{'v7 \u00B7 84 tests \u00B7 social science edition'}</div>
       </div>
 
       {/* Dataset pills */}
@@ -294,7 +294,7 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
         onClick={() => fileRef.current.click()}
         style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.text, ...mono, fontSize: 9, padding: '3px 8px', borderRadius: 3, cursor: 'pointer' }}
       >
-        \u2295 CSV
+        {'\u2295 CSV'}
       </button>
       <input ref={fileRef} type="file" accept=".csv" onChange={handleCSV} style={{ display: 'none' }} />
       {uploadMsg && <span style={{ fontSize: 9, color: C.accent, ...mono }}>{uploadMsg}</span>}
@@ -302,11 +302,11 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
       {/* Panel toggle toolbar */}
       {panelLayout && (
         <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-          <button onClick={() => togglePanel('navigator')} title="Toggle Navigator panel" style={btnStyle(panelLayout.navigator.visible)}>\u25A4</button>
-          <button onClick={() => togglePanel('config')} title="Toggle Config panel" style={btnStyle(panelLayout.config.visible)}>\u2699</button>
-          <button onClick={() => togglePanel('quickView')} title="Toggle Quick View panel" style={btnStyle(panelLayout.quickView.visible)}>\u25C8</button>
-          <button onClick={toggleQvPosition} title="Move Quick View to opposite side" style={btnStyle(false)}>\u21C4</button>
-          <button onClick={resetPanels} title="Reset all panel widths" style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.dim, ...mono, fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer' }}>\u21BA</button>
+          <button onClick={() => togglePanel('navigator')} title="Toggle Navigator panel" aria-label="Toggle Navigator panel" style={btnStyle(panelLayout.navigator.visible)}>{'\u25A4'}</button>
+          <button onClick={() => togglePanel('config')} title="Toggle Config panel" aria-label="Toggle Config panel" style={btnStyle(panelLayout.config.visible)}>{'\u2699'}</button>
+          <button onClick={() => togglePanel('quickView')} title="Toggle Quick View panel" aria-label="Toggle Quick View panel" style={btnStyle(panelLayout.quickView.visible)}>{'\u25C8'}</button>
+          <button onClick={toggleQvPosition} title="Move Quick View to opposite side" aria-label="Move Quick View to opposite side" style={btnStyle(false)}>{'\u21C4'}</button>
+          <button onClick={resetPanels} title="Reset all panel widths" aria-label="Reset all panel widths" style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.dim, ...mono, fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer' }}>{'\u21BA'}</button>
         </div>
       )}
 
@@ -390,9 +390,9 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '5px 8px', borderBottom: `1px solid ${C.border}`, fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em' }}>
-        {vizX} \u00D7 {vizY}
+        {vizX} {'\u00D7'} {vizY}
         {resolved.usingInference && (
-          <span style={{ marginLeft: 6, color: C.warn, fontSize: 6 }}>\u22A2 inference vars</span>
+          <span style={{ marginLeft: 6, color: C.warn, fontSize: 6 }}>{'\u22A2 inference vars'}</span>
         )}
       </div>
 
@@ -504,7 +504,7 @@ function LandingPage({ onLaunch }) {
         <p style={{ fontSize: 10, color: C.dim, marginTop: 8 }}>
           <a href="https://github.com/mpdecker/Statlab" target="_blank" rel="noopener" style={{ color: C.accent, textDecoration: 'none' }}>GitHub</a>
           {' \u00B7 '}
-          APA 7 \u00B7 PCA/EFA \u00B7 Causal inference \u00B7 IRT \u00B7 LCA \u00B7 Meta-analysis \u00B7 Network
+          {'APA 7 \u00B7 PCA/EFA \u00B7 Causal inference \u00B7 IRT \u00B7 LCA \u00B7 Meta-analysis \u00B7 Network'}
         </p>
       </div>
     </div>
@@ -561,9 +561,17 @@ export default function App() {
   const [inferenceResult, setInferenceResult] = useState(null);
   const [inferenceContext, setInferenceContext] = useState(null);
   const [datasetStatus, setDatasetStatus] = useState('ready');
+  const [narrowScreen, setNarrowScreen] = useState(() => window.innerWidth < 700);
+  const [dismissedNarrowNotice, setDismissedNarrowNotice] = useState(false);
   const fileRef = useRef();
 
   const panels = usePanelLayout();
+
+  useEffect(() => {
+    const onResize = () => setNarrowScreen(window.innerWidth < 700);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // ── localStorage persistence ──
   useEffect(() => {
@@ -716,6 +724,26 @@ export default function App() {
       <style>{FONTS}</style>
       <style>{GLOBAL_CSS}</style>
 
+      {narrowScreen && !dismissedNarrowNotice && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1000, background: C.bg,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 16, padding: 32, textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif",
+        }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.text }}>StatLab works best on a larger screen</div>
+          <div style={{ fontSize: 14, color: C.dim, maxWidth: 320, lineHeight: 1.5 }}>
+            The multi-panel workbench layout isn't optimized for narrow viewports yet.
+            For the full experience, open this on a tablet or desktop.
+          </div>
+          <button
+            onClick={() => setDismissedNarrowNotice(true)}
+            style={{ background: C.accent, color: C.bg, border: 'none', borderRadius: 4, padding: '8px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', ...{ fontFamily: "'Barlow Condensed', sans-serif" } }}
+          >
+            Continue anyway
+          </button>
+        </div>
+      )}
+
       <Header
         dsKey={dsKey} setDsKey={setDsKey}
         customDef={customDef} switchDs={switchDs}
@@ -795,7 +823,7 @@ export default function App() {
           {activeTab === 'inference' && (
             <>
               <div style={{ padding: '3px 10px', borderBottom: `1px solid ${C.border}`, fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em', flexShrink: 0 }}>
-                \u22A2 84 statistical tests \u00B7 mediation \u00B7 moderation \u00B7 TOST \u00B7 Bayes \u00B7 PCA/EFA \u00B7 ICC \u00B7 meta-analysis \u00B7 DiD \u00B7 APA 7 output
+                {'\u22A2 84 statistical tests \u00B7 mediation \u00B7 moderation \u00B7 TOST \u00B7 Bayes \u00B7 PCA/EFA \u00B7 ICC \u00B7 meta-analysis \u00B7 DiD \u00B7 APA 7 output'}
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
                 {/* Bootstrap mediation path + CI */}
@@ -817,7 +845,7 @@ export default function App() {
                         ))}
                       </div>
                       <div style={{ height: 70 }}>
-                        <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 2 }}>Bootstrap a\u00D7b distribution (B={inference.medBs.B})</div>
+                        <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 2 }}>{'Bootstrap a\u00D7b distribution '}(B={inference.medBs.B})</div>
                         <div style={{ height: 60, background: C.panel, borderRadius: 3, display: 'flex', alignItems: 'flex-end', padding: '2px 4px', gap: 1, overflow: 'hidden' }}>
                           {(() => {
                             const dist = inference.medBs.dist, lo_ = Math.min(...dist), hi_ = Math.max(...dist), w = (hi_ - lo_) / 24 || 1, cs = Array(24).fill(0);
@@ -867,7 +895,7 @@ export default function App() {
 
                 {/* Power running indicator */}
                 {POWER_TESTS_SET.has(activeTest) && inference.powerRunning && (
-                  <div style={{ color: C.dim, ...mono, fontSize: 10, padding: 8 }}>Computing power\u2026</div>
+                  <div style={{ color: C.dim, ...mono, fontSize: 10, padding: 8 }}>{'Computing power\u2026'}</div>
                 )}
 
                 {/* InferenceResults */}

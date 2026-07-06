@@ -22,7 +22,7 @@ export function tWelch(a, b) {
     na, nb, d: +d.toFixed(4), g: +g.toFixed(4), effD: effD(d),
     power: +computePowerT(na, nb, Math.abs(d)).toFixed(3),
     reqN: requiredN(Math.abs(d)),
-    apa: `t(${df.toFixed(1)}) = ${t.toFixed(2)}, ${fmtP(p)}, d = ${Math.abs(d).toFixed(2)} [${effD(d)}], 95% CI [${(ma - mb - ci).toFixed(3)}, ${(ma - mb + ci).toFixed(3)}]`,
+    apa: `t(${df.toFixed(1)}) = ${t.toFixed(2)}, ${fmtP(p)}, d = ${d.toFixed(2)} [${effD(d)}], 95% CI [${(ma - mb - ci).toFixed(3)}, ${(ma - mb + ci).toFixed(3)}]`,
   };
 }
 
@@ -38,7 +38,7 @@ export function tOne(vals, mu0 = 0) {
     test: "One-sample t-test", t: +t.toFixed(4), df, p,
     ci95: +ci.toFixed(4), m: +m.toFixed(4), mu0,
     sd: +sd.toFixed(4), se: +se.toFixed(4), n, d: +d.toFixed(4), effD: effD(d),
-    apa: `t(${df}) = ${t.toFixed(2)}, ${fmtP(p)}, d = ${Math.abs(d).toFixed(2)} [${effD(d)}]`,
+    apa: `t(${df}) = ${t.toFixed(2)}, ${fmtP(p)}, d = ${d.toFixed(2)} [${effD(d)}]`,
   };
 }
 
