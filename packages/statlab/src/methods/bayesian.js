@@ -670,9 +670,12 @@ export function bmaRegression(data, yVar, xCandidates, { nModels = null, seed = 
     if (!idx.length) continue;
     const vars = idx.map(i => xCandidates[i]);
     const X = vars.map(v => data.map(r => +r[v]));
-    const Xt = X[0].map((_, j) => X.map(r => r[j]));
-    const XtX = Xt.map(r1 => X[0].map((_, j) => r1.reduce((s, _, a) => s + X[a][j] * r1[a], 0)));
-    const XtY = Xt.map(r1 => r1.reduce((s, v, a) => s + v * y[a], 0));
+    const p = vars.length;
+    const XtX = Array.from({ length: p }, (_, i) =>
+      Array.from({ length: p }, (_, j) =>
+        X[i].reduce((s, _, a) => s + X[i][a] * X[j][a], 0)));
+    const XtY = Array.from({ length: p }, (_, i) =>
+      X[i].reduce((s, _, a) => s + X[i][a] * y[a], 0));
     const inv = matInv(XtX);
     if (!inv) continue;
     const beta = inv.map(row => row.reduce((s, v, j) => s + v * XtY[j], 0));
