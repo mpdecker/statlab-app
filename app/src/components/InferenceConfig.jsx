@@ -50,7 +50,23 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     nnPriorMean, setNnPriorMean, nnPriorSD, setNnPriorSD, nnKnownSigma, setNnKnownSigma,
     bayesMcmcIter, setBayesMcmcIter,
     missPct, setMissPct, missSeed, setMissSeed,
+    cfgPowCox, setCfgPowCox, cfgPowMeta, setCfgPowMeta, cfgPowEquiv, setCfgPowEquiv,
+    cfgPowIntAnova, setCfgPowIntAnova, cfgPowCorr, setCfgPowCorr,
+    cfgReqnT, setCfgReqnT, cfgReqnCorr, setCfgReqnCorr,
+    cfgReqnOneProp, setCfgReqnOneProp, cfgReqnTwoProp, setCfgReqnTwoProp,
+    cfgReqnWilcoxon, setCfgReqnWilcoxon, cfgReqnLogrank, setCfgReqnLogrank,
+    cfgReqnOls, setCfgReqnOls, cfgReqnAnova, setCfgReqnAnova,
+    cfgPowTtest, setCfgPowTtest, cfgPowOneProp, setCfgPowOneProp,
+    cfgPowTwoProp, setCfgPowTwoProp, cfgPowWilcoxon, setCfgPowWilcoxon,
+    cfgPowLogrank, setCfgPowLogrank, cfgPowRmanova, setCfgPowRmanova,
+    cfgPowOlsApa, setCfgPowOlsApa, cfgPowSpearman, setCfgPowSpearman,
   } = state;
+
+  // Field editor for the object-shaped power-calculator configs above:
+  // <Fld cfg={cfgPowCox} setCfg={setCfgPowCox} k="nEvents" label="N events" width={70} />
+  const Fld = ({ cfg, setCfg, k, label, width = 65 }) => (
+    <Inp label={label} value={cfg[k]} onChange={v => setCfg(c => ({ ...c, [k]: v }))} width={width} />
+  );
 
   const scaffold = txt => (<div style={{ fontSize: 9, color: C.dim, ...mono, lineHeight: 1.45 }}>{txt}</div>);
   const numeric = ds?.numeric || [];
@@ -521,28 +537,88 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     boot_splitconf: <></>,
     boot_confpval: <></>,
     boot_jackplus: <></>,
-    // ── batch 9: Power Analysis ──────────────────────────────────────────────
-    pow_cox: <></>,
-    pow_meta: <></>,
-    pow_equiv: <></>,
-    pow_intanova: <></>,
-    pow_corr: <></>,
-    reqn_t: <></>,
-    reqn_corr: <></>,
-    reqn_oneprop: <></>,
-    reqn_twoprop: <></>,
-    reqn_wilcoxon: <></>,
-    reqn_logrank: <></>,
-    reqn_ols: <></>,
-    reqn_anova: <></>,
-    pow_ttest: <></>,
-    pow_oneprop: <></>,
-    pow_twoprop: <></>,
-    pow_wilcoxon: <></>,
-    pow_logrank: <></>,
-    pow_rmanova: <></>,
-    pow_olsapa: <></>,
-    pow_spearman: <></>,
+    // ── batch 9: Power Analysis (extended) ───────────────────────────────────
+    pow_cox: <>
+      <Fld cfg={cfgPowCox} setCfg={setCfgPowCox} k="nEvents" label="N events" />
+      <Fld cfg={cfgPowCox} setCfg={setCfgPowCox} k="hr" label="Hazard ratio" />
+    </>,
+    pow_meta: <>
+      <Fld cfg={cfgPowMeta} setCfg={setCfgPowMeta} k="k" label="K studies" />
+      <Fld cfg={cfgPowMeta} setCfg={setCfgPowMeta} k="d" label="Effect d" />
+    </>,
+    pow_equiv: <>
+      <Fld cfg={cfgPowEquiv} setCfg={setCfgPowEquiv} k="meanDiff" label="Mean diff" />
+      <Fld cfg={cfgPowEquiv} setCfg={setCfgPowEquiv} k="se" label="SE" />
+      <Fld cfg={cfgPowEquiv} setCfg={setCfgPowEquiv} k="dL" label="Lower Δ" />
+      <Fld cfg={cfgPowEquiv} setCfg={setCfgPowEquiv} k="dU" label="Upper Δ" />
+    </>,
+    pow_intanova: <>
+      <Fld cfg={cfgPowIntAnova} setCfg={setCfgPowIntAnova} k="kA" label="Levels A" width={55} />
+      <Fld cfg={cfgPowIntAnova} setCfg={setCfgPowIntAnova} k="kB" label="Levels B" width={55} />
+      <Fld cfg={cfgPowIntAnova} setCfg={setCfgPowIntAnova} k="nPerCell" label="n/cell" />
+      <Fld cfg={cfgPowIntAnova} setCfg={setCfgPowIntAnova} k="fInt" label="Cohen's f (int.)" width={80} />
+    </>,
+    pow_corr: <>
+      <Fld cfg={cfgPowCorr} setCfg={setCfgPowCorr} k="n" label="N" width={55} />
+      <Fld cfg={cfgPowCorr} setCfg={setCfgPowCorr} k="r" label="r" width={55} />
+    </>,
+    reqn_t: <Fld cfg={cfgReqnT} setCfg={setCfgReqnT} k="d" label="Cohen's d" />,
+    reqn_corr: <Fld cfg={cfgReqnCorr} setCfg={setCfgReqnCorr} k="r" label="r" />,
+    reqn_oneprop: <>
+      <Fld cfg={cfgReqnOneProp} setCfg={setCfgReqnOneProp} k="p0" label="p₀" />
+      <Fld cfg={cfgReqnOneProp} setCfg={setCfgReqnOneProp} k="p1" label="p₁" />
+    </>,
+    reqn_twoprop: <>
+      <Fld cfg={cfgReqnTwoProp} setCfg={setCfgReqnTwoProp} k="p1" label="p₁" />
+      <Fld cfg={cfgReqnTwoProp} setCfg={setCfgReqnTwoProp} k="p2" label="p₂" />
+    </>,
+    reqn_wilcoxon: <Fld cfg={cfgReqnWilcoxon} setCfg={setCfgReqnWilcoxon} k="d" label="Cohen's d" />,
+    reqn_logrank: <Fld cfg={cfgReqnLogrank} setCfg={setCfgReqnLogrank} k="hr" label="Hazard ratio" />,
+    reqn_ols: <Fld cfg={cfgReqnOls} setCfg={setCfgReqnOls} k="rSquared" label="R²" />,
+    reqn_anova: <>
+      <Fld cfg={cfgReqnAnova} setCfg={setCfgReqnAnova} k="cohenF" label="Cohen's f" />
+      <Fld cfg={cfgReqnAnova} setCfg={setCfgReqnAnova} k="k" label="k groups" width={55} />
+    </>,
+    pow_ttest: <>
+      <Fld cfg={cfgPowTtest} setCfg={setCfgPowTtest} k="n1" label="n₁" width={55} />
+      <Fld cfg={cfgPowTtest} setCfg={setCfgPowTtest} k="n2" label="n₂" width={55} />
+      <Fld cfg={cfgPowTtest} setCfg={setCfgPowTtest} k="d" label="Cohen's d" />
+    </>,
+    pow_oneprop: <>
+      <Fld cfg={cfgPowOneProp} setCfg={setCfgPowOneProp} k="n" label="N" width={55} />
+      <Fld cfg={cfgPowOneProp} setCfg={setCfgPowOneProp} k="p0" label="p₀" />
+      <Fld cfg={cfgPowOneProp} setCfg={setCfgPowOneProp} k="p1" label="p₁" />
+    </>,
+    pow_twoprop: <>
+      <Fld cfg={cfgPowTwoProp} setCfg={setCfgPowTwoProp} k="n1" label="n₁" width={55} />
+      <Fld cfg={cfgPowTwoProp} setCfg={setCfgPowTwoProp} k="n2" label="n₂" width={55} />
+      <Fld cfg={cfgPowTwoProp} setCfg={setCfgPowTwoProp} k="p1" label="p₁" />
+      <Fld cfg={cfgPowTwoProp} setCfg={setCfgPowTwoProp} k="p2" label="p₂" />
+    </>,
+    pow_wilcoxon: <>
+      <Fld cfg={cfgPowWilcoxon} setCfg={setCfgPowWilcoxon} k="n1" label="n₁" width={55} />
+      <Fld cfg={cfgPowWilcoxon} setCfg={setCfgPowWilcoxon} k="n2" label="n₂" width={55} />
+      <Fld cfg={cfgPowWilcoxon} setCfg={setCfgPowWilcoxon} k="d" label="Cohen's d" />
+    </>,
+    pow_logrank: <>
+      <Fld cfg={cfgPowLogrank} setCfg={setCfgPowLogrank} k="nEvents" label="N events" />
+      <Fld cfg={cfgPowLogrank} setCfg={setCfgPowLogrank} k="hr" label="Hazard ratio" />
+    </>,
+    pow_rmanova: <>
+      <Fld cfg={cfgPowRmanova} setCfg={setCfgPowRmanova} k="k" label="k occasions" width={65} />
+      <Fld cfg={cfgPowRmanova} setCfg={setCfgPowRmanova} k="n" label="n" width={55} />
+      <Fld cfg={cfgPowRmanova} setCfg={setCfgPowRmanova} k="epsilon" label="ε (GG)" width={60} />
+      <Fld cfg={cfgPowRmanova} setCfg={setCfgPowRmanova} k="f" label="Cohen's f" />
+    </>,
+    pow_olsapa: <>
+      <Fld cfg={cfgPowOlsApa} setCfg={setCfgPowOlsApa} k="rSquared" label="R²" />
+      <Fld cfg={cfgPowOlsApa} setCfg={setCfgPowOlsApa} k="n" label="n" width={55} />
+      <Fld cfg={cfgPowOlsApa} setCfg={setCfgPowOlsApa} k="k" label="k predictors" width={70} />
+    </>,
+    pow_spearman: <>
+      <Fld cfg={cfgPowSpearman} setCfg={setCfgPowSpearman} k="n" label="n" width={55} />
+      <Fld cfg={cfgPowSpearman} setCfg={setCfgPowSpearman} k="rho" label="ρ" width={55} />
+    </>,
     // ── robust statistics ────────────────────────────────────────────────────
     theil_sen: xyPick,
     mm_estimator: <>{xyPick}<Inp label="Seed" value={robSeed} onChange={setRobSeed} width={55} /></>,
