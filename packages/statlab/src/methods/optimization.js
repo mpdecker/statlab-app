@@ -23,6 +23,7 @@ export function simulatedAnnealing(fn, init, { seed = 42, temp = 1000, cooling =
 }
 
 // ── Genetic Algorithm ─────────────────────────────────────────────
+/** @param {(individual: number[]) => number} fitness @param {number[][]} population */
 export function geneticAlgorithm(fitness, population, { seed = 42, generations = 50, mutationRate = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!fitness || !population || !population.length) return null;
@@ -47,7 +48,7 @@ export function geneticAlgorithm(fitness, population, { seed = 42, generations =
 }
 
 // ── Particle Swarm ────────────────────────────────────────────────
-/** @param {Function} fn */
+/** @param {Function} fn @param {number[][]} bounds */
 export function particleSwarm(fn, bounds, { seed = 42, nParticles = 20, iterations = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!fn || !bounds || !bounds.length) return null;
@@ -72,7 +73,7 @@ export function particleSwarm(fn, bounds, { seed = 42, nParticles = 20, iteratio
 }
 
 // ── Differential Evolution ────────────────────────────────────────
-/** @param {Function} fn */
+/** @param {Function} fn @param {number[][]} bounds */
 export function differentialEvolution(fn, bounds, { seed = 42, popSize = 20, iterations = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!fn || !bounds || !bounds.length) return null;
@@ -98,7 +99,7 @@ export function differentialEvolution(fn, bounds, { seed = 42, popSize = 20, ite
 }
 
 // ── Grid Search ───────────────────────────────────────────────────
-/** @param {Function} fn */
+/** @param {Function} fn @param {object} paramGrid */
 export function gridSearch(fn, paramGrid) {
   if (!fn || !paramGrid || !paramGrid.length) return null;
   let bestVal = Infinity; let bestParams = null;
@@ -241,7 +242,7 @@ export function conjugateGradient(fn, grad, init, { maxIter = 50, tol = 1e-6 } =
 }
 
 // ── Trust Region ────────────────────────────────────────────────────────────
-/** @param {Function} fn @param {number[]} init @param {(theta: number[]) => number[]} grad */
+/** @param {Function} fn @param {number[]} init @param {(theta: number[]) => number[]} grad @param {(x: number[]) => number[][]} hess */
 export function trustRegion(fn, grad, hess, init, { maxIter = 30, delta0 = 1, eta = 0.1, tol = 1e-6 } = {}) {
   if (!fn || !grad || !hess || !init || !init.length) return null;
   const n = init.length;

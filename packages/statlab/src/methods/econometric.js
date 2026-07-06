@@ -51,7 +51,7 @@ export function tobitModel(data, yVar, xVars, { lowerBound = 0, upperBound = nul
 }
 
 // ── Heckman 2-Step Selection ───────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string[]} zVars */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string[]} zVars @param {string} selectVar */
 export function heckmanSelection(data, yVar, xVars, selectVar, zVars) {
   if (!data || data.length < 20 || !yVar || !selectVar || !zVars) return null;
   const n = data.length;
@@ -108,7 +108,7 @@ function bvnCDF(a, b, rho) {
 }
 
 // ── Bivariate Probit (full-information maximum likelihood) ───────────────────
-/** @param {Array<Record<string, any>>} data @param {string[]} xVars */
+/** @param {Array<Record<string, any>>} data @param {string[]} xVars @param {string} y1Var @param {string} y2Var */
 export function bivariateProbit(data, y1Var, y2Var, xVars) {
   if (!data || data.length < 20 || !y1Var || !y2Var || !xVars || !xVars.length) return null;
   const n = data.length, k = xVars.length + 1; // intercept + regressors
@@ -178,7 +178,7 @@ export function psmCaliper(data, treatVar, outcomeVar, covariates, { caliper = 0
 }
 
 // ── Local Linear IV ────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} xVar @param {string} yVar */
+/** @param {Array<Record<string, any>>} data @param {string} xVar @param {string} yVar @param {string} zVar */
 export function localLinearIV(data, xVar, yVar, zVar, { bandwidth = null } = {}) {
   if (!data || data.length < 20 || !xVar || !yVar || !zVar) return null;
   const n = data.length;
@@ -298,6 +298,7 @@ export function panelRandomEffects(data, yVar, xVars, { idVar, timeVar } = {}) {
 }
 
 // ── Hausman Test ────────────────────────────────────────────────────────────
+/** @param {number[]} betaFE @param {number[]} seFE @param {number[]} betaRE @param {number[]} seRE */
 export function hausmanTest(betaFE, seFE, betaRE, seRE) {
   if (!betaFE || !betaRE || betaFE.length !== betaRE.length) return null;
   const k = betaFE.length;

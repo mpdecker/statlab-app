@@ -55,7 +55,7 @@ export function shapValues(X, y, { seed = 42, nSamples = 50, model = null } = {}
 
 
 // ── LIME Importance ───────────────────────────────────────────────
-/** @param {number[][]} X @param {number} y */
+/** @param {number[][]} X @param {number} y @param {number[]} queryPoint */
 export function limeImportance(X, y, queryPoint, { seed = 42, nSamples = 50, model = null, kernelWidth = null } = {}) {
   __rng = mulberry32(seed);
   if (!X || !y || !queryPoint || X.length < 5) return null;
@@ -91,7 +91,7 @@ export function limeImportance(X, y, queryPoint, { seed = 42, nSamples = 50, mod
 }
 
 // ── Partial Dependence Plot ───────────────────────────────────────
-/** @param {number[][]} X @param {number[]} y */
+/** @param {number[][]} X @param {number[]} y @param {number} featureIndex */
 export function partialDependence(X, y, featureIndex, { nGrid = 20, model = null } = {}) {
   if (!X || !y || X.length < 5 || featureIndex == null || featureIndex >= X[0].length) return null;
   const n = X.length;
@@ -114,7 +114,7 @@ export function partialDependence(X, y, featureIndex, { nGrid = 20, model = null
 }
 
 // ── Permutation Importance ────────────────────────────────────────
-/** @param {number[][]} X @param {number[]} y */
+/** @param {number[][]} X @param {number[]} y @param {number} baselineScore */
 export function permutationImportance(X, y, baselineScore, { nRepeats = 10 } = {}) {
   if (!X || !y || X.length < 5 || !Number.isFinite(baselineScore)) return null;
   const n = X.length, p = X[0].length;
@@ -153,7 +153,7 @@ export function permutationImportance(X, y, baselineScore, { nRepeats = 10 } = {
 }
 
 // ── ALE Plot (Accumulated Local Effects) ──────────────────────────
-/** @param {number} model */
+/** @param {number} model @param {number[][]} X @param {number} featureIndex */
 export function alePlot(X, model, featureIndex, { nIntervals = 10 } = {}) {
   if (!X || X.length < 5 || !X[0] || featureIndex == null) return null;
   const n = X.length;
@@ -188,7 +188,7 @@ export function alePlot(X, model, featureIndex, { nIntervals = 10 } = {}) {
 }
 
 // ── Feature Interaction (Friedman's H) ────────────────────────────
-/** @param {number} model */
+/** @param {number} model @param {number[][]} X @param {number} i @param {number} j */
 export function featureInteraction(X, model, i, j) {
   if (!X || X.length < 5 || i == null || j == null) return null;
   const n = X.length;

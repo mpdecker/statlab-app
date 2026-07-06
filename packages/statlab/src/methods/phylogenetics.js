@@ -61,6 +61,7 @@ function glsFitMean(x, V) { return glsFit(x.map(() => [1]), x, V); }
 function whiten(trait, tree) { const n = trait.length; return forwardSolve(cholesky(phyloVCV(tree, n)), trait); } // L⁻¹·trait, decorrelated under BM
 
 // ── Independent Contrasts (Felsenstein) ───────────────────────────
+/** @param {object} tree @param {number[]} trait */
 export function independentContrasts(tree, trait) {
   if (!tree || !trait || trait.length < 5 || (Array.isArray(tree) && tree.length < 5)) return null;
   const n = trait.length;
@@ -76,6 +77,7 @@ export function independentContrasts(tree, trait) {
 }
 
 // Pagel's Lambda
+/** @param {number[]} trait @param {object} tree */
 export function pagelsLambda(trait, tree) {
   if (!trait || trait.length < 5) return null;
   const n = trait.length, C = phyloVCV(tree, n);
@@ -93,6 +95,7 @@ export function pagelsLambda(trait, tree) {
 }
 
 // Blomberg's K
+/** @param {number[]} trait @param {object} tree */
 export function blombergK(trait, tree) {
   if (!trait || trait.length < 5) return null;
   const n = trait.length, C = phyloVCV(tree, n);
@@ -114,6 +117,7 @@ export function blombergK(trait, tree) {
 }
 
 // ── Phylogenetic Signal ───────────────────────────────────────────
+/** @param {number[]} trait @param {object} tree */
 export function phylogeneticSignal(trait, tree, { method = 'lambda', permutations = 999, seed = 42 } = {}) {
   if (!trait || trait.length < 5) return null;
   let stat = 0;
@@ -143,6 +147,7 @@ export function phylogeneticSignal(trait, tree, { method = 'lambda', permutation
 }
 
 // ── PIC Correlation ───────────────────────────────────────────────
+/** @param {number[]} trait1 @param {number[]} trait2 @param {object} tree */
 export function picCorrelation(trait1, trait2, tree) {
   if (!trait1 || !trait2 || trait1.length < 5 || trait1.length !== trait2.length) return null;
   // Correlation of the two traits' phylogenetic contrasts (whitened by the same
@@ -178,6 +183,7 @@ export function pglsRegression(data, xVar, yVar, lambda = 1, { tree = null } = {
 }
 
 // ── Diversification Rate (Yule process) ───────────────────────────
+/** @param {number[]} branchLengths */
 export function diversificationRate(branchLengths) {
   if (!branchLengths || branchLengths.length < 5) return null;
   const n = branchLengths.length;
@@ -188,7 +194,7 @@ export function diversificationRate(branchLengths) {
 }
 
 // ── OU Trait Model (Ornstein-Uhlenbeck on phylogeny) ──────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string} traitVar */
 export function ouTraitModel(data, traitVar, { tree = null } = {}) {
   if (!data || data.length < 5 || !traitVar) return null;
   const n = data.length;

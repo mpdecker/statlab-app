@@ -28,6 +28,7 @@ function gammaQuantile(p, shape, rate) {
   return (lo + hi) / 2;
 }
 
+/** @param {(params: number[]) => number} logPosterior @param {number[]} initialParams */
 export function mcmc(logPosterior, initialParams, { nIter = 10000, nBurnin = 2000, stepSize = null } = {}) {
   if (!logPosterior || !initialParams || initialParams.length < 1) return null;
   if (nIter < nBurnin + 100) return null;
@@ -88,6 +89,7 @@ export function mcmc(logPosterior, initialParams, { nIter = 10000, nBurnin = 200
   return { chains, acceptRate: +acceptRate.toFixed(4), nIter, nBurnin };
 }
 
+/** @param {number[]} samples */
 export function posteriorSummary(samples) {
   if (!samples || samples.length < 10) return null;
   const n = samples.length;
@@ -104,7 +106,7 @@ export function posteriorSummary(samples) {
   };
 }
 
-/** @param {number} [prob] */
+/** @param {number} [prob] @param {number[]} samples */
 export function hpdInterval(samples, prob = 0.95) {
   if (!samples || samples.length < 10) return null;
   const sorted = [...samples].sort((a, b) => a - b);
@@ -119,6 +121,7 @@ export function hpdInterval(samples, prob = 0.95) {
   return { lo: +sorted[bestLo].toFixed(6), hi: +sorted[bestLo + windowSize - 1].toFixed(6), prob };
 }
 
+/** @param {object} mcmcResult @param {(params: number[]) => number[]} logLikFn @param {number} nObservations */
 export function waic(mcmcResult, logLikFn, nObservations) {
   if (!mcmcResult || !mcmcResult.chains || !mcmcResult.chains.length || !logLikFn || !nObservations) return null;
   const { chains } = mcmcResult;
@@ -151,7 +154,7 @@ export function waic(mcmcResult, logLikFn, nObservations) {
   return { waic: +waicVal.toFixed(2), pWAIC: +sumPwaic.toFixed(2), lppd: +sumLppd.toFixed(2), n, s: S, apa: `WAIC = ${waicVal.toFixed(1)} (pWAIC = ${sumPwaic.toFixed(1)})` };
 }
 
-/** @param {number[]} data */
+/** @param {number[]} data @param {number} priorMean @param {number} priorSD @param {number} knownSigma */
 export function normalNormalPosterior(data, priorMean, priorSD, knownSigma) {
   if (!data || data.length < 1 || knownSigma <= 0) return null;
   const n = data.length, xbar = avg(data);
@@ -194,7 +197,7 @@ export function normalInverseGammaPosterior(y, X, a0 = 0.001, b0 = 0.001) {
   return { coefficients: coeffs, sigma2: +postSigma2.toFixed(6), aStar, bStar, n, k };
 }
 
-/** @param {number} [priorAlpha] @param {number} [priorBeta] */
+/** @param {number} [priorAlpha] @param {number} [priorBeta] @param {number} successes @param {number} trials */
 export function betaBinomialPosterior(successes, trials, priorAlpha = 1, priorBeta = 1) {
   if (!Number.isFinite(successes) || !Number.isFinite(trials) || trials < 1 || successes < 0 || successes > trials) return null;
   const postAlpha = priorAlpha + successes;
@@ -240,7 +243,7 @@ export function gammaPoissonPosterior(counts, priorShape = 1, priorRate = 1) {
   };
 }
 
-/** @param {number[]} counts */
+/** @param {number[]} counts @param {number[]|null} [priorAlpha] */
 export function dirichletMultinomialPosterior(counts, priorAlpha = null) {
   if (!counts || counts.length < 1) return null;
   const sum = counts.reduce((s, v) => s + v, 0);
@@ -309,7 +312,7 @@ export function bayesianLinearRegression(y, X, { nIter = 0, nBurnin = 2000 } = {
 
 // ── Bayes Factor (BIC approximation) ──────────────────────────────
 
-/** @param {number} n */
+/** @param {number} n @param {number} logLik0 @param {number} logLik1 @param {number} k0 @param {number} k1 */
 export function bicBayesFactor(logLik0, logLik1, n, k0, k1) {
   if (!Number.isFinite(logLik0) || !Number.isFinite(logLik1) || n < 2) return null;
   const BIC0 = -2 * logLik0 + k0 * Math.log(n);
@@ -328,6 +331,7 @@ export function bicBayesFactor(logLik0, logLik1, n, k0, k1) {
 
 // ── Bayes Factor (Savage-Dickey) ──────────────────────────────────
 
+/** @param {number[]} mcmcChain @param {number} nullValue @param {(x: number) => number} priorDensityFn */
 export function savageDickeyBF(mcmcChain, nullValue, priorDensityFn) {
   if (!mcmcChain || mcmcChain.length < 10 || !priorDensityFn) return null;
   const n = mcmcChain.length;
@@ -358,6 +362,7 @@ export function savageDickeyBF(mcmcChain, nullValue, priorDensityFn) {
 
 // ── Bayesian One-Way ANOVA ────────────────────────────────────────
 
+/** @param {number[][]} groups */
 export function bayesianANOVA(groups, { nIter = 2000, nBurnin = 500 } = {}) {
   if (!groups || groups.length < 2) return null;
   const J = groups.length;
@@ -404,7 +409,7 @@ export function bayesianANOVA(groups, { nIter = 2000, nBurnin = 500 } = {}) {
 
 // ── Bayesian Mixed Model (RI) ─────────────────────────────────────
 
-/** @param {number[]} y @param {number[][]} X */
+/** @param {number[]} y @param {number[][]} X @param {number[]} groupIdx */
 export function bayesianMixedModel(y, X, groupIdx, { nIter = 2000, nBurnin = 500 } = {}) {
   if (!y || !X || !groupIdx || y.length < 5 || X.length !== y.length || X[0].length < 1) return null;
   const n = y.length, k = X[0].length;
@@ -572,6 +577,7 @@ export function jszBayesFactorT(a, b, { r = Math.SQRT1_2 } = {}) {
 }
 
 // ── Bayesian DIC ──────────────────────────────────────────────────
+/** @param {number[]} logLik @param {number} nParams @param {number[][]|null} [posteriorSamples] */
 export function bayesianDIC(logLik, nParams, posteriorSamples = null) {
   if (!Number.isFinite(nParams) || nParams < 0) return null;
   if (!posteriorSamples) {
@@ -613,6 +619,7 @@ export function bayesianDIC(logLik, nParams, posteriorSamples = null) {
 }
 
 // ── Posterior Predictive Check ────────────────────────────────────
+/** @param {number[]} yObs @param {number[][]} yRep */
 export function posteriorPredictiveCheck(yObs, yRep, { stat = 'mean' } = {}) {
   if (!yObs || !yObs.length || !yRep || !yRep.length || yRep[0].length !== yObs.length) return null;
   if (yRep.length < 10) return null;
@@ -650,7 +657,7 @@ export function posteriorPredictiveCheck(yObs, yRep, { stat = 'mean' } = {}) {
 }
 
 // ── BMA Regression ────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xCandidates */
 export function bmaRegression(data, yVar, xCandidates, { nModels = null, seed = 42 } = {}) {
   if (!data || data.length < 15 || !yVar || !xCandidates || xCandidates.length < 2) return null;
   const n = data.length; const k = xCandidates.length;
@@ -684,6 +691,7 @@ export function bmaRegression(data, yVar, xCandidates, { nModels = null, seed = 
 }
 
 // ── Posterior Inclusion Probabilities ─────────────────────────────
+/** @param {object} bmaResult */
 export function posteriorInclusionProbs(bmaResult) {
   if (!bmaResult || !bmaResult.models) return null;
   const allVars = new Set(bmaResult.models.flatMap(m => m.vars));
@@ -695,6 +703,7 @@ export function posteriorInclusionProbs(bmaResult) {
 }
 
 // ── BMA Predict ───────────────────────────────────────────────────
+/** @param {object} bmaResult @param {Array<Record<string, any>>} newData */
 export function bmaPredict(bmaResult, newData) {
   if (!bmaResult || !bmaResult.models || !newData) return null;
   const models = bmaResult.models;
@@ -708,6 +717,7 @@ export function bmaPredict(bmaResult, newData) {
 }
 
 // ── BMA Summary ───────────────────────────────────────────────────
+/** @param {object} bmaResult */
 export function bmaSummary(bmaResult) {
   if (!bmaResult || !bmaResult.models || !bmaResult.models.length) return null;
   const allVars = new Set(bmaResult.models.flatMap(m => m.vars));

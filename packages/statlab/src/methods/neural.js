@@ -4,6 +4,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Softmax ───────────────────────────────────────────────────────
+/** @param {number[]} logits */
 export function softmax(logits) {
   if (!logits || !logits.length) return null;
   const mx = Math.max(...logits);
@@ -24,6 +25,7 @@ export function activate(x, type = 'relu') {
 }
 
 // ── Softmax Cross Entropy Loss ────────────────────────────────────
+/** @param {number[]} logits @param {number[]} targets */
 export function softmaxCrossEntropy(logits, targets) {
   if (!logits || !targets || logits.length !== targets.length) return null;
   const mx = Math.max(...logits);
@@ -64,6 +66,7 @@ export function gradientDescent(X, y, { lr = 0.01, epochs = 100, batchSize = nul
 }
 
 // ── Adam Update (single step) ─────────────────────────────────────
+/** @param {number[]} params @param {number[]} grads @param {number[]} mom @param {number[]} vel */
 export function adamUpdate(params, grads, mom, vel, { lr = 0.001, beta1 = 0.9, beta2 = 0.999, t = 1 } = {}) {
   if (!params || !grads || params.length !== grads.length) return null;
   const n = params.length;
@@ -80,7 +83,7 @@ export function adamUpdate(params, grads, mom, vel, { lr = 0.001, beta1 = 0.9, b
 }
 
 // ── Xavier Initialization ─────────────────────────────────────────
-/** @param {number} [seed] */
+/** @param {number} [seed] @param {number} nIn @param {number} nOut */
 export function xavierInit(nIn, nOut, seed = 42) {
   __rng = mulberry32(seed);
   if (!nIn || !nOut || nIn < 1 || nOut < 1) return null;
@@ -141,7 +144,7 @@ export function convolution1D(signal, kernel) {
 }
 
 // ── 2D Convolution ────────────────────────────────────────────────
-/** @param {number[]} kernel */
+/** @param {number[]} kernel @param {number[][]} input */
 export function conv2D(input, kernel, { stride = 1, padding = 0 } = {}) {
   if (!input || !kernel || !input.length || !input[0] || kernel.length > input.length) return null;
   const h = input.length, w = input[0].length, kh = kernel.length, kw = kernel[0].length;
@@ -168,6 +171,7 @@ export function conv2D(input, kernel, { stride = 1, padding = 0 } = {}) {
 }
 
 // ── Max Pooling ───────────────────────────────────────────────────
+/** @param {number[][]} input */
 export function maxPooling(input, { poolSize = 2, stride = null } = {}) {
   if (!input || !input.length || !input[0]) return null;
   const h = input.length, w = input[0].length;

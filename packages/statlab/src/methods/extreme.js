@@ -85,6 +85,7 @@ export function gpdMLE(data, threshold = null) {
 }
 
 // ── Return Level ────────────────────────────────────────────────────────────
+/** @param {object} gevFit @param {number} returnPeriod */
 export function returnLevel(gevFit, returnPeriod) {
   if (!gevFit || !returnPeriod || returnPeriod < 2) return null;
   const { mu, sigma, xi } = gevFit;
@@ -99,7 +100,7 @@ export function returnLevel(gevFit, returnPeriod) {
 }
 
 // ── Block Maxima ────────────────────────────────────────────────────────────
-/** @param {number} [blockSize] @param {Array<Record<string, any>>} data */
+/** @param {number} [blockSize] @param {number[]} data */
 export function blockMaxima(data, blockSize = 10) {
   if (!data || data.length < 2 * blockSize) return null;
   const n = data.length;
@@ -160,7 +161,7 @@ export function peaksOverThreshold(data, threshold = null) {
 }
 
 // ── Threshold Selection ───────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {number[]} data */
 export function thresholdSelection(data) {
   if (!data || data.length < 20) return null;
   const n = data.length;

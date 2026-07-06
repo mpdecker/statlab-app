@@ -220,7 +220,7 @@ export function tensorRegression(X, y, ranks = [2]) {
 }
 
 // ── CP Decomposition (CANDECOMP/PARAFAC) ──────────────────────────
-/** @param {number} [rank] */
+/** @param {number} [rank] @param {number[][][]} tensor */
 export function cpDecomposition(tensor, rank = 2, { seed = 42, maxIter = 50 } = {}) {
   if (!tensor || !tensor.length || rank < 1) return null;
   const d1 = tensor.length, d2 = tensor[0]?.length || 0, d3 = tensor[0]?.[0]?.length || 0;
@@ -269,6 +269,7 @@ export function tuckerRegression(X, y, { seed = 42, rank = [2, 2], maxIter = 50 
 }
 
 // ── Tensor Completion ─────────────────────────────────────────────
+/** @param {number[][][]} tensor @param {number[][][]} mask */
 export function tensorCompletion(tensor, mask, { rank = 2, maxIter = 20 } = {}) {
   if (!tensor || !mask || !tensor.length) return null;
   const d1 = tensor.length, d2 = tensor[0]?.length || 0, d3 = tensor[0]?.[0]?.length || 0;

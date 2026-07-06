@@ -56,6 +56,7 @@ export function fourPL(dose, response, { maxIter = 100, tolerance = 1e-6 } = {})
 }
 
 // ── EC50 ───────────────────────────────────────────────────────────────────
+/** @param {object} model */
 export function ec50(model, { alpha = 0.05 } = {}) {
   if (!model || !model.parameters) return null;
   const p = model.parameters;
@@ -75,6 +76,7 @@ export function ec50(model, { alpha = 0.05 } = {}) {
 }
 
 // ── Hill Slope ─────────────────────────────────────────────────────────────
+/** @param {object} model */
 export function hillSlope(model) {
   if (!model || !model.parameters) return null;
   const h = model.parameters.hill;
@@ -89,7 +91,7 @@ export function hillSlope(model) {
 }
 
 // ── Volcano Plot ───────────────────────────────────────────────────────────
-/** @param {number[]} pValues */
+/** @param {number[]} pValues @param {number[]} log2FC */
 export function volcanoPlot(log2FC, pValues, { fcThreshold = 1, pThreshold = 0.05 } = {}) {
   if (!log2FC || !pValues || log2FC.length < 3 || log2FC.length !== pValues.length) return null;
   const n = log2FC.length;
@@ -111,6 +113,7 @@ export function volcanoPlot(log2FC, pValues, { fcThreshold = 1, pThreshold = 0.0
 }
 
 // ── Log2 Fold Change ───────────────────────────────────────────────────────
+/** @param {number[]} treatment @param {number[]} control */
 export function log2FoldChange(treatment, control) {
   if (!treatment || !control || treatment.length < 2 || control.length < 2) return null;
   const mT = avg(treatment), mC = avg(control);
@@ -130,7 +133,7 @@ export function log2FoldChange(treatment, control) {
 }
 
 // ── Moderated T-Statistic ──────────────────────────────────────────────────
-/** @param {number[]} values */
+/** @param {number[]} values @param {Array<string|number>} groups */
 export function moderatedTStatistic(values, groups, { priorDf = 3 } = {}) {
   if (!values || !groups || values.length !== groups.length || values.length < 3) return null;
   const groupNames = [...new Set(groups)];

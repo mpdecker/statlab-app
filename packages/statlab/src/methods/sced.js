@@ -5,7 +5,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Tau-U ─────────────────────────────────────────────────────────
-/** @param {number[]} baseline */
+/** @param {number[]} baseline @param {number[]} intervention */
 export function tauU(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
   const nB = baseline.length, nI = intervention.length;
@@ -24,7 +24,7 @@ export function tauU(baseline, intervention) {
 }
 
 // ── PND ───────────────────────────────────────────────────────────
-/** @param {number[]} baseline */
+/** @param {number[]} baseline @param {number[]} intervention */
 export function pnd(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5) return null;
   const maxB = Math.max(...baseline);
@@ -34,7 +34,7 @@ export function pnd(baseline, intervention) {
 }
 
 // ── PEM ───────────────────────────────────────────────────────────
-/** @param {number[]} baseline */
+/** @param {number[]} baseline @param {number[]} intervention */
 export function pem(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5) return null;
   const medB = baseline.slice().sort((a, b) => a - b)[Math.floor(baseline.length / 2)];
@@ -44,7 +44,7 @@ export function pem(baseline, intervention) {
 }
 
 // ── NAP ───────────────────────────────────────────────────────────
-/** @param {number[]} baseline */
+/** @param {number[]} baseline @param {number[]} intervention */
 export function nap(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
   const nB = baseline.length, nI = intervention.length;
@@ -58,7 +58,7 @@ export function nap(baseline, intervention) {
 }
 
 // ── Randomization Test for SCED ───────────────────────────────────
-/** @param {number[]} baseline */
+/** @param {number[]} baseline @param {number[]} intervention */
 export function randomizationTest(baseline, intervention, { seed = 42, nPerm = 199 } = {}) {
   __rng = mulberry32(seed);
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
@@ -76,7 +76,7 @@ export function randomizationTest(baseline, intervention, { seed = 42, nPerm = 1
 }
 
 // ── Baseline-Corrected Tau ────────────────────────────────────────
-/** @param {number[]} baseline */
+/** @param {number[]} baseline @param {number[]} intervention */
 export function baselineCorrectedTau(baseline, intervention) {
   if (!baseline || !intervention || baseline.length < 5 || intervention.length < 5) return null;
   const nB = baseline.length, nI = intervention.length;
@@ -87,6 +87,7 @@ export function baselineCorrectedTau(baseline, intervention) {
 }
 
 // ── Between-Case SMD ──────────────────────────────────────────────
+/** @param {number[]} caseA @param {number[]} caseB */
 export function betweenCaseSMD(caseA, caseB) {
   if (!caseA || !caseB || caseA.length < 5 || caseB.length < 5) return null;
   const mA = avg(caseA), mB = avg(caseB);

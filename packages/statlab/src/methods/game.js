@@ -11,6 +11,7 @@ export function nashEquilibrium(matrix) {
 }
 
 // ── Shapley Value ─────────────────────────────────────────────────
+/** @param {Array<string|number>} players @param {Record<string, number>} coalitionValues */
 export function shapleyValue(players, coalitionValues) {
   if (!players || !players.length || !coalitionValues) return null;
   const n = players.length;
@@ -51,6 +52,7 @@ export function dominatedStrategies(matrix) {
 }
 
 // ── Pareto Optimal ────────────────────────────────────────────────
+/** @param {number[][]} outcomes */
 export function paretoOptimal(outcomes) {
   if (!outcomes || !outcomes.length) return null;
   const n = outcomes.length;
@@ -62,7 +64,7 @@ export function paretoOptimal(outcomes) {
 }
 
 // ── Auction Revenue ───────────────────────────────────────────────
-/** @param {string} [type] */
+/** @param {string} [type] @param {number[]} bids */
 export function auctionRevenue(bids, type = 'first') {
   if (!bids || !bids.length || bids.length < 2) return null;
   const sorted = [...bids].sort((a, b) => b - a);
@@ -71,6 +73,7 @@ export function auctionRevenue(bids, type = 'first') {
 }
 
 // ── Evolutionarily Stable Strategy ────────────────────────────────
+/** @param {number[][]} payoffMatrix */
 export function evolutionarilyStableStrategy(payoffMatrix) {
   if (!payoffMatrix || !payoffMatrix.length || !payoffMatrix[0] || payoffMatrix.length !== payoffMatrix[0].length) return null;
   const n = payoffMatrix.length;
@@ -89,6 +92,7 @@ export function evolutionarilyStableStrategy(payoffMatrix) {
 }
 
 // ── Replicator Dynamics ───────────────────────────────────────────
+/** @param {number[][]} payoffMatrix */
 export function replicatorDynamics(payoffMatrix, { steps = 50 } = {}) {
   if (!payoffMatrix || !payoffMatrix.length || payoffMatrix.length !== payoffMatrix[0].length) return null;
   const n = payoffMatrix.length;

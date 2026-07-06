@@ -3,7 +3,7 @@ import { chiPVal } from '../math/distributions.js';
 import { matInv } from '../math/matrix.js';
 
 // ── Polygenic Risk Score ──────────────────────────────────────────
-/** @param {number[]} weights */
+/** @param {number[]} weights @param {number[][]} genotypes */
 export function prsScore(genotypes, weights) {
   if (!genotypes || !genotypes.length || !weights || weights.length !== genotypes[0]?.length) return null;
   const n = genotypes.length;
@@ -13,6 +13,7 @@ export function prsScore(genotypes, weights) {
 }
 
 // ── ACE Heritability ──────────────────────────────────────────────
+/** @param {number[][]} mz MZ twin pairs. @param {number[][]} dz DZ twin pairs. */
 export function aceHeritability(mz, dz) {
   if (!mz || !dz || mz.length < 10 || dz.length < 10) return null;
   const n1 = mz.length, n2 = dz.length;
@@ -31,6 +32,7 @@ export function aceHeritability(mz, dz) {
 }
 
 // ── LD Pruning ────────────────────────────────────────────────────
+/** @param {number[][]} genotypes */
 export function ldPruning(genotypes, { threshold = 0.8, window = 50 } = {}) {
   if (!genotypes || !genotypes.length) return null;
   const n = genotypes.length;
@@ -53,6 +55,7 @@ export function ldPruning(genotypes, { threshold = 0.8, window = 50 } = {}) {
 }
 
 // ── Polygenic Prediction ──────────────────────────────────────────
+/** @param {number[]} phenotype @param {number[][]} genotypes */
 export function polygenicPrediction(phenotype, genotypes) {
   if (!phenotype || !genotypes || phenotype.length < 10 || phenotype.length !== genotypes.length) return null;
   const n = phenotype.length, m = genotypes[0]?.length || 0;
@@ -74,7 +77,7 @@ export function polygenicPrediction(phenotype, genotypes) {
 }
 
 // ── Manhattan Plot Data ───────────────────────────────────────────
-/** @param {number[]} pValues */
+/** @param {number[]} pValues @param {number[]} positions @param {Array<string|number>} chromosomes */
 export function manhattanData(pValues, positions, chromosomes) {
   if (!pValues || !positions || !chromosomes || !pValues.length) return null;
   const n = pValues.length;
@@ -89,6 +92,7 @@ export function manhattanData(pValues, positions, chromosomes) {
 }
 
 // ── GCTA Heritability ─────────────────────────────────────────────
+/** @param {number[][]} GRM genetic relationship matrix. @param {number[]} phenotype */
 export function heritabilityGCTA(GRM, phenotype) {
   if (!GRM || !phenotype || GRM.length < 10 || GRM.length !== phenotype.length) return null;
   const n = phenotype.length;
@@ -102,7 +106,7 @@ export function heritabilityGCTA(GRM, phenotype) {
 }
 
 // ── LD Score Regression ───────────────────────────────────────────
-/** @param {number} n */
+/** @param {number} n @param {number[]} chi2 @param {number[]} ldScores */
 export function ldScoreRegression(chi2, ldScores, n) {
   if (!chi2 || !ldScores || chi2.length < 10 || chi2.length !== ldScores.length) return null;
   const m = chi2.length;
@@ -114,6 +118,7 @@ export function ldScoreRegression(chi2, ldScores, n) {
 }
 
 // ── Mendelian Randomization ───────────────────────────────────────
+/** @param {number} betaYX @param {number} seYX @param {number} betaZX @param {number} seZX */
 export function mendelianRandomization(betaYX, seYX, betaZX, seZX) {
   if (!Number.isFinite(betaYX) || !Number.isFinite(betaZX) || !betaZX) return null;
   const mrEstimate = betaYX / betaZX;

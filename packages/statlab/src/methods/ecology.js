@@ -36,7 +36,7 @@ export function chao1Richness(counts) {
 }
 
 // ── Species Accumulation ──────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {number[][]} data site × species matrix. */
 export function speciesAccumulation(data, { nPerm = 50, seed = 42 } = {}) {
   if (!data || !data.length) return null;
   const n = data.length;
@@ -54,7 +54,7 @@ export function speciesAccumulation(data, { nPerm = 50, seed = 42 } = {}) {
 }
 
 // ── Rarefaction ───────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {number} sampleSize */
 export function rarefaction(data, sampleSize) {
   if (!data || !data.length || sampleSize < 1 || sampleSize > data.length) return null;
   const n = data.length;
@@ -76,7 +76,7 @@ export function rarefaction(data, sampleSize) {
 }
 
 // ── Indicator Species Analysis ────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string} speciesCol @param {string} groupCol */
 export function indicatorSpecies(data, speciesCol, groupCol) {
   if (!data || data.length < 5 || !speciesCol || !groupCol) return null;
   const groups = [...new Set(data.map(r => r[groupCol]))];
@@ -99,7 +99,7 @@ export function indicatorSpecies(data, speciesCol, groupCol) {
 }
 
 // ── SIMPER Analysis ───────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string[]} speciesCols @param {string} groupCol */
 export function simperAnalysis(data, speciesCols, groupCol) {
   if (!data || data.length < 5 || !speciesCols || speciesCols.length < 2 || !groupCol) return null;
   const groups = [...new Set(data.map(r => r[groupCol]))];
@@ -122,7 +122,7 @@ export function simperAnalysis(data, speciesCols, groupCol) {
 // PERMANOVA on Euclidean distances: pseudo-F from the between/within
 // sum-of-squares partition, with a free-permutation null distribution
 // (permute group labels nPerm times) for the p-value.
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string[]} speciesCols @param {string} groupCol */
 export function adonis2(data, speciesCols, groupCol, { nPerm = 999, seed = 12345 } = {}) {
   if (!data || data.length < 5 || !speciesCols || speciesCols.length < 2 || !groupCol) return null;
   const n = data.length;
@@ -172,7 +172,7 @@ export function adonis2(data, speciesCols, groupCol, { nPerm = 999, seed = 12345
 }
 
 // ── Beta Dispersal (Homogeneity of dispersions) ───────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string[]} speciesCols @param {string} groupCol */
 export function betadisper(data, speciesCols, groupCol) {
   if (!data || data.length < 5 || !speciesCols || !groupCol) return null;
   const groups = [...new Set(data.map(r => r[groupCol]))];

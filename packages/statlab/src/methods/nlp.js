@@ -4,6 +4,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Word2Vec Skip-Gram (simplified) ───────────────────────────────
+/** @param {string[]} corpus */
 export function word2vecSkipGram(corpus, { seed = 42, vecSize = 10, windowSize = 2, epochs = 10, lr = 0.01 } = {}) {
   __rng = mulberry32(seed);
   if (!corpus || corpus.length < 3) return null;
@@ -46,6 +47,7 @@ export function word2vecSkipGram(corpus, { seed = 42, vecSize = 10, windowSize =
 }
 
 // ── GloVe Embeddings (simplified co-occurrence) ───────────────────
+/** @param {string[]} corpus */
 export function gloveEmbeddings(corpus, { seed = 42, vecSize = 10, windowSize = 3, epochs = 10 } = {}) {
   __rng = mulberry32(seed);
   if (!corpus || corpus.length < 3) return null;

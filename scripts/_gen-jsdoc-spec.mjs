@@ -46,6 +46,15 @@ const NAME_TYPES = {
   // moderatedTStatistic/decomposition — ambiguous, leave unresolved.
   grad: '(theta: number[]) => number[]', statistic: '(sample: any[]) => number',
   text: 'string',
+  // third-pass names, verified globally-unambiguous (2026-07):
+  tp: 'number', fp: 'number', tn: 'number', fn: 'number', sens: 'number', spec: 'number',
+  prevalence: 'number', or: 'number', forecast: 'number[]', naive: 'number[]',
+  probs: 'number[]', thresholds: 'number[]', methodA: 'number[]', methodB: 'number[]',
+  proportions: 'number[]', errors1: 'number[]', errors2: 'number[]', modelFn: 'Function',
+  breakpoints: 'number[]', breakPoint: 'number', states: 'Array<string|number>',
+  raters: 'string[]', probVar: 'string', scoreVar: 'string',
+  rater1: 'Array<string|number>', rater2: 'Array<string|number>',
+  forecast1: 'number[]', forecast2: 'number[]',
   type: 'string', method: 'string', linkage: 'string', family: 'string',
   undirected: 'boolean', annualize: 'boolean', robust: 'boolean',
 };

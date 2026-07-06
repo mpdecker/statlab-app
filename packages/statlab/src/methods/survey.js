@@ -124,6 +124,7 @@ export function designEffect(weights) {
 }
 
 // ── Rake Weights (IPF) ──────────────────────────────────────────────────────
+/** @param {number[]} initialWeights @param {object[]} targets margin targets. */
 export function rakeWeights(initialWeights, targets, { maxIter = 50, tolerance = 1e-6 } = {}) {
   if (!initialWeights || !initialWeights.length || !targets || !targets.length) return null;
   const n = initialWeights.length;
@@ -178,6 +179,7 @@ export function rakeWeights(initialWeights, targets, { maxIter = 50, tolerance =
 }
 
 // ── Calibration Weights ────────────────────────────────────────────────────
+/** @param {number[]} initialWeights @param {number[][]} auxVars @param {number[]} targets */
 export function calibrationWeights(initialWeights, auxVars, targets, { lo = 0, hi = Infinity, maxIter = 50 } = {}) {
   if (!initialWeights || initialWeights.length < 10 || !auxVars || !auxVars.length || !targets || auxVars.length !== targets.length) return null;
   const n = initialWeights.length;
@@ -236,7 +238,7 @@ export function calibrationWeights(initialWeights, auxVars, targets, { lo = 0, h
 }
 
 // ── Post-Stratification ────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {number[]} weights @param {string} strataVar */
+/** @param {Array<Record<string, any>>} data @param {number[]} weights @param {string} strataVar @param {Record<string, number>} popTotals */
 export function postStratification(data, weights, strataVar, popTotals) {
   if (!data || !weights || data.length < 10 || !strataVar || !popTotals) return null;
   const n = data.length;
@@ -309,7 +311,7 @@ export function effectiveSampleSize(weights) {
 }
 
 // ── BRR Weights ───────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} strataVar */
+/** @param {Array<Record<string, any>>} data @param {string} strataVar @param {string} psuVar */
 export function brrWeights(data, strataVar, psuVar, { method = 'fay', epsilon = 0.3 } = {}) {
   if (!data || data.length < 20 || !strataVar || !psuVar) return null;
   const n = data.length;
@@ -331,7 +333,7 @@ export function brrWeights(data, strataVar, psuVar, { method = 'fay', epsilon = 
 }
 
 // ── Jackknife Replicates ──────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} strataVar */
+/** @param {Array<Record<string, any>>} data @param {string} strataVar @param {string} psuVar */
 export function jackknifeReplicates(data, strataVar, psuVar, { method = 'JK1' } = {}) {
   if (!data || data.length < 20 || !strataVar || !psuVar) return null;
   const n = data.length;
@@ -353,7 +355,7 @@ export function jackknifeReplicates(data, strataVar, psuVar, { method = 'JK1' } 
 }
 
 // Fay's Replicate Weights
-/** @param {Array<Record<string, any>>} data @param {string} strataVar */
+/** @param {Array<Record<string, any>>} data @param {string} strataVar @param {string} psuVar */
 export function fayReplicates(data, strataVar, psuVar, { epsilon = 0.3 } = {}) {
   if (!data || data.length < 20 || !strataVar || !psuVar) return null;
   const n = data.length;
@@ -373,7 +375,7 @@ export function fayReplicates(data, strataVar, psuVar, { epsilon = 0.3 } = {}) {
 }
 
 // ── Taylor Linearization ──────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} strataVar */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} strataVar @param {string} psuVar */
 export function taylorLinearization(data, yVar, xVars, strataVar, psuVar) {
   if (!data || data.length < 20 || !yVar || !strataVar || !psuVar) return null;
   const n = data.length;
@@ -408,7 +410,7 @@ export function designTotal(vals, weights) {
 }
 
 // ── PPS Sampling ──────────────────────────────────────────────────
-/** @param {number} [seed] */
+/** @param {number} [seed] @param {number[]} sizes @param {number} nSample */
 export function ppsSampling(sizes, nSample, seed = 42) {
   __rng = mulberry32(seed);
   if (!sizes || !sizes.length || nSample < 1) return null;
@@ -428,7 +430,7 @@ export function ppsSampling(sizes, nSample, seed = 42) {
 }
 
 // ── Systematic Sample ─────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {number} [seed] */
+/** @param {Array<Record<string, any>>} data @param {number} [seed] @param {number} nSample */
 export function systematicSample(data, nSample, seed = 42) {
   __rng = mulberry32(seed);
   if (!data || !data.length || nSample < 1) return null;
@@ -459,7 +461,7 @@ export function multistageVariance(data, strataVar, clusterVar, yVar) {
 }
 
 // ── Domain Total/Mean ─────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string} domainVar */
 export function domainTotal(data, yVar, domainVar) {
   if (!data || data.length < 5 || !yVar || !domainVar) return null;
   const domains = [...new Set(data.map(r => r[domainVar]))];
@@ -472,7 +474,7 @@ export function domainTotal(data, yVar, domainVar) {
 }
 
 // ── Non-Response Adjustment (IPW) ─────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string} responseVar @param {string[]} covarVars */
 export function nonresponseAdjustment(data, responseVar, covarVars) {
   if (!data || data.length < 10 || !responseVar || !covarVars) return null;
   const n = data.length;

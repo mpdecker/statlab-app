@@ -261,7 +261,7 @@ export function svdEmbeddings(documents, { nDims = 50, windowSize = 3, stopwords
 }
 
 // ── BM25 ─────────────────────────────────────────────────────────────────────
-/** @param {string[]} documents */
+/** @param {string[]} documents @param {string} query */
 export function bm25(documents, query, { k1 = 1.2, b = 0.75 } = {}) {
   if (!documents || documents.length < 2 || !query || typeof query !== 'string') return null;
   const tokDocs = documents.map(d => _tokenize(d, { minLen: 1 }));
@@ -310,6 +310,7 @@ export function sentimentVader(text) {
 }
 
 // ── Perplexity ──────────────────────────────────────────────────────────────
+/** @param {number[]} logProbs @param {number} nWords */
 export function perplexityScore(logProbs, nWords) {
   if (!logProbs || logProbs.length < 2 || !nWords || nWords < 2) return null;
   const avgLogLik = avg(logProbs);
@@ -374,7 +375,7 @@ export function textRank(documents, { topN = 10, damping = 0.85 } = {}) {
 }
 
 // ── TF-IDF Similarity Search ──────────────────────────────────────
-/** @param {string[]} documents */
+/** @param {string[]} documents @param {string} query */
 export function tfidfSimilaritySearch(documents, query, { topN = 3 } = {}) {
   if (!documents || documents.length < 2 || !query) return null;
   const tfidfRes = tfIdf(documents, {});

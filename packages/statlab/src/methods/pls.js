@@ -77,6 +77,7 @@ export function pls2(X, Y, nComponents = 2) {
 }
 
 // ── VIP Scores ────────────────────────────────────────────────────
+/** @param {object} plsModel */
 export function vipScores(plsModel) {
   if (!plsModel || !Array.isArray(plsModel.weights) || !plsModel.weights.length || !Array.isArray(plsModel.ssExplained)) return null;
   const { weights, ssExplained } = plsModel;
@@ -95,7 +96,7 @@ export function vipScores(plsModel) {
 }
 
 // ── RDA ───────────────────────────────────────────────────────────
-/** @param {number[][]} X */
+/** @param {number[][]} X @param {number[][]} Y */
 export function rda(Y, X, { permutations = 199, seed = 42 } = {}) {
   if (!Y || !X || Y.length < 10 || X.length < 10) return null;
   const n = Math.min(Y.length, X.length);
@@ -180,7 +181,7 @@ export function sPLSRegression(X, y, { nComp = 2, lambda = 0.5, maxIter = 20 } =
 }
 
 // ── Sparse PLS (simpler variant) ──────────────────────────────────
-/** @param {number[][]} X */
+/** @param {number[][]} X @param {number[]} y */
 export function sparsePLS(X, y, { nComp = 2, keepX = null } = {}) {
   if (!X || !y || X.length < 5 || nComp < 1) return null;
   const p = X[0].length;

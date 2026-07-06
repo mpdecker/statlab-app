@@ -45,7 +45,7 @@ function backfitOne(y, basis, lambda = 0.1) {
 // the function silently returned the intercept-only model, R² ≈ 0, for any
 // input. `smoothVars` are now resolved as trailing-digit variable names
 // (`'x1'`→column 0) or literal column indices.)
-/** @param {number[]} y @param {number[][]} X */
+/** @param {number[]} y @param {number[][]} X @param {Array<string|number>} smoothVars */
 export function gamBackfitting(y, X, smoothVars, { family = 'gaussian', maxIter = 20 } = {}) {
   if (!y || !X || !smoothVars || !y.length || !X.length) return null;
   const n = y.length, p = X[0].length;
@@ -166,6 +166,7 @@ export function gamLocalScoring(y, X, { family = 'binomial', maxIter = 10 } = {}
 }
 
 // ── GAM Effective DF ──────────────────────────────────────────────
+/** @param {object[]} splineComponents */
 export function gamEffectiveDf(splineComponents) {
   if (!splineComponents || !splineComponents.length) return null;
   const totalDf = splineComponents.reduce((s, c) => s + (c.df || 1), 1);
@@ -176,6 +177,7 @@ export function gamEffectiveDf(splineComponents) {
 // Evaluates a gamSpline fit's stored basis coefficients at new x-values.
 // (The previous version ignored `newData` entirely and returned the same
 // constant `alpha` value no matter what was passed in — not a prediction.)
+/** @param {object} gamFit @param {Array<Record<string, any>>} newData */
 export function gamPredict(gamFit, newData) {
   if (!gamFit || !newData) return null;
   if (gamFit._beta && gamFit._knots) {
@@ -193,7 +195,7 @@ export function gamPredict(gamFit, newData) {
 }
 
 // ── GAM Interaction ───────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string} var1 @param {string} var2 */
 export function gamInteraction(data, yVar, var1, var2, { df = 5 } = {}) {
   if (!data || data.length < 10 || !yVar || !var1 || !var2) return null;
   const y = data.map(r => +r[yVar]);
@@ -305,6 +307,7 @@ export function pSpline(x, y, { nKnots = 10, lambda = 0.1 } = {}) {
 }
 
 // ── GAM ANOVA (deviance comparison) ───────────────────────────────
+/** @param {object[]} models */
 export function gamAnova(models) {
   if (!models || models.length < 2) return null;
   const anova = models.map((m, i) => {

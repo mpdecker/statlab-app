@@ -6,6 +6,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Markov Chain ────────────────────────────────────────────────────────────
+/** @param {Array<string|number>} sequence */
 export function markovChain(sequence, { nStates = null } = {}) {
   if (!sequence || sequence.length < 20) return null;
   const n = sequence.length;
@@ -29,6 +30,7 @@ export function markovChain(sequence, { nStates = null } = {}) {
 }
 
 // ── Markov Steady State ────────────────────────────────────────────────────
+/** @param {number[][]} P */
 export function markovSteadyState(P) {
   if (!P || !P.length || P.length < 2) return null;
   const k = P.length;
@@ -49,6 +51,7 @@ export function markovSteadyState(P) {
 }
 
 // ── Poisson Process ─────────────────────────────────────────────────────────
+/** @param {number[]} arrivalTimes */
 export function poissonProcess(arrivalTimes, { interval = 1 } = {}) {
   if (!arrivalTimes || arrivalTimes.length < 10) return null;
   const n = arrivalTimes.length;
@@ -70,7 +73,7 @@ export function poissonProcess(arrivalTimes, { interval = 1 } = {}) {
 }
 
 // ── Brownian Motion ────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {number[]} data */
 export function brownianMotion(data, { dt = 1 } = {}) {
   if (!data || data.length < 10) return null;
   const n = data.length;
@@ -85,7 +88,7 @@ export function brownianMotion(data, { dt = 1 } = {}) {
 }
 
 // ── Random Walk Test (Variance Ratio) ──────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {number[]} data */
 export function randomWalkTest(data, { q = 2 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -112,7 +115,7 @@ export function randomWalkTest(data, { q = 2 } = {}) {
 }
 
 // ── Ornstein-Uhlenbeck Process ────────────────────────────────────
-/** @param {number} [dt] @param {Array<Record<string, any>>} data */
+/** @param {number} [dt] @param {number[]} data */
 export function ornsteinUhlenbeck(data, dt = 1) {
   if (!data || data.length < 10) return null;
   const n = data.length;
@@ -250,7 +253,7 @@ export function regimeSwitching(data, { nStates = 2, maxIter = 100, tol = 1e-6 }
 }
 
 // ── Heston Stochastic Volatility Model ────────────────────────────
-/** @param {number} [dt] */
+/** @param {number} [dt] @param {number[]} returns */
 export function hestonModel(returns, dt = 1 / 252) {
   if (!returns || returns.length < 20) return null;
   const n = returns.length;
@@ -312,6 +315,7 @@ export function roughVolatility(returns, H = 0.07, { dt = 1/252 } = {}) {
 }
 
 // ── SABR Model ────────────────────────────────────────────────────
+/** @param {number} F @param {number} K @param {number} T */
 export function sabrModel(F, K, T, { alpha = 0.3, beta = 0.5, nu = 0.4, rho = -0.3 } = {}) {
   if (!Number.isFinite(F) || !Number.isFinite(K) || F <= 0 || K <= 0 || T <= 0) return null;
   const FK = Math.pow(F * K, (1 - beta) / 2);
@@ -323,7 +327,7 @@ export function sabrModel(F, K, T, { alpha = 0.3, beta = 0.5, nu = 0.4, rho = -0
 }
 
 // ── Vasicek Interest Rate Model ───────────────────────────────────
-/** @param {number} [dt] @param {Array<Record<string, any>>} data */
+/** @param {number} [dt] @param {number[]} data */
 export function vasicekModel(data, dt = 1/252) {
   if (!data || data.length < 10) return null;
   const n = data.length;

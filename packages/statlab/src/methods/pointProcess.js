@@ -59,6 +59,7 @@ export function hawkesFit(events, { kernel = 'exp' } = {}) {
 }
 
 // ── Cox Process ───────────────────────────────────────────────────
+/** @param {number[][]} surface intensity grid. */
 export function coxProcess(surface, { seed = 42, n = 100 } = {}) {
   __rng = mulberry32(seed);
   if (!surface || !surface.length || !surface[0]) return null;
@@ -110,6 +111,7 @@ export function burstinessIndex(events) {
 // of the expected 8,000/24,000/40,000/56,000/72,000 growth with annulus
 // area). `clusterRadius` is now interpreted as sigma (as a fraction of
 // min(areaWidth, areaHeight), matching the previous scaling convention).
+/** @param {number} nParents @param {number} nOffspring @param {number} areaWidth @param {number} areaHeight */
 export function thomasProcess(nParents, nOffspring, areaWidth, areaHeight, { seed = 42, clusterRadius = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!nParents || !nOffspring || nParents < 2 || nOffspring < 2) return null;
@@ -144,7 +146,7 @@ export function thomasProcess(nParents, nOffspring, areaWidth, areaHeight, { see
 // center: verified with N=200,000 samples that equal-width radial bins came
 // out ~equal (~40,000 each) instead of the correct annulus-area-proportional
 // growth (8,000/24,000/40,000/56,000/72,000).
-/** @param {number} nClusters @param {number} [seed] */
+/** @param {number} nClusters @param {number} [seed] @param {number} radius @param {number} avgPointsPerCluster @param {number} areaWidth @param {number} areaHeight */
 export function maternCluster(nClusters, radius, avgPointsPerCluster, areaWidth, areaHeight, seed = 42) {
   __rng = mulberry32(seed);
   if (!nClusters || nClusters < 2 || !radius || radius <= 0) return null;

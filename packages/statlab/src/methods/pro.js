@@ -2,7 +2,7 @@ import { avg, sampleSD, corr } from '../math/core.js';
 import { normalCDF } from '../math/distributions.js';
 
 // ── Reliable Change Index ──────────────────────────────────────────────────
-/** @param {number[]} baseline */
+/** @param {number[]} baseline @param {number[]} followUp */
 export function reliableChangeIndex(baseline, followUp, { reliability = 0.8, sdBaseline = null } = {}) {
   if (!baseline || !followUp || baseline.length !== followUp.length || baseline.length < 3) return null;
   const n = baseline.length;
@@ -17,7 +17,7 @@ export function reliableChangeIndex(baseline, followUp, { reliability = 0.8, sdB
 }
 
 // ── Minimal Important Difference ───────────────────────────────────────────
-/** @param {number[]} scores */
+/** @param {number[]} scores @param {number[]} anchors */
 export function minimalImportantDifference(scores, anchors, { method = 'anchor' } = {}) {
   if (!scores || !anchors || scores.length < 5 || scores.length !== anchors.length) return null;
   const n = scores.length;
@@ -31,7 +31,7 @@ export function minimalImportantDifference(scores, anchors, { method = 'anchor' 
 }
 
 // ── Responder Analysis ─────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {number} threshold */
+/** @param {Array<Record<string, any>>} data @param {number} threshold @param {string} baselineVar @param {string} followUpVar */
 export function responderAnalysis(data, baselineVar, followUpVar, threshold, { groupVar = null } = {}) {
   if (!data || !data.length || !baselineVar || !followUpVar) return null;
   const n = data.length;
@@ -49,6 +49,7 @@ export function responderAnalysis(data, baselineVar, followUpVar, threshold, { g
 }
 
 // ── EQ-5D Utility ──────────────────────────────────────────────────────────
+/** @param {number[]} domainScores */
 export function eq5dIndex(domainScores, { country = 'UK' } = {}) {
   if (!domainScores || domainScores.length < 5) return null;
   // Simple mapping: 1 is best in each domain
@@ -59,7 +60,7 @@ export function eq5dIndex(domainScores, { country = 'UK' } = {}) {
 }
 
 // ── Standardized Response Mean ─────────────────────────────────────────────
-/** @param {number[]} baseline */
+/** @param {number[]} baseline @param {number[]} followUp */
 export function standardizedResponseMean(baseline, followUp) {
   if (!baseline || !followUp || baseline.length < 3 || baseline.length !== followUp.length) return null;
   const n = baseline.length;
@@ -71,7 +72,7 @@ export function standardizedResponseMean(baseline, followUp) {
 }
 
 // ── Clinical Trials Gov Summary ───────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {string} phaseVar @param {string} statusVar */
 export function clinicalTrialsGov(data, phaseVar, statusVar) {
   if (!data || data.length < 5 || !phaseVar || !statusVar) return null;
   const n = data.length;

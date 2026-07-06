@@ -47,6 +47,7 @@ function dSepCore(edges, X, Y, Z) {
 }
 
 // ── Markov Blanket ────────────────────────────────────────────────
+/** @param {Array<{from: number, to: number}>} edges @param {number} node */
 export function markovBlanket(edges, node) {
   if (!edges || edges.length < 2 || node == null) return null;
   const parents = new Set(); const children = new Set(); const spouses = new Set();
@@ -110,7 +111,7 @@ function normObj(o) {
 }
 
 // ── Belief Propagation (Sum-Product) ──────────────────────────────
-/** @param {string[]} factors */
+/** @param {string[]} factors @param {object[]} variables @param {object} evidence */
 export function beliefPropagation(factors, variables, evidence, { maxIter = 10 } = {}) {
   if (!factors || !variables || !evidence || variables.length < 2) return null;
   // Accept array factors (scope only → uniform potential) or {vars,table} factors.
@@ -148,7 +149,7 @@ export function beliefPropagation(factors, variables, evidence, { maxIter = 10 }
 }
 
 // ── Factor Graph ──────────────────────────────────────────────────
-/** @param {string[]} factors */
+/** @param {string[]} factors @param {object[]} variables */
 export function factorGraph(variables, factors) {
   if (!variables || !factors) return null;
   const nodes = variables.map(v => ({ id: v, type: 'variable' }));
@@ -157,7 +158,7 @@ export function factorGraph(variables, factors) {
 }
 
 // ── BIC Score ─────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string[]} vars */
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {Array<{from: number, to: number}>} edges */
 export function bicScore(data, vars, edges) {
   if (!data || data.length < 5 || !vars || !edges) return null;
   const n = data.length, k = edges.length;
@@ -172,7 +173,7 @@ export function bicScore(data, vars, edges) {
 }
 
 // ── D-Separation ──────────────────────────────────────────────────
-/** @param {string[]} zVars */
+/** @param {string[]} zVars @param {Array<{from: number, to: number}>} edges @param {number} x @param {number} y */
 export function dseparation(edges, x, y, zVars) {
   if (!edges || edges.length < 2 || x == null || y == null) return null;
   const dsep = dSepCore(edges, x, y, zVars || []);
@@ -180,7 +181,7 @@ export function dseparation(edges, x, y, zVars) {
 }
 
 // ── Variable Elimination ──────────────────────────────────────────
-/** @param {string[]} factors */
+/** @param {string[]} factors @param {number[]} queryVars @param {object} [evidence] */
 export function variableElimination(factors, queryVars, evidence = {}) {
   if (!factors || !factors.length || !queryVars) return null;
   const nFactors = factors.length;
@@ -218,7 +219,7 @@ export function variableElimination(factors, queryVars, evidence = {}) {
 }
 
 // ── Treewidth (simplified) ────────────────────────────────────────
-/** @param {number} nVars */
+/** @param {number} nVars @param {Array<{from: number, to: number}>} edges */
 export function treeWidth(edges, nVars) {
   if (!edges || !nVars || nVars < 2 || !edges.length) return null;
   // Min-degree elimination heuristic → upper bound on treewidth.
@@ -242,7 +243,7 @@ export function treeWidth(edges, nVars) {
 }
 
 // ── Junction Tree Construction ────────────────────────────────────
-/** @param {number} nVars */
+/** @param {number} nVars @param {Array<{from: number, to: number}>} edges */
 export function junctionTree(edges, nVars) {
   if (!edges || !nVars || nVars < 2 || !edges.length) return null;
   const clusters = [];
@@ -299,7 +300,7 @@ function wouldCycle(edges, from, to) {
 }
 
 // ── BDeu Score ────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string[]} vars */
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {Array<{from: number, to: number}>} edges */
 export function scoringBDeu(data, vars, edges, { iss = 1 } = {}) {
   if (!data || !vars || !edges) return null;
   const n = data.length, k = vars.length;
@@ -336,7 +337,7 @@ export function scoringBDeu(data, vars, edges, { iss = 1 } = {}) {
 }
 
 // ── CPDAG (Completed Partially Directed Acyclic Graph) ────────────
-/** @param {number} nVars */
+/** @param {number} nVars @param {Array<{from: number, to: number}>} dagEdges */
 export function cpdag(dagEdges, nVars) {
   if (!dagEdges || !nVars || nVars < 2) return null;
   const n = nVars;
@@ -356,7 +357,7 @@ export function cpdag(dagEdges, nVars) {
 }
 
 // ── D-Separation Query ────────────────────────────────────────────
-/** @param {string[]} [Z] @param {number} nVars */
+/** @param {string[]} [Z] @param {number} nVars @param {Array<{from: number, to: number}>} edges @param {number} X @param {number} Y */
 export function dSeparationQuery(edges, nVars, X, Y, Z = []) {
   if (!edges || !nVars || X == null || Y == null) return null;
   // Delegate to dSepCore's ancestral-moral-graph algorithm (the standalone

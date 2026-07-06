@@ -96,7 +96,7 @@ export function spatiotemporalMoran(data, yVar, timeVar, W = null) {
 // y_{t+h} = ρ·W·y_{t+h-1} + Xβ (X held at its last observed values), which converges
 // geometrically to the fixed point (I-ρW)⁻¹Xβ. Falls back to a scalar ρ^h decay when
 // no spatial state (W, X, y) is available on the model.
-/** @param {number} [nSteps] */
+/** @param {number} [nSteps] @param {object} model */
 export function spaceTimeForecast(model, nSteps = 1) {
   if (!model || model.rho == null || nSteps < 1) return null;
   const rho = model._rho != null ? model._rho : model.rho;
