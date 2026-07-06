@@ -7,6 +7,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── CAPM Beta ──────────────────────────────────────────────────────────────
+/** @param {number[]} stockReturns @param {number[]} marketReturns */
 export function capmBeta(stockReturns, marketReturns, { riskFree = 0 } = {}) {
   if (!stockReturns || !marketReturns || stockReturns.length < 10 || stockReturns.length !== marketReturns.length) return null;
   const n = stockReturns.length;
@@ -140,7 +141,7 @@ export function parametricVaR(returns, { alpha = 0.05, horizon = 1 } = {}) {
 }
 
 // ── Rolling Window ──────────────────────────────────────────────────────────
-/** @param {Function} fn */
+/** @param {Function} fn @param {number[]} data @param {number} windowSize */
 export function rollingWindow(data, fn, windowSize, { step = 1 } = {}) {
   if (!data || !fn || data.length < windowSize) return null;
   const n = data.length;
@@ -163,7 +164,7 @@ export function rollingWindow(data, fn, windowSize, { step = 1 } = {}) {
 }
 
 // ── Fama-French 3-Factor ──────────────────────────────────────────
-/** @param {number[]} returns */
+/** @param {number[]} returns @param {number[]} market @param {number[]} smb @param {number[]} hml */
 export function famaFrench3F(returns, market, smb, hml) {
   if (!returns || !market || !smb || !hml) return null;
   const n = Math.min(returns.length, market.length, smb.length, hml.length);
@@ -183,7 +184,7 @@ export function famaFrench3F(returns, market, smb, hml) {
 }
 
 // ── Carhart 4-Factor ──────────────────────────────────────────────
-/** @param {number[]} returns */
+/** @param {number[]} returns @param {number[]} market @param {number[]} smb @param {number[]} hml @param {number[]} mom */
 export function carhart4F(returns, market, smb, hml, mom) {
   if (!returns || !market || !smb || !hml || !mom) return null;
   const n = Math.min(returns.length, market.length, smb.length, hml.length, mom.length);
@@ -323,7 +324,7 @@ export function blackScholes(spot, strike, time, rate, sigma, type = 'call') {
 }
 
 // ── Implied Volatility ────────────────────────────────────────────
-/** @param {number} time @param {string} [type] @param {number} spot @param {number} strike @param {number} rate */
+/** @param {number} time @param {string} [type] @param {number} spot @param {number} strike @param {number} rate @param {number} marketPrice */
 export function impliedVolatility(marketPrice, spot, strike, time, rate, type = 'call') {
   if (![marketPrice, spot, strike, time, rate].every(Number.isFinite)) return null;
   let lo = 0.01, hi = 3;
@@ -387,6 +388,7 @@ export function monteCarloPricing(spot, strike, time, rate, sigma, nPaths = 1000
 }
 
 // ── Variance Reduction ────────────────────────────────────────────
+/** @param {number[]} payoffs @param {number} target */
 export function varReduction(payoffs, target) {
   if (!payoffs || !payoffs.length || !Number.isFinite(target)) return null;
   const n = payoffs.length;
@@ -399,7 +401,7 @@ export function varReduction(payoffs, target) {
 }
 
 // ── Monte Carlo Option Pricing (extended) ─────────────────────────
-/** @param {number} sigma @param {number} r */
+/** @param {number} sigma @param {number} r @param {number} S @param {number} K @param {number} T */
 export function monteCarloOption(S, K, T, r, sigma, { seed = 42, nSim = 1000, type = 'call' } = {}) {
   __rng = mulberry32(seed);
   if (!Number.isFinite(S) || S <= 0 || K <= 0 || T <= 0) return null;
@@ -415,7 +417,7 @@ export function monteCarloOption(S, K, T, r, sigma, { seed = 42, nSim = 1000, ty
 }
 
 // ── Option Greeks ─────────────────────────────────────────────────
-/** @param {number} sigma @param {number} r */
+/** @param {number} sigma @param {number} r @param {number} S @param {number} K @param {number} T */
 export function greeks(S, K, T, r, sigma) {
   if (!Number.isFinite(S) || S <= 0 || K <= 0 || T <= 0) return null;
   const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));

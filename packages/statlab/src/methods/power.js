@@ -13,7 +13,7 @@ import { fCritUpper, powerANOVA as _powerANOVA, powerChi as _powerChi, powerLogi
 } from '../math/power.js';
 
 // ── Cox PH Power (Hsieh & Lavori 2000) ───────────────────────────────────────
-/** @param {number} [rSquaredOther] @param {number} [k] @param {number} [alpha] */
+/** @param {number} [rSquaredOther] @param {number} [k] @param {number} [alpha] @param {number} nEvents @param {number} hr */
 export function powerCoxPH(nEvents, hr, rSquaredOther = 0, k = 1, alpha = 0.05) {
   if (nEvents < 5 || hr <= 0 || !(rSquaredOther >= 0 && rSquaredOther < 1) || !(k >= 0)) return null;
   const nEff = nEvents * (1 - rSquaredOther);
@@ -47,7 +47,7 @@ export function powerMetaAnalysis(k, d, tau2 = 0, nPerStudy = 50, alpha = 0.05) 
 }
 
 // ── TOST Equivalence Power ────────────────────────────────────────────────────
-/** @param {number} [alpha] */
+/** @param {number} [alpha] @param {number} meanDiff @param {number} se @param {number} dL @param {number} dU */
 export function powerEquivalence(meanDiff, se, dL, dU, alpha = 0.05) {
   if (!(se > 0) || dL >= dU || !Number.isFinite(meanDiff)) return null;
   if (meanDiff < dL || meanDiff > dU) {
@@ -75,7 +75,7 @@ export function powerEquivalence(meanDiff, se, dL, dU, alpha = 0.05) {
 // against scipy.stats.ncf) rather than a normal approximation to the
 // noncentral F's mean/variance, which can overstate power by several
 // percentage points at moderate-to-large noncentrality.
-/** @param {number} [alpha] */
+/** @param {number} [alpha] @param {number} kA @param {number} kB @param {number} nPerCell @param {number} fInt */
 export function powerInteractionANOVA(kA, kB, nPerCell, fInt, alpha = 0.05) {
   if (kA < 2 || kB < 2 || nPerCell < 2 || !(fInt > 0)) return null;
   const df1 = (kA - 1) * (kB - 1);
@@ -93,7 +93,7 @@ export function powerInteractionANOVA(kA, kB, nPerCell, fInt, alpha = 0.05) {
 }
 
 // ── Power Wrappers ──────────────────────────────────────────────────────────
-/** @param {number} k @param {number} [alpha] @param {number} [seed] */
+/** @param {number} k @param {number} [alpha] @param {number} [seed] @param {number} cohenF @param {number} nPerGroup */
 export function powerANOVA(cohenF, k, nPerGroup, alpha = 0.05, seed = 42) {
   const p = _powerANOVA(cohenF, k, nPerGroup, alpha, seed);
   if (p == null) return null;
@@ -102,7 +102,7 @@ export function powerANOVA(cohenF, k, nPerGroup, alpha = 0.05, seed = 42) {
 
 // ── Chi-Square Power ──────────────────────────────────────────────
 
-/** @param {number} df @param {number} [alpha] */
+/** @param {number} df @param {number} [alpha] @param {number} cohenW @param {number} N */
 export function powerChiSq(cohenW, df, N, alpha = 0.05) {
   const p = _powerChi(cohenW, df, N, alpha);
   if (p == null) return null;
@@ -111,7 +111,7 @@ export function powerChiSq(cohenW, df, N, alpha = 0.05) {
 
 // ── Logistic Power ────────────────────────────────────────────────
 
-/** @param {number} [alpha] @param {number} or */
+/** @param {number} [alpha] @param {number} or @param {number} pControl @param {number} nPerGroup */
 export function powerLogisticReg(or, pControl, nPerGroup, alpha = 0.05) {
   const p = _powerLogistic(or, pControl, nPerGroup, alpha);
   if (p == null) return null;
@@ -120,7 +120,7 @@ export function powerLogisticReg(or, pControl, nPerGroup, alpha = 0.05) {
 
 // ── Multilevel Power ──────────────────────────────────────────────
 
-/** @param {number} d @param {number} [alpha] */
+/** @param {number} d @param {number} [alpha] @param {number} ICC @param {number} mClustersEach @param {number} subjectsPerCluster */
 export function powerMultilevel(ICC, mClustersEach, subjectsPerCluster, d, alpha = 0.05) {
   const p = _powerMixed(ICC, mClustersEach, subjectsPerCluster, d, alpha);
   if (p == null) return null;
@@ -140,6 +140,7 @@ export function powerCorrelation(n, r, alpha = 0.05) {
 
 // ── Mediation Power ───────────────────────────────────────────────
 
+/** @param {number} aHat @param {number} bHat @param {number} seA @param {number} seB */
 export function powerMediationTest(aHat, bHat, seA, seB, { B = 2000, alpha = 0.05, seed = 42 } = {}) {
   const r = _powerMediation(aHat, bHat, seA, seB, B, alpha, seed);
   if (!r) return null;
@@ -192,7 +193,7 @@ export function requiredNWilcoxon(d, power = 0.8, alpha = 0.05) {
 
 // ── Required N (Log-Rank) ─────────────────────────────────────────
 
-/** @param {number} [power] @param {number} [alpha] */
+/** @param {number} [power] @param {number} [alpha] @param {number} hr */
 export function requiredNLogRank(hr, power = 0.8, alpha = 0.05) {
   const n = _requiredNLogRank(hr, power, alpha);
   if (n == null || n >= 20000) return null;
@@ -201,7 +202,7 @@ export function requiredNLogRank(hr, power = 0.8, alpha = 0.05) {
 
 // ── Required N (OLS) ──────────────────────────────────────────────
 
-/** @param {number} [k] @param {number} [power] @param {number} [alpha] */
+/** @param {number} [k] @param {number} [power] @param {number} [alpha] @param {number} rSquared */
 export function requiredNOLS(rSquared, k = 1, power = 0.8, alpha = 0.05) {
   const n = _requiredNOLS(rSquared, k, power, alpha);
   if (n == null || n >= 5000) return null;
@@ -210,7 +211,7 @@ export function requiredNOLS(rSquared, k = 1, power = 0.8, alpha = 0.05) {
 
 // ── Required N (ANOVA) ────────────────────────────────────────────
 
-/** @param {number} k @param {number} [power] @param {number} [alpha] */
+/** @param {number} k @param {number} [power] @param {number} [alpha] @param {number} cohenF */
 export function requiredNANOVA(cohenF, k, power = 0.8, alpha = 0.05) {
   if (!(cohenF > 0) || k < 2) return null;
   let lo = 2, hi = 5000;
@@ -223,7 +224,7 @@ export function requiredNANOVA(cohenF, k, power = 0.8, alpha = 0.05) {
 }
 
 // ── Already-APA Re-exports ──────────────────────────────────────────────────
-/** @param {number} d @param {string} [type] @param {number} [alpha] */
+/** @param {number} d @param {string} [type] @param {number} [alpha] @param {number} n1 @param {number} [n2] */
 export function powerTTestWrapper(n1, n2 = n1, d, type = 'two-sample', alpha = 0.05) {
   const r = _powerTTest(n1, n2, d, type, alpha);
   if (!r) return null;
@@ -241,7 +242,7 @@ export function powerProportionOne(n, p0, p1, alpha = 0.05) {
 
 // ── Two-Proportion Power ──────────────────────────────────────────
 
-/** @param {number} [alpha] @param {number} p1 @param {number} p2 */
+/** @param {number} [alpha] @param {number} p1 @param {number} p2 @param {number} n1 @param {number} n2 */
 export function powerProportionTwo(n1, n2, p1, p2, alpha = 0.05) {
   const r = _powerTwoProportion(n1, n2, p1, p2, alpha);
   if (!r) return null;
@@ -250,7 +251,7 @@ export function powerProportionTwo(n1, n2, p1, p2, alpha = 0.05) {
 
 // ── Wilcoxon Power ────────────────────────────────────────────────
 
-/** @param {number} d @param {number} [alpha] */
+/** @param {number} d @param {number} [alpha] @param {number} n1 @param {number} [n2] */
 export function powerWilcoxonTest(n1, n2 = n1, d, alpha = 0.05) {
   const r = _powerWilcoxon(n1, n2, d, alpha);
   if (!r) return null;
@@ -259,7 +260,7 @@ export function powerWilcoxonTest(n1, n2 = n1, d, alpha = 0.05) {
 
 // ── Log-Rank Power ────────────────────────────────────────────────
 
-/** @param {number} [alpha] */
+/** @param {number} [alpha] @param {number} nEvents @param {number} hr */
 export function powerLogRankTest(nEvents, hr, alpha = 0.05) {
   const r = _powerLogRank(nEvents, hr, alpha);
   if (!r) return null;
@@ -268,7 +269,7 @@ export function powerLogRankTest(nEvents, hr, alpha = 0.05) {
 
 // ── RM ANOVA Power ────────────────────────────────────────────────
 
-/** @param {number} k @param {number} n @param {number} [epsilon] @param {number} [alpha] */
+/** @param {number} k @param {number} n @param {number} [epsilon] @param {number} [alpha] @param {number} f */
 export function powerRMANOVA(k, n, epsilon = 1, f, alpha = 0.05) {
   const r = _powerRMANOVA(k, n, epsilon, f, alpha);
   if (!r) return null;
@@ -277,7 +278,7 @@ export function powerRMANOVA(k, n, epsilon = 1, f, alpha = 0.05) {
 
 // ── OLS Power ─────────────────────────────────────────────────────
 
-/** @param {number} n @param {number} k @param {number} [alpha] */
+/** @param {number} n @param {number} k @param {number} [alpha] @param {number} rSquared */
 export function powerOLS_apa(rSquared, n, k, alpha = 0.05) {
   const r = _powerOLS(rSquared, n, k, alpha);
   if (!r) return null;
@@ -286,7 +287,7 @@ export function powerOLS_apa(rSquared, n, k, alpha = 0.05) {
 
 // ── Spearman Power ────────────────────────────────────────────────
 
-/** @param {number} n @param {number} [alpha] */
+/** @param {number} n @param {number} [alpha] @param {number} rho */
 export function powerSpearmanTest(n, rho, alpha = 0.05) {
   const r = _powerSpearman(n, rho, alpha);
   if (!r) return null;
