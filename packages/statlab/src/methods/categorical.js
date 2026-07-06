@@ -480,7 +480,7 @@ export function nemenyiTest(groups, { alpha = 0.05 } = {}) {
 }
 
 // Cochran's Q Post-Hoc
-/** Post-hoc pairwise comparisons after Cochran's Q. @param {string[]} vars @param {{alpha?: number}} [options] */
+/** Post-hoc pairwise comparisons after Cochran's Q. @param {string[]} vars @param {{alpha?: number}} [options] @param {Array<Record<string, any>>} data */
 export function cochranQPost(data, vars, { alpha = 0.05 } = {}) {
   if (!data || data.length < 3 || !vars || vars.length < 3) return null;
   const k = vars.length, nSubjects = data.length;

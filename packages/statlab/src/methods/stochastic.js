@@ -73,6 +73,7 @@ export function poissonProcess(arrivalTimes, { interval = 1 } = {}) {
 }
 
 // ── Brownian Motion ────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function brownianMotion(data, { dt = 1 } = {}) {
   if (!data || data.length < 10) return null;
   const n = data.length;
@@ -87,6 +88,7 @@ export function brownianMotion(data, { dt = 1 } = {}) {
 }
 
 // ── Random Walk Test (Variance Ratio) ──────────────────────────────────────
+/** @param {number[]} data */
 export function randomWalkTest(data, { q = 2 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -113,7 +115,7 @@ export function randomWalkTest(data, { q = 2 } = {}) {
 }
 
 // ── Ornstein-Uhlenbeck Process ────────────────────────────────────
-/** @param {number} [dt] */
+/** @param {number} [dt] @param {number[]} data */
 export function ornsteinUhlenbeck(data, dt = 1) {
   if (!data || data.length < 10) return null;
   const n = data.length;
@@ -325,7 +327,7 @@ export function sabrModel(F, K, T, { alpha = 0.3, beta = 0.5, nu = 0.4, rho = -0
 }
 
 // ── Vasicek Interest Rate Model ───────────────────────────────────
-/** @param {number} [dt] */
+/** @param {number} [dt] @param {number[]} data */
 export function vasicekModel(data, dt = 1/252) {
   if (!data || data.length < 10) return null;
   const n = data.length;

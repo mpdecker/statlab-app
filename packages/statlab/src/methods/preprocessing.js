@@ -42,6 +42,7 @@ export function standardize(data, { method = 'zscore' } = {}) {
 }
 
 // ── IQR Outliers ────────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function iqrOutliers(data, { multiplier = 1.5 } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -104,7 +105,7 @@ export function oneHotEncode(data, column) {
 }
 
 // ── Equal-Width Binning ─────────────────────────────────────────────────────
-/** @param {number} [nBins] */
+/** @param {number} [nBins] @param {number[]} data */
 export function equalWidthBinning(data, nBins = 5) {
   if (!data || data.length < nBins) return null;
   const n = data.length;

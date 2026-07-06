@@ -438,7 +438,7 @@ export function optimalThreshold(actual, scores, { costRatio = 1 } = {}) {
 }
 
 // Fleiss' Kappa
-/** @param {string[]} items @param {string[]} raters */
+/** @param {string[]} items @param {string[]} raters @param {Array<Record<string, any>>} data */
 export function fleissKappa(data, raters, items) {
   if (!data || data.length < 5 || !raters || !raters.length || !items || !items.length) return null;
   const n = data.length, m = raters.length, k = items.length;
@@ -472,7 +472,7 @@ export function fleissKappa(data, raters, items) {
 }
 
 // Krippendorff's Alpha
-/** @param {string[]} items @param {string[]} raters */
+/** @param {string[]} items @param {string[]} raters @param {Array<Record<string, any>>} data */
 export function krippendorffAlpha(data, raters, items, { level = 'nominal' } = {}) {
   if (!data || data.length < 5 || !raters || raters.length < 2 || !items || !items.length) return null;
   const n = data.length, m = raters.length;

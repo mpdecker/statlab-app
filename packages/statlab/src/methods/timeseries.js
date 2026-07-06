@@ -959,6 +959,7 @@ export function garch(data, { p = 1, q = 1 } = {}) {
 }
 
 // ── Kalman Filter ───────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function kalmanFilter(data, { systemNoise = 1, obsNoise = 1, initialState = null } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -1077,6 +1078,7 @@ export function johansenTest(series, p, { deterministic = 'const' } = {}) {
 }
 
 // ── Structural Break ───────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function structuralBreak(data, { maxBreaks = 3, minSegLen = 10 } = {}) {
   if (!data || data.length < 2 * minSegLen) return null;
   const n = data.length;
@@ -1232,7 +1234,7 @@ export function markovSwitchingAR(data, { nRegimes = 2, p = 1 } = {}) {
 }
 
 // ── Regime Volatility ─────────────────────────────────────────────
-/** @param {Array<string|number>} states */
+/** @param {Array<string|number>} states @param {number[]} data */
 export function regimeVolatility(data, states) {
   if (!data || !states || data.length < 10) return null;
   const n = Math.min(data.length, states.length);
@@ -1266,7 +1268,7 @@ export function transitionMatrix(states) {
 }
 
 // ── Filtered Probabilities ────────────────────────────────────────
-/** @param {object} params */
+/** @param {number[]} data @param {object} params */
 export function filteredProbabilities(data, params) {
   if (!data || data.length < 10) return null;
   const n = data.length; const k = params?.nRegimes || 2;
@@ -1287,6 +1289,7 @@ export function expectedDuration(transMat) {
 }
 
 // ── PELT Change Point ─────────────────────────────────────────────
+/** @param {number[]} data */
 export function peltChangePoint(data, { minSegLen = 10, penalty = null } = {}) {
   if (!data || data.length < 2 * minSegLen) return null;
   const n = data.length;
@@ -1308,6 +1311,7 @@ export function peltChangePoint(data, { minSegLen = 10, penalty = null } = {}) {
 }
 
 // ── Binary Segmentation ───────────────────────────────────────────
+/** @param {number[]} data */
 export function binarySegmentation(data, { minSegLen = 10, maxBreaks = 3 } = {}) {
   if (!data || data.length < 2 * minSegLen) return null;
   const n = data.length;
@@ -1331,6 +1335,7 @@ export function binarySegmentation(data, { minSegLen = 10, maxBreaks = 3 } = {})
 }
 
 // ── AMOC ──────────────────────────────────────────────────────────
+/** @param {number[]} data */
 export function singleChangepoint(data) {
   if (!data || data.length < 10) return null;
   const n = data.length;
@@ -1346,6 +1351,7 @@ export function singleChangepoint(data) {
 }
 
 // ── Changepoint Penalty ───────────────────────────────────────────
+/** @param {number[]} data */
 export function changepointPenalty(data, { maxChangepoints = 5 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -1358,7 +1364,7 @@ export function changepointPenalty(data, { maxChangepoints = 5 } = {}) {
 }
 
 // ── Segmented Means ───────────────────────────────────────────────
-/** @param {number[]} breakpoints */
+/** @param {number[]} breakpoints @param {number[]} data */
 export function segmentedMeans(breakpoints, data) {
   if (!breakpoints || !data || !data.length) return null;
   const n = data.length;
@@ -1372,7 +1378,7 @@ export function segmentedMeans(breakpoints, data) {
 }
 
 // ── Rolling Origin CV ─────────────────────────────────────────────
-/** @param {(train: number[]) => number} modelFn */
+/** @param {(train: number[]) => number} modelFn @param {number[]} data */
 export function rollingOriginCV(data, modelFn, { initialWindow = 10, horizon = 1 } = {}) {
   if (!data || data.length < initialWindow + horizon) return null;
   const n = data.length;
@@ -1388,7 +1394,7 @@ export function rollingOriginCV(data, modelFn, { initialWindow = 10, horizon = 1
 }
 
 // ── Sliding Window ────────────────────────────────────────────────
-/** @param {(train: number[]) => number} modelFn */
+/** @param {(train: number[]) => number} modelFn @param {number[]} data */
 export function slidingWindow(data, modelFn, { windowSize = 20, step = 1 } = {}) {
   if (!data || data.length < windowSize) return null;
   const n = data.length;
@@ -1402,7 +1408,7 @@ export function slidingWindow(data, modelFn, { windowSize = 20, step = 1 } = {})
 }
 
 // ── Gap Validation ────────────────────────────────────────────────
-/** @param {(train: number[]) => number} modelFn */
+/** @param {(train: number[]) => number} modelFn @param {number[]} data */
 export function gapValidation(data, modelFn, { gapSize = 0 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;

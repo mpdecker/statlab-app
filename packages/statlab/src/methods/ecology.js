@@ -36,6 +36,7 @@ export function chao1Richness(counts) {
 }
 
 // ── Species Accumulation ──────────────────────────────────────────
+/** @param {number[][]} data site × species matrix. */
 export function speciesAccumulation(data, { nPerm = 50, seed = 42 } = {}) {
   if (!data || !data.length) return null;
   const n = data.length;

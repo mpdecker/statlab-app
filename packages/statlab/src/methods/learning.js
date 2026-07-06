@@ -127,7 +127,7 @@ export function elasticNetCV(y, X, { alpha = 0.5, k = 5, lambdaGrid = null, maxI
   };
 }
 
-/** @param {number[]} X @param {number[]} y @param {(X: number[][], y: number[]) => any} trainFn @param {(model: any, X: number[][]) => number[]} predictFn */
+/** @param {number[][]} X @param {number[]} y @param {(X: number[][], y: number[]) => any} trainFn @param {(model: any, X: number[][]) => number[]} predictFn */
 export function kFoldCV(X, y, trainFn, predictFn, { k = 5 } = {}) {
   if (!X || !y || !trainFn || !predictFn || X.length < k) return null;
   const n = X.length;

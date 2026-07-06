@@ -10,7 +10,7 @@ const B3 = [0,0,0,0,0,0,0.030,0.118,0.185,0.239,0.284,0.321,0.354,0.382,0.406,0.
 const B4 = [0,0,3.267,2.568,2.266,2.089,1.970,1.882,1.815,1.761,1.716,1.679,1.646,1.618,1.594,1.572,1.552,1.534,1.518,1.503,1.490,1.477,1.466,1.455,1.445];
 
 // ── X-bar Chart ─────────────────────────────────────────────────────────────
-/** @param {number} [subgroupSize] */
+/** @param {number} [subgroupSize] @param {number[]} data */
 export function xbarChart(data, subgroupSize = 5) {
   if (!data || data.length < 2 * subgroupSize) return null;
   const n = data.length;
@@ -39,7 +39,7 @@ export function xbarChart(data, subgroupSize = 5) {
 }
 
 // ── R Chart ─────────────────────────────────────────────────────────────────
-/** @param {number} [subgroupSize] */
+/** @param {number} [subgroupSize] @param {number[]} data */
 export function rChart(data, subgroupSize = 5) {
   if (!data || data.length < 2 * subgroupSize) return null;
   const n = data.length;
@@ -64,7 +64,7 @@ export function rChart(data, subgroupSize = 5) {
 }
 
 // ── S Chart ─────────────────────────────────────────────────────────────────
-/** @param {number} [subgroupSize] */
+/** @param {number} [subgroupSize] @param {number[]} data */
 export function sChart(data, subgroupSize = 5) {
   if (!data || data.length < 2 * subgroupSize) return null;
   const n = data.length;
