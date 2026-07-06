@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   getChartInsight, exportSvgFromCanvas, exportCanvasAsPng,
   EXPLORE_CHARTS_XY, EXPLORE_CHARTS_SIZE, EXPLORE_CHARTS_CAT_PAIR,
-  resolveExplorePanelChart, exploreChartLabel,
+  resolveExplorePanelChart, exploreChartLabel, seriesFromResult,
 } from '../utils/vizHelpers.js';
 import {
   ExHistogram, ExViolin, ExBox, ExRainCloud, ExECDF,
@@ -11,15 +11,20 @@ import {
   ExInteractionPlot, ExSimpleSlopes, ExSpotlight,
   ExMosaic, ExStackedBar100, ExDivergingLikert,
   ExPCABiplot, ExLoadingHeatmap, ExDendrogram, ExSilhouette,
+  ExLineChart, ExQQPlot, ExParallelCoords,
 } from './charts-explore.jsx';
+import {
+  SurvivalPlot, ForestPlot, BootstrapHist, IRTCurves,
+  CaterpillarPlot, TimeSeriesChart, RDPlot, PowerCurve,
+} from './charts.jsx';
 
 const CHART_SECTIONS = [
-  { label: 'Distribution', charts: ['Histogram', 'Box', 'Violin', 'Rain-cloud', 'ECDF'] },
-  { label: 'Relationship', charts: ['Scatter+fit', 'Correlogram', 'Bubble', 'Scatt. matrix'] },
+  { label: 'Distribution', charts: ['Histogram', 'Box', 'Violin', 'Rain-cloud', 'ECDF', 'Q-Q'] },
+  { label: 'Relationship', charts: ['Scatter+fit', 'Line', 'Correlogram', 'Bubble', 'Scatt. matrix'] },
   { label: 'Comparison', charts: ['Bar+CI', 'Dot+CI', 'Lollipop', 'Strip+mean'] },
   { label: 'Interaction', charts: ['Interact. plot', 'Simp. slopes', 'Spotlight'] },
   { label: 'Categorical', charts: ['Mosaic', 'Stacked%', 'Diverg. Likert'] },
-  { label: 'Multivariate', charts: ['PCA biplot', 'Load. heatmap', 'Dendrogram', 'Silhouette'] },
+  { label: 'Multivariate', charts: ['PCA biplot', 'Load. heatmap', 'Parallel', 'Dendrogram', 'Silhouette'] },
 ];
 
 function useCanvasSize(ref) {
@@ -40,7 +45,7 @@ function useCanvasSize(ref) {
   return size;
 }
 
-function renderChart({ chart, data, includeVars, groupVar, xVar, yVar, sizeVar, catX, catY, canvasSize, onBridgeToInference }) {
+function renderChart({ chart, data, includeVars, groupVar, xVar, yVar, sizeVar, catX, catY, canvasSize, onBridgeToInference, inferenceResult, activeTest }) {
   const { w, h } = canvasSize;
   const numVars = includeVars.filter(v => data[0] && typeof data[0][v] === 'number');
   const firstNum = xVar || numVars[0];
@@ -55,7 +60,9 @@ function renderChart({ chart, data, includeVars, groupVar, xVar, yVar, sizeVar, 
     case 'Box': return <ExBox data={data} xVar={firstNum} groupVar={gv} width={w} height={h} />;
     case 'Rain-cloud': return <ExRainCloud data={data} xVar={firstNum} groupVar={gv} width={w} height={h} />;
     case 'ECDF': return <ExECDF data={data} xVar={firstNum} width={w} height={h} />;
+    case 'Q-Q': return <ExQQPlot data={data} xVar={firstNum} width={w} height={h} />;
     case 'Scatter+fit': return <ExScatterFit data={data} xVar={firstNum} yVar={secondNum} groupVar={gv} width={w} height={h} />;
+    case 'Line': return <ExLineChart data={data} xVar={firstNum} yVar={secondNum} width={w} height={h} />;
     case 'Correlogram': return (
       <ExCorrelogram data={data} vars={numVars} width={w} height={h}
         onCellClick={({ row, col }) => onBridgeToInference?.({ row, col })} />
@@ -74,8 +81,20 @@ function renderChart({ chart, data, includeVars, groupVar, xVar, yVar, sizeVar, 
     case 'Diverg. Likert': return <ExDivergingLikert data={data} itemVar={gv ?? includeVars[0]} responseVar={firstNum} width={w} height={h} />;
     case 'PCA biplot': return <ExPCABiplot data={data} vars={numVars} groupVar={gv} width={w} height={h} />;
     case 'Load. heatmap': return <ExLoadingHeatmap data={data} vars={numVars} width={w} height={h} />;
+    case 'Parallel': return <ExParallelCoords data={data} vars={numVars} groupVar={gv} width={w} height={h} />;
     case 'Dendrogram': return <ExDendrogram data={data} vars={numVars} width={w} height={h} />;
     case 'Silhouette': return <ExSilhouette data={data} vars={numVars} width={w} height={h} />;
+    case 'Survival': return (inferenceResult?.km || inferenceResult?.kms?.length) ? <SurvivalPlot km={inferenceResult.km} kms={inferenceResult.kms} /> : <span style={{ color: '#333', fontSize: 10 }}>No KM data available</span>;
+    case 'Forest': return inferenceResult?.studies?.length ? <ForestPlot items={inferenceResult.studies.map(s => ({ label: s.label, est: s.d, lo: s.d - 1.96 * s.se, hi: s.d + 1.96 * s.se, p: s.p }))} /> : <span style={{ color: '#333', fontSize: 10 }}>No study data available</span>;
+    case 'Bootstrap': return inferenceResult?.dist ? <BootstrapHist dist={inferenceResult.dist} lo={inferenceResult.lo} hi={inferenceResult.hi} /> : <span style={{ color: '#333', fontSize: 10 }}>No bootstrap distribution</span>;
+    case 'IRT': return inferenceResult?.icc?.length ? <IRTCurves icc={inferenceResult.icc} itemCount={inferenceResult.k} /> : <span style={{ color: '#333', fontSize: 10 }}>No ICC data available</span>;
+    case 'Caterpillar': return inferenceResult?.groupMeans?.length ? <CaterpillarPlot groups={inferenceResult.groupMeans} /> : <span style={{ color: '#333', fontSize: 10 }}>No group means available</span>;
+    case 'Time series': {
+      const tsSeries = seriesFromResult(inferenceResult, activeTest);
+      return tsSeries ? <TimeSeriesChart series={tsSeries} width={w} height={h} /> : <span style={{ color: '#333', fontSize: 10 }}>No time series data</span>;
+    }
+    case 'RDD': return inferenceResult?.points?.length ? <RDPlot points={inferenceResult.points} cutoff={inferenceResult.cutoff} /> : <span style={{ color: '#333', fontSize: 10 }}>No RDD data available</span>;
+    case 'Power curve': return <PowerCurve d={inferenceResult?.d} alpha={0.05} currentN={inferenceResult?.n} />;
     default: return <span style={{ color: '#333', fontSize: 10 }}>Select variables to visualize</span>;
   }
 }
@@ -89,6 +108,8 @@ export default function ExplorePanel({ data, ds, seed, inferenceContext, onBridg
   const [sizeVar, setSizeVar] = useState('');
   const [catX, setCatX] = useState(seed?.catX ?? '');
   const [catY, setCatY] = useState(seed?.catY ?? '');
+  const [inferenceResult, setInferenceResult] = useState(seed?.inferenceResult ?? null);
+  const [activeTest, setActiveTest] = useState(seed?.activeTest ?? null);
   const canvasRef = useRef(null);
   const canvasSize = useCanvasSize(canvasRef);
 
@@ -101,6 +122,8 @@ export default function ExplorePanel({ data, ds, seed, inferenceContext, onBridg
     if (seed.yVar) setYVar(seed.yVar);
     if (seed.catX) setCatX(seed.catX);
     if (seed.catY) setCatY(seed.catY);
+    if (seed.inferenceResult) setInferenceResult(seed.inferenceResult);
+    if (seed.activeTest) setActiveTest(seed.activeTest);
   }, [seed]);
 
   const cols = useMemo(() => {
@@ -174,6 +197,30 @@ export default function ExplorePanel({ data, ds, seed, inferenceContext, onBridg
             </div>
           </div>
         ))}
+
+        {inferenceResult && (
+          <div style={{ border: '1px solid rgba(255,77,109,.3)', margin: '6px', borderRadius: 3 }}>
+            <div style={{ padding: '4px 8px', fontSize: 7, color: '#ff4d6d', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Inference</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, padding: '4px 6px' }}>
+              {['Survival', 'Forest', 'Bootstrap', 'IRT', 'Caterpillar', 'Time series', 'RDD', 'Power curve'].map(c => (
+                <button
+                  key={c}
+                  onClick={() => setActiveChart(c)}
+                  style={{
+                    padding: '5px 4px', borderRadius: 3, fontSize: 9,
+                    fontFamily: 'IBM Plex Mono, monospace', cursor: 'pointer',
+                    textAlign: 'center', lineHeight: 1.3,
+                    background: activeChart === c ? 'rgba(255,77,109,.08)' : 'transparent',
+                    border: `1px solid ${activeChart === c ? 'rgba(255,77,109,.4)' : '#1e1e1e'}`,
+                    color: activeChart === c ? '#ff4d6d' : '#888',
+                  }}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ borderBottom: '1px solid #1e1e1e' }}>
           <div style={{ padding: '4px 8px', fontSize: 7, color: '#444', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600 }}>Variables</div>
@@ -287,6 +334,8 @@ export default function ExplorePanel({ data, ds, seed, inferenceContext, onBridg
               catY: effectiveCatY,
               canvasSize,
               onBridgeToInference,
+              inferenceResult,
+              activeTest,
             })
             : <span style={{ color: '#333', fontSize: 10 }}>No data loaded</span>
           }
