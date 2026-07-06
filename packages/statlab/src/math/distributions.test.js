@@ -49,8 +49,9 @@ describe('normalINV', () => {
   it('normalINV(0.5) = 0', () => expect(normalINV(0.5)).toBeCloseTo(0, 6));
   it('normalINV(0.975) ≈ 1.96', () => expect(normalINV(0.975)).toBeCloseTo(1.96, 2));
   it('round-trips with normalCDF (limited by polynomial CDF accuracy)', () =>
-    // normalCDF polynomial has ~1% error near z=1.5; round-trip accurate to 1 decimal place
-    expect(normalINV(normalCDF(1.5))).toBeCloseTo(1.5, 0));
+    // normalCDF/normalINV are rational-polynomial approximations; the composed
+    // round-trip is accurate to <5e-4 across |z|<=2.5 (measured 3.0e-4 at z=1.5).
+    expect(normalINV(normalCDF(1.5))).toBeCloseTo(1.5, 3));
 });
 
 describe('chiPVal', () => {
