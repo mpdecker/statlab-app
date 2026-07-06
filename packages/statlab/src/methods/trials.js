@@ -23,7 +23,7 @@ export function randomizedBlocks(strata, treatments, { seed = 42, blockSize = 4 
 }
 
 // Simon's Two-Stage
-/** @param {number} [alpha] @param {number} [beta] */
+/** @param {number} [alpha] @param {number} [beta] @param {number} p0 @param {number} p1 */
 export function simons2Stage(p0, p1, alpha = 0.05, beta = 0.2) {
   if (!Number.isFinite(p0) || !Number.isFinite(p1) || p0 >= p1) return null;
   const n1 = Math.max(5, Math.ceil(Math.log(0.5) / Math.log(1 - p1)));

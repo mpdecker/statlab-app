@@ -125,6 +125,7 @@ export function likelihoodRatios(tp, fp, tn, fn) {
 }
 
 // ── Net Reclassification Improvement ────────────────────────────────────────
+/** @param {number[]} yTrue */
 export function netReclassification(pOld, pNew, yTrue, riskThresholds = null) {
   if (!pOld || !pNew || !yTrue || pOld.length !== yTrue.length || pNew.length !== yTrue.length) return null;
   if (!yTrue.every(v => v === 0 || v === 1)) return null;
@@ -430,7 +431,7 @@ export function optimalThreshold(actual, scores, { costRatio = 1 } = {}) {
 }
 
 // Fleiss' Kappa
-/** @param {string[]} items */
+/** @param {string[]} items @param {Array<Record<string, any>>} data */
 export function fleissKappa(data, raters, items) {
   if (!data || data.length < 5 || !raters || !raters.length || !items || !items.length) return null;
   const n = data.length, m = raters.length, k = items.length;
@@ -464,7 +465,7 @@ export function fleissKappa(data, raters, items) {
 }
 
 // Krippendorff's Alpha
-/** @param {string[]} items */
+/** @param {string[]} items @param {Array<Record<string, any>>} data */
 export function krippendorffAlpha(data, raters, items, { level = 'nominal' } = {}) {
   if (!data || data.length < 5 || !raters || raters.length < 2 || !items || !items.length) return null;
   const n = data.length, m = raters.length;
@@ -650,6 +651,7 @@ export function calibrationPlot(data, yVar, probVar, { nBins = 10 } = {}) {
 }
 
 // ── Net Benefit ───────────────────────────────────────────────────
+/** @param {number[]} yTrue */
 export function netBenefit(probs, yTrue, thresholds) {
   if (!probs || !yTrue || probs.length < 5 || probs.length !== yTrue.length || !thresholds) return null;
   const n = probs.length;
@@ -663,6 +665,7 @@ export function netBenefit(probs, yTrue, thresholds) {
 }
 
 // ── Decision Curve ────────────────────────────────────────────────
+/** @param {number[]} yTrue */
 export function decisionCurve(probs, yTrue, thresholds) {
   if (!probs || !yTrue || probs.length < 5 || !thresholds) return null;
   const n = probs.length;
@@ -678,6 +681,7 @@ export function decisionCurve(probs, yTrue, thresholds) {
 }
 
 // ── Brier Score ───────────────────────────────────────────────────
+/** @param {number[]} yTrue */
 export function brierScore(probs, yTrue) {
   if (!probs || !yTrue || probs.length < 5 || probs.length !== yTrue.length) return null;
   const n = probs.length;

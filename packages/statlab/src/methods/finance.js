@@ -140,7 +140,7 @@ export function parametricVaR(returns, { alpha = 0.05, horizon = 1 } = {}) {
 }
 
 // ── Rolling Window ──────────────────────────────────────────────────────────
-/** @param {Function} fn */
+/** @param {Function} fn @param {Array<Record<string, any>>} data */
 export function rollingWindow(data, fn, windowSize, { step = 1 } = {}) {
   if (!data || !fn || data.length < windowSize) return null;
   const n = data.length;
@@ -311,7 +311,7 @@ export function treynorRatio(returns, beta, riskFree = 0) {
 }
 
 // ── Black-Scholes ─────────────────────────────────────────────────
-/** @param {number} time @param {number} sigma @param {string} [type] */
+/** @param {number} time @param {number} sigma @param {string} [type] @param {number} spot @param {number} strike @param {number} rate */
 export function blackScholes(spot, strike, time, rate, sigma, type = 'call') {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || spot <= 0 || strike <= 0 || sigma <= 0) return null;
   const d1 = (Math.log(spot / strike) + (rate + sigma * sigma / 2) * time) / (sigma * Math.sqrt(time));
@@ -323,7 +323,7 @@ export function blackScholes(spot, strike, time, rate, sigma, type = 'call') {
 }
 
 // ── Implied Volatility ────────────────────────────────────────────
-/** @param {number} time @param {string} [type] */
+/** @param {number} time @param {string} [type] @param {number} spot @param {number} strike @param {number} rate */
 export function impliedVolatility(marketPrice, spot, strike, time, rate, type = 'call') {
   if (![marketPrice, spot, strike, time, rate].every(Number.isFinite)) return null;
   let lo = 0.01, hi = 3;
@@ -337,7 +337,7 @@ export function impliedVolatility(marketPrice, spot, strike, time, rate, type = 
 }
 
 // ── Option Greeks ─────────────────────────────────────────────────
-/** @param {number} time @param {number} sigma */
+/** @param {number} time @param {number} sigma @param {number} spot @param {number} strike @param {number} rate */
 export function optionGreeks(spot, strike, time, rate, sigma) {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite)) return null;
   const d1 = (Math.log(spot / strike) + (rate + sigma * sigma / 2) * time) / (sigma * Math.sqrt(time));
@@ -353,7 +353,7 @@ export function optionGreeks(spot, strike, time, rate, sigma) {
 }
 
 // ── Binomial Tree (CRR) ───────────────────────────────────────────
-/** @param {number} time @param {number} sigma @param {number} [steps] @param {string} [type] */
+/** @param {number} time @param {number} sigma @param {number} [steps] @param {string} [type] @param {number} spot @param {number} strike @param {number} rate */
 export function binomialTree(spot, strike, time, rate, sigma, steps = 100, type = 'call') {
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || steps < 2) return null;
   const dt = time / steps;
@@ -371,7 +371,7 @@ export function binomialTree(spot, strike, time, rate, sigma, steps = 100, type 
 }
 
 // ── Monte Carlo Pricing ───────────────────────────────────────────
-/** @param {number} time @param {number} sigma @param {number} [nPaths] @param {string} [type] @param {number} [seed] */
+/** @param {number} time @param {number} sigma @param {number} [nPaths] @param {string} [type] @param {number} [seed] @param {number} spot @param {number} strike @param {number} rate */
 export function monteCarloPricing(spot, strike, time, rate, sigma, nPaths = 10000, type = 'call', seed = 42) {
   __rng = mulberry32(seed);
   if (![spot, strike, time, rate, sigma].every(Number.isFinite) || nPaths < 100) return null;
@@ -399,7 +399,7 @@ export function varReduction(payoffs, target) {
 }
 
 // ── Monte Carlo Option Pricing (extended) ─────────────────────────
-/** @param {number} sigma */
+/** @param {number} sigma @param {number} r */
 export function monteCarloOption(S, K, T, r, sigma, { seed = 42, nSim = 1000, type = 'call' } = {}) {
   __rng = mulberry32(seed);
   if (!Number.isFinite(S) || S <= 0 || K <= 0 || T <= 0) return null;
@@ -415,7 +415,7 @@ export function monteCarloOption(S, K, T, r, sigma, { seed = 42, nSim = 1000, ty
 }
 
 // ── Option Greeks ─────────────────────────────────────────────────
-/** @param {number} sigma */
+/** @param {number} sigma @param {number} r */
 export function greeks(S, K, T, r, sigma) {
   if (!Number.isFinite(S) || S <= 0 || K <= 0 || T <= 0) return null;
   const d1 = (Math.log(S / K) + (r + sigma * sigma / 2) * T) / (sigma * Math.sqrt(T));

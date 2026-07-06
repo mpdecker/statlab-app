@@ -3,6 +3,7 @@ import { mulberry32 } from '../math/rng.js';
 import { lngamma } from '../math/distributions.js';
 
 // ── Shannon Diversity ─────────────────────────────────────────────
+/** @param {number[]} counts */
 export function shannonDiversity(counts) {
   if (!counts || counts.length < 2) return null;
   const total = counts.reduce((s, v) => s + v, 0);
@@ -13,6 +14,7 @@ export function shannonDiversity(counts) {
 }
 
 // ── Simpson Diversity ─────────────────────────────────────────────
+/** @param {number[]} counts */
 export function simpsonDiversity(counts) {
   if (!counts || counts.length < 2) return null;
   const total = counts.reduce((s, v) => s + v, 0);
@@ -23,6 +25,7 @@ export function simpsonDiversity(counts) {
 }
 
 // ── Chao1 Richness ────────────────────────────────────────────────
+/** @param {number[]} counts */
 export function chao1Richness(counts) {
   if (!counts || counts.length < 2) return null;
   const Sobs = counts.filter(c => c > 0).length;
@@ -33,6 +36,7 @@ export function chao1Richness(counts) {
 }
 
 // ── Species Accumulation ──────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function speciesAccumulation(data, { nPerm = 50, seed = 42 } = {}) {
   if (!data || !data.length) return null;
   const n = data.length;

@@ -55,7 +55,7 @@ export function shapValues(X, y, { seed = 42, nSamples = 50, model = null } = {}
 
 
 // ── LIME Importance ───────────────────────────────────────────────
-/** @param {number[][]} X */
+/** @param {number[][]} X @param {number} y */
 export function limeImportance(X, y, queryPoint, { seed = 42, nSamples = 50, model = null, kernelWidth = null } = {}) {
   __rng = mulberry32(seed);
   if (!X || !y || !queryPoint || X.length < 5) return null;

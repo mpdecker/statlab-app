@@ -218,6 +218,7 @@ export function variableElimination(factors, queryVars, evidence = {}) {
 }
 
 // ── Treewidth (simplified) ────────────────────────────────────────
+/** @param {number} nVars */
 export function treeWidth(edges, nVars) {
   if (!edges || !nVars || nVars < 2 || !edges.length) return null;
   // Min-degree elimination heuristic → upper bound on treewidth.
@@ -241,6 +242,7 @@ export function treeWidth(edges, nVars) {
 }
 
 // ── Junction Tree Construction ────────────────────────────────────
+/** @param {number} nVars */
 export function junctionTree(edges, nVars) {
   if (!edges || !nVars || nVars < 2 || !edges.length) return null;
   const clusters = [];
@@ -334,6 +336,7 @@ export function scoringBDeu(data, vars, edges, { iss = 1 } = {}) {
 }
 
 // ── CPDAG (Completed Partially Directed Acyclic Graph) ────────────
+/** @param {number} nVars */
 export function cpdag(dagEdges, nVars) {
   if (!dagEdges || !nVars || nVars < 2) return null;
   const n = nVars;
@@ -353,7 +356,7 @@ export function cpdag(dagEdges, nVars) {
 }
 
 // ── D-Separation Query ────────────────────────────────────────────
-/** @param {string[]} [Z] */
+/** @param {string[]} [Z] @param {number} nVars */
 export function dSeparationQuery(edges, nVars, X, Y, Z = []) {
   if (!edges || !nVars || X == null || Y == null) return null;
   // Delegate to dSepCore's ancestral-moral-graph algorithm (the standalone

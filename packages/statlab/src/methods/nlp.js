@@ -84,6 +84,7 @@ export function gloveEmbeddings(corpus, { seed = 42, vecSize = 10, windowSize = 
 }
 
 // ── Named Entity Recognition (regex-based) ────────────────────────
+/** @param {string} text */
 export function namedEntityRecognition(text) {
   if (!text || typeof text !== 'string') return null;
   const entities = [];
@@ -97,6 +98,7 @@ export function namedEntityRecognition(text) {
 }
 
 // ── POS Tagging (simplified suffix-based) ─────────────────────────
+/** @param {string} text */
 export function posTagging(text) {
   if (!text || typeof text !== 'string') return null;
   const tokens = text.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(w => w.length > 0);
@@ -113,6 +115,7 @@ export function posTagging(text) {
 }
 
 // ── Dependency Parse (simplified) ─────────────────────────────────
+/** @param {string} text */
 export function dependencyParse(text) {
   if (!text || typeof text !== 'string') return null;
   const tokens = text.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(w => w.length > 0);

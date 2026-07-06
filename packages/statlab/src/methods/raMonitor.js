@@ -84,6 +84,7 @@ export function cChartRiskAdjusted(data, yVar, riskVar, { controlLimits = 3 } = 
 }
 
 // ── Safety Signal Detection (PRR) ─────────────────────────────────
+/** @param {number[]} events */
 export function safetySignal(events, expected, total) {
   if (!events || !expected || events < 0 || expected <= 0 || !total || total <= 0) return null;
   const observed = events;
@@ -98,6 +99,7 @@ export function safetySignal(events, expected, total) {
 }
 
 // ── PRR Analysis (Proportional Reporting Ratio batch) ─────────────
+/** @param {number[]} events */
 export function prrAnalysis(events, expecteds, totals) {
   if (!events || !expecteds || events.length < 3 || events.length !== expecteds.length) return null;
   const n = events.length;

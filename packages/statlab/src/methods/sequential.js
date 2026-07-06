@@ -160,6 +160,7 @@ export function doubleTriangular(data, { alpha = 0.05, beta = 0.2, delta = 0.5 }
 }
 
 // ── Haybittle-Peto Boundary ───────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function haybittlePeto(data, { alpha = 0.05, nStages = 5 } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;

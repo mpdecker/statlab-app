@@ -36,6 +36,16 @@ const NAME_TYPES = {
   actual: 'number[]', predicted: 'number[]', baseline: 'number[]', arms: 'number',
   A: 'number[][]', matrix: 'number[][]', documents: 'string[]',
   fn: 'Function', statFn: 'Function', testFn: 'Function', objective: 'Function',
+  // second-pass names, verified against bodies (2026-07):
+  strike: 'number', spot: 'number', rate: 'number', r: 'number',
+  p0: 'number', p1: 'number', p2: 'number', nVars: 'number', df1: 'number', df2: 'number',
+  angles: 'number[]', counts: 'number[]', dose: 'number[]', response: 'number[]',
+  concentration: 'number[]', yTrue: 'number[]', yPred: 'number[]', events: 'number[]',
+  init: 'number[]',
+  // NOT groups: number[][] in ANOVA-style fns but a per-obs labels vector in
+  // moderatedTStatistic/decomposition — ambiguous, leave unresolved.
+  grad: '(theta: number[]) => number[]', statistic: '(sample: any[]) => number',
+  text: 'string',
   type: 'string', method: 'string', linkage: 'string', family: 'string',
   undirected: 'boolean', annualize: 'boolean', robust: 'boolean',
 };

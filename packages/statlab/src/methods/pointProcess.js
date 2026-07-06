@@ -6,6 +6,7 @@ import { mleFit } from '../math/inference.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Hawkes Intensity ──────────────────────────────────────────────
+/** @param {number[]} events */
 export function hawkesIntensity(events, { mu = 0.1, alpha = 0.2, beta = 0.5 } = {}) {
   if (!events || events.length < 5) return null;
   const n = events.length;
@@ -29,6 +30,7 @@ export function hawkesIntensity(events, { mu = 0.1, alpha = 0.2, beta = 0.5 } = 
 // a uniform one at all: verified that a uniform stream and a heavily bursty
 // stream with the same n and span produced nearly identical "fitted"
 // parameters, e.g. alpha=0.0051 vs 0.0055.)
+/** @param {number[]} events */
 export function hawkesFit(events, { kernel = 'exp' } = {}) {
   if (!events || events.length < 10) return null;
   const n = events.length;
@@ -71,6 +73,7 @@ export function coxProcess(surface, { seed = 42, n = 100 } = {}) {
 }
 
 // ── Inter-Arrival Test ────────────────────────────────────────────
+/** @param {number[]} events */
 export function interArrivalTest(events) {
   if (!events || events.length < 10) return null;
   const n = events.length;
@@ -82,6 +85,7 @@ export function interArrivalTest(events) {
 }
 
 // ── Burstiness Index ──────────────────────────────────────────────
+/** @param {number[]} events */
 export function burstinessIndex(events) {
   if (!events || events.length < 10) return null;
   const n = events.length;

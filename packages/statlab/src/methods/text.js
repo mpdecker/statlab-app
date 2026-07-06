@@ -146,7 +146,7 @@ export function termFrequency(documents, { normalize = false, stopwords = [] } =
 }
 
 // ── N-gram Extraction ──────────────────────────────────────────────────────
-/** @param {number} [n] */
+/** @param {number} [n] @param {string} text */
 export function ngramExtraction(text, n = 2) {
   if (!text || typeof text !== 'string') return null;
   const words = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 0);
@@ -292,6 +292,7 @@ export function bm25(documents, query, { k1 = 1.2, b = 0.75 } = {}) {
 }
 
 // ── VADER Sentiment ─────────────────────────────────────────────────────────
+/** @param {string} text */
 export function sentimentVader(text) {
   if (!text || typeof text !== 'string') return null;
   const positive = new Set(['good', 'great', 'nice', 'excellent', 'happy', 'wonderful', 'fantastic', 'love', 'joy', 'beautiful', 'amazing', 'awesome', 'best', 'perfect']);

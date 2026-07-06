@@ -99,7 +99,7 @@ export function returnLevel(gevFit, returnPeriod) {
 }
 
 // ── Block Maxima ────────────────────────────────────────────────────────────
-/** @param {number} [blockSize] */
+/** @param {number} [blockSize] @param {Array<Record<string, any>>} data */
 export function blockMaxima(data, blockSize = 10) {
   if (!data || data.length < 2 * blockSize) return null;
   const n = data.length;
@@ -160,6 +160,7 @@ export function peaksOverThreshold(data, threshold = null) {
 }
 
 // ── Threshold Selection ───────────────────────────────────────────
+/** @param {Array<Record<string, any>>} data */
 export function thresholdSelection(data) {
   if (!data || data.length < 20) return null;
   const n = data.length;

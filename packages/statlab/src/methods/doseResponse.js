@@ -4,6 +4,7 @@ import { matInv } from '../math/matrix.js';
 import { mleFit } from '../math/inference.js';
 
 // ── 4-Parameter Logistic (4PL) ─────────────────────────────────────────────
+/** @param {number[]} dose @param {number[]} response */
 export function fourPL(dose, response, { maxIter = 100, tolerance = 1e-6 } = {}) {
   if (!dose || !response || dose.length < 6 || dose.length !== response.length) return null;
   const n = dose.length;

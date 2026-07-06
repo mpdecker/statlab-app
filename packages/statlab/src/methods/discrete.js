@@ -377,7 +377,7 @@ export function choiceProbability(data, yVar, xVars, groupVar) {
 }
 
 // ── Value of Time ─────────────────────────────────────────────────
-/** @param {string} yVar @param {string[]} xVars @param {string} timeVar @param {string} groupVar */
+/** @param {string} yVar @param {string[]} xVars @param {string} timeVar @param {string} groupVar @param {Array<Record<string, any>>} data */
 export function valueOfTime(data, yVar, xVars, timeVar, costVar, groupVar) {
   if (!data || data.length < 15 || !yVar || !timeVar || !costVar) return null;
   const timeIdx = xVars.indexOf(timeVar);

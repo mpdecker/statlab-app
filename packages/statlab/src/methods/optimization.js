@@ -111,7 +111,7 @@ export function gridSearch(fn, paramGrid) {
 }
 
 // ── BFGS ────────────────────────────────────────────────────────────────────
-/** @param {Function} fn @param {number[]} init */
+/** @param {Function} fn @param {number[]} init @param {(theta: number[]) => number[]} grad */
 export function bfgs(fn, grad, init, { maxIter = 100, tol = 1e-6 } = {}) {
   if (!fn || !grad || !init || !init.length) return null;
   const n = init.length;
@@ -213,7 +213,7 @@ export function nelderMead(fn, init, { maxIter = 200, alpha = 1, gamma = 2, rho 
 }
 
 // ── Conjugate Gradient ──────────────────────────────────────────────────────
-/** @param {Function} fn @param {number[]} init */
+/** @param {Function} fn @param {number[]} init @param {(theta: number[]) => number[]} grad */
 export function conjugateGradient(fn, grad, init, { maxIter = 50, tol = 1e-6 } = {}) {
   if (!fn || !grad || !init || !init.length) return null;
   let x = [...init];
@@ -241,7 +241,7 @@ export function conjugateGradient(fn, grad, init, { maxIter = 50, tol = 1e-6 } =
 }
 
 // ── Trust Region ────────────────────────────────────────────────────────────
-/** @param {Function} fn @param {number[]} init */
+/** @param {Function} fn @param {number[]} init @param {(theta: number[]) => number[]} grad */
 export function trustRegion(fn, grad, hess, init, { maxIter = 30, delta0 = 1, eta = 0.1, tol = 1e-6 } = {}) {
   if (!fn || !grad || !hess || !init || !init.length) return null;
   const n = init.length;
@@ -268,7 +268,7 @@ export function trustRegion(fn, grad, hess, init, { maxIter = 30, delta0 = 1, et
 }
 
 // ── SLSQP ───────────────────────────────────────────────────────────────────
-/** @param {Function} fn @param {number[]} init */
+/** @param {Function} fn @param {number[]} init @param {(theta: number[]) => number[]} grad */
 export function slsqp(fn, grad, init, { constraints = [], maxIter = 50, tol = 1e-6 } = {}) {
   if (!fn || !grad || !init || !init.length) return null;
   let x = [...init];
@@ -296,7 +296,7 @@ export function slsqp(fn, grad, init, { constraints = [], maxIter = 50, tol = 1e
 }
 
 // ── Stochastic Gradient Descent ─────────────────────────────────────────────
-/** @param {Function} fn @param {number[]} init */
+/** @param {Function} fn @param {number[]} init @param {(theta: number[]) => number[]} grad */
 export function gradientDescentOptim(fn, grad, init, { lr = 0.01, maxIter = 200, tol = 1e-6 } = {}) {
   if (!fn || !grad || !init || !init.length) return null;
   let x = [...init];

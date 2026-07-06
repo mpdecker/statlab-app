@@ -216,7 +216,7 @@ export function betaBinomialPosterior(successes, trials, priorAlpha = 1, priorBe
   };
 }
 
-/** @param {number} [priorShape] @param {number} [priorRate] */
+/** @param {number} [priorShape] @param {number} [priorRate] @param {number[]} counts */
 export function gammaPoissonPosterior(counts, priorShape = 1, priorRate = 1) {
   if (!counts || counts.length < 1) return null;
   const n = counts.length;
@@ -240,6 +240,7 @@ export function gammaPoissonPosterior(counts, priorShape = 1, priorRate = 1) {
   };
 }
 
+/** @param {number[]} counts */
 export function dirichletMultinomialPosterior(counts, priorAlpha = null) {
   if (!counts || counts.length < 1) return null;
   const sum = counts.reduce((s, v) => s + v, 0);

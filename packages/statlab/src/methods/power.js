@@ -131,7 +131,7 @@ export function powerMultilevel(ICC, mClustersEach, subjectsPerCluster, d, alpha
 
 // ── Correlation Power ─────────────────────────────────────────────
 
-/** @param {number} n @param {number} [alpha] */
+/** @param {number} n @param {number} [alpha] @param {number} r */
 export function powerCorrelation(n, r, alpha = 0.05) {
   if (n < 5 || !Number.isFinite(r) || Math.abs(r) >= 1) return null;
   const p = computePowerCorr(n, r, alpha);
@@ -156,7 +156,7 @@ export function requiredNT(d, power = 0.8, alpha = 0.05, type = 'two-sample') {
 
 // ── Required N (Correlation) ──────────────────────────────────────
 
-/** @param {number} [power] @param {number} [alpha] */
+/** @param {number} [power] @param {number} [alpha] @param {number} r */
 export function requiredNCorrelation(r, power = 0.8, alpha = 0.05) {
   const n = _requiredNCorr(r, power, alpha);
   if (n == null || n >= 10000) return null;
@@ -165,7 +165,7 @@ export function requiredNCorrelation(r, power = 0.8, alpha = 0.05) {
 
 // ── Required N (One Proportion) ───────────────────────────────────
 
-/** @param {number} [power] @param {number} [alpha] */
+/** @param {number} [power] @param {number} [alpha] @param {number} p0 @param {number} p1 */
 export function requiredNOneProp(p0, p1, power = 0.8, alpha = 0.05) {
   const n = _requiredNOneProp(p0, p1, power, alpha);
   if (n == null || n >= 20000) return null;
@@ -174,7 +174,7 @@ export function requiredNOneProp(p0, p1, power = 0.8, alpha = 0.05) {
 
 // ── Required N (Two Proportions) ──────────────────────────────────
 
-/** @param {number} [power] @param {number} [alpha] */
+/** @param {number} [power] @param {number} [alpha] @param {number} p1 @param {number} p2 */
 export function requiredNTwoProp(p1, p2, power = 0.8, alpha = 0.05) {
   const n = _requiredNTwoProp(p1, p2, power, alpha);
   if (n == null || n >= 20000) return null;
@@ -232,7 +232,7 @@ export function powerTTestWrapper(n1, n2 = n1, d, type = 'two-sample', alpha = 0
 
 // ── One-Proportion Power ──────────────────────────────────────────
 
-/** @param {number} n @param {number} [alpha] */
+/** @param {number} n @param {number} [alpha] @param {number} p0 @param {number} p1 */
 export function powerProportionOne(n, p0, p1, alpha = 0.05) {
   const r = _powerOneProportion(n, p0, p1, alpha);
   if (!r) return null;
@@ -241,7 +241,7 @@ export function powerProportionOne(n, p0, p1, alpha = 0.05) {
 
 // ── Two-Proportion Power ──────────────────────────────────────────
 
-/** @param {number} [alpha] */
+/** @param {number} [alpha] @param {number} p1 @param {number} p2 */
 export function powerProportionTwo(n1, n2, p1, p2, alpha = 0.05) {
   const r = _powerTwoProportion(n1, n2, p1, p2, alpha);
   if (!r) return null;

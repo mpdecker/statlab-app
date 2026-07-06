@@ -4,6 +4,7 @@ import { tPVal } from '../math/distributions.js';
 function toRad(angle, degrees) { return degrees ? angle * Math.PI / 180 : angle; }
 
 // ── Circular Mean ──────────────────────────────────────────────────────────
+/** @param {number[]} angles */
 export function circularMean(angles, { degrees = false } = {}) {
   if (!angles || angles.length < 5) return null;
   const n = angles.length;
@@ -18,6 +19,7 @@ export function circularMean(angles, { degrees = false } = {}) {
 }
 
 // ── Circular Variance ──────────────────────────────────────────────────────
+/** @param {number[]} angles */
 export function circularVariance(angles, { degrees = false } = {}) {
   if (!angles || angles.length < 5) return null;
   const n = angles.length;
@@ -31,6 +33,7 @@ export function circularVariance(angles, { degrees = false } = {}) {
 }
 
 // ── Rayleigh Test ──────────────────────────────────────────────────────────
+/** @param {number[]} angles */
 export function rayleighTest(angles, { degrees = false } = {}) {
   if (!angles || angles.length < 8) return null;
   const n = angles.length;
@@ -46,6 +49,7 @@ export function rayleighTest(angles, { degrees = false } = {}) {
 }
 
 // ── Watson U² ──────────────────────────────────────────────────────────────
+/** @param {number[]} angles */
 export function watsonU2(angles, { degrees = false, dist = 'uniform' } = {}) {
   if (!angles || angles.length < 8) return null;
   const n = angles.length;
@@ -85,6 +89,7 @@ export function watsonU2(angles, { degrees = false, dist = 'uniform' } = {}) {
 }
 
 // ── von Mises MLE ──────────────────────────────────────────────────────────
+/** @param {number[]} angles */
 export function vonMisesMLE(angles, { degrees = false } = {}) {
   if (!angles || angles.length < 8) return null;
   const n = angles.length;

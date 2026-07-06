@@ -71,6 +71,7 @@ export function skeletonPhase(data, vars, { alpha = 0.05 } = {}) {
 }
 
 // ── Collider Detection ────────────────────────────────────────────
+/** @param {number} nVars */
 export function colliderDetection(edges, nVars) {
   if (!edges || !edges.length) return null;
   const colliders = [];
