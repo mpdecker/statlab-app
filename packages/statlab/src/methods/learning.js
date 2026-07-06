@@ -127,7 +127,7 @@ export function elasticNetCV(y, X, { alpha = 0.5, k = 5, lambdaGrid = null, maxI
   };
 }
 
-/** @param {number[]} X @param {number[]} y */
+/** @param {number[]} X @param {number[]} y @param {(X: number[][], y: number[]) => any} trainFn @param {(model: any, X: number[][]) => number[]} predictFn */
 export function kFoldCV(X, y, trainFn, predictFn, { k = 5 } = {}) {
   if (!X || !y || !trainFn || !predictFn || X.length < k) return null;
   const n = X.length;
@@ -708,7 +708,7 @@ export function anomalyThreshold(scores, { pct = 95 } = {}) {
 }
 
 // ── Partial Dependence ────────────────────────────────────────────
-/** @param {number} model @param {Array<Record<string, any>>} data @param {string[]} vars */
+/** @param {number} model @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} targetVar */
 export function partialDependence(model, data, vars, targetVar, { grid = 10 } = {}) {
   if (!model || !data || !data.length || !vars || targetVar == null) return null;
   const n = data.length;
@@ -729,7 +729,7 @@ export function partialDependence(model, data, vars, targetVar, { grid = 10 } = 
 }
 
 // ── Accumulated Local Effects ─────────────────────────────────────
-/** @param {number} model @param {Array<Record<string, any>>} data @param {string[]} vars */
+/** @param {number} model @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} targetVar */
 export function accumulatedLE(model, data, vars, targetVar, { grid = 10 } = {}) {
   if (!model || !data || !data.length || !vars || targetVar == null) return null;
   const n = data.length;
@@ -755,7 +755,7 @@ export function accumulatedLE(model, data, vars, targetVar, { grid = 10 } = {}) 
 }
 
 // ── Permutation Importance ────────────────────────────────────────
-/** @param {number[]} X @param {number} y */
+/** @param {number[]} X @param {number} y @param {object} model */
 export function permutationImportance(model, X, y, { seed = 42, nPerm = 10 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || !y || !X.length) return null;
@@ -774,7 +774,7 @@ export function permutationImportance(model, X, y, { seed = 42, nPerm = 10 } = {
 }
 
 // ── SHAP Approximation ────────────────────────────────────────────
-/** @param {number} model @param {number[]} baseline */
+/** @param {number} model @param {number[]} baseline @param {number[][]} X */
 export function shapleyApprox(model, X, baseline, { nSamples = 50 } = {}) {
   if (!model || !X || !baseline || !X.length) return null;
   const n = X.length; const p = X[0]?.length || 0;
@@ -797,7 +797,7 @@ export function shapleyApprox(model, X, baseline, { nSamples = 50 } = {}) {
 }
 
 // ── Feature Interaction ───────────────────────────────────────────
-/** @param {number} model */
+/** @param {number} model @param {number[][]} X @param {number} i @param {number} j */
 export function featureInteraction(model, X, i, j) {
   if (!model || !X || X.length < 3 || !X[0] || i == null || j == null) return null;
   const n = X.length;

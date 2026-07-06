@@ -1,6 +1,7 @@
 import { avg } from '../math/core.js';
 
 // ── PSNR ──────────────────────────────────────────────────────────
+/** @param {number[][]} img1 @param {number[][]} img2 */
 export function psnr(img1, img2, { maxVal = 255 } = {}) {
   if (!img1 || !img2 || img1.length !== img2.length || !img1.length) return null;
   const n = img1.length;
@@ -12,6 +13,7 @@ export function psnr(img1, img2, { maxVal = 255 } = {}) {
 }
 
 // ── SSIM ──────────────────────────────────────────────────────────
+/** @param {number[][]} img1 @param {number[][]} img2 */
 export function ssim(img1, img2, { L = 255, k1 = 0.01, k2 = 0.03 } = {}) {
   if (!img1 || !img2 || img1.length !== img2.length || !img1.length) return null;
   const n = img1.length;
@@ -27,6 +29,7 @@ export function ssim(img1, img2, { L = 255, k1 = 0.01, k2 = 0.03 } = {}) {
 }
 
 // ── IoU ───────────────────────────────────────────────────────────
+/** @param {number[]} box1 [x, y, w, h]. @param {number[]} box2 [x, y, w, h]. */
 export function iou(box1, box2) {
   if (!box1 || !box2 || box1.length < 4 || box2.length < 4) return null;
   const x1 = Math.max(box1[0], box2[0]), y1 = Math.max(box1[1], box2[1]);
@@ -39,6 +42,7 @@ export function iou(box1, box2) {
 }
 
 // ── BLEU Score ────────────────────────────────────────────────────
+/** @param {string|string[]} candidate @param {Array<string|string[]>} references @param {number} [n] */
 export function bleuScore(candidate, references, { n = 4 } = {}) {
   if (!candidate || !references || !candidate.length || !references.length) return null;
   const cand = Array.isArray(candidate) ? candidate : candidate.toLowerCase().split(/\s+/);
@@ -62,6 +66,7 @@ export function bleuScore(candidate, references, { n = 4 } = {}) {
 }
 
 // ── ROUGE-L ───────────────────────────────────────────────────────
+/** @param {string|string[]} candidate @param {string|string[]} reference */
 export function rougeL(candidate, reference) {
   if (!candidate || !reference) return null;
   const cand = Array.isArray(candidate) ? candidate : String(candidate).toLowerCase().split(/\s+/);
@@ -78,6 +83,7 @@ export function rougeL(candidate, reference) {
 }
 
 // ── Perplexity ────────────────────────────────────────────────────
+/** @param {number} logLik @param {number} nTokens */
 export function perplexity(logLik, nTokens) {
   if (!Number.isFinite(logLik) || !nTokens || nTokens < 1) return null;
   const ppl = Math.exp(-logLik / nTokens);

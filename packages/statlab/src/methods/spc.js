@@ -89,6 +89,7 @@ export function sChart(data, subgroupSize = 5) {
 }
 
 // ── p Chart ─────────────────────────────────────────────────────────────────
+/** @param {number[]} defectives @param {number[]} sampleSizes */
 export function pChart(defectives, sampleSizes) {
   if (!defectives || !sampleSizes || defectives.length !== sampleSizes.length || defectives.length < 5) return null;
   if (defectives.some((d, i) => d > sampleSizes[i])) return null;
@@ -112,6 +113,7 @@ export function pChart(defectives, sampleSizes) {
 }
 
 // ── c Chart ─────────────────────────────────────────────────────────────────
+/** @param {number[]} defects */
 export function cChart(defects) {
   if (!defects || defects.length < 5) return null;
   const n = defects.length;
@@ -188,7 +190,7 @@ export function ewmaChart(data, { lambda = 0.2, L = 3 } = {}) {
 }
 
 // ── Process Capability ─────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {number|null} [lsl] @param {number|null} [usl] */
 export function processCapability(data, lsl = null, usl = null) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -275,7 +277,7 @@ export function mewmaChart(data, vars, { lambda = 0.2, subgroupSize = 5 } = {}) 
 }
 
 // ── OC Curve ──────────────────────────────────────────────────────
-/** @param {number} n @param {number} p */
+/** @param {number} n @param {number} p @param {number} c */
 export function ocCurve(n, c, p) {
   if (!n || !Number.isFinite(c) || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
@@ -298,7 +300,7 @@ function binomialProb(n, k, p) {
 }
 
 // ── AOQ Curve ─────────────────────────────────────────────────────
-/** @param {number} n @param {number} p */
+/** @param {number} n @param {number} p @param {number} c @param {number} N */
 export function aoqCurve(n, c, p, N) {
   if (!n || !Number.isFinite(c) || !N || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
@@ -310,7 +312,7 @@ export function aoqCurve(n, c, p, N) {
 }
 
 // ── Rectifying Inspection ─────────────────────────────────────────
-/** @param {number} n @param {number} p */
+/** @param {number} n @param {number} p @param {number} c @param {number} N */
 export function rectifyingInspection(n, c, p, N) {
   if (!n || !Number.isFinite(c) || !N || !Number.isFinite(p)) return null;
   const pa = ocCurve(n, c, [p])?.curve?.[0]?.Pa || 0;
@@ -320,7 +322,7 @@ export function rectifyingInspection(n, c, p, N) {
 }
 
 // ── Reliability Acceptance Sampling ───────────────────────────────
-/** @param {number} r */
+/** @param {number} r @param {number} t */
 export function reliabilitySampling(t, r, { alpha = 0.05, beta = 0.1 } = {}) {
   if (!t || !r || t < 1 || r < 0) return null;
   const n2 = Math.ceil(Math.log(beta) / Math.log(1 - r) / t);
@@ -329,7 +331,7 @@ export function reliabilitySampling(t, r, { alpha = 0.05, beta = 0.1 } = {}) {
 }
 
 // ── ASN Curve ─────────────────────────────────────────────────────
-/** @param {number} n @param {number} p */
+/** @param {number} n @param {number} p @param {number} c */
 export function asnCurve(n, c, p) {
   if (!n || !Number.isFinite(c) || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
@@ -367,7 +369,7 @@ export function multivariateControl(data, vars, { subgroupSize = 5, alpha = 0.00
 }
 
 // ── Cpk/Ppk ───────────────────────────────────────────────────────
-/** @param {number[]} data */
+/** @param {number[]} data @param {number} lsl @param {number} usl */
 export function cpkPpk(data, lsl, usl) {
   if (!data || data.length < 5 || lsl == null || usl == null || lsl >= usl) return null;
   const n = data.length;

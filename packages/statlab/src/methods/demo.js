@@ -2,6 +2,7 @@ import { avg } from '../math/core.js';
 import { coxPH } from './survival.js';
 
 // ── Current Life Table ────────────────────────────────────────────
+/** @param {number[]} mx age-specific mortality rates. */
 export function lifeTable(mx, { ax = null } = {}) {
   if (!mx || mx.length < 5) return null;
   const n = mx.length;
@@ -20,6 +21,7 @@ export function lifeTable(mx, { ax = null } = {}) {
 }
 
 // ── Lee-Carter Model ──────────────────────────────────────────────
+/** @param {number[][]} logMx @param {number[]} years @param {number[]} ages */
 export function leeCarter(logMx, years, ages) {
   if (!logMx || !logMx.length || logMx.length !== years.length) return null;
   const n = logMx.length, m = logMx[0]?.length || 0;
@@ -35,6 +37,7 @@ export function leeCarter(logMx, years, ages) {
 }
 
 // ── Population Projection (cohort-component) ──────────────────────
+/** @param {number[]} basePop @param {number[]} fertility @param {number[]} mortality */
 export function populationProjection(basePop, fertility, mortality, { nYears = 5 } = {}) {
   if (!basePop || !fertility || !mortality || basePop.length < 3) return null;
   const n = basePop.length;
@@ -49,12 +52,14 @@ export function populationProjection(basePop, fertility, mortality, { nYears = 5
 }
 
 // ── Life Expectancy ───────────────────────────────────────────────
+/** @param {object} lt life table. */
 export function lifeExpectancy(lt) {
   if (!lt || !lt.ex) return null;
   return { test: 'Life Expectancy', e0: lt.ex[0] || 0, n: lt.n || 0, apa: `e₀ = ${lt.ex[0].toFixed(1)}` };
 }
 
 // ── Population Growth Rate ────────────────────────────────────────
+/** @param {number[]} pop */
 export function populationGrowth(pop, { t = 1 } = {}) {
   if (!pop || !pop.length || !pop[0]) return null;
   const n = pop.length;
@@ -86,7 +91,7 @@ export function coxRegressionDemo(data, timeVar, eventVar, xVars) {
 }
 
 // ── Kaplan-Meier for Demography ───────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} eventVar */
+/** @param {Array<Record<string, any>>} data @param {string} eventVar @param {string} ageVar */
 export function kaplanMeierDemo(data, ageVar, eventVar) {
   if (!data || data.length < 5 || !ageVar || !eventVar) return null;
   const n = data.length;
@@ -107,6 +112,7 @@ export function kaplanMeierDemo(data, ageVar, eventVar) {
 }
 
 // ── Age Standardization ───────────────────────────────────────────
+/** @param {number[]} rates @param {number[]} standardPop */
 export function ageStandardization(rates, standardPop) {
   if (!rates || !standardPop || rates.length < 3 || rates.length !== standardPop.length) return null;
   const totalStdPop = standardPop.reduce((s, v) => s + v, 0);

@@ -13,7 +13,7 @@ let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 // mixing in a self-similarity term, giving I=0.0511 instead of the correct
 // 0.0366 on a 20-agent test case (~40% relative error), and the discrepancy
 // grows/shrinks arbitrarily depending on how S0 happens to compare to n.
-/** @param {string} valueField */
+/** @param {string} valueField @param {Array<Record<string, any>>} agents */
 export function moranIMulti(agents, valueField, { nPerm = 99 } = {}) {
   if (!agents || agents.length < 10 || !valueField) return null;
   const n = agents.length;
@@ -35,6 +35,7 @@ export function moranIMulti(agents, valueField, { nPerm = 99 } = {}) {
 }
 
 // ── Simulation Convergence ─────────────────────────────────────────────────
+/** @param {number[]} runs per-iteration output series. */
 export function simulationConvergence(runs, { window = 10, tolerance = 0.01 } = {}) {
   if (!runs || runs.length < window) return null;
   const n = runs.length;
@@ -49,6 +50,7 @@ export function simulationConvergence(runs, { window = 10, tolerance = 0.01 } = 
 }
 
 // ── Sobol Sensitivity Indices ──────────────────────────────────────────────
+/** @param {number[][]} inputs @param {number[]} output */
 export function sobolSensitivity(inputs, output, { nBootstrap = 100 } = {}) {
   if (!inputs || !inputs.length || !output || inputs[0].length !== output.length) return null;
   const p = inputs.length, n = output.length;
@@ -75,7 +77,7 @@ export function sobolSensitivity(inputs, output, { nBootstrap = 100 } = {}) {
 }
 
 // ── Agent Summary Statistics ───────────────────────────────────────────────
-/** @param {string[]} vars */
+/** @param {string[]} vars @param {Array<Record<string, any>>} agents */
 export function agentSummaryStats(agents, vars) {
   if (!agents || !agents.length || !vars) return null;
   const n = agents.length;
@@ -89,6 +91,7 @@ export function agentSummaryStats(agents, vars) {
 }
 
 // ── Scenario Comparison ────────────────────────────────────────────────────
+/** @param {Array<Record<string, any>>} scenarios */
 export function scenarioComparison(scenarios) {
   if (!scenarios || scenarios.length < 2) return null;
   const names = [];
@@ -112,7 +115,7 @@ export function scenarioComparison(scenarios) {
 }
 
 // ── Threshold Model (Granovetter) ─────────────────────────────────
-/** @param {number} [initialAdopters] @param {number[]} thresholds */
+/** @param {number} [initialAdopters] @param {number[]} thresholds @param {number} nAgents */
 export function thresholdModel(nAgents, thresholds, initialAdopters = 1) {
   if (!nAgents || nAgents < 3 || !thresholds || thresholds.length < nAgents) return null;
   const sorted = [...thresholds].sort((a, b) => a - b);
@@ -129,6 +132,7 @@ export function thresholdModel(nAgents, thresholds, initialAdopters = 1) {
 }
 
 // ── Network Diffusion ─────────────────────────────────────────────
+/** @param {number[][]} adjacency @param {number[]} seeds */
 export function networkDiffusion(adjacency, seeds, { seed = 42, steps = 10, prob = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!adjacency || !adjacency.length || !seeds || !seeds.length) return null;
@@ -151,7 +155,7 @@ export function networkDiffusion(adjacency, seeds, { seed = 42, steps = 10, prob
 }
 
 // ── Segregation Index ─────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} groupVar */
+/** @param {Array<Record<string, any>>} data @param {string} groupVar @param {string} locationVar */
 export function segregationIndex(data, groupVar, locationVar) {
   if (!data || data.length < 5 || !groupVar || !locationVar) return null;
   const groups = [...new Set(data.map(r => r[groupVar]))];

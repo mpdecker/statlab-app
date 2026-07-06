@@ -283,6 +283,7 @@ function _semFitStats(S, mc, n, m, k, fML) {
 
 // ── SEM ───────────────────────────────────────────────────────────
 
+/** @param {object} [opts] */
 export function sem(opts = {}) {
   if (opts == null) return null;
   const { equations = null, data = null, method = 'ML', maxIter = 200, tolerance = 1e-6 } = opts ?? {};
@@ -340,7 +341,7 @@ export function sem(opts = {}) {
 }
 
 // ── Multi-group SEM ────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} groupVar */
+/** @param {Array<Record<string, any>>} data @param {string} groupVar @param {object[]} equations */
 export function semMultiGroup(data, groupVar, equations) {
   if (!data || !groupVar || !equations) return null;
   const groups = [...new Set(data.map(r => String(r[groupVar])))].sort();
@@ -632,7 +633,7 @@ export function latentGrowthModel(data, vars, times = null) {
 // (The previous version hardcoded indirect=0 and total=direct for every edge,
 // so chained mediation — the entire point of path analysis over separate
 // univariate regressions — was never actually computed.)
-/** @param {Array<Record<string, any>>} data */
+/** @param {Array<Record<string, any>>} data @param {object[]} equations */
 export function pathAnalysis(data, equations) {
   if (!data || data.length < 10 || !equations || !equations.length) return null;
   const parsed = equations.map(eq => {
@@ -728,6 +729,7 @@ function orthogonalProcrustes(A, Target) {
 // group B's loading as ~0.002 (its true 0.6 signal was misattributed entirely
 // into an inflated "general" loading of ~0.62); the rotated version recovers
 // both groups' loadings in the correct 0.5-0.6 range.)
+/** @param {Array<Record<string, any>>} data @param {string[]} generalFactor @param {Record<string, string[]>} groupFactors */
 export function bifactorModel(data, generalFactor, groupFactors, { maxIter = 50 } = {}) {
   if (!data || data.length < 20 || !groupFactors || !groupFactors.length) return null;
   const allItems = groupFactors.flatMap(g => g.items);
@@ -791,7 +793,7 @@ export function bifactorModel(data, generalFactor, groupFactors, { maxIter = 50 
 // proportions, then rho is estimated by ML against the observed contingency
 // table for every pair. The resulting polychoric correlation matrix is then
 // fit with a single-factor model using the same RAM-ML machinery as sem().
-/** @param {Array<Record<string, any>>} data @param {string[]} vars */
+/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {object} model */
 export function ordinalSEM(data, vars, model, { nThresh = 5 } = {}) {
   if (!data || data.length < 20 || !vars || vars.length < 3 || !model) return null;
   const m = vars.length, n = data.length;
@@ -889,6 +891,7 @@ export function ordinalSEM(data, vars, model, { nThresh = 5 } = {}) {
 }
 
 // ── CFI Compare ───────────────────────────────────────────────────
+/** @param {object} model1Fit @param {object} model2Fit */
 export function cfiCompare(model1Fit, model2Fit) {
   if (!model1Fit || !model2Fit) return null;
   const chi1 = model1Fit.chisq, chi2 = model2Fit.chisq, df1 = model1Fit.df, df2 = model2Fit.df;
