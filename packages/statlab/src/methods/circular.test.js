@@ -83,3 +83,44 @@ describe('circularLinearRegression computes a real p-value', () => {
     expect(slope.p).toBeGreaterThan(0.1);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('circularMean null for null', () => expect(circularMean(null)).toBeNull());
+  it('circularMean null for empty', () => expect(circularMean([])).toBeNull());
+  it('circularVariance null for null', () => expect(circularVariance(null)).toBeNull());
+  it('rayleighTest null for null', () => expect(rayleighTest(null)).toBeNull());
+  it('watsonU2 null for null', () => expect(watsonU2(null)).toBeNull());
+  it('vonMisesMLE null for null', () => expect(vonMisesMLE(null)).toBeNull());
+  it('circularCorrelation null for null', () => expect(circularCorrelation(null, [1, 2, 3])).toBeNull());
+  it('circularLinearRegression null for null', () => expect(circularLinearRegression(null, [1, 2, 3])).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('circularMean with identical angles returns that angle', () => {
+    const r = circularMean([0.5, 0.5, 0.5, 0.5, 0.5]);
+    if (r) expect(r.mean).toBeCloseTo(0.5, 2);
+  });
+  it('circularVariance with highly concentrated angles returns low variance', () => {
+    const r = circularVariance([0.5, 0.51, 0.49, 0.5, 0.52]);
+    if (r) expect(r.variance).toBeLessThan(0.1);
+  });
+  it('rayleighTest with concentrated angles has low p', () => {
+    const conc = [0.1, 0.12, 0.11, 0.09, 0.13, 0.1, 0.08, 0.12, 0.11, 0.1];
+    const r = rayleighTest(conc);
+    if (r) expect(r.p).toBeLessThan(0.05);
+  });
+  it('vonMisesMLE kappa positive for concentrated data', () => {
+    const conc = [0.1, 0.12, 0.11, 0.09, 0.13, 0.1, 0.08, 0.12, 0.11, 0.1];
+    const r = vonMisesMLE(conc);
+    if (r) expect(r.kappa).toBeGreaterThan(1);
+  });
+  it('circularCorrelation with same angles r near 1', () => {
+    const a = [0.1, 0.3, 0.5, 0.4, 0.35, 0.2, 0.45, 0.38, 0.32, 0.48];
+    const r = circularCorrelation(a, a);
+    if (r) expect(r.r).toBeCloseTo(1, 1);
+  });
+  it('circularLinearRegression rSquared between 0 and 1', () => {
+    const r = circularLinearRegression(angles, angles.map((_, i) => i));
+    if (r) { expect(r.rSquared).toBeGreaterThanOrEqual(0); expect(r.rSquared).toBeLessThanOrEqual(1); }
+  });
+});

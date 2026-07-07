@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { fpca, functionalMean, functionalCovariance, scalarOnFunction, functionalClustering, fpcaExpanded, functionalRegression } from './fda.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+const rf = ref.fda;
 
 const X = [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]];
 const tp = [0, 1, 2, 3];
@@ -95,4 +98,55 @@ describe('fpcaExpanded does a real longitudinal FPCA', () => {
     const var0 = col0.reduce((a, b) => a + (b - mean0) ** 2, 0) / (col0.length - 1);
     expect(var0).toBeCloseTo(r.eigenvalues[0], 1);
   });
+});
+
+describe('functionalMean oracle', () => {
+  it('mean curve matches oracle', () => {
+    const r = functionalMean(rf.functionalMean_basic.data);
+    expect(r.mean).toEqual(rf.functionalMean_basic.mean);
+  });
+});
+
+describe('fpca oracle', () => {
+  it('eigenvalues match oracle', () => {
+    const r = fpca(rf.fpca_basic.data, rf.fpca_basic.tp);
+    expect(r.eigenvalues).toEqual(rf.fpca_basic.eigenvalues);
+  });
+  it('propVar matches oracle', () => {
+    const r = fpca(rf.fpca_basic.data, rf.fpca_basic.tp);
+    expect(r.propVar).toEqual(rf.fpca_basic.propVar);
+  });
+});
+
+describe('scalarOnFunction oracle', () => {
+  it('intercept/slope/rSquared match oracle', () => {
+    const r = scalarOnFunction(rf.scalarOnFunction_basic.data, rf.scalarOnFunction_basic.y);
+    expect(r.intercept).toBeCloseTo(rf.scalarOnFunction_basic.intercept, 4);
+    expect(r.slope).toBeCloseTo(rf.scalarOnFunction_basic.slope, 4);
+    expect(r.rSquared).toBeCloseTo(rf.scalarOnFunction_basic.rSquared, 4);
+  });
+});
+
+describe('functionalClustering oracle', () => {
+  it('labels match oracle', () => {
+    const r = functionalClustering(rf.functionalClustering_basic.data);
+    expect(r.labels).toEqual(rf.functionalClustering_basic.labels);
+  });
+});
+
+describe('hardening — FDA edge cases', () => {
+  it('fpca null for mismatched dimensions', () => expect(fpca([[1,2,3]], [0,1])).toBeNull());
+  it('fpca null for empty data', () => expect(fpca(null, tp)).toBeNull());
+  it('fpca reproducible with same data', () => { const r1 = fpca(X, tp); const r2 = fpca(X, tp); expect(r1.eigenvalues).toEqual(r2.eigenvalues); });
+  it('functionalMean null for null input', () => expect(functionalMean(null)).toBeNull());
+  it('functionalMean handles single row', () => { const r = functionalMean([[5,5,5]]); expect(r).not.toBeNull(); });
+  it('functionalCovariance null for null input', () => expect(functionalCovariance(null)).toBeNull());
+  it('functionalCovariance null for mismatched rows', () => expect(functionalCovariance([[1,2],[3]])).toBeNull());
+  it('scalarOnFunction null for mismatched lengths', () => expect(scalarOnFunction(X, [1,2,3])).toBeNull());
+  it('functionalClustering null for null input', () => expect(functionalClustering(null)).toBeNull());
+  it('functionalClustering handles single cluster', () => { const r = functionalClustering(X, 1); if (r) expect(r.nClusters).toBe(1); });
+  it('fpcaExpanded null for <2 vars', () => expect(fpcaExpanded([{id:1,time:0,v1:1}], ['v1'], 'time', 'id')).toBeNull());
+  it('fpcaExpanded reproducible', () => { const d = []; for (let i = 0; i < 30; i++) d.push({ id: Math.floor(i/3), time: i % 3, v1: i * 0.5, v2: i * 0.3 }); const r1 = fpcaExpanded(d, ['v1','v2'], 'time', 'id'); const r2 = fpcaExpanded(d, ['v1','v2'], 'time', 'id'); expect(r1.eigenvalues).toEqual(r2.eigenvalues); });
+  it('functionalRegression null for null data', () => expect(functionalRegression(null, 'y', 'x', 'time', 'id')).toBeNull());
+  it('functionalRegression null for <10 rows', () => { const d = []; for (let i = 0; i < 5; i++) d.push({ id: i, time: 0, x: i, y: i }); expect(functionalRegression(d, 'y', 'x', 'time', 'id')).toBeNull(); });
 });

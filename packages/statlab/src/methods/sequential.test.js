@@ -77,3 +77,26 @@ describe('pocockBoundaries computes the constant per K and alpha', () => {
     expect(pocockBoundaries(5, 0.05).boundaries[0].boundary).toBeLessThan(2.5);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('waldSPRT null for empty data', () => expect(waldSPRT([], 0, 0.5)).toBeNull());
+  it('obrienFleming null for stages=0', () => expect(obrienFleming(0)).toBeNull());
+  it('pocockBoundaries null for stages=0', () => expect(pocockBoundaries(0)).toBeNull());
+  it('groupSequential null for null data', () => expect(groupSequential(null, 3)).toBeNull());
+  it('lanDemets null for stages<2', () => expect(lanDemets(data, 1)).toBeNull());
+  it('conditionalPower null for nObserved<5', () => expect(conditionalPower(data, 3, 20, 0.5)).toBeNull());
+  it('doubleTriangular null for null data', () => expect(doubleTriangular(null)).toBeNull());
+  it('haybittlePeto null for null data', () => expect(haybittlePeto(null)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('waldSPRT handles constant data', () => { const r = waldSPRT([0.5, 0.5, 0.5, 0.5, 0.5], 0, 1); expect(r).not.toBeNull(); });
+  it('doubleTriangular null for short data', () => expect(doubleTriangular([1, 2, 3])).toBeNull());
+  it('haybittlePeto null for short data', () => expect(haybittlePeto([1, 2])).toBeNull());
+  it('obrienFleming boundaries monotonic decreasing', () => { const r = obrienFleming(5); for (let i = 1; i < r.boundaries.length; i++) expect(r.boundaries[i].boundary).toBeLessThanOrEqual(r.boundaries[0].boundary); });
+});
+
+describe('hardening — reproducibility', () => {
+  it('obrienFleming same stages same boundaries', () => { const a = obrienFleming(4, 0.05); const b = obrienFleming(4, 0.05); expect(a.boundaries[0].boundary).toBeCloseTo(b.boundaries[0].boundary, 6); });
+  it('pocockBoundaries same stages same boundaries', () => { const a = pocockBoundaries(3, 0.05); const b = pocockBoundaries(3, 0.05); expect(a.boundaries[0].boundary).toBeCloseTo(b.boundaries[0].boundary, 6); });
+});

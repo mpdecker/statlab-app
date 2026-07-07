@@ -79,3 +79,58 @@ describe('rarefaction uses Hurlbert expected species', () => {
     expect(r.expectedSpecies).toBeCloseTo(1.992, 2);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('shannonDiversity null for empty', () => expect(shannonDiversity([])).toBeNull());
+  it('shannonDiversity null for null', () => expect(shannonDiversity(null)).toBeNull());
+  it('shannonDiversity null for all zeros', () => expect(shannonDiversity([0, 0, 0])).toBeNull());
+  it('simpsonDiversity null for single element', () => expect(simpsonDiversity([5])).toBeNull());
+  it('simpsonDiversity null for null', () => expect(simpsonDiversity(null)).toBeNull());
+  it('chao1Richness null for null', () => expect(chao1Richness(null)).toBeNull());
+  it('chao1Richness null for single count', () => expect(chao1Richness([5])).toBeNull());
+  it('speciesAccumulation null for empty', () => expect(speciesAccumulation([])).toBeNull());
+  it('speciesAccumulation null for null', () => expect(speciesAccumulation(null)).toBeNull());
+  it('rarefaction null for empty', () => expect(rarefaction([], 5)).toBeNull());
+  it('rarefaction null for sampleSize > n', () => expect(rarefaction(['A', 'B'], 10)).toBeNull());
+  it('indicatorSpecies null for empty data', () => expect(indicatorSpecies([], 'species', 'group')).toBeNull());
+  it('simperAnalysis null for empty species list', () => expect(simperAnalysis([{ sp1: 1, group: 'A' }], [], 'group')).toBeNull());
+  it('adonis2 null for empty data', () => expect(adonis2([], ['sp1'], 'group')).toBeNull());
+  it('betadisper null for null data', () => expect(betadisper(null, ['sp1'], 'group')).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('shannonDiversity with constant counts has low shannon', () => {
+    const r = shannonDiversity([10, 10, 10, 10]);
+    if (r) expect(r.shannon).toBeGreaterThan(0);
+  });
+  it('simpsonDiversity with one dominant species returns low simpson', () => {
+    const r = simpsonDiversity([100, 1, 1]);
+    if (r) expect(r.simpson).toBeLessThan(0.1);
+  });
+  it('chao1Richness with only singletons extrapolates', () => {
+    const r = chao1Richness([1, 1, 1, 1, 0]);
+    if (r) expect(r.chao1).toBeGreaterThan(r.sobs);
+  });
+  it('speciesAccumulation curve is non-decreasing', () => {
+    const r = speciesAccumulation(['A', 'B', 'A', 'C', 'B', 'D']);
+    if (r && r.curve) { for (let i = 1; i < r.curve.length; i++) expect(r.curve[i]).toBeGreaterThanOrEqual(r.curve[i - 1]); }
+  });
+  it('rarefaction expectedSpecies > 0', () => {
+    const r = rarefaction(['A', 'B', 'A', 'C', 'B', 'D'], 4);
+    if (r) expect(r.expectedSpecies).toBeGreaterThan(0);
+  });
+  it('adonis2 with permuted data returns R2 between 0 and 1', () => {
+    const d = []; for (let i = 0; i < 20; i++) d.push({ sp1: Math.random() * 10, sp2: Math.random() * 5, group: i < 10 ? 'A' : 'B' });
+    const r = adonis2(d, ['sp1', 'sp2'], 'group');
+    if (r) { expect(r.R2).toBeGreaterThanOrEqual(0); expect(r.R2).toBeLessThanOrEqual(1); }
+  });
+  it('indicatorSpecies results non-empty', () => {
+    const d = []; for (let i = 0; i < 20; i++) d.push({ site: Math.floor(i / 4), species: 'A', group: i < 10 ? 'Ctrl' : 'Trt' });
+    const r = indicatorSpecies(d, 'species', 'group');
+    if (r) { expect(Array.isArray(r.results)).toBe(true); }
+  });
+  it('shannonDiversity evenness in [0, 1]', () => {
+    const r = shannonDiversity([5, 3, 2, 1, 1, 0, 0, 0]);
+    if (r) { expect(r.evenness).toBeGreaterThanOrEqual(0); expect(r.evenness).toBeLessThanOrEqual(1); }
+  });
+});

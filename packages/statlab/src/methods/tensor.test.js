@@ -106,3 +106,27 @@ describe('unfold produces the standard mode-n matricization for every mode (regr
     });
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('parafac null for null tensor', () => expect(parafac(null)).toBeNull());
+  it('parafac null for empty tensor', () => expect(parafac([])).toBeNull());
+  it('tuckerDecomp null for null tensor', () => expect(tuckerDecomp(null)).toBeNull());
+  it('unfold null for null tensor', () => expect(unfold(null)).toBeNull());
+  it('multiwayPCA null for null tensor', () => expect(multiwayPCA(null)).toBeNull());
+  it('tensorRegression null for null X', () => expect(tensorRegression(null, [1, 2])).toBeNull());
+  it('cpDecomposition null for rank<1', () => expect(cpDecomposition(X, 0)).toBeNull());
+  it('tuckerRegression null for null X', () => expect(tuckerRegression(null, [1, 2])).toBeNull());
+  it('tensorCompletion null for null tensor', () => expect(tensorCompletion(null, [[[true]]])).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('parafac null for small tensor', () => expect(parafac([[[1]]])).toBeNull());
+  it('tuckerDecomp handles 2x2x1', () => { const r = tuckerDecomp([[[1, 2], [3, 4]]]); expect(r).not.toBeNull(); });
+  it('unfold with mode=0 on 2d-like tensor', () => { const r = unfold([[[1, 2], [3, 4]]], 0); expect(r).not.toBeNull(); });
+});
+
+describe('hardening — invariants', () => {
+  it('tensorRegression rSquared in [0,1]', () => { const r = tensorRegression(X, y); if (r) { expect(r.rSquared).toBeGreaterThanOrEqual(0); expect(r.rSquared).toBeLessThanOrEqual(1); } });
+  it('cpDecomposition fit non-negative', () => { const r = cpDecomposition(X, 2); if (r) expect(r.fit).toBeGreaterThanOrEqual(0); });
+  it('tuckerCompletion nMissing positive with mask', () => { const mask = [[[true, false], [true, true]], [[true, true], [false, true]]]; const r = tensorCompletion(X, mask); expect(r.nMissing).toBeGreaterThan(0); });
+});

@@ -58,3 +58,24 @@ describe('conv2D actually zero-pads the input (regression test for the padding-o
     r.output.forEach((row, i) => row.forEach((v, j) => expect(v).toBeCloseTo(e.output[i][j], 4)));
   });
 });
+
+describe('hardening — neural edge cases', () => {
+  it('softmax null for empty array', () => expect(softmax([])).toBeNull());
+  it('softmax null for null input', () => expect(softmax(null)).toBeNull());
+  it('activate handles empty array', () => { const r = activate([]); expect(r).not.toBeNull(); });
+  it('softmaxCrossEntropy null for mismatched lengths', () => expect(softmaxCrossEntropy([1,2],[1])).toBeNull());
+  it('gradientDescent null for mismatched lengths', () => expect(gradientDescent([[1],[2],[3]], [1,2,3,4])).toBeNull());
+  it('adamUpdate null for mismatched lengths', () => expect(adamUpdate([0.5],[0.1,0.2],[],[],{t:1})).toBeNull());
+  it('adamUpdate null for null params', () => expect(adamUpdate(null, [0.1,0.2], [0,0], [0,0], {t:1})).toBeNull());
+  it('xavierInit null for nIn<1', () => expect(xavierInit(0, 3)).toBeNull());
+  it('xavierInit null for nOut<1', () => expect(xavierInit(3, 0)).toBeNull());
+  it('backpropagation null for mismatched lengths', () => expect(backpropagation([[1],[2],[3],[4],[5]], [1,2,3], 3)).toBeNull());
+  it('convolution1D null for short signal', () => expect(convolution1D([1], [0.5,0.5])).toBeNull());
+  it('conv2D null for null input', () => expect(conv2D(null, [[1,1],[1,1]])).toBeNull());
+  it('maxPooling null for null input', () => expect(maxPooling(null)).toBeNull());
+  it('batchNorm null for single sample', () => expect(batchNorm([[1,2]])).toBeNull());
+  it('batchNorm null for null input', () => expect(batchNorm(null)).toBeNull());
+  it('dropout null for rate=1', () => expect(dropout([[1,2],[3,4]], 1)).toBeNull());
+  it('dropout null for null input', () => expect(dropout(null)).toBeNull());
+  it('dropout reproducible', () => { const r1 = dropout([[1,2,3],[4,5,6]], 0.5, { seed: 42 }); const r2 = dropout([[1,2,3],[4,5,6]], 0.5, { seed: 42 }); expect(r1.activeRatio).toBe(r2.activeRatio); });
+});

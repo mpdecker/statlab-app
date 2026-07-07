@@ -7,27 +7,74 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  test-build:
     name: test & build (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node: ['20.x', '22.x']
+        node: ['22.x', '24.x']
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Node ${{ matrix.node }}
-        uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          cache: npm
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r test
+      - run: pnpm -r build
 
-      - name: Install dependencies
-        run: npm ci
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter statlab lint
 
-      - name: Test (library + app)
-        run: npm test
+  typecheck:
+    name: type-check
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter statlab typecheck
 
-      - name: Build (library + app)
-        run: npm run build
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter statlab exec vitest run --coverage
+
+  pack-verify:
+    name: npm pack verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter statlab build
+      - run: pnpm pack --pack-destination /tmp --filter statlab

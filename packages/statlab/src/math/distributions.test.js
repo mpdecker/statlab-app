@@ -200,3 +200,85 @@ describe('bootstrapCI', () => {
     expect(bootstrapCI([3], a => a[0])).toBeNull();
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('bootstrapCI rejects empty or tiny samples', () => {
+    expect(bootstrapCI([], v => v.reduce((s, x) => s + x, 0) / v.length)).toBeNull();
+    expect(bootstrapCI([1], v => v[0])).toBeNull();
+  });
+
+  it('shapiroWilk and normalityDP reject constant data', () => {
+    const c = [2, 2, 2, 2, 2, 2];
+    expect(shapiroWilk(c)).toBeNull();
+    expect(normalityDP(c)).toBeNull();
+  });
+});
+
+describe('hardening — lngamma invalid inputs', () => {
+  it('lngamma(0) = Infinity', () => {
+    expect(lngamma(0)).toBe(Infinity);
+  });
+  it('lngamma returns NaN for negative non-integer', () => {
+    expect(lngamma(-0.5)).toBeNaN();
+  });
+});
+
+describe('hardening — lnBinom invalid inputs', () => {
+  it('returns finite for edge cases', () => {
+    expect(Number.isFinite(lnBinom(5, 0))).toBe(true);
+    expect(Number.isFinite(lnBinom(5, 5))).toBe(true);
+  });
+});
+
+describe('hardening — ibeta invariants', () => {
+  it('I_0(a,b) = 0', () => {
+    expect(ibeta(2, 3, 0)).toBeCloseTo(0, 8);
+  });
+
+  it('I_1(a,b) = 1', () => {
+    expect(ibeta(2, 3, 1)).toBeCloseTo(1, 8);
+  });
+});
+
+describe('hardening — normalINV invariants', () => {
+  it('returns 0 at p=0.5', () => {
+    expect(normalINV(0.5)).toBeCloseTo(0, 4);
+  });
+});
+
+describe('hardening — tPDF invalid inputs', () => {
+  it('returns NaN for df <= 0', () => {
+    expect(tPDF(2, 0)).toBeNaN();
+  });
+});
+
+describe('hardening — tPVal invalid inputs', () => {
+  it('returns 0 for df <= 0', () => {
+    expect(tPVal(2, 0)).toBe(0);
+    expect(tPVal(2, -1)).toBe(0);
+  });
+
+  it('returns 0 for infinite t', () => {
+    expect(tPVal(Infinity, 10)).toBe(0);
+  });
+});
+
+describe('hardening — fPVal invalid inputs', () => {
+  it('returns 1 for F <= 0', () => {
+    expect(fPVal(0, 2, 10)).toBeCloseTo(1, 4);
+    expect(fPVal(-1, 2, 10)).toBe(1);
+  });
+});
+
+describe('hardening — chiPVal invalid inputs', () => {
+  it('returns 1 for chi2 <= 0', () => {
+    expect(chiPVal(0, 2)).toBe(1);
+    expect(chiPVal(-1, 2)).toBe(1);
+  });
+});
+
+describe('hardening — tInv2 invalid inputs', () => {
+  it('returns finite for edge df', () => {
+    expect(Number.isFinite(tInv2(0.05, 0.5))).toBe(true);
+  });
+});

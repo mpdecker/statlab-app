@@ -114,3 +114,54 @@ describe('hestonModel calibrates to the return series (not the input params)', (
     expect(r.theta).toBeLessThan(0.12);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('markovChain rejects null/too short', () => {
+    expect(markovChain(null)).toBeNull();
+    expect(markovChain([])).toBeNull();
+    expect(markovChain([1, 2])).toBeNull();
+  });
+  it('markovSteadyState rejects null/too small', () => {
+    expect(markovSteadyState(null)).toBeNull();
+    expect(markovSteadyState([])).toBeNull();
+    expect(markovSteadyState([[0.5]])).toBeNull();
+  });
+  it('poissonProcess rejects null/empty', () => {
+    expect(poissonProcess(null)).toBeNull();
+    expect(poissonProcess([])).toBeNull();
+  });
+  it('brownianMotion rejects null/empty', () => {
+    expect(brownianMotion(null)).toBeNull();
+    expect(brownianMotion([])).toBeNull();
+  });
+  it('randomWalkTest rejects null', () => {
+    expect(randomWalkTest(null)).toBeNull();
+    expect(randomWalkTest([])).toBeNull();
+  });
+  it('ornsteinUhlenbeck rejects null', () => {
+    expect(ornsteinUhlenbeck(null)).toBeNull();
+  });
+  it('jumpDiffusion rejects null', () => {
+    expect(jumpDiffusion(null)).toBeNull();
+  });
+  it('regimeSwitching rejects null/too few', () => {
+    expect(regimeSwitching(null)).toBeNull();
+    expect(regimeSwitching([1, 2])).toBeNull();
+  });
+  it('hestonModel rejects null/too few', () => {
+    expect(hestonModel(null)).toBeNull();
+    expect(hestonModel([0.01])).toBeNull();
+  });
+  it('roughVolatility rejects null', () => {
+    expect(roughVolatility(null)).toBeNull();
+  });
+  it('sabrModel rejects negative params', () => {
+    expect(sabrModel(0, 100, 1)).toBeNull();
+    expect(sabrModel(100, 0, 1)).toBeNull();
+    expect(sabrModel(100, 100, 0)).toBeNull();
+  });
+  it('vasicekModel rejects null/empty', () => {
+    expect(vasicekModel(null)).toBeNull();
+    expect(vasicekModel([])).toBeNull();
+  });
+});

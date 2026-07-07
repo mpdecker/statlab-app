@@ -71,3 +71,53 @@ describe('decomposition', () => {
   it('null mismatched', () => expect(decomposition([1,2,3], [1,2])).toBeNull());
   it('Tbetween non-negative', () => { const r = decomposition(data, groups); if (r) expect(r.Tbetween).toBeGreaterThanOrEqual(0); });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('giniCoefficient rejects null/short', () => {
+    expect(giniCoefficient(null)).toBeNull();
+    expect(giniCoefficient([])).toBeNull();
+    expect(giniCoefficient([1, 2, 3])).toBeNull();
+  });
+  it('lorenzCurve rejects null/all zero', () => {
+    expect(lorenzCurve(null)).toBeNull();
+    expect(lorenzCurve([])).toBeNull();
+  });
+  it('theilIndex rejects null/short/zero mean', () => {
+    expect(theilIndex(null)).toBeNull();
+    expect(theilIndex([1, 2])).toBeNull();
+    expect(theilIndex([0, 0, 0, 0, 0])).toBeNull();
+  });
+  it('atkinsonIndex rejects null/short/zero mean', () => {
+    expect(atkinsonIndex(null)).toBeNull();
+    expect(atkinsonIndex([1, 2])).toBeNull();
+    expect(atkinsonIndex([0, 0, 0, 0, 0])).toBeNull();
+  });
+  it('concentrationIndex rejects null/mismatch/zero mean', () => {
+    expect(concentrationIndex(null, [1,2,3,4,5])).toBeNull();
+    expect(concentrationIndex([1,2,3], [1,2])).toBeNull();
+  });
+  it('hooverIndex rejects null/short', () => {
+    expect(hooverIndex(null)).toBeNull();
+  });
+  it('palmaRatio rejects null/short', () => {
+    expect(palmaRatio(null)).toBeNull();
+    expect(palmaRatio([1, 2, 3])).toBeNull();
+  });
+  it('decomposition rejects null/mismatch', () => {
+    expect(decomposition(null, [1, 2, 3])).toBeNull();
+    expect(decomposition([1, 2], [1])).toBeNull();
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('giniCoefficient in [0,1] for valid data', () => {
+    const r = giniCoefficient(data);
+    expect(r.gini).toBeGreaterThanOrEqual(0);
+    expect(r.gini).toBeLessThanOrEqual(1);
+  });
+  it('concentrationIndex in [-1,1]', () => {
+    const r = concentrationIndex(data, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(r.ci).toBeGreaterThanOrEqual(-1);
+    expect(r.ci).toBeLessThanOrEqual(1);
+  });
+});

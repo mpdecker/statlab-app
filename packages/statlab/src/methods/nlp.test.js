@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 import { word2vecSkipGram, gloveEmbeddings, namedEntityRecognition, posTagging, dependencyParse } from './nlp.js';
+
+const rn = ref.nlp;
 
 const corpus = ['hello world machine learning', 'deep learning neural network', 'data science machine intelligence'];
 
@@ -68,4 +71,52 @@ describe('dependencyParse is a real rule-based parser (heads from grammar)', () 
     expect(find('the').relation).toBe('det'); // first determiner attaches to its noun
     expect(r.root).toBe('chased');
   });
+});
+
+describe('gloveEmbeddings oracle', () => {
+  it('vocab and co-occurrence sum match oracle', () => {
+    const r = gloveEmbeddings(rn.gloveEmbeddings_basic.corpus, { vecSize: 5, epochs: 3, seed: 42 });
+    expect(r.vocabSize).toBe(rn.gloveEmbeddings_basic.vocabSize);
+  });
+  it('embeddings exist for all vocab words', () => {
+    const r = gloveEmbeddings(rn.gloveEmbeddings_basic.corpus, { vecSize: 5, epochs: 3, seed: 42 });
+    expect(r.embeddings.length).toBe(rn.gloveEmbeddings_basic.vocabSize);
+  });
+});
+
+describe('namedEntityRecognition oracle', () => {
+  it('entities match oracle', () => {
+    const r = namedEntityRecognition(rn.namedEntityRecognition_basic.text);
+    expect(r.entities.map(e => ({ text: e.text, type: e.type }))).toEqual(rn.namedEntityRecognition_basic.entities);
+  });
+});
+
+describe('posTagging oracle', () => {
+  it('tagged tokens match oracle', () => {
+    const r = posTagging(rn.posTagging_basic.text);
+    expect(r.tagged.map(t => ({ token: t.token, pos: t.pos }))).toEqual(rn.posTagging_basic.tagged);
+  });
+});
+
+describe('dependencyParse oracle', () => {
+  it('deps and root match oracle', () => {
+    const r = dependencyParse(rn.dependencyParse_basic.text);
+    const deps = r.deps.map(d => ({ dep: d.dep, head: d.head, relation: d.relation }));
+    expect(deps).toEqual(rn.dependencyParse_basic.deps);
+    expect(r.root).toBe(rn.dependencyParse_basic.root);
+  });
+});
+
+describe('hardening — NLP edge cases', () => {
+  it('word2vecSkipGram null for null corpus', () => expect(word2vecSkipGram(null)).toBeNull());
+  it('word2vecSkipGram null for empty string corpus', () => expect(word2vecSkipGram([''])).toBeNull());
+  it('word2vecSkipGram reproducible', () => { const r1 = word2vecSkipGram(corpus, { vecSize: 5, epochs: 3, seed: 1 }); const r2 = word2vecSkipGram(corpus, { vecSize: 5, epochs: 3, seed: 1 }); expect(r1.embeddings).toEqual(r2.embeddings); });
+  it('gloveEmbeddings null for null corpus', () => expect(gloveEmbeddings(null)).toBeNull());
+  it('gloveEmbeddings reproducible', () => { const r1 = gloveEmbeddings(corpus, { vecSize: 5, epochs: 3, seed: 7 }); const r2 = gloveEmbeddings(corpus, { vecSize: 5, epochs: 3, seed: 7 }); expect(r1.embeddings).toEqual(r2.embeddings); });
+  it('namedEntityRecognition null for null text', () => expect(namedEntityRecognition(null)).toBeNull());
+  it('namedEntityRecognition empty entities for plain text', () => { const r = namedEntityRecognition('hello world no entities here'); expect(r.entities).toHaveLength(0); });
+  it('posTagging null for null text', () => expect(posTagging(null)).toBeNull());
+  it('posTagging handles single word', () => { const r = posTagging('running'); expect(r.tagged).toHaveLength(1); });
+  it('dependencyParse null for null text', () => expect(dependencyParse(null)).toBeNull());
+  it('dependencyParse handles empty string', () => { const r = dependencyParse(''); if (r) expect(r.deps).toHaveLength(0); });
 });

@@ -80,3 +80,22 @@ describe('moranIMulti excludes self-pairs and normalizes by the true sum of spat
     expect(r.I).toBeCloseTo(e.I, 4);
   });
 });
+
+describe('hardening — ABM edge cases', () => {
+  it('moranIMulti null for null agents', () => expect(moranIMulti(null, 'val')).toBeNull());
+  it('moranIMulti null for missing valueField', () => expect(moranIMulti(agents, '')).toBeNull());
+  it('simulationConvergence null for short runs', () => expect(simulationConvergence([1,2,3], { window: 10 })).toBeNull());
+  it('simulationConvergence null for null runs', () => expect(simulationConvergence(null)).toBeNull());
+  it('sobolSensitivity null for empty inputs', () => expect(sobolSensitivity([], [])).toBeNull());
+  it('sobolSensitivity null for null inputs', () => expect(sobolSensitivity(null, [1,2,3])).toBeNull());
+  it('agentSummaryStats null for null agents', () => expect(agentSummaryStats(null, ['val'])).toBeNull());
+  it('agentSummaryStats handles empty vars array', () => { const r = agentSummaryStats(agents, []); expect(r).not.toBeNull(); });
+  it('scenarioComparison null for null scenarios', () => expect(scenarioComparison(null)).toBeNull());
+  it('thresholdModel null for nAgents<3', () => expect(thresholdModel(2, [0.1,0.2])).toBeNull());
+  it('thresholdModel null for mismatched thresholds', () => expect(thresholdModel(10, [0.1,0.2])).toBeNull());
+  it('networkDiffusion null for null adjacency', () => expect(networkDiffusion(null, [0])).toBeNull());
+  it('networkDiffusion null for empty seeds', () => expect(networkDiffusion([[0,1],[1,0]], [])).toBeNull());
+  it('networkDiffusion reproducible', () => { const adj = [[0,1,0],[1,0,1],[0,1,0]]; const r1 = networkDiffusion(adj, [0], { steps: 5, seed: 42 }); const r2 = networkDiffusion(adj, [0], { steps: 5, seed: 42 }); expect(r1.finalInfected).toBe(r2.finalInfected); });
+  it('segregationIndex null for <5 rows', () => { const d = []; for (let i = 0; i < 3; i++) d.push({ group: 0, location: 0 }); expect(segregationIndex(d, 'group', 'location')).toBeNull(); });
+  it('segregationIndex null for null data', () => expect(segregationIndex(null, 'group', 'location')).toBeNull());
+});

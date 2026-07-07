@@ -52,3 +52,29 @@ describe('iou matches the independent box-intersection formula exactly', () => {
     });
   });
 });
+
+describe('hardening — invalid inputs and invariants', () => {
+  it('psnr rejects mismatched lengths', () => {
+    expect(psnr(null, [1,2])).toBeNull();
+    expect(psnr([], [])).toBeNull();
+  });
+  it('ssim rejects null/empty input', () => {
+    expect(ssim(null, [1,2,3])).toBeNull();
+    expect(ssim([], [1,2,3])).toBeNull();
+  });
+  it('iou rejects short boxes', () => {
+    expect(iou([0,0], [1,1,2,2])).toBeNull();
+    expect(iou(null, [1,1,2,2])).toBeNull();
+  });
+  it('perplexity rejects invalid logLik/nTokens', () => {
+    expect(perplexity(NaN, 10)).toBeNull();
+    expect(perplexity(-50, 0)).toBeNull();
+    expect(perplexity(-50, -1)).toBeNull();
+  });
+  it('rougeL handles empty strings', () => {
+    expect(rougeL(null, 'test')).toBeNull();
+    expect(rougeL('test', null)).toBeNull();
+    const r = rougeL('test', 'test');
+    expect(r.f1).toBeCloseTo(1, 0);
+  });
+});

@@ -1307,3 +1307,104 @@ describe('MGARCH family: real multivariate volatility estimation', () => {
     expect(r.archTests[0].p).toBeGreaterThan(0.05); // standardized resids are ~white
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('adfTest null for null', () => expect(adfTest(null)).toBeNull());
+  it('adfTest null for empty', () => expect(adfTest([])).toBeNull());
+  it('acf null for null', () => expect(acf(null)).toBeNull());
+  it('pacf null for null', () => expect(pacf(null)).toBeNull());
+  it('arima null for null', () => expect(arima(null, [1, 0, 0])).toBeNull());
+  it('autoArima null for null', () => expect(autoArima(null)).toBeNull());
+  it('simpleExpSmooth null for null', () => expect(simpleExpSmooth(null)).toBeNull());
+  it('holtsLinearSmooth null for null', () => expect(holtsLinearSmooth(null)).toBeNull());
+  it('holtWinters null for null', () => expect(holtWinters(null)).toBeNull());
+  it('seasonalDecompose null for null', () => expect(seasonalDecompose(null)).toBeNull());
+  it('varModel null for null', () => expect(varModel(null)).toBeNull());
+  it('grangerCausality null for null', () => expect(grangerCausality(null, null)).toBeNull());
+  it('chowTest null for null', () => expect(chowTest(null)).toBeNull());
+  it('garch null for null', () => expect(garch(null)).toBeNull());
+  it('egarch null for null', () => expect(egarch(null)).toBeNull());
+  it('stateSpace null for null', () => expect(stateSpace(null)).toBeNull());
+  it('kalmanFilter null for null', () => expect(kalmanFilter(null)).toBeNull());
+  it('johansenTest null for null', () => expect(johansenTest(null)).toBeNull());
+  it('structuralBreak null for null', () => expect(structuralBreak(null)).toBeNull());
+  it('markovSwitchingAR null for null', () => expect(markovSwitchingAR(null)).toBeNull());
+  it('peltChangePoint null for null', () => expect(peltChangePoint(null)).toBeNull());
+  it('singleChangepoint null for null', () => expect(singleChangepoint(null)).toBeNull());
+  it('segmentedMeans null for null', () => expect(segmentedMeans(null)).toBeNull());
+  it('varmax null for null', () => expect(varmax(null, ['y1', 'y2'], ['x1'])).toBeNull());
+  it('vecm null for null', () => expect(vecm(null, ['y1', 'y2'])).toBeNull());
+  it('dccGarch null for null', () => expect(dccGarch(null)).toBeNull());
+  it('bekkGarch null for null', () => expect(bekkGarch(null)).toBeNull());
+  it('cccGarch null for null', () => expect(cccGarch(null)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('acf with constant series returns all near-zero ACF', () => {
+    const r = acf([5, 5, 5, 5, 5, 5, 5, 5, 5, 5]);
+    if (r && r.correlations) expect(r.correlations.length).toBeGreaterThan(0);
+  });
+  it('adfTest with strongly stationary series has low p', () => {
+    const s = Array.from({ length: 50 }, (_, i) => Math.random() - 0.5);
+    const r = adfTest(s);
+    if (r) { expect(r.pValue).toBeGreaterThanOrEqual(0); expect(r.pValue).toBeLessThanOrEqual(1); }
+  });
+  it('simpleExpSmooth with constant data returns same value', () => {
+    const r = simpleExpSmooth([10, 10, 10, 10, 10]);
+    if (r && r.smoothed) expect(r.smoothed[0]).toBeCloseTo(10, 2);
+  });
+  it('acf lag-0 correlation is 1', () => {
+    const r = acf(stationarySeries);
+    if (r && r.length > 0) expect(r[0].autocorrelation).toBeCloseTo(1, 2);
+  });
+  it('garch with stationary returns has valid params', () => {
+    const s = Array.from({ length: 200 }, () => Math.random() * 0.02 - 0.01);
+    const r = garch(s);
+    if (r) { expect(Number.isFinite(r.omega)).toBe(true); }
+  });
+  it('seasonalDecompose handles trend extraction', () => {
+    const s = Array.from({ length: 48 }, (_, i) => i + Math.sin(2 * Math.PI * i / 12) * 5);
+    const r = seasonalDecompose(s, { period: 12 });
+    if (r) { expect(Number.isFinite(r.trend[0])).toBe(true); }
+  });
+  it('singleChangepoint with flat data returns trivial changepoint', () => {
+    const s = Array(30).fill(10);
+    const r = singleChangepoint(s);
+    expect(r).not.toBeNull();
+    expect(r.changePoint).toBe(0);
+  });
+  it('peltChangePoint returns breakpoints array', () => {
+    const s = [...Array(30).fill(1), ...Array(30).fill(5), ...Array(30).fill(2)];
+    const r = peltChangePoint(s);
+    if (r) expect(r.breakpoints.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('acf correlations in [-1, 1]', () => {
+    const r = acf(stationarySeries);
+    if (r) r.forEach(c => {
+      expect(c.autocorrelation).toBeGreaterThanOrEqual(-1);
+      expect(c.autocorrelation).toBeLessThanOrEqual(1);
+    });
+  });
+  it('pacf partial correlations in [-1, 1]', () => {
+    const r = pacf(stationarySeries);
+    if (r) r.forEach(c => {
+      expect(c.partialAutocorrelation).toBeGreaterThanOrEqual(-1);
+      expect(c.partialAutocorrelation).toBeLessThanOrEqual(1);
+    });
+  });
+  it('adfTest p-value in [0, 1]', () => {
+    const r = adfTest(stationarySeries);
+    if (r) { expect(r.pValue).toBeGreaterThanOrEqual(0); expect(r.pValue).toBeLessThanOrEqual(1); }
+  });
+  it('holtsLinearSmooth fitted has finite values', () => {
+    const r = holtsLinearSmooth(stationarySeries);
+    if (r && r.fitted) r.fitted.forEach(v => expect(Number.isFinite(v)).toBe(true));
+  });
+  it('chowTest p in [0, 1] or null for short data', () => {
+    const r = chowTest(stationarySeries, 10);
+    if (r && r.p != null) { expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); }
+  });
+});

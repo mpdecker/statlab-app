@@ -66,3 +66,52 @@ describe('qqConfidence', () => {
   it('null <5', () => expect(qqConfidence([1,2])).toBeNull());
   it('theoretical non-empty', () => { const r = qqConfidence(data); if (r) expect(r.theoretical.length).toBeGreaterThan(0); });
 });
+
+describe('hardening — invalid inputs and degenerate data', () => {
+  it('theilSenSlope rejects null/mismatch', () => {
+    expect(theilSenSlope(null, y)).toBeNull();
+    expect(theilSenSlope(x, null)).toBeNull();
+    expect(theilSenSlope([1,2,3], [1,2,3,4])).toBeNull();
+  });
+  it('mmEstimator rejects null/mismatch', () => {
+    expect(mmEstimator(null, y)).toBeNull();
+    expect(mmEstimator(x, null)).toBeNull();
+    expect(mmEstimator([1,2,3], [1,2,3,4])).toBeNull();
+  });
+  it('madScale handles constant values', () => {
+    const r = madScale([5, 5, 5, 5, 5, 5]);
+    expect(r.mad).toBeCloseTo(0, 0);
+  });
+  it('hampelM rejects null', () => {
+    expect(hampelM(null)).toBeNull();
+    expect(hampelM([1, 2])).toBeNull();
+  });
+  it('mcdCovariance rejects null/too few vars', () => {
+    const d2 = []; for (let i = 0; i < 20; i++) d2.push({ x1: i, x2: i * 0.5 });
+    expect(mcdCovariance(null, ['x1', 'x2'])).toBeNull();
+    expect(mcdCovariance(d2, null)).toBeNull();
+    expect(mcdCovariance(d2, ['x1'])).toBeNull();
+  });
+  it('sEstimator rejects null/mismatch', () => {
+    expect(sEstimator(null, y)).toBeNull();
+    expect(sEstimator(x, null)).toBeNull();
+    expect(sEstimator([1,2], [1,2,3])).toBeNull();
+  });
+  it('ltsRegression rejects null/mismatch', () => {
+    expect(ltsRegression(null, y)).toBeNull();
+    expect(ltsRegression(x, null)).toBeNull();
+    expect(ltsRegression([1,2], [1,2,3])).toBeNull();
+  });
+  it('qqConfidence rejects null', () => {
+    expect(qqConfidence(null)).toBeNull();
+    expect(qqConfidence([])).toBeNull();
+  });
+  it('mmEstimator reproducible with seed', () => {
+    const x = [1,2,3,4,5,6,7,8,9,10];
+    const y = [2,4,6,8,10,12,14,16,18,50];
+    const r1 = mmEstimator(x, y, 42);
+    const r2 = mmEstimator(x, y, 42);
+    expect(r1.slope).toBe(r2.slope);
+    expect(r1.intercept).toBe(r2.intercept);
+  });
+});

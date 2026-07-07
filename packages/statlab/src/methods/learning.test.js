@@ -224,3 +224,36 @@ describe('learning edge cases', () => {
   it('huberRegression null for <3 points', () => expect(huberRegression([1, 2], [0, 1])).toBeNull());
   it('lowess null for bandwidth>1', () => expect(lowess([1, 2, 3, 4, 5], [2, 3, 4, 5, 6], { bandwidth: 2 })).toBeNull());
 });
+
+describe('hardening — invalid inputs', () => {
+  it('elasticNet null for null y', () => expect(elasticNet(null, [1, 2, 3, 4])).toBeNull());
+  it('elasticNet null for negative lambda', () => expect(elasticNet([1, 2, 3, 4], [1, 2, 3, 4], { lambda: -1 })).toBeNull());
+  it('elasticNetCV null for small data', () => expect(elasticNetCV([1, 2], [1, 2])).toBeNull());
+  it('kFoldCV null for null X', () => expect(kFoldCV(null, [1, 2], () => ({}), () => [0])).toBeNull());
+  it('huberRegression null for <3 points', () => expect(huberRegression([1, 2], [0, 1])).toBeNull());
+  it('tukeyBisquareRegression null for <3 points', () => expect(tukeyBisquareRegression([1, 2], [0, 1])).toBeNull());
+  it('lowess null for empty', () => expect(lowess([], [])).toBeNull());
+  it('randomForest null for null X', () => expect(randomForest(null, [1, 2, 3])).toBeNull());
+  it('gradientBoosting null for null X', () => expect(gradientBoosting(null, [1, 2, 3])).toBeNull());
+  it('confusionMatrix null for empty', () => expect(confusionMatrix([], [])).toBeNull());
+  it('rocAUC null for empty', () => expect(rocAUC([], [])).toBeNull());
+  it('classificationReport null for empty', () => expect(classificationReport([], [])).toBeNull());
+  it('labelPropagation null for null X', () => expect(labelPropagation(null, [0, 1, -1])).toBeNull());
+  it('localOutlierFactor null for null data', () => expect(localOutlierFactor(null, ['x'])).toBeNull());
+  it('isolationScore null for null data', () => expect(isolationScore(null, ['x'])).toBeNull());
+  it('selfTraining null for null X', () => expect(selfTraining(null, [0, -1, 1])).toBeNull());
+  it('anomalyThreshold null for empty', () => expect(anomalyThreshold([])).toBeNull());
+  it('partialDependence null for empty data', () => expect(partialDependence(x => x[0], [], ['x'], 'x')).toBeNull());
+  it('accumulatedLE null for empty data', () => expect(accumulatedLE(x => x[0], [], ['x'], 'x')).toBeNull());
+  it('permutationImportance null for empty X', () => expect(permutationImportance(x => x[0], [], [1, 2])).toBeNull());
+  it('shapleyApprox null for empty X', () => expect(shapleyApprox(x => x[0], [], [0, 0])).toBeNull());
+  it('featureInteraction null for <3 data points', () => expect(featureInteraction(x => x[0], [[1, 2], [3, 4]], 0, 1)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('elasticNet handles constant y', () => { const r = elasticNet([5, 5, 5, 5, 5], [1, 2, 3, 4, 5]); expect(r.mse).toBeGreaterThanOrEqual(0); });
+  it('huberRegression handles linearly dependent points', () => { const r = huberRegression([1, 2, 3, 4, 5], [2, 4, 6, 8, 10]); expect(r).not.toBeNull(); });
+  it('confusionMatrix handles all-same class', () => { const r = confusionMatrix([0, 0, 0, 0], [0, 0, 0, 0]); expect(r.accuracy).toBe(1); });
+  it('classificationReport handles single class', () => { const r = classificationReport([0, 0, 0, 0], [0, 0, 0, 0]); expect(r.accuracy).toBe(1); });
+  it('isolationScore handles identical rows', () => { const d = [{ x: 1, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 1 }]; const r = isolationScore(d, ['x', 'y']); expect(r.anomalyScores.length).toBeGreaterThan(0); });
+});

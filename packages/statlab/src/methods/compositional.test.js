@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 import { clrTransform, ilrTransform, alrTransform, compPCA, compRegression } from './compositional.js';
+
+const rs = ref.compositional;
 
 const d = []; for (let i = 0; i < 20; i++) d.push({ a: 10 + Math.random() * 5, b: 20 + Math.random() * 8, c: 5 + Math.random() * 3, d: 15 + Math.random() * 6, y: i + Math.random() });
 
@@ -55,4 +58,60 @@ describe('compPCA full-data', () => {
     const r = compPCA(data, ['a', 'b', 'c']);
     expect(r.n).toBe(16);
   });
+});
+
+describe('clrTransform oracle', () => {
+  it('matches oracle transformed rows', () => {
+    const r = clrTransform(rs.clrTransform_basic.data, rs.clrTransform_basic.vars);
+    expect(r.transformed).toEqual(rs.clrTransform_basic.transformed5);
+  });
+});
+
+describe('ilrTransform oracle', () => {
+  it('matches oracle transformed rows', () => {
+    const r = ilrTransform(rs.ilrTransform_basic.data, rs.ilrTransform_basic.vars);
+    expect(r.transformed).toEqual(rs.ilrTransform_basic.transformed5);
+  });
+});
+
+describe('alrTransform oracle', () => {
+  it('matches oracle transformed rows', () => {
+    const r = alrTransform(rs.alrTransform_basic.data, rs.alrTransform_basic.vars, 0);
+    expect(r.transformed).toEqual(rs.alrTransform_basic.transformed5);
+  });
+});
+
+describe('compPCA oracle', () => {
+  it('eigenvalues match oracle', () => {
+    const r = compPCA(rs.compPCA_basic.data, rs.compPCA_basic.vars);
+    expect(r.eigenvalues).toEqual(rs.compPCA_basic.eigenvalues);
+  });
+  it('cumulative proportions match oracle', () => {
+    const r = compPCA(rs.compPCA_basic.data, rs.compPCA_basic.vars);
+    expect(r.cumulative).toEqual(rs.compPCA_basic.cumulative);
+  });
+});
+
+describe('compRegression oracle', () => {
+  it('coefficients match oracle', () => {
+    const r = compRegression(rs.compRegression_basic.data, rs.compRegression_basic.yVar, rs.compRegression_basic.compVars, []);
+    rs.compRegression_basic.coefficients.forEach((oc, i) => {
+      expect(r.coefficients[i].b).toBeCloseTo(oc.b, 4);
+      expect(r.coefficients[i].se).toBeCloseTo(oc.se, 4);
+      expect(r.coefficients[i].p).toBeCloseTo(oc.p, 4);
+    });
+  });
+});
+
+describe('hardening — compositional edge cases', () => {
+  it('clrTransform null for null data', () => expect(clrTransform(null, ['a','b'])).toBeNull());
+  it('clrTransform null for <5 rows', () => expect(clrTransform(d.slice(0,3), ['a','b','c','d'])).toBeNull());
+  it('ilrTransform null for null data', () => expect(ilrTransform(null, ['a','b'])).toBeNull());
+  it('ilrTransform null for single var', () => expect(ilrTransform(d, ['a'])).toBeNull());
+  it('alrTransform null for <5 rows', () => expect(alrTransform(d.slice(0,2), ['a','b'], 0)).toBeNull());
+  it('alrTransform handles denominator index beyond range', () => { const r = alrTransform(d, ['a','b','c','d'], 20); expect(r.transformed).toBeDefined(); });
+  it('compPCA null for null data', () => expect(compPCA(null, ['a','b'])).toBeNull());
+  it('compPCA eigenvalues non-negative', () => { const r = compPCA(d, ['a','b','c','d']); if (r) r.eigenvalues.forEach(v => expect(v).toBeGreaterThan(-0.01)); });
+  it('compRegression null for null data', () => expect(compRegression(null, 'y', ['a','b'])).toBeNull());
+  it('compRegression null for single part', () => expect(compRegression(d, 'y', ['a'])).toBeNull());
 });

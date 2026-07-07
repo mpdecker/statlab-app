@@ -513,3 +513,70 @@ describe('itemDiscriminationIndex', () => {
   it('null <10', () => expect(itemDiscriminationIndex([[1,0]])).toBeNull());
   it('discriminations between -1 and 1', () => { const r = itemDiscriminationIndex(resp); if (r) r.discriminations.forEach(d => { expect(d).toBeGreaterThanOrEqual(-1); expect(d).toBeLessThanOrEqual(1); }); });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('omegaMcDonald throws for null', () => expect(() => omegaMcDonald(null)).toThrow());
+  it('parallelAnalysis throws for null data', () => expect(() => parallelAnalysis(null, ['x1', 'x2'])).toThrow());
+  it('irtRasch1PL throws for null', () => expect(() => irtRasch1PL(null)).toThrow());
+  it('irt2PL throws for null', () => expect(() => irt2PL(null)).toThrow());
+  it('irt3PL null for null', () => expect(irt3PL(null)).toBeNull());
+  it('scaleScore throws for null', () => expect(() => scaleScore(null)).toThrow());
+  it('gradedResponseModel null for null', () => expect(gradedResponseModel(null)).toBeNull());
+  it('partialCreditModel null for null', () => expect(partialCreditModel(null)).toBeNull());
+  it('testInformation null for null', () => expect(testInformation(null)).toBeNull());
+  it('difMH null for null', () => expect(difMH(null, 'grp', ['i1'])).toBeNull());
+  it('eapScoring null for mismatched lengths', () => expect(eapScoring([{ a: 1.5, b: 0.5 }], [1, 0])).toBeNull());
+  it('multidimensional2PL null for null', () => expect(multidimensional2PL(null, ['v0'], [])).toBeNull());
+  it('itemFit null for null', () => expect(itemFit(null, [[1, 0]])).toBeNull());
+  it('nominalResponseModel null for null', () => expect(nominalResponseModel(null)).toBeNull());
+  it('generalizedPartialCredit null for null', () => expect(generalizedPartialCredit(null, 3)).toBeNull());
+  it('testEquating null for null', () => expect(testEquating(null, [1, 2, 3])).toBeNull());
+  it('mixedFormatIRT null for null data', () => expect(mixedFormatIRT(null, ['i1'])).toBeNull());
+  it('difLogistic null for null', () => expect(difLogistic(null, 'grp', 'resp', 'score')).toBeNull());
+  it('testRetestReliability null for null', () => expect(testRetestReliability(null, [1, 2, 3])).toBeNull());
+  it('interRaterReliability null for null', () => expect(interRaterReliability(null)).toBeNull());
+  it('parallelFormsReliability null for null', () => expect(parallelFormsReliability(null, [1, 2, 3])).toBeNull());
+  it('itemDifficultyIndex null for null', () => expect(itemDifficultyIndex(null)).toBeNull());
+  it('itemDiscriminationIndex null for null', () => expect(itemDiscriminationIndex(null)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('irtRasch1PL handles all-zero responses', () => {
+    const zeros = Array.from({ length: 25 }, () => Array(4).fill(0));
+    expect(irtRasch1PL(zeros)).not.toBeNull();
+  });
+  it('scaleScore sum method correct for single row', () => {
+    const r = scaleScore([[1, 2, 3]], { method: 'sum' });
+    expect(r.scores[0]).toBe(6);
+  });
+  it('itemDifficultyIndex difficulties in [0, 1]', () => {
+    const resp = [[1, 0, 1], [1, 1, 0], [0, 1, 1], [1, 1, 1]];
+    const r = itemDifficultyIndex(resp);
+    if (r) r.difficulties.forEach(d => { expect(d).toBeGreaterThanOrEqual(0); expect(d).toBeLessThanOrEqual(1); });
+  });
+  it('itemDiscriminationIndex discriminations in [-1, 1]', () => {
+    const resp = [[1, 0, 1], [1, 1, 0], [0, 1, 1], [1, 1, 1], [0, 0, 1], [1, 0, 0], [1, 1, 0], [1, 0, 1], [0, 1, 0], [1, 1, 1]];
+    const r = itemDiscriminationIndex(resp);
+    if (r) r.discriminations.forEach(d => { expect(d).toBeGreaterThanOrEqual(-1); expect(d).toBeLessThanOrEqual(1); });
+  });
+  it('omegaMcDonald with high correlation yields high omega', () => {
+    const m = Array.from({ length: 30 }, (_, i) => Array.from({ length: 4 }, (_, j) => i + j * 2 + Math.random() * 0.1));
+    const r = omegaMcDonald(m);
+    if (r) expect(r.omegaTotal).toBeGreaterThan(0.5);
+  });
+  it('testInformation with single item returns positive maxInfo', () => {
+    const r = testInformation([{ a: 1.5, b: 0, c: 0.2 }], -3, 3, 31);
+    if (r) expect(r.maxInfo).toBeGreaterThan(0);
+  });
+  it('eapScoring se positive', () => {
+    const r = eapScoring([{ a: 1.5, b: 0.5 }, { a: 1.2, b: -0.2 }, { a: 0.8, b: 1.0 }], [1, 0, 1]);
+    if (r) expect(r.se).toBeGreaterThan(0);
+  });
+  it('nominalResponseModel probabilities sum near 1', () => {
+    const r = nominalResponseModel([1, 2, 0, 1, 2, 1, 0, 2, 1, 0]);
+    if (r && r.probabilities) {
+      const sum = r.probabilities.reduce((s, p) => s + p, 0);
+      expect(sum).toBeCloseTo(1, 2);
+    }
+  });
+});

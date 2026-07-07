@@ -58,3 +58,59 @@ describe('tailDependence', () => {
   it('contract keys', () => expectKeys(tailDependence({ tailDependence: { lower: 0.5, upper: null } }), ['test', 'lower', 'upper', 'apa']));
   it('lambda between 0-1', () => { const r = tailDependence({ tailDependence: { lower: 0.5, upper: 0.3 } }); if (r && r.lower !== null) { expect(r.lower).toBeGreaterThanOrEqual(0); expect(r.lower).toBeLessThanOrEqual(1); } });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('gaussianCopula rejects null/short/few vars', () => {
+    expect(gaussianCopula(null, ['x1', 'x2'])).toBeNull();
+    expect(gaussianCopula(d.slice(0, 5), ['x1', 'x2'])).toBeNull();
+    expect(gaussianCopula(d, null)).toBeNull();
+  });
+  it('tCopula rejects null/short', () => {
+    expect(tCopula(null, ['x1', 'x2'])).toBeNull();
+    expect(tCopula(d.slice(0, 5), ['x1', 'x2'])).toBeNull();
+  });
+  it('claytonCopula rejects null/short/theta<=0', () => {
+    expect(claytonCopula(null, ['x1', 'x2'])).toBeNull();
+    expect(claytonCopula(d.slice(0, 5), ['x1', 'x2'])).toBeNull();
+    expect(claytonCopula(d, ['x1', 'x2'], { theta: 0 })).toBeNull();
+  });
+  it('gumbelCopula rejects null/short/theta<1', () => {
+    expect(gumbelCopula(null, ['x1', 'x2'])).toBeNull();
+    expect(gumbelCopula(d.slice(0, 5), ['x1', 'x2'])).toBeNull();
+    expect(gumbelCopula(d, ['x1', 'x2'], { theta: 0.5 })).toBeNull();
+  });
+  it('frankCopula rejects null/short', () => {
+    expect(frankCopula(null, ['x1', 'x2'])).toBeNull();
+    expect(frankCopula(d.slice(0, 5), ['x1', 'x2'])).toBeNull();
+  });
+  it('copulaFit returns null for unknown family', () => {
+    expect(copulaFit(d, ['x1', 'x2'], { family: 'unknown' })).toBeNull();
+  });
+  it('tailDependence rejects null/no tailDependence', () => {
+    expect(tailDependence(null)).toBeNull();
+    expect(tailDependence({})).toBeNull();
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('claytonCopula tau in [-1,1]', () => {
+    const r = claytonCopula(d, ['x1', 'x2']);
+    expect(r.tau).toBeGreaterThanOrEqual(-1);
+    expect(r.tau).toBeLessThanOrEqual(1);
+  });
+  it('gumbelCopula tau in [-1,1]', () => {
+    const r = gumbelCopula(d, ['x1', 'x2']);
+    expect(r.tau).toBeGreaterThanOrEqual(-1);
+    expect(r.tau).toBeLessThanOrEqual(1);
+  });
+  it('frankCopula tau in [-1,1]', () => {
+    const r = frankCopula(d, ['x1', 'x2']);
+    expect(r.tau).toBeGreaterThanOrEqual(-1);
+    expect(r.tau).toBeLessThanOrEqual(1);
+  });
+  it('gaussianCopula correlation diagonal is 1', () => {
+    const r = gaussianCopula(d, ['x1', 'x2']);
+    expect(r.correlation[0][0]).toBeCloseTo(1, 0);
+    expect(r.correlation[1][1]).toBeCloseTo(1, 0);
+  });
+});

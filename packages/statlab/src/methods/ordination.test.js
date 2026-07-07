@@ -120,3 +120,21 @@ describe('envfit uses a permutation p-value', () => {
     expect(r.p).toBeCloseTo(1 / 200, 5); // permutation min = 1/(perms+1); exp(-r^2 n/2) gives ~1e-6
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('permanova null for null data', () => expect(permanova(null, ['x1'], 'grp')).toBeNull());
+  it('anosim null for null data', () => expect(anosim(null, ['x1'], 'grp')).toBeNull());
+  it('mantelTest null for null matrix1', () => expect(mantelTest(null, [[0,1],[1,0]])).toBeNull());
+  it('simperAnalysis null for null data', () => expect(simperAnalysis(null, ['x1'], 'grp')).toBeNull());
+  it('procrustes null for null X', () => expect(procrustes(null, [[1,2]])).toBeNull());
+  it('ccaPrep null for null data', () => expect(ccaPrep(null, ['x1'], ['x2'])).toBeNull());
+  it('envfit null for null ord', () => expect(envfit(null, [{ pH: 3 }], 'pH')).toBeNull());
+  it('varpart null for null parts', () => expect(varpart(0.5, null)).toBeNull());
+  it('mso null for null matrix', () => expect(mso(null)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('permanova null for single-group data', () => { const d = [{ x1: 1, x2: 1, grp: 'A' }, { x1: 2, x2: 2, grp: 'A' }, { x1: 3, x2: 3, grp: 'A' }, { x1: 4, x2: 4, grp: 'A' }, { x1: 5, x2: 5, grp: 'A' }, { x1: 6, x2: 6, grp: 'A' }, { x1: 7, x2: 7, grp: 'A' }, { x1: 8, x2: 8, grp: 'A' }, { x1: 9, x2: 9, grp: 'A' }, { x1: 10, x2: 10, grp: 'A' }]; expect(permanova(d, ['x1', 'x2'], 'grp')).toBeNull(); });
+  it('ccaPrep handles perfectly correlated vars', () => { const r = ccaPrep(d, ['x1'], ['x2']); expect(r).not.toBeNull(); });
+  it('mso with 3x3 matrix', () => { const r = mso([[0, 1, 2], [1, 0, 3], [2, 3, 0]]); expect(r.order.length).toBe(3); });
+});

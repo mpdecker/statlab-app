@@ -113,3 +113,53 @@ describe('peaksOverThreshold fits a real GPD to exceedances', () => {
     expect(r.xi).toBeGreaterThan(0.15); // estimated, not the hardcoded 0.1
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('gevMLE rejects null/empty', () => {
+    expect(gevMLE(null)).toBeNull();
+    expect(gevMLE([])).toBeNull();
+  });
+  it('gpdMLE rejects null/empty', () => {
+    expect(gpdMLE(null)).toBeNull();
+    expect(gpdMLE([])).toBeNull();
+  });
+  it('returnLevel rejects null/bad period', () => {
+    expect(returnLevel(null, 10)).toBeNull();
+  });
+  it('blockMaxima rejects null/too few', () => {
+    expect(blockMaxima(null)).toBeNull();
+    expect(blockMaxima([])).toBeNull();
+    expect(blockMaxima([1,2,3,4,5], 5)).toBeNull();
+  });
+  it('hillEstimator rejects null', () => {
+    expect(hillEstimator(null)).toBeNull();
+    expect(hillEstimator([])).toBeNull();
+  });
+  it('peaksOverThreshold rejects null', () => {
+    expect(peaksOverThreshold(null)).toBeNull();
+    expect(peaksOverThreshold([])).toBeNull();
+  });
+  it('thresholdSelection rejects null', () => {
+    expect(thresholdSelection(null)).toBeNull();
+    expect(thresholdSelection([])).toBeNull();
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('gpdMLE sigma > 0 on valid data', () => {
+    const r = gpdMLE(data);
+    expect(r.sigma).toBeGreaterThan(0);
+  });
+  it('hillEstimator alpha > 0 on valid data', () => {
+    const r = hillEstimator(data);
+    expect(r.alpha).toBeGreaterThan(0);
+  });
+  it('gevMLE returnLevels have finite values', () => {
+    const r = gevMLE(data);
+    r.returnLevels.forEach(rl => expect(Number.isFinite(rl.level)).toBe(true));
+  });
+  it('thresholdSelection candidates non-empty', () => {
+    const r = thresholdSelection(data);
+    expect(r.candidates.length).toBeGreaterThan(0);
+  });
+});

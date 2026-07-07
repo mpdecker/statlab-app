@@ -526,3 +526,60 @@ describe('qqCorrelation', () => {
   it('r in [-1,1]', () => { const r = qqCorrelation([1, 2, 3, 4, 5, 6, 7, 8]); expect(r.r).toBeGreaterThanOrEqual(-1); expect(r.r).toBeLessThanOrEqual(1); });
   it('contract keys', () => expectKeys(qqCorrelation([1, 2, 3, 4, 5, 6, 7, 8]), ['test', 'r', 'criticalR', 'significant', 'distribution', 'n', 'apa']));
 });
+
+describe('hardening — invalid inputs', () => {
+  it('andersonDarling rejects null/short', () => {
+    expect(andersonDarling(null)).toBeNull();
+    expect(andersonDarling([])).toBeNull();
+    expect(andersonDarling([1, 2, 3])).toBeNull();
+  });
+  it('shapiroWilk rejects null/short', () => {
+    expect(shapiroWilk(null)).toBeNull();
+    expect(shapiroWilk([])).toBeNull();
+    expect(shapiroWilk([1, 2, 3])).toBeNull();
+  });
+  it('cramerVonMises rejects null/short', () => {
+    expect(cramerVonMises(null)).toBeNull();
+    expect(cramerVonMises([1, 2, 3])).toBeNull();
+  });
+  it('lilliefors rejects null/short', () => {
+    expect(lilliefors(null)).toBeNull();
+    expect(lilliefors([1, 2, 3])).toBeNull();
+  });
+  it('chiSquareGOF rejects null/single bin', () => {
+    expect(chiSquareGOF(null)).toBeNull();
+    expect(chiSquareGOF([])).toBeNull();
+    expect(chiSquareGOF([1])).toBeNull();
+  });
+  it('qqCorrelation rejects null/short', () => {
+    expect(qqCorrelation(null)).toBeNull();
+    expect(qqCorrelation([1, 2, 3])).toBeNull();
+  });
+  it('distributionGoF rejects null/empty/no cdf', () => {
+    expect(distributionGoF(null, null)).toBeNull();
+    expect(distributionGoF([1, 2], null)).toBeNull();
+    expect(distributionGoF(normalSample, { cdf: null })).toBeNull();
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('andersonDarling statistic >= 0', () => {
+    const r = andersonDarling(normalSample);
+    expect(r.statistic).toBeGreaterThanOrEqual(0);
+  });
+  it('shapiroWilk W in (0,1]', () => {
+    const r = shapiroWilk(normalSample);
+    expect(r.W).toBeGreaterThan(0);
+    expect(r.W).toBeLessThanOrEqual(1);
+  });
+  it('lilliefors D in [0,1]', () => {
+    const r = lilliefors(normalSample);
+    expect(r.D).toBeGreaterThanOrEqual(0);
+    expect(r.D).toBeLessThanOrEqual(1);
+  });
+  it('qqCorrelation r in [-1,1]', () => {
+    const r = qqCorrelation(normalSample);
+    expect(r.r).toBeGreaterThanOrEqual(-1);
+    expect(r.r).toBeLessThanOrEqual(1);
+  });
+});

@@ -297,3 +297,54 @@ describe('completeCases', () => {
     expectKeys(completeCases([{ x: 1 }, { x: 2 }], ['x']), ['filtered', 'nOriginal', 'nComplete', 'nDropped', 'pctDropped', 'apa']);
   });
 });
+
+describe('hardening — invalid inputs and degenerate data', () => {
+  it('missingnessPattern rejects null/empty', () => {
+    expect(missingnessPattern(null)).toBeNull();
+    expect(missingnessPattern([])).toBeNull();
+  });
+  it('littlesMCAR rejects null/short', () => {
+    expect(littlesMCAR(null)).toBeNull();
+    expect(littlesMCAR([{x:1}, {x:2}])).toBeNull();
+  });
+  it('meanImpute rejects null/empty', () => {
+    expect(meanImpute(null, ['x'])).toBeNull();
+    expect(meanImpute([], ['x'])).toBeNull();
+    expect(meanImpute([{x:1}], null)).toBeNull();
+  });
+  it('regressionImpute rejects null/short', () => {
+    expect(regressionImpute(null, ['x', 'y'])).toBeNull();
+    expect(regressionImpute([{x:1}], ['x', 'y'])).toBeNull();
+  });
+  it('emImpute rejects null/short/few vars', () => {
+    expect(emImpute(null, ['x'])).toBeNull();
+    expect(emImpute([{x:1}], ['x'])).toBeNull();
+  });
+  it('mice rejects null/short', () => {
+    expect(mice(null, ['x', 'y'])).toBeNull();
+    expect(mice(missingData.slice(0, 5), ['x', 'y'])).toBeNull();
+  });
+  it('rubinPool rejects null/<2 datasets', () => {
+    expect(rubinPool(null, () => ({}))).toBeNull();
+    expect(rubinPool([{x:1}], () => ({}))).toBeNull();
+  });
+  it('fmi rejects null/empty estimates', () => {
+    expect(fmi(null)).toBeNull();
+    expect(fmi({})).toBeNull();
+    expect(fmi({estimates: []})).toBeNull();
+  });
+  it('completeCases rejects null/empty', () => {
+    expect(completeCases(null, ['x'])).toBeNull();
+    expect(completeCases([], ['x'])).toBeNull();
+    expect(completeCases([{x:1}], null)).toBeNull();
+  });
+  it('littlesMCAR p in [0,1] on larger data', () => {
+    const largeData = [];
+    for (let i = 0; i < 20; i++) largeData.push({ x: i, y: i * 2, z: i * 0.5 });
+    const r = littlesMCAR(largeData);
+    if (r) {
+      expect(r.p).toBeGreaterThanOrEqual(0);
+      expect(r.p).toBeLessThanOrEqual(1);
+    }
+  });
+});

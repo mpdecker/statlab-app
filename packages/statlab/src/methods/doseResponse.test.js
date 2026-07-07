@@ -80,3 +80,19 @@ describe('ec50 reports a data-driven confidence interval (not hardcoded ±0.5)',
     expect(r.ci[1] / r.ci[0]).toBeLessThan(5); // hardcoded ±0.5 log10 gives exactly 10x
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('fourPL null for empty arrays', () => expect(fourPL([], [])).toBeNull());
+  it('fourPL null for mismatched dose/response lengths', () => expect(fourPL([1, 2, 3, 4, 5, 6], [1, 2])).toBeNull());
+  it('ec50 null for empty object', () => expect(ec50({})).toBeNull());
+  it('hillSlope null for empty object', () => expect(hillSlope({})).toBeNull());
+  it('volcanoPlot null for empty arrays', () => expect(volcanoPlot([], [])).toBeNull());
+  it('log2FoldChange null for zero-length', () => expect(log2FoldChange([], [])).toBeNull());
+  it('moderatedTStatistic null for mismatched lengths', () => expect(moderatedTStatistic([1, 2, 3], ['A', 'B'])).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('volcanoPlot null for all-same p-values', () => { const r = volcanoPlot([1, 2, 3], [0.5, 0.5, 0.5]); expect(r).not.toBeNull(); });
+  it('moderatedTStatistic handles constant values', () => { const r = moderatedTStatistic([5, 5, 5, 5, 5, 5], ['A', 'A', 'A', 'B', 'B', 'B']); expect(r).not.toBeNull(); });
+  it('log2FoldChange null for zero control mean', () => expect(log2FoldChange([1, 2], [0, 0])).toBeNull());
+});

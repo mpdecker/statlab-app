@@ -103,3 +103,20 @@ describe('alePlot handles the max-value boundary and empty bins correctly (regre
     expect(r.ale[4]).toBeGreaterThan(r.ale[3]);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('shapValues null for null X', () => expect(shapValues(null, [1, 2, 3])).toBeNull());
+  it('limeImportance null for null X', () => expect(limeImportance(null, [1, 2], [1, 1])).toBeNull());
+  it('partialDependence null for null X', () => expect(partialDependence(null, [1, 2], 0)).toBeNull());
+  it('permutationImportance null for null X', () => expect(permutationImportance(null, [1, 2], 0.8)).toBeNull());
+  it('alePlot null for null X', () => expect(alePlot(null, x => x[0], 0)).toBeNull());
+  it('featureInteraction null for null X', () => expect(featureInteraction(null, x => x[0], 0, 1)).toBeNull());
+  it('globalSurrogate null for null X', () => expect(globalSurrogate(null, [1, 2])).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('shapValues handles duplicate rows', () => { const r = shapValues([[1, 1], [1, 1], [1, 1], [1, 1], [1, 1]], [0, 0, 0, 0, 0], { nSamples: 10 }); expect(r).not.toBeNull(); });
+  it('partialDependence null for out-of-bounds feature', () => expect(partialDependence(X, y, 99)).toBeNull());
+  it('featureInteraction handles independent features', () => { const r = featureInteraction(X, x => x[0] * 2, 1, 2); expect(Number.isFinite(r.H)).toBe(true); });
+  it('globalSurrogate handles constant y', () => { const r = globalSurrogate([[1], [2], [3], [4], [5]], [7, 7, 7, 7, 7]); expect(r).not.toBeNull(); });
+});

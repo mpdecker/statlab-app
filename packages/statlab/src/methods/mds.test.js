@@ -88,3 +88,47 @@ describe('nonMetricMDS does real isotonic (rank-based) scaling', () => {
     expect(corr).toBeGreaterThan(0.9); // embedded distances track the true latent distances
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('classicalMDS rejects null/short/few vars', () => {
+    expect(classicalMDS(null, ['x1', 'x2'])).toBeNull();
+    expect(classicalMDS(data.slice(0, 3), ['x1', 'x2'])).toBeNull();
+    expect(classicalMDS(data, null)).toBeNull();
+    expect(classicalMDS(data, ['x1'])).toBeNull();
+  });
+  it('sammonMapping rejects null/short', () => {
+    expect(sammonMapping(null, ['x1', 'x2'])).toBeNull();
+    expect(sammonMapping(data.slice(0, 3), ['x1', 'x2'])).toBeNull();
+  });
+  it('nonMetricMDS rejects null/short', () => {
+    expect(nonMetricMDS(null, ['x1', 'x2'])).toBeNull();
+    expect(nonMetricMDS(data.slice(0, 4), ['x1', 'x2'])).toBeNull();
+  });
+  it('sammonMappingDM rejects null/short', () => {
+    expect(sammonMappingDM(null)).toBeNull();
+    expect(sammonMappingDM([[0, 1], [1, 0]])).toBeNull();
+  });
+  it('landmarkMDS rejects null/too small', () => {
+    expect(landmarkMDS(null)).toBeNull();
+    expect(landmarkMDS([[0, 1], [1, 0]])).toBeNull();
+  });
+});
+
+describe('hardening — reproducibility', () => {
+  it('sammonMapping reproducible with seed', () => {
+    const r1 = sammonMapping(data, ['x1', 'x2'], { seed: 42, maxIter: 10 });
+    const r2 = sammonMapping(data, ['x1', 'x2'], { seed: 42, maxIter: 10 });
+    expect(r1.points).toEqual(r2.points);
+  });
+  it('nonMetricMDS reproducible with seed', () => {
+    const r1 = nonMetricMDS(data, ['x1', 'x2'], { seed: 42, maxIter: 10 });
+    const r2 = nonMetricMDS(data, ['x1', 'x2'], { seed: 42, maxIter: 10 });
+    expect(r1.points).toEqual(r2.points);
+  });
+  it('sammonMappingDM reproducible with seed', () => {
+    const D = [[0, 3, 4], [3, 0, 5], [4, 5, 0]];
+    const r1 = sammonMappingDM(D, { seed: 42, maxIter: 10 });
+    const r2 = sammonMappingDM(D, { seed: 42, maxIter: 10 });
+    expect(r1.points).toEqual(r2.points);
+  });
+});

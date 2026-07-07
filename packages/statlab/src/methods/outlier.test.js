@@ -26,3 +26,27 @@ describe('isolationForest', () => {
   it('scores array matches input size', () => { const r = isolationForest(X, { nTrees: 10 }); if (r) expect(r.scores.length).toBe(X.length) });
   it('outliers detected for extreme points', () => { const r = isolationForest(X, { nTrees: 10 }); if (r) expect(r.outliers).toBeDefined() });
 });
+
+describe('hardening — invalid inputs and degenerate data', () => {
+  it('localOutlierFactor rejects null/empty/small data', () => {
+    expect(localOutlierFactor(null)).toBeNull();
+    expect(localOutlierFactor([])).toBeNull();
+    expect(localOutlierFactor([[1],[2]])).toBeNull();
+  });
+  it('isolationForest rejects null/empty', () => {
+    expect(isolationForest(null)).toBeNull();
+    expect(isolationForest([])).toBeNull();
+    expect(isolationForest([[1,2],[3,4]])).toBeNull();
+  });
+  it('localOutlierFactor handles constant data', () => {
+    const C = [[5,5],[5,5],[5,5],[5,5],[5,5],[5,5]];
+    const r = localOutlierFactor(C, { k: 3 });
+    if (r) expect(r.lof.every(v => v >= 0)).toBe(true);
+  });
+  it('isolationForest reproducible with seed', () => {
+    const X2 = [[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11]];
+    const r1 = isolationForest(X2, { nTrees: 10, seed: 42 });
+    const r2 = isolationForest(X2, { nTrees: 10, seed: 42 });
+    expect(r1.scores).toEqual(r2.scores);
+  });
+});

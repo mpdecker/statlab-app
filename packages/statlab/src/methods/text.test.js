@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { tfIdf, cosineSimilarity, jaccardSimilarity, documentTermMatrix, termFrequency, ngramExtraction, ldaTopicModel, svdEmbeddings, bm25, sentimentVader, perplexityScore, textPreprocess, textRank, tfidfSimilaritySearch } from './text.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+const rt = ref.text;
 
 const docs = ['hello world text', 'hello world data', 'data science text mining'];
 
@@ -8,6 +11,7 @@ describe('tfIdf', () => {
   it('null <2 docs', () => expect(tfIdf(['hello'])).toBeNull());
   it('contract keys', () => expectKeys(tfIdf(docs), ['test', 'tfidf', 'vocab', 'nDocs', 'apa']));
   it('weights non-negative', () => { const r = tfIdf(docs); r.tfidf.forEach(t => expect(t.weight).toBeGreaterThanOrEqual(0)); });
+  it('vocabSize matches oracle', () => { const r = tfIdf(docs); expect(r.vocab.length).toBe(rt.tfIdf_basic.vocabSize); });
 });
 
 describe('cosineSimilarity', () => {
@@ -15,18 +19,23 @@ describe('cosineSimilarity', () => {
   it('similarity = 1 for identical', () => { const r = cosineSimilarity([1, 2, 3], [1, 2, 3]); expect(r.similarity).toBeCloseTo(1, 2); });
   it('similarity in [-1,1]', () => { const r = cosineSimilarity([1, 0], [0, 1]); expect(r.similarity).toBeCloseTo(0, 2); });
   it('contract keys', () => expectKeys(cosineSimilarity([1, 2], [3, 4]), ['test', 'similarity', 'apa']));
+  it('identical matches oracle', () => { const r = cosineSimilarity([1,2,3], [1,2,3]); expect(r.similarity).toBeCloseTo(rt.cosineSimilarity_basic.identical, 4); });
+  it('orthogonal matches oracle', () => { const r = cosineSimilarity([1,0], [0,1]); expect(r.similarity).toBeCloseTo(rt.cosineSimilarity_basic.orthogonal, 4); });
 });
 
 describe('jaccardSimilarity', () => {
   it('null for both empty', () => expect(jaccardSimilarity([], [])).toBeNull());
   it('sim=1 identical', () => { const r = jaccardSimilarity(['a', 'b'], ['a', 'b']); expect(r.similarity).toBe(1); });
   it('contract keys', () => expectKeys(jaccardSimilarity(['a'], ['b']), ['test', 'similarity', 'intersection', 'union', 'apa']));
+  it('identical matches oracle', () => { const r = jaccardSimilarity(['a','b'], ['a','b']); expect(r.similarity).toBeCloseTo(rt.jaccardSimilarity_basic.identical, 4); });
 });
 
 describe('documentTermMatrix', () => {
   it('null <2 docs', () => expect(documentTermMatrix(['hello'])).toBeNull());
   it('contract keys', () => expectKeys(documentTermMatrix(docs), ['test', 'matrix', 'vocab', 'termFreqs', 'nDocs', 'nTerms', 'apa']));
   it('matrix rows = nDocs', () => { const r = documentTermMatrix(docs); expect(r.matrix).toHaveLength(docs.length); });
+  it('vocabSize matches oracle', () => { const r = documentTermMatrix(docs); expect(r.vocab.length).toBe(rt.documentTermMatrix_basic.vocabSize); });
+  it('nDocs matches oracle', () => { const r = documentTermMatrix(docs); expect(r.nDocs).toBe(rt.documentTermMatrix_basic.nDocs); });
 });
 
 describe('termFrequency', () => {
@@ -109,4 +118,31 @@ describe('svdEmbeddings does a real PPMI truncated SVD', () => {
     const v = w => r.embeddings.find(e => e.word === w).vector;
     expect(cos(v('cat'), v('dog'))).toBeGreaterThan(cos(v('cat'), v('car')));
   });
+});
+
+describe('hardening — text edge cases', () => {
+  it('tfIdf null for null docs', () => expect(tfIdf(null)).toBeNull());
+  it('tfIdf handles single doc', () => expect(tfIdf(['one'])).toBeNull());
+  it('cosineSimilarity null for null a', () => expect(cosineSimilarity(null, [1,2])).toBeNull());
+  it('cosineSimilarity null for both zero vectors', () => expect(cosineSimilarity([0,0], [0,0])).toBeNull());
+  it('jaccardSimilarity null for null sets', () => expect(jaccardSimilarity(null, ['a'])).toBeNull());
+  it('jaccardSimilarity sim=0 for disjoint', () => { const r = jaccardSimilarity(['a'], ['b']); expect(r.similarity).toBe(0); });
+  it('documentTermMatrix null for null docs', () => expect(documentTermMatrix(null)).toBeNull());
+  it('termFrequency null for null docs', () => expect(termFrequency(null)).toBeNull());
+  it('ngramExtraction null for non-string', () => expect(ngramExtraction(123, 2)).toBeNull());
+  it('ngramExtraction null for empty string', () => expect(ngramExtraction('')).toBeNull());
+  it('ldaTopicModel null for null docs', () => expect(ldaTopicModel(null, 2)).toBeNull());
+  it('ldaTopicModel null nTopics<2', () => expect(ldaTopicModel(docs, 1)).toBeNull());
+  it('svdEmbeddings null for null docs', () => expect(svdEmbeddings(null)).toBeNull());
+  it('svdEmbeddings reproducible', () => { const r1 = svdEmbeddings(docs, { nDims: 5 }); const r2 = svdEmbeddings(docs, { nDims: 5 }); expect(r1.nVocab).toBe(r2.nVocab); });
+  it('bm25 null for null docs', () => expect(bm25(null, 'query')).toBeNull());
+  it('bm25 null for non-string query', () => expect(bm25(docs, 123)).toBeNull());
+  it('sentimentVader null for null text', () => expect(sentimentVader(null)).toBeNull());
+  it('sentimentVader neutral for empty', () => { const r = sentimentVader(''); if (r) expect(r.sentiment).toBe('neutral'); });
+  it('perplexityScore null for null logProbs', () => expect(perplexityScore(null, 10)).toBeNull());
+  it('perplexityScore null for positive log probs', () => expect(perplexityScore([1,2,3], 10)).toBeNull());
+  it('textPreprocess null for null docs', () => expect(textPreprocess(null)).toBeNull());
+  it('textRank null for null docs', () => expect(textRank(null)).toBeNull());
+  it('tfidfSimilaritySearch null for null docs', () => expect(tfidfSimilaritySearch(null, 'query')).toBeNull());
+  it('tfidfSimilaritySearch null for empty query', () => expect(tfidfSimilaritySearch(docs, '')).toBeNull());
 });

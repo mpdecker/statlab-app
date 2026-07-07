@@ -110,3 +110,39 @@ describe('rda computes a real constrained R^2', () => {
     expect(rda(Yrand, X, { permutations: 9 }).rSquared).toBeLessThan(0.6);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('pls1 rejects null/mismatch', () => {
+    expect(pls1(null, y)).toBeNull();
+    expect(pls1(X, null)).toBeNull();
+    expect(pls1(X.slice(0, 5), y.slice(0, 5))).toBeNull();
+  });
+  it('pls2 rejects null/mismatch', () => {
+    expect(pls2(null, Y)).toBeNull();
+    expect(pls2(X, null)).toBeNull();
+    expect(pls2(X.slice(0, 5), Y.slice(0, 5))).toBeNull();
+  });
+  it('vipScores rejects null/empty weights', () => {
+    expect(vipScores(null)).toBeNull();
+    expect(vipScores({})).toBeNull();
+  });
+  it('rda rejects null/short', () => {
+    expect(rda(null, X)).toBeNull();
+    expect(rda(Y, null)).toBeNull();
+    expect(rda(Y.slice(0, 3), X.slice(0, 3))).toBeNull();
+  });
+  it('dbRDA rejects null/short', () => {
+    const Dmat = Array.from({length:10},(_,i)=>Array.from({length:10},(_,j)=>Math.abs(i-j)+1));
+    expect(dbRDA(null, X)).toBeNull();
+    expect(dbRDA(Dmat, null)).toBeNull();
+  });
+  it('sPLSRegression rejects null/nComp<1', () => {
+    expect(sPLSRegression(null, y)).toBeNull();
+    expect(sPLSRegression(X, null)).toBeNull();
+    expect(sPLSRegression(X, y, { nComp: 0 })).toBeNull();
+  });
+  it('sparsePLS rejects null/short', () => {
+    expect(sparsePLS(null, y)).toBeNull();
+    expect(sparsePLS([[1, 2]], [3])).toBeNull();
+  });
+});

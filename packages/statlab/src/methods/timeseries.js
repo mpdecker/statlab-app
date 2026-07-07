@@ -1162,7 +1162,7 @@ export function topDownReconciliation(topForecast, proportions, { method = 'prop
   if (!topForecast || !proportions || !proportions.length) return null;
   const sumP = proportions.reduce((s, v) => s + v, 0);
   const reconciled = proportions.map(p => +(topForecast * p / (sumP || 1)).toFixed(4));
-  return { test: 'Top-Down Reconciliation', top: +topForecast.toFixed(4), reconciled, method, n: proportions.length, apa: `Top-down: ${n} series, total = ${topForecast.toFixed(2)}` };
+  return { test: 'Top-Down Reconciliation', top: +topForecast.toFixed(4), reconciled, method, n: proportions.length, apa: `Top-down: ${proportions.length} series, total = ${topForecast.toFixed(2)}` };
 }
 
 // ── Middle-Out Reconciliation ─────────────────────────────────────

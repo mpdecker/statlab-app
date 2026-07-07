@@ -491,14 +491,19 @@
     "tsup": "^8.5.0",
     "typescript": "^5.6.0",
     "vitest": "^2.0.0",
-    "@vitest/coverage-v8": "^2.0.0"
+    "@vitest/coverage-v8": "^2.0.0",
+    "eslint": "^9.0.0",
+    "@eslint/js": "^9.0.0",
+    "globals": "^16.0.0"
   },
   "scripts": {
     "prebuild": "node ../../scripts/gen-barrel.mjs",
-    "build": "tsup && npm run build:types",
+    "build": "tsup && pnpm run build:types",
     "build:types": "tsc -p tsconfig.json",
     "barrel": "node ../../scripts/gen-barrel.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "typecheck": "tsc -p tsconfig.ci.json"
   }
 }

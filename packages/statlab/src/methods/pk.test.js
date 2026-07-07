@@ -142,3 +142,80 @@ describe('indirectResponse fits a real indirect-response ODE model', () => {
     expect(Math.abs(r.kout - 0.5)).toBeLessThan(0.2);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('aucTrapezoidal null for null', () => expect(aucTrapezoidal(null, [1, 2, 3])).toBeNull());
+  it('aucTrapezoidal null for mismatched lengths', () => expect(aucTrapezoidal([0, 1], [1, 2, 3])).toBeNull());
+  it('aucLinearLog null for null', () => expect(aucLinearLog(null, [1, 2, 3])).toBeNull());
+  it('aucLinearLog null for unsorted times', () => expect(aucLinearLog([1, 0, 2], [10, 8, 6])).toBeNull());
+  it('pkParameters null for null', () => expect(pkParameters(null, [1, 2, 3, 4])).toBeNull());
+  it('terminalHalfLife null for null', () => expect(terminalHalfLife(null, [1, 2, 3, 4])).toBeNull());
+  it('clearance null for zero dose', () => expect(clearance(0, 100)).toBeNull());
+  it('oneCompartmentIV null for null', () => expect(oneCompartmentIV(null, [1, 2, 3, 4])).toBeNull());
+  it('bioequivalence null for empty arrays', () => expect(bioequivalence([], [100, 105])).toBeNull());
+  it('emaxModel null for mismatched lengths', () => expect(emaxModel([1, 2, 4, 8], [5, 12, 25])).toBeNull());
+  it('sigmoidEmax null for mismatched inputs', () => expect(sigmoidEmax([1, 2, 4], [5, 12, 25, 38])).toBeNull());
+  it('indirectResponse null for null', () => expect(indirectResponse(null, [1, 2, 3], [1, 2, 3])).toBeNull());
+  it('pkpdLink null for null', () => expect(pkpdLink(null, [1, 2, 3])).toBeNull());
+  it('superposition null for mismatched doses/times', () => expect(superposition([100], [0, 12], 0.1, 30)).toBeNull());
+  it('aucRatio null for null', () => expect(aucRatio(null, [1, 2, 3])).toBeNull());
+  it('turnoverModel null for null', () => expect(turnoverModel(null, [1, 2, 3], [1, 2, 3])).toBeNull());
+  it('transitCompartment null for empty time array', () => expect(transitCompartment(100, [], {})).toBeNull());
+  it('tmddModel null for null', () => expect(tmddModel(null, [1, 2, 3])).toBeNull());
+  it('nonCompartmentalExpanded null for null', () => expect(nonCompartmentalExpanded(null, [1, 2, 3])).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('aucTrapezoidal with constant concentration returns positive auc', () => {
+    const r = aucTrapezoidal([0, 1, 2, 4], [10, 10, 10, 10]);
+    if (r) expect(r.auc).toBeGreaterThan(0);
+  });
+  it('terminalHalfLife with perfectly exponential decay', () => {
+    const tExp = [0, 1, 2, 4, 8];
+    const cExp = [100, 50, 25, 12.5, 1.0];
+    const r = terminalHalfLife(tExp, cExp);
+    if (r) expect(r.rSquared).toBeGreaterThanOrEqual(0);
+  });
+  it('pkParameters cmax equals max concentration', () => {
+    const r = pkParameters([0, 1, 2, 4], [10, 20, 15, 5]);
+    if (r) expect(r.cmax).toBe(20);
+  });
+  it('oneCompartmentIV rSquared >= 0', () => {
+    const r = oneCompartmentIV([0, 1, 2, 4, 8], [100, 80, 65, 45, 20]);
+    if (r) expect(r.rSquared).toBeGreaterThanOrEqual(0);
+  });
+  it('emaxModel emax positive for increasing response', () => {
+    const r = emaxModel([1, 2, 4, 8, 16], [5, 12, 25, 38, 46]);
+    if (r) expect(r.parameters.Emax).toBeGreaterThan(0);
+  });
+  it('sigmoidEmax EC50 positive', () => {
+    const r = sigmoidEmax([1, 2, 4, 8, 16, 32], [5, 12, 25, 38, 46, 48]);
+    if (r) expect(r.parameters.EC50).toBeGreaterThan(0);
+  });
+  it('turnoverModel kin finite', () => {
+    const r = turnoverModel([0, 1, 2, 4, 8], [100, 80, 60, 30, 10], [5, 8, 6, 3, 1]);
+    if (r) expect(Number.isFinite(r.kin)).toBe(true);
+  });
+  it('nonCompartmentalExpanded auc and mrt positive', () => {
+    const r = nonCompartmentalExpanded([0, 1, 2, 3, 4, 6, 8], [0, 50, 80, 90, 85, 60, 40]);
+    if (r) { expect(r.auc).toBeGreaterThan(0); expect(r.mrt).toBeGreaterThan(0); }
+  });
+});
+
+describe('hardening — reproducibility', () => {
+  it('superposition with same params returns identical concentration', () => {
+    const r1 = superposition([100, 100], [0, 12], 0.1, 30);
+    const r2 = superposition([100, 100], [0, 12], 0.1, 30);
+    expect(r1.concentration).toBeCloseTo(r2.concentration, 4);
+  });
+  it('transitCompartment deterministic for same inputs', () => {
+    const r1 = transitCompartment(100, [0, 1, 2, 3, 4, 5]);
+    const r2 = transitCompartment(100, [0, 1, 2, 3, 4, 5]);
+    expect(r1.output).toEqual(r2.output);
+  });
+  it('aucTrapezoidal deterministic for same input', () => {
+    const r1 = aucTrapezoidal([0, 1, 2, 4], [10, 8, 6, 2]);
+    const r2 = aucTrapezoidal([0, 1, 2, 4], [10, 8, 6, 2]);
+    expect(r1.auc).toEqual(r2.auc);
+  });
+});

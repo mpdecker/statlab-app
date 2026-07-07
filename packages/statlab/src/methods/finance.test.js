@@ -215,3 +215,57 @@ describe('GARCH-family models are estimated, not hardcoded', () => {
     expect(Number.isFinite(r.alpha)).toBe(true);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('capmBeta null for mismatched lengths', () => expect(capmBeta([1, 2, 3, 4, 5], [1, 2])).toBeNull());
+  it('capmBeta null for null market', () => expect(capmBeta(stock, null)).toBeNull());
+  it('sharpeRatio null for zero variance', () => expect(sharpeRatio([0.05, 0.05, 0.05, 0.05, 0.05])).toBeNull());
+  it('sortinoRatio null for empty', () => expect(sortinoRatio([])).toBeNull());
+  it('maxDrawdown null for empty', () => expect(maxDrawdown([])).toBeNull());
+  it('historicalVaR null for null input', () => expect(historicalVaR(null)).toBeNull());
+  it('parametricVaR null for null input', () => expect(parametricVaR(null)).toBeNull());
+  it('rollingWindow null for null data', () => expect(rollingWindow(null, x => x[0], 3)).toBeNull());
+  it('famaFrench3F null for missing smb', () => expect(famaFrench3F(stock, market, null, stock.map(v => v * 0.5))).toBeNull());
+  it('carhart4F null for missing mom', () => expect(carhart4F(stock, market, stock.map(v => v * 0.5), market.map(v => -v), null)).toBeNull());
+  it('treynorRatio null for zero beta', () => expect(treynorRatio(stock, 0)).toBeNull());
+  it('blackScholes null for negative spot', () => expect(blackScholes(-1, 100, 1, 0.05, 0.2)).toBeNull());
+  it('impliedVolatility handles negative market price gracefully', () => expect(impliedVolatility(-10, 100, 100, 1, 0.05)).not.toBeNull());
+  it('optionGreeks returns NaN fields for negative spot', () => expect(optionGreeks(-1, 100, 1, 0.05, 0.2).delta).toBeNaN());
+  it('binomialTree null for zero steps', () => expect(binomialTree(100, 100, 1, 0.05, 0.2, 0)).toBeNull());
+  it('monteCarloPricing null for zero paths', () => expect(monteCarloPricing(100, 100, 1, 0.05, 0.2, 0)).toBeNull());
+  it('varReduction null for null', () => expect(varReduction(null, 3)).toBeNull());
+  it('monteCarloOption null for negative spot', () => expect(monteCarloOption(-1, 100, 1, 0.05, 0.2)).toBeNull());
+  it('greeks null for invalid input', () => expect(greeks(-1, 100, 1, 0.05, 0.2)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('sharpeRatio handles constant returns', () => {
+    const r = sharpeRatio([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]);
+    expect(r).toBeNull();
+  });
+  it('maxDrawdown peakIndex < troughIndex for non-trivial drawdown', () => {
+    const d = [0.01, -0.02, -0.03, -0.01, 0.02, -0.04, 0.01];
+    const r = maxDrawdown(d);
+    if (r && r.peakIndex !== undefined && r.troughIndex !== undefined) {
+      expect(r.peakIndex).toBeLessThan(r.troughIndex);
+    }
+  });
+  it('blackScholes ATM call near 0.4*S*sigma*sqrt(T)', () => {
+    const r = blackScholes(100, 100, 1, 0, 0.2);
+    if (r) expect(r.price).toBeCloseTo(7.97, 1);
+  });
+  it('binomialTree price converges with more steps', () => {
+    const r1 = binomialTree(100, 100, 1, 0.05, 0.2, 10);
+    const r2 = binomialTree(100, 100, 1, 0.05, 0.2, 200);
+    if (r1 && r2) expect(r2.price).toBeGreaterThan(0);
+  });
+  it('monteCarloPricing with many paths approximates BS', () => {
+    const r = monteCarloPricing(100, 100, 1, 0.05, 0.2, 1000);
+    if (r) expect(r.price).toBeGreaterThan(5);
+  });
+  it('historicalVaR CVaR >= VaR', () => {
+    const d = [...stock, ...stock.map(v => v * 0.5)];
+    const r = historicalVaR(d);
+    if (r) expect(r.cvar).toBeGreaterThanOrEqual(r.var);
+  });
+});

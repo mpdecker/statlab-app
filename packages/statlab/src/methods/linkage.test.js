@@ -65,3 +65,24 @@ describe('deduplication', () => {
   it('null <2 records', () => expect(deduplication([records[0]], ['name'])).toBeNull());
   it('duplicates non-empty', () => { const r = deduplication(records, ['name','dob']); if (r) expect(r.duplicates.length).toBeGreaterThan(0); });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('jaroWinkler null for null strings', () => expect(jaroWinkler(null, 'a')).toBeNull());
+  it('jaroWinkler null for empty strings', () => expect(jaroWinkler('', '')).toBeNull());
+  it('levenshteinDistance null for null strings', () => expect(levenshteinDistance(null, 'a')).toBeNull());
+  it('fellegiSunter null for null pairs', () => expect(fellegiSunter(null)).toBeNull());
+  it('fellegiSunter null for empty pairs', () => expect(fellegiSunter([])).toBeNull());
+  it('recordBlocking null for null data', () => expect(recordBlocking(null, 'x')).toBeNull());
+  it('recordBlocking null for empty data', () => expect(recordBlocking([], 'x')).toBeNull());
+  it('matchThreshold null for mismatched lengths', () => expect(matchThreshold([1, 2], [1])).toBeNull());
+  it('probabilisticRecordLinkage null for empty arrays', () => expect(probabilisticRecordLinkage([], [])).toBeNull());
+  it('deduplication null for null records', () => expect(deduplication(null, ['name'])).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('jaroWinkler similarity 0 for completely different', () => { const r = jaroWinkler('abc', 'xyz'); expect(r.similarity).toBe(0); });
+  it('levenshteinDistance distance equals length for completely different', () => { const r = levenshteinDistance('abc', 'xyz'); expect(r.distance).toBe(3); });
+  it('fellegiSunter handles single pair', () => { const r = fellegiSunter([{ id: 1, agree: 5, compared: 5 }]); expect(r.nMatches).toBeGreaterThanOrEqual(0); });
+  it('deduplication handles no-duplicate data', () => { const r = deduplication([{ name: 'Alice', dob: '1990' }, { name: 'Bob', dob: '1991' }], ['name', 'dob']); expect(r.duplicates.length).toBe(0); });
+  it('matchThreshold with all-same scores', () => { const r = matchThreshold([0.5, 0.5, 0.5, 0.5], [0, 1, 0, 1]); expect(r.thresholds.length).toBeGreaterThan(0); });
+});

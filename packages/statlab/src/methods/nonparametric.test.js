@@ -509,3 +509,99 @@ describe('isotonicRegression', () => {
   it('null <3', () => expect(isotonicRegression([1,2])).toBeNull());
   it('fitted matches input length', () => { const r = isotonicRegression([1,2,3,2,4,5]); if (r) expect(r.fitted).toHaveLength(6); });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('ksTestOneSample rejects null/empty', () => {
+    expect(ksTestOneSample(null, () => 0)).toBeNull();
+    expect(ksTestOneSample([], () => 0)).toBeNull();
+  });
+  it('ksTestTwoSample rejects null/empty', () => {
+    expect(ksTestTwoSample(null, [1,2,3,4,5])).toBeNull();
+    expect(ksTestTwoSample([1,2,3,4,5], null)).toBeNull();
+  });
+  it('permutationTest rejects null', () => {
+    expect(permutationTest(null, [1,2,3], (a, b) => 0)).toBeNull();
+    expect(permutationTest([1,2,3], null, (a, b) => 0)).toBeNull();
+  });
+  it('runsTestWaldWolfowitz rejects null', () => {
+    expect(runsTestWaldWolfowitz(null)).toBeNull();
+    expect(runsTestWaldWolfowitz([])).toBeNull();
+  });
+  it('runsTestAboveBelowMedian rejects null', () => {
+    expect(runsTestAboveBelowMedian(null)).toBeNull();
+    expect(runsTestAboveBelowMedian([1,2])).toBeNull();
+  });
+  it('mannWhitney rejects null/too short', () => {
+    expect(mannWhitney([1], [2,3,4])).toBeNull();
+    expect(mannWhitney([1,2,3,4,5], [1])).toBeNull();
+    const r = mannWhitney([1,2,3], [4,5,6]);
+    expect(r).not.toBeNull();
+  });
+  it('wilcoxonSR rejects null', () => {
+    expect(wilcoxonSR([1,2])).toBeNull();
+    expect(wilcoxonSR([1,2,3])).toBeNull();
+    expect(wilcoxonSR([1,2,3,4])).toBeNull();
+  });
+  it('kde rejects null/empty', () => {
+    expect(kde(null)).toBeNull();
+    expect(kde([])).toBeNull();
+  });
+  it('nadarayaWatson rejects null/mismatch/short', () => {
+    expect(nadarayaWatson(null, [1,2,3])).toBeNull();
+    expect(nadarayaWatson([1,2], [1])).toBeNull();
+    expect(nadarayaWatson([1,2,3], [1,2,3])).toBeNull();
+  });
+  it('moodsMedian rejects null', () => {
+    expect(moodsMedian(null)).toBeNull();
+    expect(moodsMedian([])).toBeNull();
+  });
+  it('jonckheereTerpstra rejects null', () => {
+    expect(jonckheereTerpstra(null)).toBeNull();
+    expect(jonckheereTerpstra([])).toBeNull();
+  });
+  it('siegelTukey rejects null', () => {
+    expect(siegelTukey(null, [1,2,3,4,5])).toBeNull();
+    expect(siegelTukey([1,2,3,4,5], null)).toBeNull();
+  });
+  it('loessSmoother rejects null/mismatch', () => {
+    expect(loessSmoother(null, [1,2,3,4,5])).toBeNull();
+    expect(loessSmoother([1,2,3], [1,2])).toBeNull();
+  });
+  it('localPolynomial rejects null/mismatch', () => {
+    expect(localPolynomial(null, [1,2,3,4,5])).toBeNull();
+    expect(localPolynomial([1,2,3], [1,2])).toBeNull();
+  });
+  it('gcvBandwidth rejects null', () => {
+    expect(gcvBandwidth(null, [1,2,3,4,5])).toBeNull();
+    expect(gcvBandwidth([1,2,3], [1,2,3])).toBeNull();
+  });
+  it('kernelRegression rejects null/short', () => {
+    expect(kernelRegression(null, [1,2,3,4,5,6,7,8,9,10])).toBeNull();
+    expect(kernelRegression([1,2,3], [1,2,3])).toBeNull();
+  });
+  it('loessCV rejects null/short', () => {
+    expect(loessCV(null, [1,2,3,4,5,6,7,8,9,10])).toBeNull();
+    expect(loessCV([1,2,3], [1,2,3])).toBeNull();
+  });
+  it('isotonicRegression rejects null', () => {
+    expect(isotonicRegression(null)).toBeNull();
+    expect(isotonicRegression([])).toBeNull();
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('kde curve densities are non-negative and integrate roughly to 1', () => {
+    const vals = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const r = kde(vals, null, 100);
+    r.curve.forEach(p => expect(p.density).toBeGreaterThanOrEqual(0));
+    const step = r.curve[1].x - r.curve[0].x;
+    const integral = r.curve.reduce((s, p) => s + p.density * step, 0);
+    expect(integral).toBeCloseTo(1, 0);
+  });
+  it('permutationTest p between 0 and 1', () => {
+    const meanDiff = (a, b) => a.reduce((s, x) => s + x, 0) / a.length - b.reduce((s, x) => s + x, 0) / b.length;
+    const r = permutationTest(A, B, meanDiff, { nPerms: 200 });
+    expect(r.p).toBeGreaterThanOrEqual(0);
+    expect(r.p).toBeLessThanOrEqual(1);
+  });
+});

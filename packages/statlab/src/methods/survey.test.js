@@ -229,4 +229,64 @@ describe('multistageVariance', () => {
   it('nStrata matches', () => { const r = multistageVariance(d, 'strata', 'cluster', 'y'); if (r) expect(r.nStrata).toBeGreaterThan(0); });
 });
 describe('domainTotal', () => { it('is defined', () => expect(typeof domainTotal).toBe('function')); it('total finite', () => { const d = [{ y: 1, g: 'A' }, { y: 2, g: 'A' }, { y: 3, g: 'B' }, { y: 4, g: 'B' }, { y: 5, g: 'A' }]; const r = domainTotal(d, 'y', 'g'); if (r) expect(Number.isFinite(r.estimates[0].total)).toBe(true); }); it('estimates non-empty', () => { const d = [{ y: 1, g: 'A' }, { y: 2, g: 'A' }]; const r = domainTotal(d, 'y', 'g'); if (r) expect(r.estimates.length).toBeGreaterThan(0); }); });
-describe('nonresponseAdjustment', () => { it('is defined', () => expect(typeof nonresponseAdjustment).toBe('function')); it('weights non-empty', () => { const r = nonresponseAdjustment([1, 1, 0, 1, 0, 1, 1, 1, 0, 1]); if (r) expect(r.weights.length).toBeGreaterThan(0); }); it('weights match input length', () => { const r = nonresponseAdjustment([1, 1, 0, 1, 0, 1]); if (r) expect(r.weights.length).toBe(6); }); });
+describe('nonresponseAdjustment', () => { it('is defined', () => expect(typeof nonresponseAdjustment).toBe('function')); it('weights non-empty', () => { const r = nonresponseAdjustment([1, 1, 0, 1, 0, 1, 1, 1, 0, 1]); if (r) expect(r.weights.length).toBeGreaterThan(0); });   it('weights match input length', () => { const r = nonresponseAdjustment([1, 1, 0, 1, 0, 1]); if (r) expect(r.weights.length).toBe(6); }); });
+
+describe('hardening — invalid inputs', () => {
+  it('weightedMean null for null values', () => expect(weightedMean(null, [1, 1, 1])).toBeNull());
+  it('weightedMean null for null weights', () => expect(weightedMean([1, 2, 3], null)).toBeNull());
+  it('weightedMean null for mismatched lengths', () => expect(weightedMean([1, 2], [1])).toBeNull());
+  it('weightedVar null for null values', () => expect(weightedVar(null, [1, 2, 3])).toBeNull());
+  it('weightedVar null for null weights', () => expect(weightedVar([1, 2, 3], null)).toBeNull());
+  it('weightedQuantile null for null values', () => expect(weightedQuantile(null, [1, 1, 1])).toBeNull());
+  it('designEffect null for null', () => expect(designEffect(null)).toBeNull());
+  it('rakeWeights null for null weights', () => expect(rakeWeights(null, [{ cats: ['A'], targets: { A: 10 } }])).toBeNull());
+  it('calibrationWeights null for null weights', () => expect(calibrationWeights(null, [Array(10).fill(1)], [100])).toBeNull());
+  it('postStratification null for null data', () => expect(postStratification(null, [1, 1], 's', { A: 10 })).toBeNull());
+  it('weightedCorrelation null for null', () => expect(weightedCorrelation(null, [1, 2, 3], [1, 1, 1])).toBeNull());
+  it('effectiveSampleSize null for null', () => expect(effectiveSampleSize(null)).toBeNull());
+  it('brrWeights null for null', () => expect(brrWeights(null, 'strata', 'psu')).toBeNull());
+  it('jackknifeReplicates null for null', () => expect(jackknifeReplicates(null, 'strata', 'psu')).toBeNull());
+  it('fayReplicates null for null', () => expect(fayReplicates(null, 'strata', 'psu')).toBeNull());
+  it('taylorLinearization null for null', () => expect(taylorLinearization(null, 'y', [], 'strata', 'psu')).toBeNull());
+  it('designTotal null for null', () => expect(designTotal(null, [1, 1, 1])).toBeNull());
+  it('ppsSampling null for null', () => expect(ppsSampling(null, 3)).toBeNull());
+  it('systematicSample null for null', () => expect(systematicSample(null, 3)).toBeNull());
+  it('multistageVariance null for null', () => expect(multistageVariance(null, 'strata', 'cluster', 'y')).toBeNull());
+  it('domainTotal null for null', () => expect(domainTotal(null, 'y', 'g')).toBeNull());
+  it('nonresponseAdjustment null for null', () => expect(nonresponseAdjustment(null)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('weightedMean with uniform weights equals arithmetic mean', () => {
+    const r = weightedMean([1, 2, 3, 4, 5], [2, 2, 2, 2, 2]);
+    if (r) expect(r.mean).toBeCloseTo(3, 4);
+  });
+  it('weightedVar with constant values returns variance 0', () => {
+    const r = weightedVar([5, 5, 5, 5, 5], [1, 1, 1, 1, 1]);
+    if (r) expect(r.variance).toBeCloseTo(0, 4);
+  });
+  it('designEffect DEFF=1 for equal weights', () => {
+    const r = designEffect([1, 1, 1, 1, 1]);
+    if (r) expect(r.deff).toBeCloseTo(1, 2);
+  });
+  it('weightedCorrelation perfect positive linear relationship', () => {
+    const r = weightedCorrelation([1, 2, 3, 4, 5], [2, 4, 6, 8, 10], [1, 1, 1, 1, 1]);
+    if (r) expect(r.r).toBeCloseTo(1, 2);
+  });
+  it('effectiveSampleSize nEff <= n', () => {
+    const r = effectiveSampleSize([2, 3, 1, 4, 2]);
+    if (r) expect(r.nEff).toBeLessThanOrEqual(5);
+  });
+  it('ppsSampling sampleCount equals requested sample', () => {
+    const r = ppsSampling([10, 20, 30, 40, 50], 3);
+    if (r) expect(r.nSample).toBe(3);
+  });
+  it('systematicSample returns non-empty sample', () => {
+    const r = systematicSample([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 3);
+    if (r) expect(r.sample.length).toBeGreaterThan(0);
+  });
+  it('designEfffect nEff <= n for unequal weights', () => {
+    const r = designEffect([1, 2, 1, 3, 2, 1, 2, 3, 1, 4]);
+    if (r) expect(r.nEff).toBeLessThanOrEqual(10);
+  });
+});

@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { morrisMethod, fastSensitivity, modelComparison, forecastCombination, sobolFirstOrder, sobolTotalIndex, deltaMethod, andrewsPlot } from './sensitivity.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+const rs = ref.sensitivity;
 
 const X = [[1,2],[2,3],[3,4],[4,5],[5,6]];
 const model = x => x[0] + x[1] * 2;
@@ -36,4 +39,61 @@ describe('modelComparison uses a real F-distribution p-value', () => {
     const r = modelComparison(10, 1, 30, 1, 1); // F=10 on ~(28,28) df
     expect(r.p).toBeLessThan(0.01);
   });
+});
+
+describe('modelComparison oracle', () => {
+  it('f/df/p match oracle', () => {
+    const r = modelComparison(2.5, 3.0, 30, 2, 3);
+    expect(r.f).toBeCloseTo(rs.modelComparison_basic.f, 4);
+    expect(r.df1).toBe(rs.modelComparison_basic.df1);
+    expect(r.df2).toBe(rs.modelComparison_basic.df2);
+    expect(r.p).toBeCloseTo(rs.modelComparison_basic.p, 5);
+  });
+});
+
+describe('forecastCombination oracle', () => {
+  it('mse matches oracle', () => {
+    const fc = [[10, 12, 14, 16, 18], [11, 13, 15, 17, 19]];
+    const actual = [10, 12, 13, 15, 17];
+    const r = forecastCombination(fc, actual);
+    expect(r.mse).toBeCloseTo(rs.forecastCombination_basic.mse, 4);
+  });
+});
+
+describe('deltaMethod oracle', () => {
+  it('estimate and se match oracle', () => {
+    const fn = x => x[0] * x[1];
+    const r = deltaMethod([2, 3], [0.1, 0.2], fn);
+    expect(r.estimate).toBeCloseTo(rs.deltaMethod_basic.estimate, 4);
+    expect(r.se).toBeCloseTo(rs.deltaMethod_basic.se, 4);
+  });
+});
+
+describe('andrewsPlot oracle', () => {
+  it('first point of first curve matches oracle', () => {
+    const r = andrewsPlot(rs.andrewsPlot_basic.data, null, { nPts: rs.andrewsPlot_basic.nPts });
+    expect(r.curves[0].curve[0].t).toBeCloseTo(rs.andrewsPlot_basic.curve0first.t, 4);
+    expect(r.curves[0].curve[0].f).toBeCloseTo(rs.andrewsPlot_basic.curve0first.f, 4);
+  });
+  it('last point of first curve matches oracle', () => {
+    const r = andrewsPlot(rs.andrewsPlot_basic.data, null, { nPts: rs.andrewsPlot_basic.nPts });
+    expect(r.curves[0].curve[r.curves[0].curve.length - 1].t).toBeCloseTo(rs.andrewsPlot_basic.curve0last.t, 4);
+    expect(r.curves[0].curve[r.curves[0].curve.length - 1].f).toBeCloseTo(rs.andrewsPlot_basic.curve0last.f, 4);
+  });
+});
+
+describe('hardening — sensitivity edge cases', () => {
+  it('morrisMethod null for null model', () => expect(morrisMethod(null, X)).toBeNull());
+  it('morrisMethod reproducible', () => { const r1 = morrisMethod(model, X, { seed: 5 }); const r2 = morrisMethod(model, X, { seed: 5 }); expect(r1.effects[0].mu).toBe(r2.effects[0].mu); });
+  it('fastSensitivity null for null model', () => expect(fastSensitivity(null, X)).toBeNull());
+  it('fastSensitivity Si sum finite', () => { const r = fastSensitivity(model, X); if (r) { const sum = r.Si.reduce((s, v) => s + v, 0); expect(Number.isFinite(sum)).toBe(true); } });
+  it('modelComparison null for non-finite mse', () => expect(modelComparison(Infinity, 3, 30, 2, 3)).toBeNull());
+  it('forecastCombination null for null forecasts', () => expect(forecastCombination(null, [1,2,3,4,5])).toBeNull());
+  it('forecastCombination null for empty forecasts', () => expect(forecastCombination([], [1,2,3,4,5])).toBeNull());
+  it('sobolFirstOrder null for null model', () => expect(sobolFirstOrder(null, X)).toBeNull());
+  it('sobolFirstOrder indices between 0-1', () => { const r = sobolFirstOrder(model, X); if (r) r.Si.forEach(v => { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1); }); });
+  it('sobolTotalIndex null for small X', () => expect(sobolTotalIndex(model, [[1,2]], { nSamples: 5 })).toBeNull());
+  it('sobolTotalIndex reproducible', () => { const r1 = sobolTotalIndex(model, X, { nSamples: 10, seed: 3 }); const r2 = sobolTotalIndex(model, X, { nSamples: 10, seed: 3 }); expect(r1.totalIndices).toEqual(r2.totalIndices); });
+  it('deltaMethod null for mismatched lengths', () => { const f = x => x[0] * x[1]; expect(deltaMethod([2], [0.1, 0.2], f)).toBeNull(); });
+  it('andrewsPlot null for empty data', () => expect(andrewsPlot(null)).toBeNull());
 });

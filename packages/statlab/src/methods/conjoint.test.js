@@ -58,3 +58,19 @@ describe('choiceSimulation derives shares from utilities (not random)', () => {
     expect(shareBrand3).toBeGreaterThan(shareBrand1 * 3); // brand 3 (high part-worth) dominates
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('partWorthUtilities null for empty ratings', () => expect(partWorthUtilities([], profiles, ['brand', 'price'])).toBeNull());
+  it('partWorthUtilities null for null attrs', () => expect(partWorthUtilities(ratings, profiles, null)).toBeNull());
+  it('attributeImportance null for null result', () => expect(attributeImportance(null)).toBeNull());
+  it('attributeImportance null for empty object', () => expect(attributeImportance({})).toBeNull());
+  it('choiceSimulation null for empty profiles', () => expect(choiceSimulation([], ['brand'])).toBeNull());
+  it('orthogonalDesign null for mismatched levels', () => expect(orthogonalDesign(['A', 'B'], [2])).toBeNull());
+  it('marketSimulator null for null pwResult', () => { const pw = partWorthUtilities(ratings, profiles, ['brand', 'price', 'feature']); expect(marketSimulator(null, [{ brand: 1, price: 1 }])).toBeNull(); });
+});
+
+describe('hardening — degenerate data', () => {
+  it('partWorthUtilities handles constant ratings', () => { const r = partWorthUtilities([5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], profiles, ['brand', 'price', 'feature']); expect(r).not.toBeNull(); });
+  it('choiceSimulation null for single-attr profiles', () => expect(choiceSimulation(profiles, ['brand'])).toBeNull());
+  it('attributeImportance handles single-attribute result', () => { const r = partWorthUtilities(ratings, profiles, ['brand', 'price']); if (r) { const imp = attributeImportance(r); expect(imp.importance.length).toBe(2); } });
+});
