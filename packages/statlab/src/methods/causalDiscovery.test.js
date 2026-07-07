@@ -101,6 +101,22 @@ describe('fciAlgorithm orients colliders (real FCI, not a bare skeleton)', () =>
   });
   it('does not mark a collider in a chain', () => {
     const r = fciAlgorithm(gen('chain', 5), ['x1', 'x2', 'x3']);
-    expect(r.colliders).not.toContain(1); // x2 is a mediator, not a collider
+    expect(r.colliders).not.toContain(1);
   });
+});
+
+describe('hardening — causal discovery edge cases', () => {
+  it('partialCorrTest null for null data', () => expect(partialCorrTest(null, ['x1','x2','x3'], 'x1', 'x2', ['x3'])).toBeNull());
+  it('partialCorrTest null for empty vars', () => expect(partialCorrTest(d, [], 'x1', 'x2', [])).toBeNull());
+  it('skeletonPhase null for null data', () => expect(skeletonPhase(null, ['x1','x2','x3'])).toBeNull());
+  it('skeletonPhase handles single var', () => expect(skeletonPhase(d, ['x1'])).toBeNull());
+  it('colliderDetection null for null edges', () => expect(colliderDetection(null, 3)).toBeNull());
+  it('colliderDetection null for empty edges', () => expect(colliderDetection([], 3)).toBeNull());
+  it('dagAdjacency null for null skeleton', () => expect(dagAdjacency(null, [])).toBeNull());
+  it('pcAlgorithm null for null data', () => expect(pcAlgorithm(null, ['x1','x2','x3'])).toBeNull());
+  it('pcAlgorithm null for <3*vars rows', () => expect(pcAlgorithm(d.slice(0, 5), ['x1','x2','x3'])).toBeNull());
+  it('lingam null for null data', () => expect(lingam(null, ['x1','x2','x3'])).toBeNull());
+  it('lingam null for <3 vars', () => expect(lingam(d, ['x1','x2'])).toBeNull());
+  it('fciAlgorithm null for null data', () => expect(fciAlgorithm(null, ['x1','x2','x3'])).toBeNull());
+  it('fciAlgorithm null for <3 vars', () => expect(fciAlgorithm(d, ['x1','x2'])).toBeNull());
 });

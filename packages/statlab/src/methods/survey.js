@@ -1,5 +1,6 @@
 import { avg } from '../math/core.js';
 import { mulberry32 } from '../math/rng.js';
+import { solveNormalEquations } from '../math/matrix.js';
 
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 

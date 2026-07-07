@@ -160,3 +160,25 @@ describe('beliefPropagation (real sum-product)', () => {
     expect(mA.probs[mA.states.indexOf('0')]).toBeCloseTo(0.7, 5);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('markovBlanket null for null edges', () => expect(markovBlanket(null, 1)).toBeNull());
+  it('beliefPropagation null for empty vars', () => expect(beliefPropagation([], [], {})).toBeNull());
+  it('factorGraph null for null vars', () => expect(factorGraph(null, [[0, 1]])).toBeNull());
+  it('bicScore null for empty data', () => expect(bicScore([], ['a'], [])).toBeNull());
+  it('dseparation null for null edges', () => expect(dseparation(null, 0, 1)).toBeNull());
+  it('variableElimination null for empty factors', () => expect(variableElimination([], ['X'])).toBeNull());
+  it('treeWidth null for nVars<2', () => expect(treeWidth([], 1)).toBeNull());
+  it('junctionTree null for nVars<2', () => expect(junctionTree([], 1)).toBeNull());
+  it('hillClimbing null for <3 vars', () => { const d = [{ a: 1 }, { a: 2 }]; expect(hillClimbing(d, ['a'])).toBeNull(); });
+  it('cpdag null for nVars<2', () => expect(cpdag([], 1)).toBeNull());
+  it('dSeparationQuery null for null edges', () => expect(dSeparationQuery(null, 3, 0, 1)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('markovBlanket null for single-edge graph', () => expect(markovBlanket([{ from: 0, to: 1 }], 0)).toBeNull());
+  it('treeWidth for complete graph', () => { const e = [[0, 1], [0, 2], [1, 2]]; expect(treeWidth(e, 3).treewidth).toBeGreaterThanOrEqual(1); });
+  it('junctionTree for disconnected graph', () => { const edges = [[0, 1]]; const r = junctionTree(edges, 3); expect(r).not.toBeNull(); });
+  it('scoringBDeu handles constant data', () => { const d = [{ x1: 0, x2: 0 }, { x1: 0, x2: 0 }]; const r = scoringBDeu(d, ['x1', 'x2'], [{ from: 0, to: 1 }]); expect(Number.isFinite(r.score)).toBe(true); });
+  it('dseparation on chain', () => { const r = dseparation([{ from: 0, to: 1 }, { from: 1, to: 2 }], 0, 2, [1]); expect(r.dSeparated).toBe(true); });
+});

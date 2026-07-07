@@ -159,7 +159,6 @@ export function ordinaryKriging(points, valueField, predictPoints, { variogram =
       range = maxD * 0.6 || 1;
       nugget = sill * 0.1;
     }
-    ({ nugget, sill, range } = { nugget, sill, range });
   }
 
   function sphericalCov(h) {

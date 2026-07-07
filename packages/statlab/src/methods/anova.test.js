@@ -5,6 +5,7 @@ import {
   rmANOVA, kruskalWallis, friedman, cochranQ,
   hedgesG, cohensD, gamesHowell, dunnettTest, eta2Partial, omega2Partial,
 } from './anova.js';
+import { mkTabular } from './fixtures/core.js';
 import ref from './__fixtures__/reference.json' with { type: 'json' };
 import { expectKeys } from './__fixtures__/helpers.js';
 
@@ -481,5 +482,71 @@ describe('omega2Partial', () => {
     const r = omega2Partial(25, 4, 2, 47, 50);
     expect(typeof r.apa).toBe('string');
     expect(r.apa.length).toBeGreaterThan(0);
+  });
+});
+
+describe('hardening — invalid inputs', () => {
+  it('rmANOVA rejects empty matrix', () => {
+    expect(rmANOVA([])).toBeNull();
+    expect(rmANOVA([[]])).toBeNull();
+  });
+
+  it('welchANOVA rejects singleton groups', () => {
+    expect(welchANOVA([{ name: 'A', vals: [1] }, { name: 'B', vals: [2, 3] }])).toBeNull();
+  });
+
+  it('cochranQ rejects zero denominator', () => {
+    expect(cochranQ(Array.from({ length: 6 }, () => [0, 0]))).toBeNull();
+  });
+});
+
+describe('hardening — degenerate data', () => {
+  it('twoWayANOVA null on constant response', () => {
+    const rows = mkTabular(24).map(r => ({ ...r, a: r.group, b: r.cat1, y: 5 }));
+    expect(twoWayANOVA(rows, 'a', 'b', 'y')).toBeNull();
+  });
+});
+
+describe('hardening — oneWayANOVA invalid inputs', () => {
+  it('returns null for empty groups array', () => {
+    expect(oneWayANOVA([])).toBeNull();
+  });
+
+  it('returns null for single group', () => {
+    expect(oneWayANOVA([mkGroup('A', [1, 2, 3])])).toBeNull();
+  });
+});
+
+describe('hardening — ancova invalid inputs', () => {
+  it('returns null for mismatched covariate lengths', () => {
+    expect(ancova([mkGroup('A', [1, 2, 3]), mkGroup('B', [4, 5, 6])], [[1, 2], [3]])).toBeNull();
+  });
+
+  it('returns null for single covariate value', () => {
+    expect(ancova([mkGroup('A', [1, 2]), mkGroup('B', [3, 4])], [[1, 2], [3, 4]])).not.toBeNull();
+  });
+});
+
+describe('hardening — friedman invalid inputs', () => {
+  it('returns null for empty matrix', () => {
+    expect(friedman([])).toBeNull();
+  });
+
+  it('returns null for empty nested matrix', () => {
+    expect(friedman([[]])).toBeNull();
+  });
+
+  it('returns null for single row', () => {
+    expect(friedman([[1, 2, 3]])).toBeNull();
+  });
+});
+
+describe('hardening — kruskalWallis invalid inputs', () => {
+  it('returns null for empty groups', () => {
+    expect(kruskalWallis([])).toBeNull();
+  });
+
+  it('returns null for single group', () => {
+    expect(kruskalWallis([mkGroup('A', [1, 2, 3])])).toBeNull();
   });
 });

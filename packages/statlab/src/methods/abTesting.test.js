@@ -65,3 +65,40 @@ describe('multiArmBandit uses real Beta sampling and arm-specific rewards', () =
     expect(r.values[1]).toBeGreaterThan(0.6);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('sampleRatioMismatch rejects null/empty', () => {
+    expect(sampleRatioMismatch(null, trt, 0.5)).toBeNull();
+    expect(sampleRatioMismatch([], trt, 0.5)).toBeNull();
+    expect(sampleRatioMismatch(ctrl, null, 0.5)).toBeNull();
+  });
+  it('minimumDetectableEffect rejects invalid n/baseline', () => {
+    expect(minimumDetectableEffect(0)).toBeNull();
+    expect(minimumDetectableEffect(1)).toBeNull();
+    expect(minimumDetectableEffect(100, 0.05, 0.2, 0)).toBeNull();
+    expect(minimumDetectableEffect(100, 0.05, 0.2, 1)).toBeNull();
+    expect(minimumDetectableEffect(100, 0.05, 0.2, -0.1)).toBeNull();
+  });
+  it('requiredSampleSize rejects invalid baseline/mde', () => {
+    expect(requiredSampleSize(0, 0.1)).toBeNull();
+    expect(requiredSampleSize(0.5, 0)).toBeNull();
+    expect(requiredSampleSize(-0.1, 0.1)).toBeNull();
+    expect(requiredSampleSize(0.5, -0.05)).toBeNull();
+    expect(requiredSampleSize(1, 0.1)).toBeNull();
+  });
+});
+
+describe('hardening — reproducibility', () => {
+  it('bayesianABTest is reproducible with seed', () => {
+    const a = [10, 11, 12, 13, 14, 15, 16];
+    const b = [9, 10, 11, 12, 13, 14, 15];
+    const r1 = bayesianABTest(a, b, { seed: 42, nSim: 200 });
+    const r2 = bayesianABTest(a, b, { seed: 42, nSim: 200 });
+    expect(r1.probB).toBe(r2.probB);
+  });
+  it('multiArmBandit is reproducible with seed', () => {
+    const r1 = multiArmBandit([0.3, 0.5, 0.2, 0.4], { seed: 42, iterations: 100 });
+    const r2 = multiArmBandit([0.3, 0.5, 0.2, 0.4], { seed: 42, iterations: 100 });
+    expect(r1.values).toEqual(r2.values);
+  });
+});

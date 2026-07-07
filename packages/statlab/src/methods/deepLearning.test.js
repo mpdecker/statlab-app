@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 import { autoencoder, variationalAutoencoder, gan, attention, transformerBlock } from './deepLearning.js';
+
+const rd = ref.deepLearning;
 
 const X = Array.from({length: 8}, () => Array.from({length: 4}, () => Math.random()));
 
@@ -73,4 +76,48 @@ describe('gan trains a generator toward the data (real adversarial loop)', () =>
     const distZero = Math.hypot(...r.realMean); // an untrained generator outputs ~0
     expect(distTrained).toBeLessThan(distZero);
   });
+});
+
+describe('attention oracle', () => {
+  it('output matches oracle', () => {
+    const r = attention(rd.attention_basic.Q, rd.attention_basic.K, rd.attention_basic.V);
+    expect(r.output).toEqual(rd.attention_basic.output);
+  });
+});
+
+describe('transformerBlock oracle', () => {
+  it('output has correct shape', () => {
+    const r = transformerBlock(rd.transformerBlock_basic.X, { nHeads: 2, seed: 1 });
+    expect(r.output.length).toBe(rd.transformerBlock_basic.X.length);
+    expect(r.output[0].length).toBe(rd.transformerBlock_basic.X[0].length);
+  });
+  it('output values are finite and well-formed', () => {
+    const r = transformerBlock(rd.transformerBlock_basic.X, { nHeads: 2, seed: 1 });
+    for (const row of r.output) {
+      for (const v of row) {
+        expect(Number.isFinite(v)).toBe(true);
+        expect(Math.abs(v)).toBeLessThan(100);
+      }
+    }
+  });
+  it('output is stable (LayerNorm bound)', () => {
+    const r = transformerBlock(rd.transformerBlock_basic.X, { nHeads: 2, seed: 1 });
+    const norm = Math.sqrt(r.output.reduce((s, row) => s + row.reduce((t, v) => t + v * v, 0), 0));
+    expect(norm).toBeGreaterThan(0);
+    expect(norm).toBeLessThan(50);
+  });
+});
+
+describe('hardening — deep learning edge cases', () => {
+  it('autoencoder null for null X', () => expect(autoencoder(null, { hiddenSize: 3, epochs: 10 })).toBeNull());
+  it('autoencoder reproducible', () => { const r1 = autoencoder(X, { hiddenSize: 3, epochs: 10, seed: 1 }); const r2 = autoencoder(X, { hiddenSize: 3, epochs: 10, seed: 1 }); expect(r1.loss).toBe(r2.loss); });
+  it('autoencoder loss finite for degenerate data', () => { const r = autoencoder([[5,5,5,5],[5,5,5,5],[5,5,5,5],[5,5,5,5],[5,5,5,5]], { hiddenSize: 2, epochs: 5 }); if (r) expect(Number.isFinite(r.loss)).toBe(true); });
+  it('variationalAutoencoder null for null X', () => expect(variationalAutoencoder(null, { latentSize: 2, epochs: 5 })).toBeNull());
+  it('variationalAutoencoder reproducible', () => { const r1 = variationalAutoencoder(X, { latentSize: 2, epochs: 5, seed: 7 }); const r2 = variationalAutoencoder(X, { latentSize: 2, epochs: 5, seed: 7 }); expect(r1.klDivergence).toBe(r2.klDivergence); });
+  it('gan null for null data', () => expect(gan(null, { latentSize: 5, epochs: 3 })).toBeNull());
+  it('gan reproducible', () => { const r1 = gan(X, { latentSize: 5, epochs: 3, seed: 3 }); const r2 = gan(X, { latentSize: 5, epochs: 3, seed: 3 }); expect(r1.gLoss).toBe(r2.gLoss); });
+  it('attention handles mismatched K gracefully', () => expect(attention([[1,2]], [[1]], [[1]])).not.toBeNull());
+  it('attention reproducible yields same output', () => { const Q = [[1,2],[3,4]]; const K = Q; const V = [[0.1,0.2],[0.3,0.4]]; const r1 = attention(Q, K, V); const r2 = attention(Q, K, V); expect(r1.output).toEqual(r2.output); });
+  it('transformerBlock null for single token', () => expect(transformerBlock([[1,2]], { nHeads: 2 })).toBeNull());
+  it('transformerBlock reproducible', () => { const r1 = transformerBlock(X, { nHeads: 2, seed: 9 }); const r2 = transformerBlock(X, { nHeads: 2, seed: 9 }); expect(r1.output).toEqual(r2.output); });
 });

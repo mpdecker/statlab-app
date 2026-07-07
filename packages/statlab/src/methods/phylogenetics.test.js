@@ -112,3 +112,22 @@ describe('pglsRegression actually uses the phylogenetic tree (regression test fo
     expect(r.beta[1]).toBeCloseTo(e.beta[1], 3);
   });
 });
+
+describe('hardening — phylogenetics edge cases', () => {
+  it('independentContrasts null for null tree', () => expect(independentContrasts(null, trait)).toBeNull());
+  it('independentContrasts null for <5 trait values', () => expect(independentContrasts(tree, [1,2,3,4])).toBeNull());
+  it('pagelsLambda null for null trait', () => expect(pagelsLambda(null, tree)).toBeNull());
+  it('pagelsLambda null for <5 trait values', () => expect(pagelsLambda([1,2,3], tree)).toBeNull());
+  it('blombergK null for null trait', () => expect(blombergK(null, tree)).toBeNull());
+  it('blombergK null for <5 values', () => expect(blombergK([1,2,3,4], tree)).toBeNull());
+  it('phylogeneticSignal null for null trait', () => expect(phylogeneticSignal(null, tree)).toBeNull());
+  it('phylogeneticSignal null for <5 values', () => expect(phylogeneticSignal([1,2], tree)).toBeNull());
+  it('picCorrelation null for null trait1', () => expect(picCorrelation(null, trait2, tree)).toBeNull());
+  it('picCorrelation null for mismatched lengths', () => expect(picCorrelation([1,2],[3,4,5], tree)).toBeNull());
+  it('pglsRegression null for null data', () => expect(pglsRegression(null, 'x', 'y', 0.5)).toBeNull());
+  it('pglsRegression null for missing xVar', () => { const d = [{x:1,y:2}]; expect(pglsRegression(d, '', 'y')).toBeNull(); });
+  it('diversificationRate null for null branchLengths', () => expect(diversificationRate(null)).toBeNull());
+  it('diversificationRate null for <5 branches', () => expect(diversificationRate([1,2,3,4])).toBeNull());
+  it('ouTraitModel null for null data', () => expect(ouTraitModel(null, 'trait')).toBeNull());
+  it('ouTraitModel null for <5 rows', () => { const d = []; for (let i = 0; i < 3; i++) d.push({ trait: i }); expect(ouTraitModel(d, 'trait')).toBeNull(); });
+});

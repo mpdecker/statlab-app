@@ -791,3 +791,111 @@ describe('generalizedProcrustes', () => {
     if (r) expect(r.nMatrices).toBe(2);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('metaAnalysis rejects bad se', () => {
+    expect(metaAnalysis([{ label: 'a', d: 0.5, se: 0 }, { label: 'b', d: 0.3, se: 0.2 }])).toBeNull();
+  });
+
+  it('convertEffectSize rejects singular inputs', () => {
+    expect(convertEffectSize('r', '1')).toBeNull();
+    expect(convertEffectSize('OR', '0')).toBeNull();
+    expect(convertEffectSize('eta2', '1')).toBeNull();
+  });
+
+  it('differencesInDifferences requires equal group lengths', () => {
+    expect(differencesInDifferences([1, 2], [3, 4, 5], [1, 2], [3, 4])).toBeNull();
+  });
+});
+
+describe('hardening — degenerate data', () => {
+  it('cohensKappa handles perfect agreement', () => {
+    expect(cohensKappa(['A', 'A'], ['A', 'A'])?.kappa).toBe(1);
+  });
+
+  it('pca null when zero total variance', () => {
+    const rows = Array.from({ length: 10 }, () => ({ x: 1, y: 2 }));
+    expect(pca(rows, ['x', 'y'])).toBeNull();
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('metaAnalysis I2 finite when Q=0', () => {
+    const r = metaAnalysis([
+      { label: 'a', d: 0.5, se: 0.1 },
+      { label: 'b', d: 0.5, se: 0.1 },
+    ]);
+    expect(Number.isFinite(r.I2)).toBe(true);
+  });
+});
+
+describe('hardening — manova invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => manova(null, ['y1', 'y2'], 'species')).toThrow();
+  });
+
+  it('returns null for empty vars', () => {
+    const d = [{ species: 'A', y1: 1, y2: 2 }];
+    expect(manova(d, [], 'species')).toBeNull();
+  });
+});
+
+describe('hardening — canonicalCorr invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => canonicalCorr(null, ['x1'], ['y1'])).toThrow();
+  });
+});
+
+describe('hardening — linearDiscriminant invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => linearDiscriminant(null, 'grp', ['x1', 'x2'])).toThrow();
+  });
+});
+
+describe('hardening — metaRegression invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => metaRegression(null, [1, 2], 'X')).toThrow();
+  });
+});
+
+describe('hardening — eggersTest invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => eggersTest(null)).toThrow();
+  });
+});
+
+describe('hardening — trimAndFill invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => trimAndFill(null)).toThrow();
+  });
+});
+
+describe('hardening — mardiaTest invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(mardiaTest(null, ['x1', 'x2'])).toBeNull();
+  });
+});
+
+describe('hardening — henzeZirkler invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(henzeZirkler(null, ['x1', 'x2'])).toBeNull();
+  });
+});
+
+describe('hardening — mahalanobisDistance invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(mahalanobisDistance(null, ['x1', 'x2'])).toBeNull();
+  });
+});
+
+describe('hardening — bartlettSphericity invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(bartlettSphericity(null, ['x1', 'x2'])).toBeNull();
+  });
+});
+
+describe('hardening — boxMTest invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(boxMTest(null, 'grp', ['x1', 'x2'])).toBeNull();
+  });
+});

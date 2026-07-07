@@ -51,3 +51,40 @@ describe('heatmapData', () => {
   it('null empty', () => expect(heatmapData([])).toBeNull());
   it('scaled data has correct dimensions', () => { const r = heatmapData(M); if (r) { expect(r.data.length).toBe(M.length); expect(r.data[0].length).toBe(M[0].length) } });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('enrichmentAnalysis null for zero overlap', () => expect(enrichmentAnalysis(200, 10000, 50, 0, 20000)).toBeNull());
+  it('enrichmentAnalysis null for overlap > geneset', () => expect(enrichmentAnalysis(200, 10000, 50, 60, 20000)).toBeNull());
+  it('enrichmentAnalysis null for null inputs', () => expect(enrichmentAnalysis(null, 10000, 50, 15, 20000)).toBeNull());
+  it('volcanoTest null for mismatched lengths', () => expect(volcanoTest([1, 2, 3, 4], [0.1, 0.2])).toBeNull());
+  it('volcanoTest null for null input', () => expect(volcanoTest(null, [0.1, 0.2, 0.3, 0.4])).toBeNull());
+  it('foldChange null for null input', () => expect(foldChange(null, [1, 2, 3])).toBeNull());
+  it('foldChange null for mismatched sizes', () => expect(foldChange([1, 2, 3], [4, 5])).toBeNull());
+  it('fdrCorrection null for empty array', () => expect(fdrCorrection([])).toBeNull());
+  it('fdrCorrection null for null', () => expect(fdrCorrection(null)).toBeNull());
+  it('heatmapData null for null', () => expect(heatmapData(null)).toBeNull());
+  it('heatmapData handles empty rows gracefully', () => expect(heatmapData([[], []])).not.toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('enrichmentAnalysis handles large numbers', () => {
+    const r = enrichmentAnalysis(200, 10000, 50, 15, 20000);
+    if (r) { expect(r.oddsRatio).toBeGreaterThan(0); }
+  });
+  it('volcanoTest with constant logFC returns finite', () => {
+    const r = volcanoTest([1, 1, 1, 1], [0.1, 0.2, 0.3, 0.4]);
+    if (r) { expect(r.nSig).toBeGreaterThanOrEqual(0); expect(r.results.length).toBe(4); }
+  });
+  it('foldChange with equal groups has tStat near 0', () => {
+    const r = foldChange([10, 12, 14, 16, 18], [10, 12, 14, 16, 18]);
+    if (r) expect(Math.abs(r.tStat)).toBeLessThan(0.1);
+  });
+  it('fdrCorrection with all-large p-values yields nSig = 0', () => {
+    const r = fdrCorrection([0.9, 0.8, 0.7, 0.6, 0.5]);
+    expect(r.nSig).toBe(0);
+  });
+  it('heatmapData with single row returns correct dimensions', () => {
+    const r = heatmapData([[1, 2, 3]]);
+    if (r) { expect(r.data.length).toBe(1); expect(r.h).toBe(1); expect(r.w).toBe(3); }
+  });
+});

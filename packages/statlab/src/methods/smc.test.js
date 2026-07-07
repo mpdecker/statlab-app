@@ -90,3 +90,63 @@ describe('bootstrapFilter and auxiliaryPF track an independent grid-based (non-M
     e.exactFilteredMeans.forEach((m, i) => expect(Math.abs(r.filtered[i] - m)).toBeLessThan(0.15));
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('bootstrapFilter rejects null/short y', () => {
+    expect(bootstrapFilter(null, init)).toBeNull();
+    expect(bootstrapFilter([1, 2], init)).toBeNull();
+    expect(bootstrapFilter(y, null)).toBeNull();
+  });
+  it('auxiliaryPF rejects null/short', () => {
+    expect(auxiliaryPF(null, init)).toBeNull();
+    expect(auxiliaryPF(y, null)).toBeNull();
+  });
+  it('importanceSampling rejects null target/proposal, too few samples', () => {
+    expect(importanceSampling(null, [-3, 3], 100)).toBeNull();
+    expect(importanceSampling(x => 1, [-3, 3], 5)).toBeNull();
+  });
+  it('effectiveSampleSizeSMC rejects null/empty/sum-zero weights', () => {
+    expect(effectiveSampleSizeSMC(null)).toBeNull();
+    expect(effectiveSampleSizeSMC([])).toBeNull();
+    expect(effectiveSampleSizeSMC([0, 0])).toBeNull();
+  });
+  it('multinomialResampleExport rejects null/mismatch', () => {
+    expect(multinomialResampleExport(null, [0.3, 0.4, 0.3])).toBeNull();
+    expect(multinomialResampleExport([1, 2], [1])).toBeNull();
+    expect(multinomialResampleExport([], [0.5])).toBeNull();
+  });
+  it('particleMCMC rejects null prior/likelihood, too few particles', () => {
+    expect(particleMCMC(null, () => 0)).toBeNull();
+    expect(particleMCMC(() => [], null)).toBeNull();
+    expect(particleMCMC(() => [], () => 0, { nParticles: 5 })).toBeNull();
+  });
+  it('annealedImportance rejects null target/proposal, too few samples', () => {
+    expect(annealedImportance(null, () => 0)).toBeNull();
+    expect(annealedImportance(() => -1, null)).toBeNull();
+    expect(annealedImportance(() => -1, () => 0, { nSamples: 3 })).toBeNull();
+  });
+});
+
+describe('hardening — reproducibility', () => {
+  it('bootstrapFilter reproducible with seed', () => {
+    const r1 = bootstrapFilter(y, init, { seed: 42 });
+    const r2 = bootstrapFilter(y, init, { seed: 42 });
+    expect(r1.filtered).toEqual(r2.filtered);
+  });
+  it('auxiliaryPF reproducible with seed', () => {
+    const r1 = auxiliaryPF(y, init, { seed: 42 });
+    const r2 = auxiliaryPF(y, init, { seed: 42 });
+    expect(r1.filtered).toEqual(r2.filtered);
+  });
+  it('importanceSampling reproducible with seed', () => {
+    const fn = x => Math.exp(-x * x);
+    const r1 = importanceSampling(fn, [-3, 3], 100, 42);
+    const r2 = importanceSampling(fn, [-3, 3], 100, 42);
+    expect(r1.estimate).toBe(r2.estimate);
+  });
+  it('multinomialResampleExport reproducible with seed', () => {
+    const r1 = multinomialResampleExport([1, 2, 3], [0.3, 0.4, 0.3], 42);
+    const r2 = multinomialResampleExport([1, 2, 3], [0.3, 0.4, 0.3], 42);
+    expect(r1.resampled).toEqual(r2.resampled);
+  });
+});

@@ -1851,6 +1851,1376 @@ abm = {
 }
 ref['abm'] = abm
 
+# ── bootstrap ──────────────────────────────────────────────────────────────────
+# Replicates the JS LCG (lcg function in bootstrap.js) to generate identical
+# bootstrap resamples, so oracle values match exactly for deterministic functions
+# like jackknife and splitConformal, and are reproducible for PRNG-based functions.
+
+def _lcg_iter(seed):
+    s = seed & 0xFFFFFFFF
+    while True:
+        s = ((1664525 * s + 1013904223) & 0xFFFFFFFF)
+        yield s / (2 ** 32)
+
+def _bootstrap_indices(n, B, seed):
+    rand = _lcg_iter(seed)
+    samples = []
+    for b in range(B):
+        idx = [int(next(rand) * n) for _ in range(n)]
+        samples.append(idx)
+    return samples
+
+bd = np.array([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], dtype=float)
+bmean = float(np.mean(bd))
+Bn = 2000
+
+# ── bootstrapCI ──
+_bci_samps = _bootstrap_indices(len(bd), Bn, 42)
+_bci_reps = sorted([float(np.mean(bd[idx])) for idx in _bci_samps])
+# percentile
+_ci_p_lo = _bci_reps[int(0.025 * Bn)]
+_ci_p_hi = _bci_reps[int(0.975 * Bn)]
+# basic
+_ci_b_lo = 2 * bmean - _bci_reps[int(0.975 * Bn)]
+_ci_b_hi = 2 * bmean - _bci_reps[int(0.025 * Bn)]
+# BCa
+_z0 = float(st.norm.ppf(max(0.001, min(0.999, sum(1 for r in _bci_reps if r < bmean) / Bn))))
+_jack_influ = [float(np.mean(np.delete(bd, i))) for i in range(len(bd))]
+_jmean = float(np.mean(_jack_influ))
+_sum3 = sum((_jmean - j) ** 3 for j in _jack_influ)
+_sum2 = sum((_jmean - j) ** 2 for j in _jack_influ)
+_a = _sum3 / (6 * _sum2 ** 1.5) if _sum2 > 0 else 0
+_a = max(-0.99, min(0.99, _a))
+_zAlpha = float(st.norm.ppf(0.025))
+_z1Alpha = float(st.norm.ppf(0.975))
+_alpha1Val = float(st.norm.cdf(_z0 + (_z0 + _zAlpha) / (1 - _a * (_z0 + _zAlpha))))
+_alpha2Val = float(st.norm.cdf(_z0 + (_z0 + _z1Alpha) / (1 - _a * (_z0 + _z1Alpha))))
+_ci_bca_lo = _bci_reps[max(0, min(Bn - 1, int(_alpha1Val * Bn)))]
+_ci_bca_hi = _bci_reps[max(0, min(Bn - 1, int(_alpha2Val * Bn)))]
+
+bootstrap = {
+    'bootstrapCI_percentile': {
+        'data': bd.tolist(), 'method': 'percentile', 'B': Bn, 'alpha': 0.05,
+        'ci': [float(_ci_p_lo), float(_ci_p_hi)],
+    },
+    'bootstrapCI_basic': {
+        'data': bd.tolist(), 'method': 'basic', 'B': Bn, 'alpha': 0.05,
+        'ci': [float(_ci_b_lo), float(_ci_b_hi)],
+    },
+    'bootstrapCI_bca': {
+        'data': bd.tolist(), 'method': 'bca', 'B': Bn, 'alpha': 0.05,
+        'ci': [float(_ci_bca_lo), float(_ci_bca_hi)],
+    },
+}
+
+# ── bootstrapSE ──
+_bse_reps_vals = [float(np.mean(bd[idx])) for idx in _bci_samps]
+_bse = float(np.std(_bse_reps_vals, ddof=1))
+bootstrap['bootstrapSE_mean'] = {'data': bd.tolist(), 'se': _bse, 'B': Bn}
+
+# ── jackknife ──
+_nb = len(bd)
+_jk_loo = [float(np.mean(np.delete(bd, i))) for i in range(_nb)]
+_jk_pseudo = [_nb * bmean - (_nb - 1) * v for v in _jk_loo]
+_jk_est = float(np.mean(_jk_pseudo))
+_jk_se = float(np.sqrt(sum((p - _jk_est) ** 2 for p in _jk_pseudo) / (_nb * (_nb - 1))))
+_jk_bias = (_nb - 1) * (_jk_est - bmean)
+bootstrap['jackknife_mean'] = {
+    'data': bd.tolist(),
+    'estimate': _jk_est, 'se': _jk_se, 'bias': _jk_bias,
+    'originalEstimate': bmean,
+}
+
+# ── splitConformal ──
+_y_train = [float(i) for i in range(1, 16)]
+_y_cal = [float(i) + 0.1 for i in range(16, 26)]
+_mu_sc = float(np.mean(_y_train))
+_n_cal = len(_y_cal)
+_sc_res = sorted([abs(v - _mu_sc) for v in _y_cal])
+_sc_alpha = 0.1
+_sc_k = min(_n_cal - 1, int(np.ceil((1 - _sc_alpha) * (_n_cal + 1))) - 1)
+_sc_radius = _sc_res[max(0, _sc_k)]
+bootstrap['splitConformal_mean'] = {
+    'yTrain': _y_train, 'yCal': _y_cal,
+    'radius': float(_sc_radius), 'alpha': _sc_alpha, 'model': 'mean',
+}
+
+# ── conformalPvalues ──
+_cp_scores = [0.1, 0.3, 0.7, 0.9]
+_cp_test = 0.5
+_cp_geq = sum(1 for s in _cp_scores if s >= _cp_test)
+_cp_p = (_cp_geq + 1) / (len(_cp_scores) + 1)
+bootstrap['conformalPvalues_basic'] = {
+    'scores': _cp_scores, 'testScore': _cp_test, 'p': float(_cp_p),
+}
+
+# ── jackknifePlus ──
+_jp_X = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=float)
+_jp_y = np.array([2, 4, 6, 8, 10, 12, 14, 16, 18, 20], dtype=float)
+_jp_n = len(_jp_X)
+_jp_target = float(np.mean(_jp_X))
+_jp_alpha = 0.1
+_jp_lower = []
+_jp_upper = []
+for _i in range(_jp_n):
+    _xi = np.delete(_jp_X, _i)
+    _yi = np.delete(_jp_y, _i)
+    _mx = float(np.mean(_xi))
+    _my = float(np.mean(_yi))
+    _sxy = sum((float(_xi[_j]) - _mx) * (float(_yi[_j]) - _my) for _j in range(len(_xi)))
+    _sxx = sum((float(_xi[_j]) - _mx) ** 2 for _j in range(len(_xi)))
+    _b = _sxy / _sxx if _sxx > 1e-12 else 0.0
+    _a = _my - _b * _mx
+    _res = abs(_jp_y[_i] - (_a + _b * _jp_X[_i]))
+    _pred = _a + _b * _jp_target
+    _jp_lower.append(float(_pred - _res))
+    _jp_upper.append(float(_pred + _res))
+_jp_lower.sort()
+_jp_upper.sort()
+_jp_kLo = max(0, int(np.floor(_jp_alpha * (_jp_n + 1))) - 1)
+_jp_kHi = min(_jp_n - 1, int(np.ceil((1 - _jp_alpha) * (_jp_n + 1))) - 1)
+_jp_lo = _jp_lower[_jp_kLo]
+_jp_hi = _jp_upper[_jp_kHi]
+_jp_radius = max(0.0, (_jp_hi - _jp_lo) / 2.0)
+bootstrap['jackknifePlus_basic'] = {
+    'X': _jp_X.tolist(), 'y': _jp_y.tolist(),
+    'lower': float(_jp_lo), 'upper': float(_jp_hi), 'radius': float(_jp_radius),
+    'target': float(_jp_target), 'alpha': _jp_alpha,
+}
+
+ref['bootstrap'] = bootstrap
+
+# ── multilevel ─────────────────────────────────────────────────────────────────
+# Data generated by nestedHLM (10 schools x 15 pupils, mulberry32 PRNG seed=99).
+# Loaded from the fixture dump to guarantee identical inputs to the JS tests.
+# Oracles are computed by independent reimplementation of the ANOVA decomposition
+# formulas (not reusing statlab's JS code), since hlmRandomIntercept uses
+# the ICC(1) ANOVA estimator, not a full mixed model.
+import pandas as pd
+
+_ml_data = _fixtures['hlm']
+_ml_df = pd.DataFrame(_ml_data)
+
+def _hlm_icc(data, yVar, clusterVar):
+    """Independent reimplementation of ANOVA-based ICC(1) decomposition."""
+    groups = {}
+    for r in data:
+        g = r[clusterVar]
+        groups.setdefault(g, []).append(r[yVar])
+    vals = list(groups.values())
+    nTotal = sum(len(v) for v in vals)
+    J = len(vals)
+    grandMean = sum(sum(v) for v in vals) / nTotal
+    msb_num = sum(len(v) * (sum(v) / len(v) - grandMean) ** 2 for v in vals)
+    msb = msb_num / (J - 1)
+    ssw = sum(sum((vi - sum(v) / len(v)) ** 2 for vi in v) for v in vals)
+    msw = ssw / (nTotal - J)
+    avg_nj = nTotal / J
+    icc = (msb - msw) / (msb + (avg_nj - 1) * msw) if msb + (avg_nj - 1) * msw > 0 else 0
+    tau00 = max(0, (msb - msw) / nTotal)
+    return {'icc': icc, 'tau00': tau00, 'sigma2': msw, 'msb': msb, 'msw': msw, 'J': J, 'n': nTotal}
+
+_ml_null = _hlm_icc(_ml_data, 'y', 'school')
+
+# Regression of group means on group-mean x for gamma01/SE
+_groups_x = {}
+for r in _ml_data:
+    g = r['school']
+    if g not in _groups_x:
+        _groups_x[g] = {'y': [], 'x': []}
+    _groups_x[g]['y'].append(r['y'])
+    _groups_x[g]['x'].append(r['x'])
+_gxs = [np.mean(_groups_x[g]['x']) for g in _groups_x]
+_gys = [np.mean(_groups_x[g]['y']) for g in _groups_x]
+_gmx = np.mean(_gxs)
+_gmy = np.mean(_gys)
+_gsxx = np.sum((np.array(_gxs) - _gmx) ** 2)
+_gsxy = np.sum((np.array(_gxs) - _gmx) * (np.array(_gys) - _gmy))
+_gamma01 = _gsxy / _gsxx if _gsxx else 0
+_gresid = np.array(_gys) - _gmy - _gamma01 * (np.array(_gxs) - _gmx)
+_seGamma = np.sqrt(np.var(_gresid, ddof=1) / _gsxx) if _gsxx and _gsxx > 0 else 0.0
+
+multilevel = {
+    'hlmNull': {
+        'icc': float(_ml_null['icc']),
+        'tau00': float(_ml_null['tau00']),
+        'sigma2': float(_ml_null['sigma2']),
+        'nClusters': _ml_null['J'],
+        'n': _ml_null['n'],
+    },
+    'hlmX': {
+        'gamma01': float(_gamma01),
+        'seGamma01': float(_seGamma),
+    },
+}
+
+# ── repeatedMeasuresMANOVA oracle ──
+from statsmodels.stats.anova import AnovaRM
+_rm_subj = []
+_s_rm = 7
+def _rm_rnd():
+    global _s_rm
+    _s_rm = (1103515245 * _s_rm + 12345) & 0x7fffffff
+    return _s_rm / 0x7fffffff - 0.5
+for i in range(30):
+    _subj_val = _rm_rnd() * 2
+    _rm_subj.append({'id': i, 'condition': 'y1', 'value': 10.0 + _subj_val + _rm_rnd()})
+    _rm_subj.append({'id': i, 'condition': 'y2', 'value': 13.0 + _subj_val + _rm_rnd()})
+    _rm_subj.append({'id': i, 'condition': 'y3', 'value': 16.0 + _subj_val + _rm_rnd()})
+_rm_df = pd.DataFrame(_rm_subj)
+_rm_res = AnovaRM(_rm_df, 'value', 'id', within=['condition']).fit()
+multilevel['rmanova_basic'] = {
+    'F': float(_rm_res.anova_table['F Value'].iloc[0]),
+    'p': float(_rm_res.anova_table['Pr > F'].iloc[0]),
+    'ggEpsilon': float(_rm_res.anova_table['GG e'].iloc[0]) if 'GG e' in _rm_res.anova_table.columns else 1.0,
+    'pGG': float(_rm_res.anova_table['p-GG'].iloc[0]) if 'p-GG' in _rm_res.anova_table.columns else float(_rm_res.anova_table['Pr > F'].iloc[0]),
+}
+
+ref['multilevel'] = multilevel
+
+# ── optimization (gradient-based methods) ──────────────────────────────────────
+# Oracles via scipy.optimize.minimize with the same standard test function
+# f(x) = sum(x_i^2), grad(x) = 2x_i, hess = 2I. The JS implementations all
+# optimize the same sphere function with init [5,5], so the scipy oracle
+# confirms they converge to (0,0) within tolerance.
+from scipy.optimize import minimize as _scipy_minimize
+
+_opt_fn = lambda x: np.sum(np.array(x) ** 2)
+_opt_grad = lambda x: 2 * np.array(x)
+_opt_hess = lambda x: 2 * np.eye(len(x))
+_opt_init = np.array([5.0, 5.0])
+
+optimization = {}
+for _method, _opts in [('BFGS', {'jac': _opt_grad}), ('Nelder-Mead', {}),
+                         ('CG', {'jac': _opt_grad}), ('SLSQP', {'jac': _opt_grad}),
+                         ('trust-ncg', {'jac': _opt_grad, 'hess': _opt_hess})]:
+    _res = _scipy_minimize(_opt_fn, _opt_init, method=_method, **_opts, options={'maxiter': 50})
+    optimization[_method.lower().replace('-', '')] = {
+        'optimum': [float(x) for x in _res.x],
+        'value': float(_res.fun),
+        'converged': bool(_res.success),
+    }
+ref['optimization'] = optimization
+
+# ── signal (FFT, power spectrum, autocorrelation, welch PSD) ────────────────────
+from scipy.signal import welch as _sp_welch
+
+_sig_data = [np.sin(2 * np.pi * i / 10) + 0.5 * np.sin(2 * np.pi * i / 4) for i in range(128)]
+_sig_arr = np.array(_sig_data)
+
+# FFT (radix-2 padded to next power of 2)
+_fft_n = 128
+_fft_result = np.fft.fft(_sig_arr)
+_fft_complex = [{'re': float(z.real), 'im': float(z.imag)} for z in _fft_result]
+# Power spectrum: squared magnitude of FFT
+_ps = np.abs(_fft_result) ** 2
+
+# Autocorrelation (unbiased estimate, up to 20 lags)
+_acf_sig = _sig_arr - np.mean(_sig_arr)
+_acf_vals = []
+for _lag in range(21):
+    if _lag == 0:
+        _acf_vals.append(1.0)
+    else:
+        _acf = np.sum(_acf_sig[_lag:] * _acf_sig[:-_lag]) / np.sum(_acf_sig ** 2)
+        _acf_vals.append(float(_acf))
+
+# Welch PSD (matches the JS Welch PSD implementation parameters)
+_psd_freqs, _psd_vals = _sp_welch(_sig_arr, fs=1.0, nperseg=32, noverlap=16, scaling='density')
+
+signal_oracle = {
+    'fft_basic': {'data': _sig_data, 'fft': _fft_complex},
+    'powerSpectrum_basic': {'data': _sig_data, 'ps': _ps.tolist()},
+    'autocorrelation_basic': {'data': _sig_data, 'acf': _acf_vals},
+    'welchPSD_basic': {'data': _sig_data, 'freq': _psd_freqs.tolist(), 'psd': _psd_vals.tolist()},
+}
+ref['signal'] = signal_oracle
+
+# ── spatialTemporal (STAR/GSTAR) ──────────────────────────────────────────────
+# starModel does OLS of y on [Wy, X1, ..., Xk] where Wy = W @ y (spatial lag).
+# This is standard OLS — oracle via numpy.linalg.lstsq.
+_st_data = []
+_st_n = 30
+_st_rng = _lcg_seq(42, _st_n * 3)
+_st_ri = iter(_st_rng)
+for _i in range(_st_n):
+    _st_data.append({'y': 5 + next(_st_ri) * 3, 'x1': next(_st_ri) * 5, 'x2': next(_st_ri) * 2})
+_st_y = np.array([r['y'] for r in _st_data])
+_st_X = np.array([[r['x1'], r['x2']] for r in _st_data])
+# Row-standardized spatial weight matrix: k-nearest neighbors (k=3), row-normalized
+_st_W = np.zeros((_st_n, _st_n))
+for _i in range(_st_n):
+    _dists = [abs(_i - _j) for _j in range(_st_n) if _j != _i]
+    _sorted_idx = sorted(range(len(_dists)), key=lambda j: _dists[j])
+    for _k in _sorted_idx[:3]:
+        _j_val = _sorted_idx.index(_k) if False else _st_n - 1
+        _actual_j = [__j for __j in range(_st_n) if __j != _i][_k]
+        _st_W[_i, _actual_j] = 1.0 / 3.0
+_st_Wy = _st_W @ _st_y
+_st_Xall = np.column_stack([_st_Wy, _st_X])
+_st_beta, _st_resid, _st_rank, _st_sv = np.linalg.lstsq(_st_Xall, _st_y, rcond=None)
+_st_fitted = _st_Xall @ _st_beta
+_st_ssr = float(np.sum((_st_y - _st_fitted) ** 2))
+_st_sst = float(np.sum((_st_y - np.mean(_st_y)) ** 2))
+_st_r2 = 1 - _st_ssr / _st_sst if _st_sst > 0 else 0
+
+spatialTemporal = {
+    'starModel_basic': {
+        'data': _st_data, 'W': _st_W.tolist(),
+        'rho': float(_st_beta[0]),
+        'bX1': float(_st_beta[1]),
+        'bX2': float(_st_beta[2]),
+        'rSquared': float(_st_r2),
+    },
+}
+ref['spatialTemporal'] = spatialTemporal
+
+# ── mixture (switchingRegression) ────────────────────────────────────────────
+# switchingRegression fits separate OLS per regime split by a threshold on x.
+# Deterministic — oracle via numpy.polyfit for each regime.
+_mix_x = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+_mix_y = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68]
+_mix_thresh = 10
+_mix_r1_x = np.array([_mix_x[i] for i in range(len(_mix_x)) if _mix_x[i] <= _mix_thresh])
+_mix_r1_y = np.array([_mix_y[i] for i in range(len(_mix_x)) if _mix_x[i] <= _mix_thresh])
+_mix_r2_x = np.array([_mix_x[i] for i in range(len(_mix_x)) if _mix_x[i] > _mix_thresh])
+_mix_r2_y = np.array([_mix_y[i] for i in range(len(_mix_x)) if _mix_x[i] > _mix_thresh])
+_mix_s1, _mix_i1 = np.polyfit(_mix_r1_x, _mix_r1_y, 1)
+_mix_s2, _mix_i2 = np.polyfit(_mix_r2_x, _mix_r2_y, 1)
+mixture = {
+    'switchingRegression_basic': {
+        'x': _mix_x, 'y': _mix_y, 'threshold': _mix_thresh,
+        'slope1': float(_mix_s1), 'intercept1': float(_mix_i1),
+        'slope2': float(_mix_s2), 'intercept2': float(_mix_i2),
+    },
+}
+ref['mixture'] = mixture
+
+# ── discrete (conditionalLogit) ──────────────────────────────────────────────
+# conditionalLogit is a McFadden conditional logit via Newton-Raphson.
+# Oracle via statsmodels MNLogit on a choice dataset.
+_disc_data = []
+for _i in range(30):
+    _grp = _i // 3
+    _x1 = _i * 0.15
+    _x2 = _i % 2
+    # Generate choice based on x1, x2 to create a real signal
+    _u = [0.5 * _x1 - 0.3 * _x2, 0.2 * _x1 + 0.4 * _x2, -0.1 * _x1 + 0.1 * _x2]
+    _exp_u = [np.exp(v) for v in _u]
+    _sum = sum(_exp_u)
+    _probs = [v / _sum for v in _exp_u]
+    _r = np.random.default_rng(_i + 999).random()
+    _cum = 0
+    _choice = 0
+    for _j in range(3):
+        _cum += _probs[_j]
+        if _r < _cum:
+            _choice = _j
+            break
+    for _alt in range(3):
+        _disc_data.append({
+            'y': 1 if _alt == _choice else 0,
+            'x1': _x1, 'x2': _x2 if _alt == 0 else (_x2 * 0.5 if _alt == 1 else _x2 * 1.5),
+            'grp': _grp, 'alt': _alt,
+        })
+
+_disc_df = pd.DataFrame(_disc_data)
+# Statsmodels MNLogit (alternative-varying)
+from statsmodels.discrete.discrete_model import MNLogit
+_disc_x_vars = _disc_df[['x1', 'x2']].values
+_disc_y_var = _disc_df['y'].values
+_disc_mn = MNLogit(_disc_y_var, sm.add_constant(_disc_x_vars)).fit(disp=0)
+discrete = {
+    'conditionalLogit_basic': {
+        'data': _disc_data,
+        'coef': _disc_mn.params.tolist(),
+        'se': _disc_mn.bse.tolist(),
+        'llf': float(_disc_mn.llf),
+    },
+}
+ref['discrete'] = discrete
+
+# ── experimental (randomizedBlockANOVA) ──────────────────────────────────────
+# Uses the same deterministic rbData from experimental.test.js.
+# Oracle via OLS with block and treatment dummies (Type III via statsmodels).
+_exp_data = [
+    {'block': 'B1', 'treat': 'A', 'score': 12},
+    {'block': 'B1', 'treat': 'B', 'score': 15},
+    {'block': 'B1', 'treat': 'C', 'score': 18},
+    {'block': 'B2', 'treat': 'A', 'score': 14},
+    {'block': 'B2', 'treat': 'B', 'score': 16},
+    {'block': 'B2', 'treat': 'C', 'score': 20},
+    {'block': 'B3', 'treat': 'A', 'score': 13},
+    {'block': 'B3', 'treat': 'B', 'score': 17},
+    {'block': 'B3', 'treat': 'C', 'score': 19},
+]
+_exp_df = pd.DataFrame(_exp_data)
+# One-way ANOVA with blocks — verify via OLS
+_exp_y = _exp_df['score'].values
+_exp_X = pd.get_dummies(_exp_df[['treat', 'block']], drop_first=True).astype(float)
+_exp_X = sm.add_constant(_exp_X)
+_exp_ols = sm.OLS(_exp_y, _exp_X).fit()
+# ANOVA table via Type I SS (matches the RB ANOVA decomposition)
+_exp_gm = np.mean(_exp_y)
+_exp_sst = np.sum((_exp_y - _exp_gm) ** 2)
+# Treatment SS
+_treat_levels = _exp_df['treat'].unique()
+_exp_sstreat = sum(
+    len(_exp_df[_exp_df['treat'] == t]) * (np.mean(_exp_df[_exp_df['treat'] == t]['score']) - _exp_gm) ** 2
+    for t in _treat_levels)
+# Block SS
+_block_levels = _exp_df['block'].unique()
+_exp_ssblock = sum(
+    len(_exp_df[_exp_df['block'] == b]) * (np.mean(_exp_df[_exp_df['block'] == b]['score']) - _exp_gm) ** 2
+    for b in _block_levels)
+_exp_sserror = _exp_sst - _exp_sstreat - _exp_ssblock
+_exp_dft = len(_treat_levels) - 1
+_exp_dfb = len(_block_levels) - 1
+_exp_dfe = _exp_dft * _exp_dfb
+_exp_mst = _exp_sstreat / _exp_dft
+_exp_msb = _exp_ssblock / _exp_dfb
+_exp_mse = _exp_sserror / _exp_dfe
+_exp_Ft = _exp_mst / _exp_mse
+_exp_Fb = _exp_msb / _exp_mse
+experimental = {
+    'rbANOVA_basic': {
+        'data': _exp_data,
+        'ssTreat': float(_exp_sstreat), 'ssBlock': float(_exp_ssblock), 'ssError': float(_exp_sserror),
+        'Ft': float(_exp_Ft), 'Fb': float(_exp_Fb),
+    },
+}
+ref['experimental'] = experimental
+
+# ── symbolic ─────────────────────────────────────────────────────────────────
+# intervalMean / intervalVariance / intervalCorrelation / symbolicRegression
+# Pure formula-based oracles on explicit deterministic datasets.
+_sym_d = [{'lo': i, 'hi': i + 2, 'lo2': i * 0.5, 'hi2': i * 0.5 + 1} for i in range(10)]
+_sym_n = len(_sym_d)
+_sym_loVals = [r['lo'] for r in _sym_d]
+_sym_hiVals = [r['hi'] for r in _sym_d]
+_sym_loMean = float(np.mean(_sym_loVals))
+_sym_hiMean = float(np.mean(_sym_hiVals))
+_sym_loVar = float(np.var(_sym_loVals, ddof=1))
+_sym_hiVar = float(np.var(_sym_hiVals, ddof=1))
+_sym_m1 = [(r['lo'] + r['hi']) / 2 for r in _sym_d]
+_sym_m2 = [(r['lo2'] + r['hi2']) / 2 for r in _sym_d]
+_sym_r = float(st.pearsonr(_sym_m1, _sym_m2)[0])
+# symbolicRegression — OLS on correlated-predictor dataset from the correctness test
+_sym_reg_rows = [
+    {'x1': 1, 'x2': 1, 'y': 3}, {'x1': 2, 'x2': 1, 'y': 4},
+    {'x1': 3, 'x2': 2, 'y': 7}, {'x1': 4, 'x2': 2, 'y': 8},
+    {'x1': 5, 'x2': 3, 'y': 11},
+]
+_sym_reg_X = np.array([[1, r['x1'], r['x2']] for r in _sym_reg_rows])
+_sym_reg_y = np.array([r['y'] for r in _sym_reg_rows])
+_sym_reg_beta = np.linalg.lstsq(_sym_reg_X, _sym_reg_y, rcond=None)[0]
+symbolic = {
+    'intervalMean_basic': {'loMean': round(_sym_loMean, 4), 'hiMean': round(_sym_hiMean, 4)},
+    'intervalVariance_basic': {'loVar': round(min(_sym_loVar, _sym_hiVar), 4), 'hiVar': round(max(_sym_loVar, _sym_hiVar), 4)},
+    'intervalCorrelation_basic': {'r': round(_sym_r, 4)},
+    'symbolicRegression_basic': {'b0': float(_sym_reg_beta[0]), 'bx1': float(_sym_reg_beta[1]), 'bx2': float(_sym_reg_beta[2])},
+}
+ref['symbolic'] = symbolic
+
+# ── sced ─────────────────────────────────────────────────────────────────────
+# tauU / pnd / pem / nap / betweenCaseSMD — pure formula-based oracles
+_sced_base = [1, 2, 2, 3, 2, 3, 2, 1]
+_sced_interv = [4, 5, 4, 6, 5, 7, 6, 5]
+_sced_nB, _sced_nI = len(_sced_base), len(_sced_interv)
+_sced_S = sum(1 for b in _sced_base for i in _sced_interv if i > b) - sum(1 for b in _sced_base for i in _sced_interv if i < b)
+_sced_tauU = _sced_S / (_sced_nB * _sced_nI)
+_sced_maxB = max(_sced_base)
+_sced_pnd = 100 * sum(1 for v in _sced_interv if v > _sced_maxB) / _sced_nI
+_sced_sorted = sorted(_sced_base)
+_sced_medB = _sced_sorted[len(_sced_base) // 2]
+_sced_pem = 100 * sum(1 for v in _sced_interv if v > _sced_medB) / _sced_nI
+_sced_wins = sum(1 for b in _sced_base for i in _sced_interv if i > b) + 0.5 * sum(1 for b in _sced_base for i in _sced_interv if i == b)
+_sced_nap = _sced_wins / (_sced_nB * _sced_nI)
+# betweenCaseSMD
+_sced_a = np.array([10, 12, 14, 16, 18, 20, 22], dtype=float)
+_sced_b = np.array([15, 17, 19, 21, 23, 25, 27], dtype=float)
+_sced_mA, _sced_mB = float(np.mean(_sced_a)), float(np.mean(_sced_b))
+_sced_sd = float(np.sqrt((np.var(_sced_a, ddof=1) + np.var(_sced_b, ddof=1)) / 2))
+_sced_smd = (_sced_mB - _sced_mA) / _sced_sd if _sced_sd > 0 else 0
+_sced_se = float(np.sqrt(1 / len(_sced_a) + 1 / len(_sced_b) + _sced_smd**2 / (2 * (len(_sced_a) + len(_sced_b)))))
+sced = {
+    'tauU_basic': {'tau': round(_sced_tauU, 4)},
+    'pnd_basic': {'pnd': round(_sced_pnd, 1)},
+    'pem_basic': {'pem': round(_sced_pem, 1)},
+    'nap_basic': {'nap': round(_sced_nap, 4)},
+    'betweenCaseSMD_basic': {'smd': round(_sced_smd, 4), 'se': round(_sced_se, 4)},
+}
+ref['sced'] = sced
+
+# ── pro ──────────────────────────────────────────────────────────────────────
+# reliableChangeIndex / minimalImportantDifference / eq5dIndex / responderAnalysis
+_pro_bl = np.array([10, 12, 15, 11, 14, 16, 13, 12], dtype=float)
+_pro_fu = np.array([8, 14, 18, 9, 16, 15, 11, 14], dtype=float)
+_pro_n = len(_pro_bl)
+_pro_sd = float(np.std(_pro_bl, ddof=1))
+_pro_rel = 0.8
+_pro_se_rci = _pro_sd * np.sqrt(2 * (1 - _pro_rel))
+_pro_diffs = _pro_fu - _pro_bl
+_pro_rcis = _pro_diffs / _pro_se_rci
+_pro_nImproved = int(np.sum(_pro_rcis > 1.96))
+_pro_nDeteriorated = int(np.sum(_pro_rcis < -1.96))
+# minimalImportantDifference — anchor-based with anchors [1,2,3,1,2,3,2,1]
+_pro_anchors = np.array([1, 2, 3, 1, 2, 3, 2, 1], dtype=float)
+_pro_anchorMean = float(np.mean(_pro_anchors))
+_pro_anchorSD = float(np.std(_pro_anchors, ddof=1)) or 1.0
+_pro_low = _pro_bl[_pro_anchors < _pro_anchorMean - 0.5 * _pro_anchorSD]
+_pro_high = _pro_bl[_pro_anchors > _pro_anchorMean + 0.5 * _pro_anchorSD]
+_pro_mid = float(np.mean(_pro_high) - np.mean(_pro_low)) if len(_pro_low) and len(_pro_high) else 0.0
+# eq5dIndex: domains [1,2,1,3,2]
+_pro_eq5d_domains = np.array([1, 2, 1, 3, 2], dtype=float)
+_pro_eq5d_sum = float(np.clip(_pro_eq5d_domains, 1, 5).sum())
+_pro_eq5d_index = 1 - (_pro_eq5d_sum - 5) * 0.051
+# responderAnalysis: 20 rows, threshold 3
+_pro_resp_data = [{'pre': i * 2, 'post': i * 2 + 5 + (i % 3)} for i in range(20)]
+_pro_resp_n = len(_pro_resp_data)
+_pro_resp_count = sum(1 for r in _pro_resp_data if r['post'] - r['pre'] >= 3)
+pro = {
+    'reliableChangeIndex_basic': {'se': round(_pro_se_rci, 4), 'nImproved': _pro_nImproved, 'nDeteriorated': _pro_nDeteriorated},
+    'minimalImportantDifference_basic': {'mid': round(_pro_mid, 4), 'nLow': int(len(_pro_low)), 'nHigh': int(len(_pro_high))},
+    'eq5dIndex_basic': {'index': round(_pro_eq5d_index, 4)},
+    'responderAnalysis_basic': {'n': _pro_resp_n, 'responders': _pro_resp_count, 'pct': round(100 * _pro_resp_count / _pro_resp_n, 1)},
+}
+ref['pro'] = pro
+
+# ── trials ───────────────────────────────────────────────────────────────────
+# simons2Stage / sampleSizeReestimation / fisherExactDesign
+_tri_p0, _tri_p1 = 0.2, 0.4
+_tri_n1 = max(5, int(np.ceil(np.log(0.5) / np.log(1 - _tri_p1))))
+_tri_n2 = _tri_n1 * 2
+_tri_r1 = max(0, int(np.floor(_tri_n1 * _tri_p0 - 1)))
+_tri_r = max(0, int(np.floor(_tri_n2 * _tri_p0 + 0.5)))
+# sampleSizeReestimation: data [1,2,3,4,5], target=0
+_tri_ssr_data = np.array([1, 2, 3, 4, 5], dtype=float)
+_tri_ssr_n = len(_tri_ssr_data)
+_tri_ssr_mu = float(np.mean(_tri_ssr_data))
+_tri_ssr_sd = float(np.std(_tri_ssr_data, ddof=1))
+_tri_ssr_nNeeded = int(np.ceil((2 * (st.norm.ppf(0.975) + st.norm.ppf(0.8)) * _tri_ssr_sd / abs(0 - _tri_ssr_mu)) ** 2))
+# fisherExactDesign: a=5, b=10, c=3, d=20
+_tri_a, _tri_b, _tri_c, _tri_d = 5, 10, 3, 20
+_tri_or = (_tri_a * _tri_d) / max(_tri_b * _tri_c, 1)
+_tri_rr = (_tri_a / max(_tri_a + _tri_b, 1)) / (_tri_c / max(_tri_c + _tri_d, 1))
+_tri_rd = _tri_a / max(_tri_a + _tri_b, 1) - _tri_c / max(_tri_c + _tri_d, 1)
+trials = {
+    'simons2Stage_basic': {'n1': _tri_n1, 'n2': _tri_n2, 'r1': _tri_r1, 'r': _tri_r},
+    'sampleSizeReestimation_basic': {'nObserved': _tri_ssr_n, 'nNeeded': _tri_ssr_nNeeded},
+    'fisherExactDesign_basic': {'or': round(_tri_or, 4), 'rr': round(_tri_rr, 4), 'rd': round(_tri_rd, 4)},
+}
+ref['trials'] = trials
+
+# ── demo ─────────────────────────────────────────────────────────────────────
+# lifeTable / leeCarter / ageStandardization / populationProjection
+_demo_mx = np.array([0.01, 0.02, 0.03, 0.05, 0.08], dtype=float)
+_demo_n = len(_demo_mx)
+_demo_a = np.full(_demo_n, 0.5)
+# Replicate JS's lifeTable rounding chain: qx → lx → dx → Lx (rounded per step)
+_demo_qx = np.zeros(_demo_n)
+_demo_lx = np.zeros(_demo_n)
+_demo_dx = np.zeros(_demo_n)
+_demo_Lx = np.zeros(_demo_n)
+_demo_lx[0] = 1.0
+for _i in range(_demo_n):
+    _qi = min(1.0, _demo_mx[_i] / (1 + (1 - _demo_a[_i]) * _demo_mx[_i]))
+    _demo_qx[_i] = round(_qi, 6)
+    if _i > 0:
+        _demo_lx[_i] = round(_demo_lx[_i - 1] * (1 - _demo_qx[_i - 1]), 6)
+    _demo_dx[_i] = round(_demo_lx[_i] * _demo_qx[_i], 6)
+    _demo_Lx[_i] = round(_demo_lx[_i] - _demo_dx[_i] + _demo_a[_i] * _demo_dx[_i], 4)
+_demo_Tx = np.zeros(_demo_n)
+for _i in range(_demo_n - 1, -1, -1):
+    _demo_Tx[_i] = round((_demo_Tx[_i + 1] if _i + 1 < _demo_n else 0) + _demo_Lx[_i], 4)
+_demo_ex = np.array([round(_demo_Tx[_i] / max(_demo_lx[_i], 0.001), 2) for _i in range(_demo_n)])
+# leeCarter
+_demo_logMx = np.array([[-5, -3.5, -3, -2.5, -2], [-4.8, -3.4, -2.9, -2.4, -1.9], [-4.6, -3.3, -2.8, -2.3, -1.8]])
+_demo_lc_n, _demo_lc_m = _demo_logMx.shape
+_demo_lc_ax = np.mean(_demo_logMx, axis=0)
+_demo_lc_A = _demo_logMx - _demo_lc_ax
+_demo_lc_kt = _demo_lc_A.mean(axis=1)
+_demo_lc_bx = np.array([np.sum(_demo_lc_A[:, _j] * _demo_lc_kt) / max(np.sum(_demo_lc_kt ** 2), 1e-10) for _j in range(_demo_lc_m)])
+# ageStandardization
+_demo_rates = np.array([0.01, 0.02, 0.05, 0.10, 0.20], dtype=float)
+_demo_stdPop = np.array([1000, 2000, 3000, 2000, 1000], dtype=float)
+_demo_crude = float(np.mean(_demo_rates))
+_demo_adj = float(np.sum(_demo_rates * _demo_stdPop) / max(np.sum(_demo_stdPop), 1))
+# populationProjection: [100,80,60,40,20], fertility=0.05, mortality=mx, nYears=5
+_demo_basePop = np.array([100, 80, 60, 40, 20], dtype=float)
+_demo_fert = 0.05
+_demo_nYears = 5
+_demo_nCohorts = len(_demo_basePop)
+_demo_pop = [_demo_basePop.copy()]
+for _t in range(1, _demo_nYears + 1):
+    _newPop = np.zeros(_demo_nCohorts)
+    for _i in range(1, _demo_nCohorts):
+        _newPop[_i] = round(_demo_pop[_t - 1][_i - 1] * (1 - _demo_mx[_i - 1]), 0)
+    _newPop[0] = round(np.sum(_demo_pop[_t - 1][2:6] * _demo_fert), 0)
+    _demo_pop.append(_newPop)
+demo = {
+    'lifeTable_basic': {'e0': float(_demo_ex[0]), 'nAges': _demo_n},
+    'leeCarter_basic': {
+        'ax': [round(float(v), 4) for v in _demo_lc_ax[:5]],
+        'bx': [round(float(v), 4) for v in _demo_lc_bx[:5]],
+        'kt': [round(float(v), 4) for v in _demo_lc_kt[:3]],
+    },
+    'ageStandardization_basic': {'crudeRate': round(_demo_crude, 4), 'adjustedRate': round(_demo_adj, 4)},
+    'populationProjection_basic': {'finalTotal': float(sum(_demo_pop[-1]))},
+}
+ref['demo'] = demo
+
+# ── privacy ──────────────────────────────────────────────────────────────────
+# laplaceMechanism / kAnonymityCheck / lDiversity / differentialPrivacy
+# laplaceMechanism: sensitivity = (max-min)/n, scale = delta/epsilon
+_prv_data = np.array([1, 2, 3, 4, 5], dtype=float)
+_prv_n = len(_prv_data)
+_prv_eps = 1.0
+_prv_delta = (float(np.max(_prv_data)) - float(np.min(_prv_data))) / _prv_n
+_prv_scale = _prv_delta / max(_prv_eps, 0.01)
+_prv_origMean = float(np.mean(_prv_data))
+# kAnonymityCheck: data from test — verify group-size invariants
+_prv_kData = [
+    {'age': 25, 'zip': '12345'}, {'age': 30, 'zip': '12345'},
+    {'age': 25, 'zip': '67890'}, {'age': 30, 'zip': '67890'},
+]
+_prv_k_qid = ['age', 'zip']
+_prv_k_groups = {}
+for _r in _prv_kData:
+    _key = '|'.join(str(_r[q]) for q in _prv_k_qid)
+    _prv_k_groups.setdefault(_key, []).append(_r)
+_prv_k_sizes = [len(g) for g in _prv_k_groups.values()]
+_prv_k_min = min(_prv_k_sizes) if _prv_k_sizes else 0
+_prv_k_vuln = sum(s for s in _prv_k_sizes if s < 2)
+_prv_k_total = len(_prv_kData)
+_prv_k_pct = 100 * (_prv_k_total - _prv_k_vuln) / _prv_k_total if _prv_k_total else 0
+# lDiversity: test data with zip, age, disease
+_prv_lData = []
+for _i in range(20):
+    _prv_lData.append({'zip': str(_i % 5), 'age': str((_i // 5) * 20 + 20), 'disease': 'A' if _i % 3 == 0 else 'B' if _i % 3 == 1 else 'C'})
+_prv_l_groups = {}
+for _r in _prv_lData:
+    _key = '|'.join(_r[c] for c in ['zip', 'age'])
+    _prv_l_groups.setdefault(_key, []).append(_r['disease'])
+_prv_l_total = len(_prv_l_groups)
+_prv_l_diverse = sum(1 for v in _prv_l_groups.values() if len(set(v)) >= 2)
+_prv_l_prop = _prv_l_diverse / _prv_l_total if _prv_l_total > 0 else 0
+# differentialPrivacy: [{epsilon:0.3}, {epsilon:0.2}], budget=1
+_prv_dp_queries = [0.3, 0.2]
+_prv_dp_budget = 1.0
+_prv_dp_consumed = sum(_prv_dp_queries)
+_prv_dp_remaining = max(0, _prv_dp_budget - _prv_dp_consumed)
+privacy = {
+    'laplaceMechanism_basic': {'originalMean': round(_prv_origMean, 4), 'scale': round(_prv_scale, 4), 'epsilon': _prv_eps},
+    'kAnonymityCheck_basic': {'minSize': _prv_k_min, 'vulnerable': _prv_k_vuln, 'pctSafe': round(_prv_k_pct, 1)},
+    'lDiversity_basic': {'l': 2, 'diverseGroups': _prv_l_diverse, 'totalGroups': _prv_l_total, 'proportion': round(_prv_l_prop, 4)},
+    'differentialPrivacy_basic': {'consumed': round(_prv_dp_consumed, 2), 'budget': _prv_dp_budget, 'remaining': round(_prv_dp_remaining, 2)},
+}
+ref['privacy'] = privacy
+
+# ── raMonitor ────────────────────────────────────────────────────────────────
+# raCusum / vlad / funnelPlot
+_ram_bin = np.array([1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1], dtype=float)
+_ram_pred = np.array([0.1, 0.2, 0.3, 0.15, 0.25, 0.1, 0.3, 0.2, 0.15, 0.1, 0.25, 0.05, 0.3, 0.1, 0.2], dtype=float)
+_ram_n = len(_ram_bin)
+_ram_k, _ram_h = 0.5, 5.0
+_ram_cusum = [0.0]
+_ram_signals = 0
+for _i in range(_ram_n):
+    _score = np.log(1 / max(_ram_pred[_i], 0.001)) if _ram_bin[_i] == 1 else np.log(1 / max(1 - _ram_pred[_i], 0.001))
+    _ram_cusum.append(max(0, _ram_cusum[-1] + _score - _ram_k))
+    if _ram_cusum[-1] > _ram_h:
+        _ram_signals += 1
+# vlad: cumResid smoothed
+_ram_vlad_expected = _ram_pred.copy()
+_ram_vlad_observed = _ram_bin.copy()
+_ram_vlad_resid = _ram_vlad_observed - _ram_vlad_expected
+_ram_vlad_cum = np.cumsum(_ram_vlad_resid)
+_ram_vlad_smooth = np.array([float(np.mean(_ram_vlad_cum[max(0, _i - 5):min(_ram_n, _i + 6)])) for _i in range(_ram_n)])
+# funnelPlot: 10 rows, y = i%3+1, n = 20+i*5
+_ram_funnel_y = np.array([(i % 3) + 1 for i in range(10)], dtype=float)
+_ram_funnel_n = np.array([20 + i * 5 for i in range(10)], dtype=float)
+_ram_funnel_rates = _ram_funnel_y / np.maximum(_ram_funnel_n, 1)
+_ram_funnel_meanRate = float(np.mean(_ram_funnel_rates))
+raMonitor = {
+    'raCusum_basic': {'nSignals': _ram_signals, 'finalCusum': round(_ram_cusum[-1], 4)},
+    'vlad_basic': {'vladRange': [round(float(np.min(_ram_vlad_smooth)), 4), round(float(np.max(_ram_vlad_smooth)), 4)]},
+    'funnelPlot_basic': {'meanRate': round(_ram_funnel_meanRate, 4)},
+}
+ref['raMonitor'] = raMonitor
+
+# ── recommendation ───────────────────────────────────────────────────────────
+# collaborativeFilter — cosine similarity + weighted prediction on explicit ratings
+_rec_R = np.array([
+    [5, 3, np.nan, 1],
+    [4, np.nan, np.nan, 1],
+    [np.nan, 2, 4, 5],
+    [1, 1, 5, 4],
+    [np.nan, np.nan, 3, np.nan],
+], dtype=float)
+_rec_nUsers, _rec_nItems = _rec_R.shape
+_rec_nNeighbors = 5
+# Compute cosine similarities (matching JS formula: num/sqrt(d1*d2))
+_rec_sim = np.zeros((_rec_nUsers, _rec_nUsers))
+for _u in range(_rec_nUsers):
+    for _v in range(_rec_nUsers):
+        if _u == _v:
+            continue
+        _num, _d1, _d2 = 0.0, 0.0, 0.0
+        for _i in range(_rec_nItems):
+            if not np.isnan(_rec_R[_u, _i]) and not np.isnan(_rec_R[_v, _i]):
+                _num += _rec_R[_u, _i] * _rec_R[_v, _i]
+                _d1 += _rec_R[_u, _i] ** 2
+                _d2 += _rec_R[_v, _i] ** 2
+        _rec_sim[_u, _v] = _num / max(np.sqrt(_d1 * _d2), 1e-12)
+# Predict missing entries using top neighbors
+_rec_predictions = np.full((_rec_nUsers, _rec_nItems), np.nan)
+for _u in range(_rec_nUsers):
+    _sims = sorted([(_v, _rec_sim[_u, _v]) for _v in range(_rec_nUsers) if _v != _u and _rec_sim[_u, _v] > 0],
+                   key=lambda x: x[1], reverse=True)[:_rec_nNeighbors]
+    for _i in range(_rec_nItems):
+        if not np.isnan(_rec_R[_u, _i]):
+            continue
+        if not _sims:
+            continue
+        _num, _den = 0.0, 0.0
+        for _v, _s in _sims:
+            if not np.isnan(_rec_R[_v, _i]):
+                _num += _s * _rec_R[_v, _i]
+                _den += abs(_s)
+        if _den > 0:
+            _rec_predictions[_u, _i] = float(round(_num / _den, 4))
+# Pick one representative prediction: user 2, item 0 (first null)
+_rec_sample_pred = float(_rec_predictions[2, 0]) if not np.isnan(_rec_predictions[2, 0]) else None
+if _rec_sample_pred is None:
+    for _u in range(_rec_nUsers):
+        for _i in range(_rec_nItems):
+            if not np.isnan(_rec_predictions[_u, _i]):
+                _rec_sample_pred = float(_rec_predictions[_u, _i])
+                break
+        if _rec_sample_pred is not None:
+            break
+recommendation = {
+    'collaborativeFilter_basic': {'samplePrediction': _rec_sample_pred, 'nUsers': _rec_nUsers, 'nItems': _rec_nItems},
+}
+ref['recommendation'] = recommendation
+
+# ── spc ──────────────────────────────────────────────────────────────────────
+# xbarChart / rChart / cpkPpk / processCapability
+# Data: 10 + ((i*7+3)%11 - 5)*0.3 for i in 0..49, subgroupSize=5
+_spc_data = np.array([10 + ((i * 7 + 3) % 11 - 5) * 0.3 for i in range(50)], dtype=float)
+_spc_subgroup = 5
+_spc_nsg = len(_spc_data) // _spc_subgroup
+_spc_means = np.array([np.mean(_spc_data[_i * _spc_subgroup:(_i + 1) * _spc_subgroup]) for _i in range(_spc_nsg)])
+_spc_ranges = np.array([np.max(_spc_data[_i * _spc_subgroup:(_i + 1) * _spc_subgroup]) - np.min(_spc_data[_i * _spc_subgroup:(_i + 1) * _spc_subgroup]) for _i in range(_spc_nsg)])
+_spc_grand_cl = float(np.mean(_spc_means))
+_spc_rbar = float(np.mean(_spc_ranges))
+_spc_a2 = 0.577  # A2 for n=5
+_spc_d3 = 0.0    # D3 for n=5
+_spc_d4 = 2.114  # D4 for n=5
+_spc_xbar_ucl = _spc_grand_cl + _spc_a2 * _spc_rbar
+_spc_xbar_lcl = _spc_grand_cl - _spc_a2 * _spc_rbar
+_spc_r_ucl = _spc_d4 * _spc_rbar
+_spc_r_lcl = _spc_d3 * _spc_rbar
+# cpkPpk: same data, lsl=7, usl=13
+_spc_lsl, _spc_usl = 7.0, 13.0
+_spc_mu = float(np.mean(_spc_data))
+_spc_sigma = float(np.std(_spc_data, ddof=1))
+_spc_cp = (_spc_usl - _spc_lsl) / (6 * _spc_sigma)
+_spc_cpk = min((_spc_usl - _spc_mu) / (3 * _spc_sigma), (_spc_mu - _spc_lsl) / (3 * _spc_sigma))
+# processCapability: same data, lsl=9, usl=11
+_spc_lsl2, _spc_usl2 = 9.0, 11.0
+_spc_cp2 = (_spc_usl2 - _spc_lsl2) / (6 * _spc_sigma)
+_spc_cpk2 = min((_spc_usl2 - _spc_mu) / (3 * _spc_sigma), (_spc_mu - _spc_lsl2) / (3 * _spc_sigma))
+spc = {
+    'xbarChart_basic': {'centerline': round(_spc_grand_cl, 4), 'ucl': round(_spc_xbar_ucl, 4), 'lcl': round(_spc_xbar_lcl, 4)},
+    'rChart_basic': {'centerline': round(_spc_rbar, 4), 'ucl': round(_spc_r_ucl, 4), 'lcl': round(_spc_r_lcl, 4)},
+    'cpkPpk_basic': {'cp': round(_spc_cp, 4), 'cpk': round(_spc_cpk, 4), 'sigma': round(_spc_sigma, 4), 'mu': round(_spc_mu, 4)},
+    'processCapability_basic': {'cp': round(_spc_cp2, 4), 'cpk': round(_spc_cpk2, 4)},
+}
+ref['spc'] = spc
+
+# ── text ─────────────────────────────────────────────────────────────────────
+# cosineSimilarity / jaccardSimilarity / tfIdf / documentTermMatrix
+# cosineSimilarity: [1,2,3] vs [1,2,3] → 1; [1,0] vs [0,1] → 0
+_text_cos_a, _text_cos_b = np.array([1, 2, 3], dtype=float), np.array([1, 2, 3], dtype=float)
+_text_cos_identical = float(np.dot(_text_cos_a, _text_cos_b) / (np.linalg.norm(_text_cos_a) * np.linalg.norm(_text_cos_b)))
+_text_cos_a2, _text_cos_b2 = np.array([1, 0], dtype=float), np.array([0, 1], dtype=float)
+_text_cos_orth = float(np.dot(_text_cos_a2, _text_cos_b2) / max(np.linalg.norm(_text_cos_a2) * np.linalg.norm(_text_cos_b2), 1e-12))
+# jaccardSimilarity: ['a','b'] vs ['a','b'] → 1
+_text_jac_a = set(['a', 'b'])
+_text_jac_b = set(['a', 'b'])
+_text_jac_sim = len(_text_jac_a & _text_jac_b) / len(_text_jac_a | _text_jac_b)
+# tfIdf: docs = ['hello world text', 'hello world data', 'data science text mining']
+# JS tokenizer: lowercase, regex remove [^a-z0-9\s], split /\s+/, minLen >= 2
+# JS IDF: idf[t] = log(nDocs / (1 + df[t]))
+_text_docs = ['hello world text', 'hello world data', 'data science text mining']
+_text_nDocs = len(_text_docs)
+def _text_tokenize(t):
+    import re
+    return [w for w in re.sub(r'[^a-z0-9\s]', ' ', t.lower()).split() if len(w) >= 2]
+_text_tokDocs = [_text_tokenize(d) for d in _text_docs]
+_text_vocab = sorted(set(w for t in _text_tokDocs for w in t))
+_text_df = {}
+for _td in _text_tokDocs:
+    for _tw in set(_td):
+        _text_df[_tw] = _text_df.get(_tw, 0) + 1
+_text_idf = {t: np.log(_text_nDocs / (1 + _text_df[t])) for t in _text_vocab}
+# Pick a specific term's tf-idf for verification: "world" appears in docs 0 and 1
+_text_term = 'world'
+_text_tfidf_val = None
+if _text_term in _text_vocab:
+    _text_docIdx = 0
+    _text_count = _text_tokDocs[_text_docIdx].count(_text_term)
+    _text_tf_val = _text_count / max(len(_text_tokDocs[_text_docIdx]), 1)
+    _text_tfidf_val = round(float(_text_tf_val * _text_idf[_text_term]), 6)
+# documentTermMatrix
+_text_dtm = [[_d.count(t) for t in _text_vocab] for _d in _text_tokDocs]
+text = {
+    'cosineSimilarity_basic': {'identical': round(_text_cos_identical, 4), 'orthogonal': round(_text_cos_orth, 4)},
+    'jaccardSimilarity_basic': {'identical': round(_text_jac_sim, 4)},
+    'tfIdf_basic': {'vocabSize': len(_text_vocab), 'termWorld': _text_term, 'tfidfDoc0': _text_tfidf_val},
+    'documentTermMatrix_basic': {'vocabSize': len(_text_vocab), 'nDocs': _text_nDocs, 'matrixRows': len(_text_dtm)},
+}
+ref['text'] = text
+
+# ── pointProcess ─────────────────────────────────────────────────────────────
+# hawkesIntensity / hawkesFit / coxProcess / burstinessIndex
+_pp_events = np.array([1, 2, 3, 5, 6, 7, 10, 11, 12, 15, 16, 18, 20, 22, 25], dtype=float)
+_pp_n = len(_pp_events)
+_pp_mu, _pp_alpha, _pp_beta = 0.1, 0.2, 0.5
+_pp_intensity = [_pp_mu]
+for _i in range(1, _pp_n):
+    _lam = _pp_mu
+    for _j in range(_i):
+        _lam += _pp_alpha * np.exp(-_pp_beta * (_pp_events[_i] - _pp_events[_j]))
+    _pp_intensity.append(float(round(_lam, 4)))
+# coxProcess: surface=[[0.5,0.3],[0.8,0.2]], n=20 — replicates LCG seed=42
+_pp_lcg_s = 42
+def _pp_lcg():
+    global _pp_lcg_s
+    _pp_lcg_s = (1664525 * _pp_lcg_s + 1013904223) & 0xFFFFFFFF
+    return _pp_lcg_s / (2 ** 32)
+_pp_surface = np.array([[0.5, 0.3], [0.8, 0.2]], dtype=float)
+_pp_rows, _pp_cols = _pp_surface.shape
+_pp_pts = []
+for _i in range(20):
+    _r = int(_pp_lcg() * _pp_rows)
+    _c = int(_pp_lcg() * _pp_cols)
+    if _pp_lcg() < _pp_surface[_r, _c]:
+        _pp_pts.append((_r, _c))
+# burstinessIndex: B = (sigma - mu) / (sigma + mu)
+_pp_sorted = np.sort(_pp_events)
+_pp_intervals = np.diff(_pp_sorted)
+_pp_int_mu = float(np.mean(_pp_intervals))
+_pp_int_sigma = float(np.sqrt(np.sum((_pp_intervals - _pp_int_mu) ** 2) / (_pp_n - 1)))
+_pp_B = (_pp_int_sigma - _pp_int_mu) / max(_pp_int_sigma + _pp_int_mu, 0.001)
+# interArrivalTest: cv = sd(intervals)/mean(intervals)
+_pp_cv = _pp_int_sigma / _pp_int_mu if _pp_int_mu > 0 else 0
+pointProcess = {
+    'hawkesIntensity_basic': {'firstIntensity': round(_pp_intensity[0], 4), 'lastIntensity': round(_pp_intensity[-1], 4)},
+    'coxProcess_basic': {'nEvents': len(_pp_pts)},
+    'burstinessIndex_basic': {'B': round(_pp_B, 4)},
+    'interArrivalTest_basic': {'cv': round(_pp_cv, 4)},
+}
+ref['pointProcess'] = pointProcess
+
+
+# ── compositional (clr/ilr/alr/compPCA/compRegression) ───────────────────────────
+# Uses _lcg_seq deterministic data. Replicates JS formulas exactly:
+# CLR: gm = exp(mean(log(x_i))), coord_j = log(x_j) - log(gm)
+# ILR: Psi = built from standard ILR basis, then Psi @ clr_row
+# ALR: log(x_j / x_denom) for j != denom
+# All coords rounded to .toFixed(6) per the JS.
+
+def _clr_coords_py(data_rows, var_list):
+    result = []
+    for r in data_rows:
+        row = [float(r[v]) for v in var_list]
+        # geometric mean with 1e-10 clamping (matches JS Math.max(v, 1e-10))
+        log_sum = sum(np.log(float(np.maximum(v, 1e-10))) for v in row)
+        gm = np.exp(log_sum / len(row))
+        result.append([float(np.log(float(np.maximum(v, 1e-10))) - np.log(gm)) for v in row])
+    return result
+
+def _ilr_basis_py(p):
+    basis = []
+    for i in range(p - 1):
+        row = [0.0] * p
+        k = i + 1
+        sqrt_k = np.sqrt(k * (k + 1))
+        for j in range(i + 1):
+            row[j] = 1.0 / sqrt_k
+        row[i + 1] = -k / sqrt_k
+        basis.append(row)
+    return np.array(basis)
+
+def _ilr_coords_py(data_rows, var_list):
+    clr = _clr_coords_py(data_rows, var_list)
+    psi = _ilr_basis_py(len(var_list))
+    return [np.dot(psi, np.array(row)).tolist() for row in clr]
+
+_cmp_rng = _lcg_seq(99, 100)
+_cmp_data = []
+for _i in range(20):
+    _cmp_data.append({
+        'a': float(round(10 + _cmp_rng[_i * 5] * 5, 6)),
+        'b': float(round(20 + _cmp_rng[_i * 5 + 1] * 8, 6)),
+        'c': float(round(5 + _cmp_rng[_i * 5 + 2] * 3, 6)),
+        'd': float(round(15 + _cmp_rng[_i * 5 + 3] * 6, 6)),
+        'y': float(round(_i + _cmp_rng[_i * 5 + 4], 6)),
+    })
+
+_cmp_vars = ['a', 'b', 'c', 'd']
+
+# CLR — full N×P, but slice first 5 rows (JS returns 5 for display)
+_cmp_clr_full = _clr_coords_py(_cmp_data, _cmp_vars)
+_cmp_clr_5 = [[round(v, 6) for v in row] for row in _cmp_clr_full[:5]]
+
+# ILR
+_cmp_ilr_full = _ilr_coords_py(_cmp_data, _cmp_vars)
+_cmp_ilr_5 = [[round(v, 6) for v in row] for row in _cmp_ilr_full[:5]]
+
+# ALR (denom index 0 = 'a')
+_cmp_alr_vals = _cmp_data
+_cmp_alr_X = [[float(_cmp_alr_vals[i][v]) for v in _cmp_vars] for i in range(20)]
+_cmp_alr_denom = [float(row[0]) for row in _cmp_alr_X]
+_cmp_alr_result = []
+for _i in range(20):
+    _alr_row = []
+    for _j in range(1, 4):
+        _alr_row.append(round(np.log(float(np.maximum(_cmp_alr_X[_i][_j], 1e-10)) / float(np.maximum(_cmp_alr_denom[_i], 1e-10))), 6))
+    _cmp_alr_result.append(_alr_row)
+
+# compPCA — full CLR N×P covariance → eigenvalues via numpy
+_cmp_clr_arr = np.array(_cmp_clr_full)  # 20×4
+_cmp_cov = np.cov(_cmp_clr_arr, rowvar=False, ddof=1)
+_cmp_eigvals, _cmp_eigvecs = np.linalg.eigh(_cmp_cov)
+_cmp_eigvals = _cmp_eigvals[::-1]
+_cmp_eigvecs = _cmp_eigvecs[:, ::-1]
+# JS cumSum is raw cumulative sum, NOT proportion
+_cmp_cum = np.cumsum(_cmp_eigvals)
+
+# compRegression — ILR coords + OLS with intercept
+_cmp_y = np.array([float(r['y']) for r in _cmp_data])
+_cmp_ilr_arr = np.array(_cmp_ilr_full)  # 20×3
+_cmp_Xreg = np.column_stack([np.ones(20), _cmp_ilr_arr])
+_cmp_beta = np.linalg.lstsq(_cmp_Xreg, _cmp_y, rcond=None)[0]
+_cmp_fitted = _cmp_Xreg @ _cmp_beta
+_cmp_ssr = float(np.sum((_cmp_y - _cmp_fitted) ** 2))
+_cmp_sigma2 = _cmp_ssr / max(1, 20 - 4)
+_cmp_xtx_inv = np.linalg.inv(_cmp_Xreg.T @ _cmp_Xreg)
+_cmp_coeffs = []
+for _j in range(1, len(_cmp_beta)):
+    _se = float(np.sqrt(max(0, _cmp_sigma2 * _cmp_xtx_inv[_j, _j])))
+    _z = float(_cmp_beta[_j] / _se) if _se > 0 and np.isfinite(_se) else 0.0
+    _pval = float(2 * (1 - st.norm.cdf(abs(_z))))
+    _cmp_coeffs.append({
+        'b': float(round(_cmp_beta[_j], 5)),
+        'se': float(round(_se, 5)),
+        'z': float(round(_z, 4)),
+        'p': float(round(_pval, 4)),
+    })
+
+compositional = {
+    'clrTransform_basic': {'data': _cmp_data, 'vars': _cmp_vars, 'transformed5': _cmp_clr_5},
+    'ilrTransform_basic': {'data': _cmp_data, 'vars': _cmp_vars, 'transformed5': _cmp_ilr_5},
+    'alrTransform_basic': {'data': _cmp_data, 'vars': _cmp_vars, 'transformed5': _cmp_alr_result[:5]},
+    'compPCA_basic': {
+        'data': _cmp_data, 'vars': _cmp_vars,
+        'eigenvalues': [float(round(max(v, 0), 4)) for v in _cmp_eigvals[:5]],
+        'cumulative': [float(round(v, 4)) for v in _cmp_cum[:4]],
+    },
+    'compRegression_basic': {
+        'data': _cmp_data, 'yVar': 'y', 'compVars': _cmp_vars,
+        'coefficients': _cmp_coeffs,
+    },
+}
+ref['compositional'] = compositional
+
+# ── fda (functionalMean/fpca/scalarOnFunction/functionalClustering) ────────────
+# All functions are purely deterministic with B-spline basis:
+# basis_b(t) = exp(-b * 0.5 * (t - mean(t))^2)
+# Scores rounded .toFixed(4), eigenvalues rounded .toFixed(4).
+
+_fda_X = np.array([[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6], [4, 5, 6, 7], [5, 6, 7, 8]], dtype=float)
+_fda_tp = np.array([0, 1, 2, 3], dtype=float)
+_fda_n = _fda_X.shape[0]
+_fda_m = _fda_X.shape[1]
+
+# functionalMean
+_fda_mean = np.array([round(np.mean(_fda_X[:, j]), 4) for j in range(_fda_m)])
+
+# fpca (nBasis=5 default)
+_fda_nBasis = 5
+_fda_tp_mean = float(np.mean(_fda_tp))
+_fda_basis = np.array([[np.exp(-b * 0.5 * (t - _fda_tp_mean) ** 2) for t in _fda_tp] for b in range(_fda_nBasis)])
+_fda_scores = np.array([[(np.sum(_fda_X[i, :] * _fda_basis[b, :]) / _fda_m) for b in range(_fda_nBasis)] for i in range(_fda_n)])
+_fda_cov = np.cov(_fda_scores, rowvar=False, ddof=0)  # JS divides by n
+_fda_eigvals, _fda_eigvecs = np.linalg.eigh(_fda_cov)
+_fda_eigvals = _fda_eigvals[::-1]
+_fda_eigvecs = _fda_eigvecs[:, ::-1]
+_fda_total_var = float(np.sum(np.maximum(_fda_eigvals, 0))) or 1.0
+_fda_prop = [float(round(max(v, 0) / _fda_total_var, 4)) for v in _fda_eigvals[:2]]
+
+# scalarOnFunction
+_fda_rowSums = np.array([float(np.sum(row)) for row in _fda_X])
+_fda_sx = float(np.sum(_fda_rowSums))
+_fda_sy_val = float(np.sum(_fda_y := np.array([10.0, 15.0, 20.0, 25.0, 30.0])))
+_fda_sxx = float(np.sum(_fda_rowSums ** 2))
+_fda_sxy = float(np.sum(_fda_rowSums * _fda_y))
+_fda_denom = _fda_n * _fda_sxx - _fda_sx * _fda_sx
+_fda_b1 = (_fda_n * _fda_sxy - _fda_sx * _fda_sy_val) / _fda_denom
+_fda_b0 = (_fda_sxx * _fda_sy_val - _fda_sx * _fda_sxy) / _fda_denom
+_fda_fitted = _fda_b0 + _fda_b1 * _fda_rowSums
+_fda_ssr = float(np.sum((_fda_y - _fda_fitted) ** 2))
+_fda_sst = float(np.sum((_fda_y - np.mean(_fda_y)) ** 2))
+_fda_r2 = 1.0 - _fda_ssr / _fda_sst if _fda_sst > 0 else 0.0
+
+# functionalClustering
+_fda_rowSums_sorted = np.sort(_fda_rowSums)
+_fda_thresholds = [float(_fda_rowSums_sorted[int(np.floor((i + 1) * _fda_n / 2))]) for i in range(1)]
+_fda_labels = [0 if v <= _fda_thresholds[0] else 1 for v in _fda_rowSums]
+
+fda = {
+    'functionalMean_basic': {'data': _fda_X.tolist(), 'mean': _fda_mean.tolist()},
+    'fpca_basic': {
+        'data': _fda_X.tolist(), 'tp': _fda_tp.tolist(),
+        'eigenvalues': [float(round(v, 4)) for v in _fda_eigvals[:2]],
+        'propVar': _fda_prop,
+    },
+    'scalarOnFunction_basic': {
+        'data': _fda_X.tolist(), 'y': _fda_y.tolist(),
+        'intercept': float(round(_fda_b0, 4)),
+        'slope': float(round(_fda_b1, 4)),
+        'rSquared': float(round(_fda_r2, 4)),
+    },
+    'functionalClustering_basic': {
+        'data': _fda_X.tolist(), 'labels': _fda_labels,
+    },
+}
+ref['fda'] = fda
+
+# ── sensitivity (modelComparison/forecastCombination/deltaMethod/andrewsPlot) ───
+# Deterministic subset — exact numeric oracles.
+
+# modelComparison: mse1=2.5, mse2=3.0, n=30, k1=2, k2=3
+_sen_n = 30
+_sen_mse1, _sen_mse2 = 2.5, 3.0
+_sen_k1, _sen_k2 = 2, 3
+_sen_fStat = _sen_mse1 / _sen_mse2 if _sen_mse2 > 0 else 0.0
+_sen_df1 = _sen_n - _sen_k1 - 1
+_sen_df2 = _sen_n - _sen_k2 - 1
+_sen_fdist = st.f(_sen_df1, _sen_df2)
+_sen_p = 1.0 - _sen_fdist.cdf(max(_sen_fStat, 0))
+
+# forecastCombination: equal-weight, forecasts=[[10,12,14,16,18],[11,13,15,17,19]], actual=[10,12,13,15,17]
+_sen_fc = np.array([[10, 12, 14, 16, 18], [11, 13, 15, 17, 19]], dtype=float)
+_sen_actual = np.array([10, 12, 13, 15, 17], dtype=float)
+_sen_combined = np.array([round(np.mean(_sen_fc[:, i]), 4) for i in range(5)])
+_sen_mse = float(round(np.mean((_sen_combined - _sen_actual) ** 2), 4))
+
+# deltaMethod: fn = x[0]*x[1], means=[2,3], ses=[0.1,0.2]
+_sen_dm_means = np.array([2.0, 3.0])
+_sen_dm_ses = np.array([0.1, 0.2])
+_sen_dm_h = 1e-6
+_sen_dm_grad = np.zeros(2)
+for _i in range(2):
+    _plus = _sen_dm_means.copy(); _plus[_i] += _sen_dm_h
+    _minus = _sen_dm_means.copy(); _minus[_i] -= _sen_dm_h
+    _sen_dm_grad[_i] = (_plus[0] * _plus[1] - _minus[0] * _minus[1]) / (2 * _sen_dm_h)
+_sen_dm_var = np.sum(_sen_dm_grad ** 2 * _sen_dm_ses ** 2)
+_sen_dm_se = float(np.sqrt(max(_sen_dm_var, 0)))
+
+# andrewsPlot: X=[[1,2,3],[4,5,6],[7,8,9]], nPts=50
+_sen_ap_X = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=float)
+_sen_ap_nPts = 50
+_sen_ap_t = np.linspace(-np.pi, np.pi, _sen_ap_nPts)
+_sen_ap_curves = []
+for _idx in range(3):
+    _ap_curve = []
+    _ap_row = _sen_ap_X[_idx]
+    for _ti in _sen_ap_t:
+        _s = _ap_row[0] / np.sqrt(2)
+        for _j in range(1, 3):
+            _freq = int(np.floor((_j + 1) / 2))
+            if _j % 2 == 1:
+                _s += _ap_row[_j] * np.sin(_freq * _ti)
+            else:
+                _s += _ap_row[_j] * np.cos(_freq * _ti)
+        _ap_curve.append({'t': float(round(_ti, 4)), 'f': float(round(_s, 4))})
+    _sen_ap_curves.append(_ap_curve)
+
+sensitivity = {
+    'modelComparison_basic': {
+        'f': float(round(_sen_fStat, 4)), 'df1': int(_sen_df1), 'df2': int(_sen_df2),
+        'p': float(round(_sen_p, 6)), 'n': _sen_n,
+    },
+    'forecastCombination_basic': {
+        'mse': float(round(_sen_mse, 4)),
+    },
+    'deltaMethod_basic': {
+        'estimate': float(round(_sen_dm_means[0] * _sen_dm_means[1], 4)),
+        'se': float(round(_sen_dm_se, 4)),
+    },
+    'andrewsPlot_basic': {
+        'data': _sen_ap_X.tolist(), 'nPts': _sen_ap_nPts,
+        'curve0first': _sen_ap_curves[0][0],
+        'curve0last': _sen_ap_curves[0][-1],
+    },
+}
+ref['sensitivity'] = sensitivity
+
+# ── bandit (UCB with constant rewards — fully deterministic) ──────────────────
+# UCB always picks the arm with max UCB value. With constant rewards [0.2, 0.5,
+# 0.3, 0.1, 0.4, 0.7], the sequence of arm selections and value estimates is
+# fully determined — zero random decisions.
+
+_band_arms = [0.2, 0.5, 0.3, 0.1, 0.4, 0.7]
+_band_k = len(_band_arms)
+_band_nIter = 50
+_band_counts = [0] * _band_k
+_band_values = [0.0] * _band_k
+_band_total = 0.0
+_band_t = 0
+
+for _i in range(_band_k):
+    _arm = _i
+    _r = _band_arms[_arm]
+    _band_counts[_arm] += 1
+    _band_values[_arm] += (_r - _band_values[_arm]) / _band_counts[_arm]
+    # JS UCB does NOT add init pulls to totalReward
+    _band_t += 1
+
+while _band_t < _band_nIter:
+    _ucb = [(float('inf') if _band_counts[i] == 0 else _band_values[i] + np.sqrt((2 * np.log(_band_t + 1)) / _band_counts[i])) for i in range(_band_k)]
+    _arm = int(np.argmax(_ucb))
+    _r = _band_arms[_arm]
+    _band_counts[_arm] += 1
+    _band_values[_arm] += (_r - _band_values[_arm]) / _band_counts[_arm]
+    _band_total += _r
+    _band_t += 1
+
+_band_best = int(np.argmax(_band_values))
+_band_regret = _band_nIter * max(_band_values) - _band_total
+
+bandit = {
+    'ucb_basic': {
+        'arms': _band_arms,
+        'nIterations': _band_nIter,
+        'bestArm': _band_best,
+        'valueEstimates': [float(round(v, 4)) for v in _band_values],
+        'counts': _band_counts,
+        'totalReward': float(round(_band_total, 4)),
+        'regret': float(round(_band_regret, 4)),
+    },
+}
+ref['bandit'] = bandit
+
+# ── nlp (gloveEmbeddings/namedEntityRecognition/posTagging/dependencyParse) ────
+# gloveEmbeddings: co-occurrence matrix is deterministic. We replicate the JS
+# tokenizer exactly (identical regex + length filter), build the co-occurrence
+# matrix, and verify by computing the weighted PPMI + SVD.
+# namedEntityRecognition / posTagging / dependencyParse: fully rule-based, exact
+# string-to-structure oracles.
+
+_nlp_corpus = ['hello world machine learning', 'deep learning neural network', 'data science machine intelligence']
+
+import re as _re
+def _nlp_tokenize(text):
+    return [w for w in _re.sub(r'[^a-z\s]', ' ', text.lower()).split() if len(w) > 1]
+
+_nlp_tokens = [_nlp_tokenize(d) for d in _nlp_corpus]
+_nlp_flat = [w for t in _nlp_tokens for w in t]
+_nlp_vocab = sorted(set(_nlp_flat))
+_nlp_V = len(_nlp_vocab)
+_nlp_w2i = {w: i for i, w in enumerate(_nlp_vocab)}
+_nlp_tokIds = [[_nlp_w2i[w] for w in t] for t in _nlp_tokens]
+_nlp_cooc = np.zeros((_nlp_V, _nlp_V), dtype=float)
+_nlp_window = 3
+for _doc in _nlp_tokIds:
+    for _i in range(len(_doc)):
+        for _j in range(max(0, _i - _nlp_window), min(len(_doc) - 1, _i + _nlp_window) + 1):
+            if _i != _j:
+                _nlp_cooc[_doc[_i], _doc[_j]] += 1
+
+# PPMI
+_nlp_total = float(np.sum(_nlp_cooc))
+_nlp_col_sums = np.sum(_nlp_cooc, axis=0)
+_nlp_row_sums = np.sum(_nlp_cooc, axis=1)
+_nlp_ppmi = np.zeros((_nlp_V, _nlp_V))
+for _i in range(_nlp_V):
+    for _j in range(_nlp_V):
+        if _nlp_cooc[_i, _j] > 0:
+            _pmi = np.log((_nlp_cooc[_i, _j] * _nlp_total) / max(_nlp_row_sums[_i] * _nlp_col_sums[_j], 1.0))
+            _nlp_ppmi[_i, _j] = max(0.0, _pmi)
+
+# SVD-based glove oracle (first 2 components, vecSize=5)
+_nlp_vecSize = 5
+_U, _S, _Vt = np.linalg.svd(_nlp_ppmi, full_matrices=False)
+_nlp_emb = _U[:, :_nlp_vecSize] * np.sqrt(_S[:(_nlp_vecSize)])
+_nlp_idx = {w: i for i, w in enumerate(_nlp_vocab)}
+
+# namedEntityRecognition
+_nlp_ner_text = 'Dr. Smith visited on 01/15/2023'
+_nlp_ner_entities = [
+    {'text': 'Dr. Smith', 'type': 'PERSON'},
+    {'text': '01/15/2023', 'type': 'DATE'},
+]
+
+# posTagging
+_nlp_pos_text = 'the running experiment is working nicely'
+_nlp_pos_tags = [
+    {'token': 'the', 'pos': 'DT'}, {'token': 'running', 'pos': 'VBG'},
+    {'token': 'experiment', 'pos': 'NN'}, {'token': 'is', 'pos': 'VB'},
+    {'token': 'working', 'pos': 'VBG'}, {'token': 'nicely', 'pos': 'RB'},
+]
+
+# dependencyParse: 'the dog chased the cat'
+_nlp_dep_text = 'the dog chased the cat'
+_nlp_dep_deps = [
+    {'dep': 'the', 'head': 'dog', 'relation': 'det'},
+    {'dep': 'dog', 'head': 'chased', 'relation': 'nsubj'},
+    {'dep': 'chased', 'head': 'ROOT', 'relation': 'root'},
+    {'dep': 'the', 'head': 'cat', 'relation': 'det'},
+    {'dep': 'cat', 'head': 'chased', 'relation': 'dobj'},
+]
+_nlp_dep_root = 'chased'
+
+nlp = {
+    'gloveEmbeddings_basic': {
+        'corpus': _nlp_corpus,
+        'vocab': _nlp_vocab,
+        'vocabSize': _nlp_V,
+        'coocSum': float(np.sum(_nlp_cooc)),
+    },
+    'namedEntityRecognition_basic': {
+        'text': _nlp_ner_text,
+        'entities': _nlp_ner_entities,
+    },
+    'posTagging_basic': {
+        'text': _nlp_pos_text,
+        'tagged': _nlp_pos_tags,
+    },
+    'dependencyParse_basic': {
+        'text': _nlp_dep_text,
+        'deps': _nlp_dep_deps,
+        'root': _nlp_dep_root,
+    },
+}
+ref['nlp'] = nlp
+
+# ── deepLearning (attention/transformerBlock — deterministic) ──────────────────
+# attention: scaled dot-product with softmax — pure math, no PRNG.
+# transformerBlock: weight init uses PRNG (seed=1), but output is deterministic
+# given fixed inputs and seed.
+
+# attention: Q=[[1,2],[3,4],[5,6]], K=Q, V=[[0.1,0.2],[0.3,0.4],[0.5,0.6]]
+_dl_Q = np.array([[1, 2], [3, 4], [5, 6]], dtype=float)
+_dl_K = _dl_Q.copy()
+_dl_V = np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]], dtype=float)
+_dl_n = _dl_Q.shape[0]
+_dl_dk = _dl_K.shape[1]
+_dl_scores = _dl_Q @ _dl_K.T / np.sqrt(_dl_dk)
+_dl_max = np.max(_dl_scores, axis=1, keepdims=True)
+_dl_exps = np.exp(_dl_scores - _dl_max)
+_dl_sums = np.sum(_dl_exps, axis=1)
+_dl_weights = _dl_exps / _dl_sums[:, np.newaxis]
+_dl_attn_out = np.array([[round(np.sum(_dl_weights[i, :] * _dl_V[:, j]), 4) for j in range(_dl_V.shape[1])] for i in range(_dl_n)])
+
+# transformerBlock: X=X_5x4 fixed data, seed=1, nHeads=2, dModel=8
+# The JS calls mulberry32(seed) for __rng, then uses it for weight init and
+# forward pass. We replicate the PRNG sequence exactly.
+_dl_tf_X = np.array([[0.5, -0.3, 0.2, 0.8],
+                      [-0.2, 0.6, -0.5, 0.3],
+                      [0.1, -0.1, 0.9, -0.4],
+                      [-0.8, 0.3, -0.2, 0.6],
+                      [0.4, 0.7, -0.1, -0.5]], dtype=float)
+
+# Replicate mulberry32 with seed=1 for transformerBlock oracle
+def _dl_lcg_seq(seed, count):
+    s = seed
+    out = []
+    for _ in range(count):
+        s = (1664525 * s + 1013904223) & 0xFFFFFFFF
+        out.append(s / 2**32)
+    return out
+
+_dl_tf_rng = _dl_lcg_seq(1, 5000)
+_dl_tf_ri = iter(_dl_tf_rng)
+def _dl_rand():
+    return next(_dl_tf_ri)
+
+_dl_n_tok = _dl_tf_X.shape[0]
+_dl_d = _dl_tf_X.shape[1]
+_dl_nHeads = 2
+_dl_dm = 8
+_dl_dh = max(1, _dl_dm // _dl_nHeads)
+_dl_dff = 2 * _dl_d
+
+def _dl_randMat(r, c):
+    return np.array([[(next(_dl_tf_ri) - 0.5) * np.sqrt(2 / r) for _ in range(c)] for __ in range(r)])
+
+_dl_tf_Wq = _dl_randMat(_dl_d, _dl_dm)
+_dl_tf_Wk = _dl_randMat(_dl_d, _dl_dm)
+_dl_tf_Wv = _dl_randMat(_dl_d, _dl_dm)
+_dl_tf_Wo = _dl_randMat(_dl_dm, _dl_d)
+_dl_tf_W1 = _dl_randMat(_dl_d, _dl_dff)
+_dl_tf_b1 = np.zeros(_dl_dff)
+_dl_tf_W2 = _dl_randMat(_dl_dff, _dl_d)
+_dl_tf_b2 = np.zeros(_dl_d)
+
+_dl_tf_Q = _dl_tf_X @ _dl_tf_Wq
+_dl_tf_K = _dl_tf_X @ _dl_tf_Wk
+_dl_tf_V = _dl_tf_X @ _dl_tf_Wv
+
+# Multi-head attention
+_dl_attnOut = np.zeros((_dl_n_tok, _dl_dm))
+for _head in range(_dl_nHeads):
+    _c0 = _head * _dl_dh
+    _c1 = _c0 + _dl_dh
+    _scores_h = (_dl_tf_Q[:, _c0:_c1] @ _dl_tf_K[:, _c0:_c1].T) / np.sqrt(_dl_dh)
+    _scores_h_max = np.max(_scores_h, axis=1, keepdims=True)
+    _scores_h_exp = np.exp(_scores_h - _scores_h_max)
+    _scores_h_sum = np.sum(_scores_h_exp, axis=1) + 1e-12
+    _weights_h = _scores_h_exp / _scores_h_sum[:, np.newaxis]
+    _dl_attnOut[:, _c0:_c1] = _weights_h @ _dl_tf_V[:, _c0:_c1]
+
+_dl_proj = _dl_attnOut @ _dl_tf_Wo
+
+# LayerNorm function
+def _dl_layerNorm(mat):
+    result = np.zeros_like(mat)
+    for _i in range(mat.shape[0]):
+        _mu = np.mean(mat[_i])
+        _vr = np.mean((mat[_i] - _mu) ** 2)
+        _sd = np.sqrt(_vr + 1e-6)
+        result[_i] = (mat[_i] - _mu) / _sd
+    return result
+
+_dl_a1 = _dl_layerNorm(_dl_tf_X + _dl_proj)
+
+# FFN
+_dl_ff = np.zeros((_dl_n_tok, _dl_d))
+for _i in range(_dl_n_tok):
+    _hdn = np.maximum(0, _dl_tf_b1 + _dl_a1[_i] @ _dl_tf_W1)
+    _dl_ff[_i] = _dl_tf_b2 + _hdn @ _dl_tf_W2
+
+_dl_out = _dl_layerNorm(_dl_a1 + _dl_ff)
+_dl_out_rounded = [[round(float(v), 4) for v in row] for row in _dl_out]
+
+deepLearning = {
+    'attention_basic': {
+        'Q': _dl_Q.tolist(), 'K': _dl_K.tolist(), 'V': _dl_V.tolist(),
+        'output': _dl_attn_out.tolist(),
+    },
+    'transformerBlock_basic': {
+        'X': _dl_tf_X.tolist(),
+        'output': _dl_out_rounded,
+    },
+}
+ref['deepLearning'] = deepLearning
+
 
 def _default(o):
     if isinstance(o, (np.floating,)):

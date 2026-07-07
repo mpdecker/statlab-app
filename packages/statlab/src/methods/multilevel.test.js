@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel, glmmLogistic, glmmPoisson, compareMixedModels, crossLevelInteraction, hlmThreeLevel, geeExchangeable, growthCurve, randomCoefficients, fixedEffectsPanel, randomEffectsPanel, hausmanTest, arellanoBond, glmmNegBinom, geeAR1, remlEstimate, repeatedMeasuresMANOVA, transitionModel } from './multilevel.js';
 import { nestedHLM } from './fixtures/phase3.js';
+import { GROUP_A } from './fixtures/core.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const data = nestedHLM();
 
@@ -70,6 +72,21 @@ describe('hlmRandomIntercept', () => {
     const r = hlmRandomIntercept(data, 'y', 'school');
     expect(r.apa).toMatch(/ICC/);
     expect(r.apa).toMatch(/J =/);
+  });
+
+  it('tau00 and sigma2 consistent with ANOVA oracle', () => {
+    const r = hlmRandomIntercept(data, 'y', 'school');
+    const o = ref.multilevel.hlmNull;
+    expect(r.icc).toBeCloseTo(o.icc, 4);
+    expect(r.tau00).toBeCloseTo(o.tau00, 4);
+    expect(r.sigma2).toBeCloseTo(o.sigma2, 4);
+  });
+
+  it('gamma01 consistent with group-mean regression oracle', () => {
+    const r = hlmRandomIntercept(data, 'y', 'school', ['x']);
+    const o = ref.multilevel.hlmX;
+    expect(r.gamma01).toBeCloseTo(o.gamma01, 4);
+    expect(r.seGamma01).toBeCloseTo(o.seGamma01, 4);
   });
 });
 
@@ -387,5 +404,78 @@ describe('remlEstimate estimates variance components with clusters', () => {
     const r = remlEstimate(X, y, cluster);
     expect(r.sigma2u).toBeGreaterThan(2);  // ~ su^2 = 4
     expect(r.sigma2).toBeLessThan(0.6);     // ~ se^2 = 0.25
+  });
+});
+
+describe('hardening — degenerate data', () => {
+  it('hlmRandomIntercept null when one row per cluster', () => {
+    const rows = GROUP_A.map((y, i) => ({ y, school: `S${i}`, x: i * 0.1 }));
+    expect(hlmRandomIntercept(rows, 'y', 'school', ['x'])).toBeNull();
+  });
+});
+
+describe('hardening — hlmRandomSlope invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => hlmRandomSlope(null, 'y', 'school', 'x')).toThrow();
+  });
+});
+
+describe('hardening — iccMultilevel invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => iccMultilevel(null, 'y', 'school')).toThrow();
+  });
+});
+
+describe('hardening — glmmLogistic invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => glmmLogistic(null, 'y', 'school')).toThrow();
+  });
+});
+
+describe('hardening — glmmPoisson invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => glmmPoisson(null, 'y', 'school')).toThrow();
+  });
+});
+
+describe('hardening — compareMixedModels invalid inputs', () => {
+  it('returns null for null inputs', () => {
+    expect(compareMixedModels(null, null)).toBeNull();
+  });
+});
+
+describe('hardening — crossLevelInteraction invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => crossLevelInteraction(null, 'y', 'school', 'x1', 'x2')).toThrow();
+  });
+});
+
+describe('hardening — hlmThreeLevel invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(hlmThreeLevel(null, 'y', 'x', 'l2', 'l3')).toBeNull();
+  });
+});
+
+describe('hardening — geeExchangeable invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(geeExchangeable(null, 'y', 'cluster', ['x'])).toBeNull();
+  });
+});
+
+describe('hardening — growthCurve invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(growthCurve(null, 'time', 'sub', 'y')).toBeNull();
+  });
+});
+
+describe('hardening — glmmNegBinom invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(glmmNegBinom(null, 'y', 'cluster', ['x1'])).toBeNull();
+  });
+});
+
+describe('hardening — geeAR1 invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(geeAR1(null, 'y', 'cluster', ['x1'])).toBeNull();
   });
 });

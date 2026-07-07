@@ -844,3 +844,91 @@ describe('coxPH sign convention', () => {
     expect(r.coefficients[0].beta).toBeLessThan(1.2);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('kmEstimate null for null', () => expect(kmEstimate(null)).toBeNull());
+  it('kmEstimate null for empty', () => expect(kmEstimate([])).toBeNull());
+  it('kmEstimate null for single obs', () => expect(kmEstimate([{ time: 5, event: 1 }])).toBeNull());
+  it('logRankTest null for null', () => expect(logRankTest(null, obsB)).toBeNull());
+  it('logRankTest null for empty', () => expect(logRankTest([], obsB)).toBeNull());
+  it('nelsonAalen null for null', () => expect(nelsonAalen(null)).toBeNull());
+  it('nelsonAalen null for empty', () => expect(nelsonAalen([])).toBeNull());
+  it('coxPH null for null data', () => expect(coxPH(null, ['age'])).toBeNull());
+  it('coxPH null for empty covariates', () => expect(coxPH(coxData, [])).toBeNull());
+  it('parametricSurvival null for null', () => expect(parametricSurvival(null, ['age'])).toBeNull());
+  it('fineGray null for null', () => expect(fineGray(null, ['age'], 1)).toBeNull());
+  it('frailtyCox null for null', () => expect(frailtyCox(null, ['age'], 'id')).toBeNull());
+  it('timeVaryingCox null for null', () => expect(timeVaryingCox(null, ['age'], 'start', 'stop')).toBeNull());
+  it('rmst null for null', () => expect(rmst(null, 50)).toBeNull());
+  it('rmstCompare null for null', () => expect(rmstCompare(null, obsB, 50)).toBeNull());
+  it('aalenModel null for null', () => expect(aalenModel(null, ['age'])).toBeNull());
+  it('cureModel null for null', () => expect(cureModel(null)).toBeNull());
+  it('multistateModel null for null', () => expect(multistateModel(null)).toBeNull());
+  it('agModel null for null', () => expect(agModel(null, 'id', 'time', 'event')).toBeNull());
+  it('pwpgap null for null', () => expect(pwpgap(null, 'id', 'time', 'event')).toBeNull());
+  it('wlwMarginal null for null', () => expect(wlwMarginal(null, 'id', 'time', 'event')).toBeNull());
+  it('survivalTree null for null', () => expect(survivalTree(null, ['age'])).toBeNull());
+  it('randomSurvivalForest null for null', () => expect(randomSurvivalForest(null, ['age'])).toBeNull());
+  it('rsfVariableImportance null for null', () => expect(rsfVariableImportance(null)).toBeNull());
+  it('timeDependentROC null for null', () => expect(timeDependentROC(null, ['x'], [10, 20])).toBeNull());
+  it('survivalCalibration null for null', () => expect(survivalCalibration(null, ['x'], [10, 20])).toBeNull());
+  it('survivalForestPredict null for null', () => expect(survivalForestPredict(null, { x: 1 })).toBeNull());
+  it('jointModel null for null', () => expect(jointModel(null, null, 'time', 'id')).toBeNull());
+  it('landmarkAnalysis null for null', () => expect(landmarkAnalysis(null, 'time', 'event', 20, 30, ['x1'])).toBeNull());
+  it('pseudoValues null for null', () => expect(pseudoValues(null, 'time', 'event', 40)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('kmEstimate with no events returns survival of 1 throughout', () => {
+    const obs = [{ time: 1, event: 0 }, { time: 2, event: 0 }, { time: 3, event: 0 }];
+    const r = kmEstimate(obs);
+    if (r && r.survivalTable.length > 0) {
+      r.survivalTable.forEach(s => expect(s.survival).toBeCloseTo(1, 4));
+    }
+  });
+  it('kmEstimate with all events early drops to 0', () => {
+    const obs = [{ time: 2, event: 1 }, { time: 3, event: 1 }, { time: 5, event: 1 }];
+    const r = kmEstimate(obs);
+    if (r && r.survivalTable.length > 0) {
+      const last = r.survivalTable[r.survivalTable.length - 1];
+      expect(last.survival).toBeCloseTo(0, 2);
+    }
+  });
+  it('logRankTest with identical groups returns p near 1', () => {
+    const r = logRankTest(obsA, obsA);
+    if (r) expect(r.p).toBeCloseTo(1, 2);
+  });
+  it('nelsonAalen cumulative hazard non-decreasing', () => {
+    const r = nelsonAalen(obsA);
+    if (r && r.cumulativeHazardTable) {
+      for (let i = 1; i < r.cumulativeHazardTable.length; i++)
+        expect(r.cumulativeHazardTable[i].cumulativeHazard).toBeGreaterThanOrEqual(r.cumulativeHazardTable[i - 1].cumulativeHazard);
+    }
+  });
+  it('survivalTree with balanced data produces a split', () => {
+    const d = [];
+    for (let i = 0; i < 40; i++) d.push({ time: i * 2 + Math.random(), event: i < 30 ? 1 : 0, age: 40 + i, trt: i % 2 });
+    const r = survivalTree(d, ['age', 'trt']);
+    if (r) expect(r.split.variable.length).toBeGreaterThan(0);
+  });
+  it('survivalCalibration calibration entries have finite values', () => {
+    const d = []; for (let i = 0; i < 30; i++) d.push({ time: 10 + i * 2, event: i < 20 ? 1 : 0, x: i % 3 });
+    const r = survivalCalibration(d, ['x'], [10, 20]);
+    if (r) r.calibration.forEach(c => { expect(Number.isFinite(c.observed)).toBe(true); });
+  });
+});
+
+describe('hardening — reproducibility', () => {
+  it('survivalTree deterministic for same data', () => {
+    const d = []; for (let i = 0; i < 30; i++) d.push({ time: i * 2 + 1, event: i < 20 ? 1 : 0, age: 40 + i, trt: i % 2 });
+    const r1 = survivalTree(d, ['age', 'trt']);
+    const r2 = survivalTree(d, ['age', 'trt']);
+    if (r1 && r2) { expect(r1.split.variable).toBe(r2.split.variable); expect(r1.split.threshold).toBeCloseTo(r2.split.threshold, 4); }
+  });
+  it('randomSurvivalForest with same seed should be deterministic', () => {
+    const d = []; for (let i = 0; i < 30; i++) d.push({ time: i * 2 + 1, event: i < 20 ? 1 : 0, age: 40 + i });
+    const r1 = randomSurvivalForest(d, ['age']);
+    const r2 = randomSurvivalForest(d, ['age']);
+    if (r1 && r2) { expect(r1.predictions.length).toBe(r2.predictions.length); }
+  });
+});

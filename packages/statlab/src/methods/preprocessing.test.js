@@ -135,3 +135,28 @@ describe('madOutliers matches the standard modified z-score formula exactly', ()
     expect(r.outliers.map(o => o.index)).toEqual(e.madOutlierIdx);
   });
 });
+
+describe('hardening — preprocessing edge cases', () => {
+  it('standardize null for constant zscore', () => expect(standardize([5,5,5], { method: 'zscore' })).toBeNull());
+  it('standardize robust handles small dataset', () => { const r = standardize([1,2], { method: 'robust' }); expect(r).not.toBeNull(); });
+  it('standardize null for unknown method', () => expect(standardize(data, { method: 'unknown' })).toBeNull());
+  it('iqrOutliers null for <5 values', () => expect(iqrOutliers([1,2,3,4])).toBeNull());
+  it('iqrOutliers detects extreme outlier', () => { const r = iqrOutliers([1,2,3,4,100]); expect(r.nOutliers).toBeGreaterThanOrEqual(1); });
+  it('madOutliers null for null data', () => expect(madOutliers(null)).toBeNull());
+  it('madOutliers null for <5 values', () => expect(madOutliers([1,2,3,4])).toBeNull());
+  it('oneHotEncode null for null data', () => expect(oneHotEncode(null, 'cat')).toBeNull());
+  it('oneHotEncode null for missing column', () => expect(oneHotEncode(dv, 'z')).toBeNull());
+  it('equalWidthBinning null for constant data', () => expect(equalWidthBinning([5,5,5,5,5], 3)).toBeNull());
+  it('equalWidthBinning null for null data', () => expect(equalWidthBinning(null, 3)).toBeNull());
+  it('winsorize null for <3 values', () => expect(winsorize([1,2])).toBeNull());
+  it('winsorize null for null data', () => expect(winsorize(null)).toBeNull());
+  it('frequencyEncode null for null data', () => expect(frequencyEncode(null, 'cat')).toBeNull());
+  it('frequencyEncode null for missing column', () => expect(frequencyEncode(dv, 'z')).toBeNull());
+  it('smote null for null X', () => expect(smote(null, [1,1,0,0,0])).toBeNull());
+  it('smote null for mismatched lengths', () => expect(smote([[1,2],[2,3]], [1,0,0])).toBeNull());
+  it('smote null for <5 samples', () => expect(smote([[1],[2]], [1,0])).toBeNull());
+  it('adasyn null for null X', () => expect(adasyn(null, [1,1,0,0,0])).toBeNull());
+  it('adasyn null for <5 samples', () => expect(adasyn([[1],[2],[3]], [1,0,0])).toBeNull());
+  it('randomUnderSample null for null X', () => expect(randomUnderSample(null, [1,1,0])).toBeNull());
+  it('randomUnderSample null for <3 samples', () => expect(randomUnderSample([[1],[2]], [1,0])).toBeNull());
+});

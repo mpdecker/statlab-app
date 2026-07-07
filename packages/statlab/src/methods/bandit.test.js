@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 import { epsilonGreedy, ucb, thompsonSampling, contextualBandit, policyGradient, softmaxBandit, qLearning, sarsa, deepQNetwork } from './bandit.js';
+
+const rb = ref.bandit;
 
 const arms = [0.2, 0.5, 0.3, 0.1, 0.4, 0.7];
 const rew = arms.map(p => () => Math.random() < p ? 1 : 0);
@@ -97,4 +100,38 @@ describe('deepQNetwork learns Q-values with real backprop on an MDP', () => {
     const r = deepQNetwork(3, 2, { rewards, transitions, episodes: 400, lr: 0.05, gamma: 0.9, seed: 2, epsilon: 0.2 });
     expect(r.optimalPolicy[0]).toBe(1);
   });
+});
+
+describe('ucb oracle (constant rewards)', () => {
+  it('valueEstimates match oracle', () => {
+    const r = ucb(rb.ucb_basic.arms, rb.ucb_basic.arms, rb.ucb_basic.nIterations);
+    expect(r.bestArm).toBe(rb.ucb_basic.bestArm);
+    r.valueEstimates.forEach((v, i) => expect(v).toBeCloseTo(rb.ucb_basic.valueEstimates[i], 4));
+    expect(r.counts).toEqual(rb.ucb_basic.counts);
+    expect(r.totalReward).toBeCloseTo(rb.ucb_basic.totalReward, 4);
+    expect(r.regret).toBeCloseTo(rb.ucb_basic.regret, 4);
+  });
+});
+
+describe('hardening — bandit edge cases', () => {
+  const detRew = [() => 1, () => 0, () => 1, () => 0, () => 1, () => 0];
+  it('epsilonGreedy null for empty arms', () => expect(epsilonGreedy([], rew, 50)).toBeNull());
+  it('epsilonGreedy null for null rewards', () => expect(epsilonGreedy(arms, null, 50)).toBeNull());
+  it('epsilonGreedy reproducible', () => { const r1 = epsilonGreedy(arms, detRew, 50, { seed: 123 }); const r2 = epsilonGreedy(arms, detRew, 50, { seed: 123 }); expect(r1.totalReward).toBe(r2.totalReward); });
+  it('ucb null for single arm', () => expect(ucb([0.5], [() => 1], 50)).toBeNull());
+  it('ucb reproducible', () => { const r1 = ucb(arms, detRew, 50); const r2 = ucb(arms, detRew, 50); expect(r1.totalReward).toBe(r2.totalReward); });
+  it('thompsonSampling null for empty', () => expect(thompsonSampling([], rew, 50)).toBeNull());
+  it('thompsonSampling reproducible', () => { const r1 = thompsonSampling(arms, detRew, 100, { seed: 99 }); const r2 = thompsonSampling(arms, detRew, 100, { seed: 99 }); expect(r1.totalReward).toBe(r2.totalReward); });
+  it('contextualBandit null for nContext<1', () => expect(contextualBandit(arms, 0, 40)).toBeNull());
+  it('contextualBandit reproducible', () => { const r1 = contextualBandit(arms, 2, 40, { seed: 7 }); const r2 = contextualBandit(arms, 2, 40, { seed: 7 }); expect(r1.totalReward).toBe(r2.totalReward); });
+  it('policyGradient null for single arm', () => expect(policyGradient([0.5], [() => 1], 40)).toBeNull());
+  it('policyGradient reproducible', () => { const r1 = policyGradient(arms, detRew, 40, { seed: 42 }); const r2 = policyGradient(arms, detRew, 40, { seed: 42 }); expect(r1.totalReward).toBe(r2.totalReward); });
+  it('softmaxBandit null <2 arms', () => expect(softmaxBandit([0.5], [() => 1], 50)).toBeNull());
+  it('softmaxBandit reproducible', () => { const r1 = softmaxBandit(arms, detRew, 50, { seed: 11 }); const r2 = softmaxBandit(arms, detRew, 50, { seed: 11 }); expect(r1.totalReward).toBe(r2.totalReward); });
+  it('qLearning null nActions<2', () => expect(qLearning(3, 1, null, null, { episodes: 5 })).toBeNull());
+  it('qLearning reproducible', () => { const r1 = qLearning(3, 3, null, null, { episodes: 10, seed: 5 }); const r2 = qLearning(3, 3, null, null, { episodes: 10, seed: 5 }); expect(r1.totalReward).toBe(r2.totalReward); });
+  it('sarsa null nStates<2', () => expect(sarsa(1, 3, null, null, { episodes: 5 })).toBeNull());
+  it('sarsa reproducible', () => { const r1 = sarsa(3, 3, null, null, { episodes: 10, seed: 3 }); const r2 = sarsa(3, 3, null, null, { episodes: 10, seed: 3 }); expect(r1.totalReward).toBe(r2.totalReward); });
+  it('deepQNetwork null episodes<5', () => expect(deepQNetwork(3, 3, { episodes: 2 })).toBeNull());
+  it('deepQNetwork reproducible', () => { const r1 = deepQNetwork(3, 3, { episodes: 5, seed: 1 }); const r2 = deepQNetwork(3, 3, { episodes: 5, seed: 1 }); expect(r1.totalReward).toBe(r2.totalReward); });
 });

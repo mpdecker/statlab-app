@@ -268,3 +268,123 @@ describe('powerCurve', () => {
     });
   });
 });
+
+describe('hardening — reproducibility', () => {
+  it('powerANOVA reproducible with seed', () => {
+    expect(powerANOVA(0.3, 3, 25, 0.05, 1)).toBe(powerANOVA(0.3, 3, 25, 0.05, 1));
+  });
+
+  it('powerMediation reproducible with seed', () => {
+    const a = powerMediation(0.3, 0.4, 0.1, 0.1, 300, 0.05, 2);
+    const b = powerMediation(0.3, 0.4, 0.1, 0.1, 300, 0.05, 2);
+    expect(a.powerMC).toBe(b.powerMC);
+  });
+});
+
+describe('hardening — computePowerT invalid inputs', () => {
+  it('returns 0 for n=0 or near-0 d', () => {
+    expect(computePowerT(0, 0, 0.5)).toBe(0);
+  });
+  it('returns finite value for d=0', () => {
+    expect(computePowerT(30, 30, 0)).toBeGreaterThan(0);
+  });
+});
+
+describe('hardening — computePowerCorr invalid inputs', () => {
+  it('returns NaN for n=0', () => {
+    expect(computePowerCorr(0, 0.3)).toBeNaN();
+  });
+});
+
+describe('hardening — requiredN invalid inputs', () => {
+  it('returns ceiling for d=0', () => {
+    expect(requiredN(0)).toBe(10000);
+  });
+  it('caps at ceiling for negative d', () => {
+    expect(requiredN(-0.1)).toBe(1571);
+  });
+});
+
+describe('hardening — requiredNCorr invalid inputs', () => {
+  it('returns ceiling for r=0', () => {
+    expect(requiredNCorr(0)).toBe(10000);
+  });
+});
+
+describe('hardening — powerTTest invalid inputs', () => {
+  it('returns null for invalid n', () => {
+    expect(powerTTest(0, 10, 0.5)).toBeNull();
+  });
+});
+
+describe('hardening — powerOneProportion invalid inputs', () => {
+  it('returns null for equal proportions', () => {
+    expect(powerOneProportion(100, 0.5, 0.5)).toBeNull();
+  });
+
+  it('returns null for invalid n', () => {
+    expect(powerOneProportion(0, 0.5, 0.6)).toBeNull();
+  });
+});
+
+describe('hardening — powerTwoProportion invalid inputs', () => {
+  it('returns null for invalid n', () => {
+    expect(powerTwoProportion(0, 60, 0.4, 0.6)).toBeNull();
+  });
+});
+
+describe('hardening — powerChi invalid inputs', () => {
+  it('returns alpha for w=0', () => {
+    expect(powerChi(0, 5, 100)).toBeCloseTo(0.05, 2);
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('powerTTest power in [0, 1]', () => {
+    const r = powerTTest(30, 30, 0.5);
+    expect(r.power).toBeGreaterThanOrEqual(0);
+    expect(r.power).toBeLessThanOrEqual(1);
+  });
+
+  it('powerOneProportion power in [0, 1]', () => {
+    const r = powerOneProportion(100, 0.5, 0.65);
+    expect(r.power).toBeGreaterThanOrEqual(0);
+    expect(r.power).toBeLessThanOrEqual(1);
+  });
+
+  it('powerTwoProportion power in [0, 1]', () => {
+    const r = powerTwoProportion(60, 60, 0.4, 0.6);
+    expect(r.power).toBeGreaterThanOrEqual(0);
+    expect(r.power).toBeLessThanOrEqual(1);
+  });
+
+  it('powerWilcoxon power in [0, 1]', () => {
+    const r = powerWilcoxon(30, 30, 0.5);
+    expect(r.power).toBeGreaterThanOrEqual(0);
+    expect(r.power).toBeLessThanOrEqual(1);
+  });
+
+  it('powerLogRank power in [0, 1]', () => {
+    const r = powerLogRank(200, 0.7);
+    expect(r.power).toBeGreaterThanOrEqual(0);
+    expect(r.power).toBeLessThanOrEqual(1);
+  });
+
+  it('powerRMANOVA power in [0, 1]', () => {
+    const r = powerRMANOVA(4, 30, 0.8, 0.25);
+    expect(r.power).toBeGreaterThanOrEqual(0);
+    expect(r.power).toBeLessThanOrEqual(1);
+  });
+
+  it('powerOLS power in [0, 1]', () => {
+    const r = powerOLS(0.1, 100, 3);
+    expect(r.power).toBeGreaterThanOrEqual(0);
+    expect(r.power).toBeLessThanOrEqual(1);
+  });
+
+  it('powerSpearman power in [0, 1]', () => {
+    const r = powerSpearman(50, 0.3);
+    expect(r.power).toBeGreaterThanOrEqual(0);
+    expect(r.power).toBeLessThanOrEqual(1);
+  });
+});

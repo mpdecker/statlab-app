@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { starModel, gstarModel, spaceTimeInteraction, spatiotemporalMoran, spaceTimeForecast } from './spatialTemporal.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const d = []; for (let i = 0; i < 20; i++) d.push({ y: i * 0.5 + Math.sin(i), x1: i, x2: i % 3, time: i });
 const W = Array.from({ length: 20 }, () => Array(20).fill(0)).map((r, i) => r.map((_, j) => i !== j && Math.abs(i - j) < 3 ? 1 / 2 : 0));
@@ -10,6 +11,16 @@ describe('starModel', () => {
   it('null <10', () => expect(starModel(d.slice(0, 5), 'y', ['x1'], W.slice(0, 5).map(r => r.slice(0, 5)))).toBeNull());
   it('coefficients present', () => { const r = starModel(d, 'y', ['x1'], W, { timeVar: 'time' }); if (r) { expect(r.coefficients.length).toBeGreaterThan(0); r.coefficients.forEach(c => expect(typeof c.name).toBe('string')); } });
   it('returns result without time var', () => { const r = starModel(d, 'y', ['x1'], W); expect(r).not.toBeNull(); });
+  it('rho and coefficients match numpy OLS oracle', () => {
+    const o = ref.spatialTemporal.starModel_basic;
+    const r = starModel(o.data, 'y', ['x1', 'x2'], o.W);
+    expect(r.rho).toBeCloseTo(o.rho, 4);
+    expect(r.rSquared).toBeCloseTo(o.rSquared, 4);
+    const cx1 = r.coefficients.find(c => c.name === 'x1');
+    const cx2 = r.coefficients.find(c => c.name === 'x2');
+    expect(cx1.b).toBeCloseTo(o.bX1, 4);
+    expect(cx2.b).toBeCloseTo(o.bX2, 4);
+  });
 });
 
 describe('gstarModel', () => {
@@ -94,5 +105,38 @@ describe('spatiotemporalMoran computes the standard normalized Moran I', () => {
     const expectedI = (n / S0) * num / zz.reduce((a, b) => a + b * b, 0);
     expect(spatiotemporalMoran(data, 'y', 'time').I).toBeCloseTo(expectedI, 3);
     expect(spatiotemporalMoran(data, 'y', 'time').I).toBeGreaterThan(0.2);
+  });
+});
+
+describe('hardening — invalid inputs', () => {
+  it('starModel null for null data', () => expect(starModel(null, 'y', ['x1'], W)).toBeNull());
+  it('starModel null for null yVar', () => expect(starModel(d, null, ['x1'], W)).toBeNull());
+  it('starModel null for null xVars', () => expect(starModel(d, 'y', null, W)).toBeNull());
+  it('gstarModel null for null data', () => expect(gstarModel(null, 'y', ['x1'], W)).toBeNull());
+  it('spaceTimeInteraction null for null', () => expect(spaceTimeInteraction(null, 'y', ['x1'], 'time')).toBeNull());
+  it('spatiotemporalMoran null for null', () => expect(spatiotemporalMoran(null, 'y', ['x1'], W)).toBeNull());
+  it('spaceTimeForecast null for null', () => expect(spaceTimeForecast(null, 2)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('starModel coefficients non-empty', () => {
+    const r = starModel(d, 'y', ['x1'], W);
+    if (r) { expect(r.coefficients.length).toBeGreaterThan(0); }
+  });
+  it('gstarModel rho between -1 and 1', () => {
+    const r = gstarModel(d, 'y', ['x1'], W);
+    if (r && r.rho !== undefined) { expect(r.rho).toBeGreaterThanOrEqual(-1); expect(r.rho).toBeLessThanOrEqual(1); }
+  });
+  it('spatiotemporalMoran I in [-1, 1]', () => {
+    const r = spatiotemporalMoran(d, 'y', ['x1'], W, { timeVar: 'time' });
+    if (r) { expect(r.I).toBeGreaterThanOrEqual(-1); expect(r.I).toBeLessThanOrEqual(1); }
+  });
+  it('spaceTimeForecast with reference model returns forecasts', () => {
+    const r = spaceTimeForecast({ rho: 0.5 }, 2);
+    if (r) { expect(r.forecasts.length).toBeGreaterThan(0); expect(r.nSteps).toBe(2); }
+  });
+  it('spaceTimeInteraction returns finite interaction value', () => {
+    const r = spaceTimeInteraction(d, 'y', ['x1'], 'time');
+    if (r && r.interaction !== undefined) expect(Number.isFinite(r.interaction)).toBe(true);
   });
 });

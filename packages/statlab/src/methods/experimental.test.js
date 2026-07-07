@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { randomizedBlockANOVA, latinSquareANOVA, splitPlotANOVA, crossoverANOVA, factorialANOVA, nestedANOVA, repeatedMeasuresGLM, equivalenceANOVA, centralCompositeDesign, optimalDesign, plackettBurman, taguchiLArray, doePower, definitiveScreening, latinHypercube, gpEmulator, expectedImprovement } from './experimental.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 function expectSources(r, minSources) {
   expectKeys(r, ['test', 'sources', 'apa']);
@@ -65,6 +66,19 @@ describe('randomizedBlockANOVA', () => {
       expect(s.p).toBeGreaterThanOrEqual(0);
       expect(s.p).toBeLessThanOrEqual(1);
     });
+  });
+
+  it('SS decomposition matches numpy ANOVA oracle', () => {
+    const o = ref.experimental.rbANOVA_basic;
+    const r = randomizedBlockANOVA(o.data, { treatment: 'treat', block: 'block', response: 'score' });
+    const treat = r.sources.find(s => s.source === 'Treatment');
+    const block = r.sources.find(s => s.source === 'Block');
+    const error = r.sources.find(s => s.source === 'Error');
+    expect(treat.ss).toBeCloseTo(o.ssTreat, 4);
+    expect(block.ss).toBeCloseTo(o.ssBlock, 4);
+    expect(error.ss).toBeCloseTo(o.ssError, 4);
+    expect(treat.F).toBeCloseTo(o.Ft, 2);
+    expect(block.F).toBeCloseTo(o.Fb, 2);
   });
 });
 
@@ -507,4 +521,36 @@ describe('gpEmulator solves the GP linear system (K^-1 y)', () => {
     const r = gpEmulator(X, y, { lengthScale: 1, noiseVar: 1e-6 });
     expect(r.rmse).toBeLessThan(0.05);
   });
+});
+
+describe('hardening — invalid inputs', () => {
+  it('randomizedBlockANOVA null for empty data', () => expect(randomizedBlockANOVA([])).toBeNull());
+  it('randomizedBlockANOVA null for missing keys', () => expect(randomizedBlockANOVA([{ a: 1 }])).toBeNull());
+  it('latinSquareANOVA null for empty matrix', () => expect(latinSquareANOVA([])).toBeNull());
+  it('latinSquareANOVA null for rectangular', () => expect(latinSquareANOVA([[1, 2], [3, 4], [5, 6]])).toBeNull());
+  it('splitPlotANOVA null for empty data', () => expect(splitPlotANOVA([])).toBeNull());
+  it('crossoverANOVA null for null data', () => expect(crossoverANOVA(null)).toBeNull());
+  it('factorialANOVA null for null factors', () => expect(factorialANOVA([{ a: 1, b: 2 }], { factors: null, response: 'a' })).toBeNull());
+  it('nestedANOVA null for <12 rows', () => expect(nestedANOVA(rbData, { primary: 'treat', nested: 'block', response: 'score' })).toBeNull());
+  it('repeatedMeasuresGLM null for empty', () => expect(repeatedMeasuresGLM([])).toBeNull());
+  it('equivalenceANOVA null for single group', () => expect(equivalenceANOVA([[1, 2, 3]], 0, 1)).toBeNull());
+  it('equivalenceANOVA null for dL >= dU', () => expect(equivalenceANOVA([[1, 2, 3], [4, 5, 6]], 2, 1)).toBeNull());
+  it('centralCompositeDesign null for <2 factors', () => expect(centralCompositeDesign([{ name: 'x' }])).toBeNull());
+  it('optimalDesign null for <2 factors', () => expect(optimalDesign([{ name: 'x' }], 5)).toBeNull());
+  it('plackettBurman null for empty', () => expect(plackettBurman([])).toBeNull());
+  it('taguchiLArray null for empty factors', () => expect(taguchiLArray([], [2, 3])).toBeNull());
+  it('doePower null for nFactors<2', () => expect(doePower(1, 10, 0.5)).toBeNull());
+  it('definitiveScreening null for <3 factors', () => expect(definitiveScreening([{ name: 'a' }, { name: 'b' }])).toBeNull());
+  it('latinHypercube null for n<2', () => expect(latinHypercube(1, 2)).toBeNull());
+  it('gpEmulator null for <5 samples', () => expect(gpEmulator([[1, 0], [2, 1]], [1, 2])).toBeNull());
+  it('expectedImprovement null for <2 points', () => expect(expectedImprovement([0.5], [0.1], 0.7)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('latinSquareANOVA null for 2x2 matrix', () => expect(latinSquareANOVA([[1, 2], [3, 4]])).toBeNull());
+  it('randomizedBlockANOVA handles single-treatment block', () => { const d = [{ block: 'B1', treat: 'A', score: 12 }, { block: 'B1', treat: 'B', score: 15 }, { block: 'B1', treat: 'A', score: 13 }, { block: 'B1', treat: 'B', score: 17 }]; expect(randomizedBlockANOVA(d, { treatment: 'treat', block: 'block', response: 'score' })).toBeNull(); });
+  it('centralCompositeDesign with center=0', () => { const r = centralCompositeDesign([{ name: 'a' }, { name: 'b' }], { centerPoints: 0 }); expect(r.nRuns).toBe(8); });
+  it('definitiveScreening with 3 factors', () => { const r = definitiveScreening([{ name: 'a' }, { name: 'b' }, { name: 'c' }]); expect(r.nRuns).toBe(7); });
+  it('latinHypercube with d=1', () => { const r = latinHypercube(5, 1); expect(r.samples.length).toBe(5); });
+  it('expectedImprovement with identical means', () => { const r = expectedImprovement([0.5, 0.5, 0.5], [0.1, 0.1, 0.1], 0.5); expect(r.ei.every(v => Number.isFinite(v))).toBe(true); });
 });

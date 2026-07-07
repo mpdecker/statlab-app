@@ -973,3 +973,43 @@ describe('posteriorPredictiveCheck', () => {
     expect(r.apa.length).toBeGreaterThan(0);
   });
 });
+
+describe('hardening — degenerate data and invariants', () => {
+  it('posteriorSummary handles degenerate constant samples', () => {
+    const r = posteriorSummary([5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]);
+    expect(r.mean).toBeCloseTo(5, 4);
+    expect(r.sd).toBeCloseTo(0, 2);
+  });
+  it('hpdInterval covers constant values', () => {
+    const r = hpdInterval([5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]);
+    expect(r.lo).toBeCloseTo(5, 2);
+    expect(r.hi).toBeCloseTo(5, 2);
+  });
+  it('normalNormalPosterior handles single data point', () => {
+    const r = normalNormalPosterior([2.5], 2.5, 1, 0.5);
+    expect(r).not.toBeNull();
+    expect(r.posteriorSD).toBeGreaterThan(0);
+  });
+  it('bicBayesFactor BF10 finite for strong evidence', () => {
+    const r = bicBayesFactor(-200, -140, 100, 2, 3);
+    expect(r.BF10).toBeGreaterThan(100);
+    expect(Number.isFinite(r.BF10)).toBe(true);
+  });
+});
+
+describe('hardening — reproducibility', () => {
+  it('mcmc reproducible with same init and seed', () => {
+    const lp = (theta) => -0.5 * (theta[0] * theta[0] + theta[1] * theta[1]);
+    const r1 = mcmc(lp, [0, 0], { nIter: 200, nBurnin: 20 });
+    const r2 = mcmc(lp, [0, 0], { nIter: 200, nBurnin: 20 });
+    expect(r1.chains[0][0]).toBe(r2.chains[0][0]);
+    expect(r1.acceptRate).toBe(r2.acceptRate);
+  });
+  it('jszBayesFactorT reproducible with same inputs', () => {
+    const a = [10, 11, 12, 10.5, 9.8, 10.2, 11.1];
+    const b = [14, 13, 14.5, 14.2, 13.8, 15, 13.5];
+    const r1 = jszBayesFactorT(a, b);
+    const r2 = jszBayesFactorT(a, b);
+    expect(r1.bf10).toBe(r2.bf10);
+  });
+});

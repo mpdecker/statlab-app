@@ -973,7 +973,7 @@ export function rpsft(data, treatment, outcome, observed) {
     const u = tObs.map((ti, i) => t[i] ? ti * Math.exp(-psi) : ti);
     let st = 0, su = 0;
     for (let i = 0; i < n; i++) { st += t[i] * u[i]; su += (1 - t[i]) * u[i]; }
-    const z = n > 0 ? (st / Math.max(t.filter(v => v === 1).length, 1) - su / Math.max(t.filter(v => v === 0).length, 1)) / (1 || 0.1) : 0;
+    const z = n > 0 ? (st / Math.max(t.filter(v => v === 1).length, 1) - su / Math.max(t.filter(v => v === 0).length, 1)) / 1 : 0;
     psi += 0.01 * z;
     if (Math.abs(z) < 1e-4) break;
   }

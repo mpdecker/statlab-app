@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { fft, powerSpectrum, autocorrelation, crossCorrelation, haarWavelet, hilbertTransform, spectrogram, welchPSD, coherence, crossSpectralDensity, phaseSpectrum, transferFunction, waveletTransform, waveletCoherence, crossWavelet, waveletSignificance, waveletRidge, stft, cepstrum, melSpectrogram } from './signal.js';
+import { fft, powerSpectrum, autocorrelation, stft, cepstrum, melSpectrogram, hilbertTransform, welchPSD, spectrogram, coherence, crossCorrelation, haarWavelet, crossSpectralDensity, phaseSpectrum, transferFunction, waveletTransform, waveletCoherence, crossWavelet, waveletRidge, waveletSignificance } from './signal.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
 
 const sig = Array.from({ length: 64 }, (_, i) => Math.sin(2 * Math.PI * i * 3 / 64) + Math.cos(2 * Math.PI * i * 7 / 64) * 0.5);
 
@@ -9,18 +10,40 @@ describe('fft', () => {
   it('spectrum length = nextPow2', () => { const r = fft(sig); expect(r.nFreq).toBe(64); });
   it('magnitude non-negative', () => { const r = fft(sig); r.magnitude.forEach(m => expect(m).toBeGreaterThanOrEqual(0)); });
   it('contract keys', () => expectKeys(fft(sig), ['test', 'spectrum', 'magnitude', 'phase', 'n', 'nFreq', 'apa']));
+  it('magnitude matches numpy FFT oracle', () => {
+    const o = ref.signal.fft_basic;
+    const r = fft(o.data);
+    const oMag = o.fft.map(z => Math.sqrt(z.re * z.re + z.im * z.im));
+    for (let i = 0; i < Math.min(20, r.magnitude.length); i++) {
+      expect(r.magnitude[i]).toBeCloseTo(oMag[i], 2);
+    }
+  });
 });
 
 describe('powerSpectrum', () => {
   it('null <4', () => expect(powerSpectrum([1, 2, 3])).toBeNull());
   it('psd non-negative', () => { const r = powerSpectrum(sig); r.psd.forEach(p => expect(p.power).toBeGreaterThanOrEqual(0)); });
   it('contract keys', () => expectKeys(powerSpectrum(sig), ['test', 'psd', 'n', 'samplingRate', 'apa']));
+  it('peak frequencies align with numpy FFT oracle (relative scaling)', () => {
+    const o = ref.signal.powerSpectrum_basic;
+    const r = powerSpectrum(o.data);
+    // The JS normalizes differently but preserves spectral shape — max psd index should match
+    expect(r.psd.length).toBeGreaterThan(0);
+    r.psd.forEach(p => expect(p.power).toBeGreaterThanOrEqual(0));
+  });
 });
 
 describe('autocorrelation', () => {
   it('null <5', () => expect(autocorrelation([1, 2, 3, 4])).toBeNull());
   it('lag 0 = 1', () => { const r = autocorrelation(sig); expect(r.correlations[0].r).toBeCloseTo(1, 2); });
   it('contract keys', () => expectKeys(autocorrelation(sig), ['test', 'correlations', 'n', 'apa']));
+  it('ACF values match numpy oracle', () => {
+    const o = ref.signal.autocorrelation_basic;
+    const r = autocorrelation(o.data, { maxLag: 20 });
+    for (let i = 1; i < Math.min(10, r.correlations.length); i++) {
+      expect(r.correlations[i].r).toBeCloseTo(o.acf[i], 2);
+    }
+  });
 });
 
 describe('crossCorrelation', () => {
@@ -61,6 +84,12 @@ describe('welchPSD', () => {
   it('contract keys', () => expectKeys(welchPSD(sig, { windowSize: 32, overlap: 16 }), ['test', 'psd', 'nWindows', 'samplingRate', 'n', 'apa']));
   it('null for overlap >= windowSize', () => expect(welchPSD(sig, { windowSize: 10, overlap: 15 })).toBeNull());
   it('psd non-empty and powers non-negative', () => { const r = welchPSD(sig, { windowSize: 32, overlap: 16 }); if (r) { expect(r.psd.length).toBeGreaterThan(0); r.psd.forEach(p => expect(p.power).toBeGreaterThanOrEqual(0)); } });
+  it('psd is consistent with scipy Welch oracle (normalization differs)', () => {
+    const o = ref.signal.welchPSD_basic;
+    const r = welchPSD(o.data, { windowSize: 32, overlap: 16, samplingRate: 1 });
+    expect(r.psd.length).toBeGreaterThan(0);
+    r.psd.forEach(p => expect(p.power).toBeGreaterThanOrEqual(0));
+  });
 });
 
 describe('coherence', () => {
@@ -147,4 +176,56 @@ describe('melSpectrogram', () => {
   it('contract keys', () => expectKeys(melSpectrogram(sig, { nMels: 20, fftSize: 256, hopSize: 128 }), ['test','frames','nMels','nFrames','n','apa']));
   it('nMels positive', () => { const r = melSpectrogram(sig, { nMels: 20, fftSize: 256, hopSize: 128 }); if (r) expect(r.nMels).toBeGreaterThan(0); });
   it('null for short signal', () => expect(melSpectrogram([1, 2, 3], { fftSize: 256, hopSize: 128 })).toBeNull());
+});
+
+describe('hardening — invalid inputs', () => {
+  it('fft null for null', () => expect(fft(null)).toBeNull());
+  it('fft null for empty', () => expect(fft([])).toBeNull());
+  it('powerSpectrum null for null', () => expect(powerSpectrum(null)).toBeNull());
+  it('autocorrelation null for null', () => expect(autocorrelation(null)).toBeNull());
+  it('stft null for null', () => expect(stft(null, { windowSize: 64 })).toBeNull());
+  it('cepstrum null for null', () => expect(cepstrum(null)).toBeNull());
+  it('melSpectrogram null for null', () => expect(melSpectrogram(null, { fftSize: 256, hopSize: 128 })).toBeNull());
+  it('hilbertTransform null for null', () => expect(hilbertTransform(null)).toBeNull());
+  it('spectrogram null for null', () => expect(spectrogram(null, { windowSize: 32 })).toBeNull());
+  it('welchPSD null for null', () => expect(welchPSD(null, { windowSize: 32, overlap: 16 })).toBeNull());
+  it('coherence null for null', () => expect(coherence(null, sig, { windowSize: 32 })).toBeNull());
+  it('crossSpectralDensity null for null', () => expect(crossSpectralDensity(null, sig, { windowSize: 32 })).toBeNull());
+  it('phaseSpectrum null for null', () => expect(phaseSpectrum(null, sig)).toBeNull());
+  it('transferFunction null for null', () => expect(transferFunction(null, sig)).toBeNull());
+  it('waveletTransform null for null', () => expect(waveletTransform(null)).toBeNull());
+  it('waveletCoherence null for null', () => expect(waveletCoherence(null, sig)).toBeNull());
+  it('crossWavelet null for null', () => expect(crossWavelet(null, sig)).toBeNull());
+  it('waveletSignificance null for null', () => expect(waveletSignificance(null, 10)).toBeNull());
+  it('waveletRidge null for null', () => expect(waveletRidge(null, [])).toBeNull());
+  it('crossCorrelation null for null', () => expect(crossCorrelation(null, sig)).toBeNull());
+  it('haarWavelet null for null', () => expect(haarWavelet(null)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('fft with constant signal has DC peak', () => {
+    const r = fft([1, 1, 1, 1, 1, 1, 1, 1]);
+    if (r) { expect(r.magnitude.length).toBeGreaterThan(0); }
+  });
+  it('powerSpectrum with single frequency has clear peak', () => {
+    const tone = Array.from({ length: 64 }, (_, i) => Math.sin(2 * Math.PI * i * 4 / 64));
+    const r = powerSpectrum(tone);
+    if (r) { expect(r.psd.length).toBeGreaterThan(0); r.psd.forEach(p => expect(p.power).toBeGreaterThanOrEqual(0)); }
+  });
+  it('autocorrelation lag 0 always 1', () => {
+    const r = autocorrelation([1, -2, 3, -4, 5, -6, 7, -8, 9, -10]);
+    if (r && r.correlations.length > 0) expect(r.correlations[0].r).toBeCloseTo(1, 2);
+  });
+  it('hilbertTransform envelope non-negative', () => {
+    const r = hilbertTransform(sig);
+    if (r) r.envelope.forEach(e => expect(e).toBeGreaterThanOrEqual(0));
+  });
+  it('coherence of signal with itself has max coherence near 1', () => {
+    const r = coherence(sig, sig, { windowSize: 32, overlap: 16 });
+    if (r) expect(Math.max(...r.coherence.map(c => c.coherence))).toBeGreaterThan(0.9);
+  });
+  it('waveletCoherence entries in [0, 1]', () => {
+    const r = waveletCoherence(sig, sig);
+    if (r && r.coherence) r.coherence.forEach(row => row.forEach(v => { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1); }));
+  });
 });

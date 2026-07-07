@@ -69,3 +69,52 @@ describe('competingRisksReliability', () => {
   it('null <5', () => expect(competingRisksReliability([1,2], [1,2])).toBeNull());
   it('CIF sums between 0-1', () => { const r = competingRisksReliability(times, causes); if (r && r.cif) { r.cif.forEach(c => expect(Number.isFinite(c.CIF)).toBe(true)) } });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('weibullAnalysis rejects null/empty', () => {
+    expect(weibullAnalysis(null)).toBeNull();
+    expect(weibullAnalysis([])).toBeNull();
+  });
+  it('reliabilityGrowth rejects mismatched lengths', () => {
+    expect(reliabilityGrowth(null, cumT)).toBeNull();
+    expect(reliabilityGrowth([1,2,3], cumT)).toBeNull();
+  });
+  it('acceleratedLife rejects null/mismatch', () => {
+    expect(acceleratedLife(null, [50, 70])).toBeNull();
+    expect(acceleratedLife([500, 300], [50, 70, 85])).toBeNull();
+  });
+  it('warrantyPrediction rejects null', () => {
+    expect(warrantyPrediction(null)).toBeNull();
+    expect(warrantyPrediction([1, 2, 3])).toBeNull();
+  });
+  it('weibullBayes rejects null', () => {
+    expect(weibullBayes(null)).toBeNull();
+  });
+  it('repairableSystems rejects null/no endTime', () => {
+    expect(repairableSystems(null, 100)).toBeNull();
+    expect(repairableSystems([1, 2], 0)).toBeNull();
+  });
+  it('competingRisksReliability rejects mismatched', () => {
+    expect(competingRisksReliability(null, [1, 2, 3])).toBeNull();
+    expect(competingRisksReliability([1, 2, 3], [1, 2])).toBeNull();
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('weibullAnalysis beta > 0 and mtbf positive', () => {
+    const r = weibullAnalysis(data);
+    expect(r.beta).toBeGreaterThan(0);
+    expect(r.mtbf).toBeGreaterThan(0);
+  });
+  it('acceleratedLife useLife finite and positive', () => {
+    const life = [500, 300, 200, 120, 80];
+    const temp = [50, 70, 85, 100, 120];
+    const r = acceleratedLife(life, temp);
+    expect(Number.isFinite(r.useLife)).toBe(true);
+    expect(r.activationEnergy).toBeGreaterThan(0);
+  });
+  it('weibullBayes mtbf positive', () => {
+    const r = weibullBayes(data);
+    expect(r.shapePost).toBeGreaterThan(0);
+  });
+});

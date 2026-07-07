@@ -745,3 +745,57 @@ describe('doubleML uses X in the nuisance models (cross-fitted PLR)', () => {
     expect(Math.abs(r.ate - 1.5)).toBeLessThan(0.4); // mean-only nuisance (ignoring X) is badly biased
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('propensityScoreMatch null with too few pairs', () => {
+    const rows = causalRows(30).map(r => ({ ...r, treat: 'C' }));
+    expect(propensityScoreMatch(rows, 'treat', 'y', ['x1'])).toBeNull();
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('PSM balanceAfter diffs are smaller than balanceBefore on average', () => {
+    const rows = causalRows(120);
+    const r = propensityScoreMatch(rows, 'treat', 'y', ['x1', 'x2']);
+    expect(r).not.toBeNull();
+    const before = r.balanceBefore.reduce((s, b) => s + Math.abs(b.diff), 0);
+    const after = r.balanceAfter.reduce((s, b) => s + Math.abs(b.diff), 0);
+    expect(after).toBeLessThanOrEqual(before + 0.01);
+  });
+});
+
+describe('hardening — iv2sls invalid inputs', () => {
+  it('returns null for empty data', () => {
+    expect(iv2sls([], 'y', 'x', 'z', [])).toBeNull();
+  });
+});
+
+describe('hardening — rdd invalid inputs', () => {
+  it('returns null for insufficient n', () => {
+    expect(regressionDiscontinuity([1, 2, 3], [1, 2, 3], 0, 10)).toBeNull();
+  });
+});
+
+describe('hardening — syntheticControl invalid inputs', () => {
+  it('returns null for single control', () => {
+    expect(syntheticControl([1, 2, 3], [], 2, 1)).toBeNull();
+  });
+});
+
+describe('hardening — staggeredDiD invalid inputs', () => {
+  it('returns null for empty panel', () => {
+    expect(staggeredDiD([], 'unit', 'time', 'treat', 'y')).toBeNull();
+  });
+});
+
+describe('hardening — smdTable invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(smdTable(null, 'treat', ['x1'])).toBeNull();
+  });
+});
+
+describe('hardening — covariateBalance invalid inputs', () => {
+  it('returns null for null input', () => {
+    expect(covariateBalance(null, [{ x1: 1 }], ['x1'])).toBeNull();
+  });
+});

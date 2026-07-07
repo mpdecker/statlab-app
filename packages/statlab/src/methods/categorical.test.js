@@ -563,3 +563,141 @@ describe('cochranQPost', () => {
   it('pairs non-empty', () => { const r = cochranQPost(d, ['v1', 'v2', 'v3']); if (r) expect(r.pairs.length).toBeGreaterThan(0); });
   it('k matches vars', () => { const r = cochranQPost(d, ['v1', 'v2', 'v3']); if (r) expect(r.k).toBe(3); });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('binomialTest rejects bad n/k/p0', () => {
+    expect(binomialTest(5, 0, 0.5)).toBeNull();
+    expect(binomialTest(-1, 10, 0.5)).toBeNull();
+    expect(binomialTest(5, 10, 0)).toBeNull();
+    expect(binomialTest(5, 10, 1)).toBeNull();
+  });
+
+  it('proportion z-tests reject n=0', () => {
+    expect(onePropZ(1, 0, 0.5)).toBeNull();
+    expect(twoPropZ(1, 0, 2, 10)).toBeNull();
+  });
+
+  it('chiGoF rejects zero expected', () => {
+    expect(chiGoF([1, 2, 3], [0, 1, 1])).toBeNull();
+  });
+
+  it('fisherExact rejects negative cells', () => {
+    expect(fisherExact(-1, 2, 3, 4)).toBeNull();
+  });
+
+  it('mcnemar rejects b+c=0', () => {
+    expect(mcnemar(0, 0)).toBeNull();
+  });
+
+  it('sensitivityLOO rejects when LOO tests fail', () => {
+    expect(sensitivityLOO([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], () => null)).toBeNull();
+  });
+});
+
+describe('hardening — degenerate data', () => {
+  it('grubbsTest rejects constant data', () => {
+    expect(grubbsTest([5, 5, 5, 5, 5, 5, 5])).toBeNull();
+  });
+});
+
+describe('hardening — leveneTest invalid inputs', () => {
+  it('returns NaN F for single group', () => {
+    const r = leveneTest([[1, 2, 3]]);
+    expect(r.F).toBeNaN();
+  });
+});
+
+describe('hardening — bartlettTest invalid inputs', () => {
+  it('returns NaN B for single group', () => {
+    const r = bartlettTest([[1, 2, 3]]);
+    expect(r.B).toBeNaN();
+  });
+});
+
+describe('hardening — bonferroni invalid inputs', () => {
+  it('returns empty array for empty input', () => {
+    const r = bonferroni([]);
+    expect(Array.isArray(r)).toBe(true);
+    expect(r.length).toBe(0);
+  });
+});
+
+describe('hardening — holm invalid inputs', () => {
+  it('returns empty array for empty input', () => {
+    const r = holm([]);
+    expect(Array.isArray(r)).toBe(true);
+    expect(r.length).toBe(0);
+  });
+});
+
+describe('hardening — bh invalid inputs', () => {
+  it('returns empty array for empty input', () => {
+    const r = bh([]);
+    expect(Array.isArray(r)).toBe(true);
+    expect(r.length).toBe(0);
+  });
+});
+
+describe('hardening — storeyQValue invalid inputs', () => {
+  it('returns null for empty array', () => {
+    expect(storeyQValue([])).toBeNull();
+  });
+
+  it('returns null for null input', () => {
+    expect(storeyQValue(null)).toBeNull();
+  });
+});
+
+describe('hardening — benjaminiYekutieli invalid inputs', () => {
+  it('returns null for empty array', () => {
+    expect(benjaminiYekutieli([])).toBeNull();
+  });
+
+  it('returns null for null input', () => {
+    expect(benjaminiYekutieli(null)).toBeNull();
+  });
+});
+
+describe('hardening — localFDR invalid inputs', () => {
+  it('returns null for empty array', () => {
+    expect(localFDR([])).toBeNull();
+  });
+
+  it('returns null for null input', () => {
+    expect(localFDR(null)).toBeNull();
+  });
+});
+
+describe('hardening — stratifiedFDR invalid inputs', () => {
+  it('returns null for empty array', () => {
+    expect(stratifiedFDR([], [])).toBeNull();
+  });
+
+  it('returns null for mismatched lengths', () => {
+    expect(stratifiedFDR([0.01, 0.05], [1])).toBeNull();
+  });
+
+  it('returns null for null input', () => {
+    expect(stratifiedFDR(null, [1, 2])).toBeNull();
+  });
+});
+
+describe('hardening — fwerControl invalid inputs', () => {
+  it('returns null for empty array', () => {
+    expect(fwerControl([])).toBeNull();
+  });
+
+  it('returns null for null input', () => {
+    expect(fwerControl(null)).toBeNull();
+  });
+});
+
+describe('hardening — cochranQPost invalid inputs', () => {
+  it('returns null for empty data', () => {
+    expect(cochranQPost([], ['v1'])).toBeNull();
+  });
+
+  it('returns null for null input', () => {
+    expect(cochranQPost(null, ['v1'])).toBeNull();
+  });
+});

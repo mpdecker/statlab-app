@@ -424,3 +424,22 @@ describe('bifactorModel rotates toward the intended group structure (regression 
     r.loadings.forEach(l => expect(l.group).toBeGreaterThan(0.3));
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('sem null for null spec', () => expect(sem(null)).toBeNull());
+  it('sem null for empty spec', () => expect(sem({})).toBeNull());
+  it('sem null for empty equations', () => expect(sem({ equations: [], data: [] })).toBeNull());
+  it('semMultiGroup null for null spec', () => expect(semMultiGroup(null)).toBeNull());
+  it('measurementInvariance null for null spec', () => expect(measurementInvariance(null)).toBeNull());
+  it('latentGrowthModel null for empty', () => expect(latentGrowthModel([], { timeVar: 't', idVar: 'id', outcomeVar: 'y' })).toBeNull());
+  it('pathAnalysis null for null spec', () => expect(pathAnalysis(null)).toBeNull());
+  it('bifactorModel null for empty data', () => expect(bifactorModel([], 'g', [{ name: 'A', items: ['x1'] }])).toBeNull());
+  it('ordinalSEM null for null spec', () => expect(ordinalSEM(null)).toBeNull());
+  it('cfiCompare null for null models', () => expect(cfiCompare(null)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('sem handles constant data', () => { const d = [{ x1: 5, x2: 5, x3: 5 }, { x1: 5, x2: 5, x3: 5 }, { x1: 5, x2: 5, x3: 5 }, { x1: 5, x2: 5, x3: 5 }]; const r = sem({ equations: ['f1 =~ x1 + x2 + x3'], data: d }); expect(r).toBeNull(); });
+  it('semMultiGroup null for mismatched groups', () => expect(semMultiGroup({ equations: [], groups: [] })).toBeNull());
+  it('cfiCompare null for <2 models', () => expect(cfiCompare([{ cfi: 0.9 }])).toBeNull());
+});

@@ -99,3 +99,40 @@ describe('spatialHausman uses the chi-square distribution (not exp(-H/2))', () =
     expect(r.p).toBeGreaterThan(0.2);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('spatialDurbin null for null data', () => expect(spatialDurbin(null, 'y', ['x1'], W)).toBeNull());
+  it('spatialDurbin null for null W', () => expect(spatialDurbin(d, 'y', ['x1'], null)).toBeNull());
+  it('spatialPanel null for null data', () => expect(spatialPanel(null, 'y', ['x1'], W)).toBeNull());
+  it('spatialPanel null for null W', () => expect(spatialPanel(d, 'y', ['x1'], null)).toBeNull());
+  it('spatialHausman null for mismatched lengths', () => expect(spatialHausman([0.5], [0.1], [0.4, 0.25], [0.08])).toBeNull());
+  it('spatialHausman null for null', () => expect(spatialHausman(null, [0.1], [0.4], [0.08])).toBeNull());
+  it('directIndirectEffects null for null', () => expect(directIndirectEffects(null)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('spatialDurbin rho in [-1, 1]', () => {
+    const r = spatialDurbin(d, 'y', ['x1', 'x2'], W);
+    if (r) { expect(r.rho).toBeGreaterThanOrEqual(-1); expect(r.rho).toBeLessThanOrEqual(1); }
+  });
+  it('spatialPanel spatialRho in [-1, 1]', () => {
+    const r = spatialPanel(d, 'y', ['x1', 'x2'], W, { idVar: 'id', timeVar: 'time' });
+    if (r) { expect(r.spatialRho).toBeGreaterThanOrEqual(-1); expect(r.spatialRho).toBeLessThanOrEqual(1); }
+  });
+  it('spatialHausman H non-negative', () => {
+    const r = spatialHausman([0.5, 0.3], [0.1, 0.1], [0.4, 0.25], [0.08, 0.08]);
+    if (r) expect(r.H).toBeGreaterThanOrEqual(0);
+  });
+  it('directIndirectEffects effects non-empty', () => {
+    const result = { n: 20, rho: 0.3, coefficients: [{ name: 'x1', b: 0.5 }] };
+    const r = directIndirectEffects(result);
+    if (r && r.effects) expect(r.effects.length).toBeGreaterThan(0);
+  });
+  it('directIndirectEffects total equals (beta)/(1-rho) when no WX term', () => {
+    const result = { n: 20, rho: 0.3, coefficients: [{ name: 'x1', b: 0.5 }] };
+    const r = directIndirectEffects(result);
+    if (r && r.effects[0]) {
+      expect(r.effects[0].total).toBeGreaterThan(r.effects[0].direct);
+    }
+  });
+});

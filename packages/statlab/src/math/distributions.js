@@ -4,12 +4,14 @@ import { mulberry32, bootstrapIndices, boxMullerN } from './rng.js';
 // ── Special functions ─────────────────────────────────────────────────────────
 /** Log gamma function ln Γ(x) (Lanczos approximation). @param {number} x @returns {number} */
 export function lngamma(x) {
+  // eslint-disable-next-line no-loss-of-precision
   const c = [76.18009172947146,-86.50532032941677,24.01409824083091,
              -1.231739572450155,1.208650973866179e-3,-5.395239384953e-6];
   let y = x, tmp = x + 5.5;
   tmp -= (x + .5) * Math.log(tmp);
   let ser = 1.000000000190015;
   for (let j = 0; j < 6; j++) ser += c[j] / ++y;
+  // eslint-disable-next-line no-loss-of-precision
   return -tmp + Math.log(2.5066282746310005 * ser / x);
 }
 

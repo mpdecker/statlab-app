@@ -57,3 +57,26 @@ describe('bicWeights', () => {
   it('weights sum to 1', () => { const r = bicWeights([{ name: 'A', bic: 100 }, { name: 'B', bic: 105 }, { name: 'C', bic: 108 }]); const sum = r.models.reduce((s, m) => s + m.weight, 0); expect(sum).toBeCloseTo(1, 2); });
   it('contract keys', () => expectKeys(bicWeights([{ name: 'A', bic: 100 }, { name: 'B', bic: 105 }]), ['test', 'models', 'nModels', 'apa']));
 });
+
+describe('hardening — invalid inputs', () => {
+  it('shannonEntropy null for empty', () => expect(shannonEntropy([])).toBeNull());
+  it('mutualInformation null for empty', () => expect(mutualInformation([], [])).toBeNull());
+  it('klDivergence null for empty', () => expect(klDivergence([], [])).toBeNull());
+  it('jensenShannonDivergence null for empty', () => expect(jensenShannonDivergence([], [])).toBeNull());
+  it('aicc null for non-finite logLik', () => expect(aicc(NaN, 3, 30)).toBeNull());
+  it('bicWeights null for empty', () => expect(bicWeights([])).toBeNull());
+  it('shannonEntropy null for null', () => expect(shannonEntropy(null)).toBeNull());
+  it('mutualInformation null for mismatched lengths', () => expect(mutualInformation([1, 2, 3, 4, 5], [1, 2, 3])).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('shannonEntropy zero for constant array', () => { const r = shannonEntropy([5, 5, 5, 5]); expect(r.entropy).toBe(0); });
+  it('klDivergence zero for identical distributions', () => { const r = klDivergence([0.5, 0.5], [0.5, 0.5]); expect(r.divergence).toBeCloseTo(0, 2); });
+  it('jensenShannonDivergence zero for identical distributions', () => { const r = jensenShannonDivergence([1, 2, 3], [1, 2, 3]); expect(r.divergence).toBeCloseTo(0, 2); });
+  it('mutualInformation zero for independent', () => { const r = mutualInformation([1, 2, 3, 4, 5], [1, 2, 3, 4, 5]); expect(r.mi).toBeGreaterThanOrEqual(0); });
+});
+
+describe('hardening — invariants', () => {
+  it('aicc returns aicc > aic for small n', () => { const r = aicc(-30, 3, 15); expect(r.aicc).toBeGreaterThan(r.aic); });
+  it('bicWeights weights sum to 1', () => { const r = bicWeights([{ name: 'M1', bic: 50 }, { name: 'M2', bic: 55 }]); const sum = r.models.reduce((s, m) => s + m.weight, 0); expect(sum).toBeCloseTo(1, 2); });
+});

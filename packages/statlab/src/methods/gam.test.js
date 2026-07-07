@@ -107,3 +107,38 @@ describe('pSpline applies its lambda penalty and actually solves the normal equa
     e.fitted.forEach((v, i) => expect(r.fitted[i]).toBeCloseTo(v, 3));
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('gamBackfitting rejects null/empty', () => {
+    expect(gamBackfitting(null, X, [])).toBeNull();
+    expect(gamBackfitting([], [], [])).toBeNull();
+  });
+  it('gamSpline rejects null/short', () => {
+    expect(gamSpline(null, X)).toBeNull();
+    expect(gamSpline([1, 2, 3], [[1], [2], [3]])).toBeNull();
+  });
+  it('gamLocalScoring rejects null/empty', () => {
+    expect(gamLocalScoring(null, X)).toBeNull();
+    expect(gamLocalScoring([], X)).toBeNull();
+  });
+  it('gamEffectiveDf rejects null/empty', () => {
+    expect(gamEffectiveDf(null)).toBeNull();
+    expect(gamEffectiveDf([])).toBeNull();
+  });
+  it('gamInteraction rejects null/short', () => {
+    expect(gamInteraction(null, 'y', 'x1', 'x2')).toBeNull();
+    expect(gamInteraction(d.slice(0, 5), 'y', 'x1', 'x2')).toBeNull();
+  });
+  it('thinPlateSpline rejects null/mismatch', () => {
+    expect(thinPlateSpline(null, [1, 2, 3, 4, 5])).toBeNull();
+    expect(thinPlateSpline([1, 2], [1, 2, 3])).toBeNull();
+  });
+  it('pSpline rejects null/mismatch', () => {
+    expect(pSpline(null, [1, 2, 3, 4, 5])).toBeNull();
+    expect(pSpline([1, 2, 3], [1, 2])).toBeNull();
+  });
+  it('gamAnova rejects null/single model', () => {
+    expect(gamAnova(null)).toBeNull();
+    expect(gamAnova([{name: 'm1', deviance: 10, df: 2}])).toBeNull();
+  });
+});

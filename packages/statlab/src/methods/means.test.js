@@ -213,3 +213,68 @@ describe('sampleSizeT', () => {
     expect(tight.nPerGroup).toBeGreaterThan(loose.nPerGroup);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('tOne rejects constant vector', () => {
+    expect(tOne([3, 3, 3, 3], 0)).toBeNull();
+  });
+
+  it('zTestKnownSD rejects sigma<=0', () => {
+    expect(zTestKnownSD(1, 0, 0, 10)).toBeNull();
+  });
+});
+
+describe('hardening — tWelch invalid inputs', () => {
+  it('throws for null inputs', () => {
+    expect(() => tWelch(null, [1, 2, 3])).toThrow();
+    expect(() => tWelch([1, 2, 3], null)).toThrow();
+  });
+});
+
+describe('hardening — tPaired invalid inputs', () => {
+  it('throws for null inputs', () => {
+    expect(() => tPaired(null, [1, 2, 3])).toThrow();
+    expect(() => tPaired([1, 2, 3], null)).toThrow();
+  });
+
+  it('returns null for short arrays', () => {
+    expect(tPaired([1], [1])).toBeNull();
+  });
+});
+
+describe('hardening — yuentTest invalid inputs', () => {
+  it('throws for null inputs', () => {
+    expect(() => yuentTest(null, [1, 2, 3])).toThrow();
+    expect(() => yuentTest([1, 2, 3], null)).toThrow();
+  });
+});
+
+describe('hardening — signTest invalid inputs', () => {
+  it('throws for null input', () => {
+    expect(() => signTest(null, 0)).toThrow();
+  });
+});
+
+describe('hardening — cohensDGroup invalid inputs', () => {
+  it('returns null for null inputs', () => {
+    expect(cohensDGroup(null, [1, 2, 3])).toBeNull();
+    expect(cohensDGroup([1, 2, 3], null)).toBeNull();
+  });
+});
+
+describe('hardening — equivalenceT invalid inputs', () => {
+  it('returns null for null inputs', () => {
+    expect(equivalenceT(null, [1, 2, 3], -1, 1)).toBeNull();
+    expect(equivalenceT([1, 2, 3], null, -1, 1)).toBeNull();
+  });
+
+  it('returns null for empty arrays', () => {
+    expect(equivalenceT([], [1, 2, 3], -1, 1)).toBeNull();
+  });
+});
+
+describe('hardening — sampleSizeT invalid inputs', () => {
+  it('returns null for null input', () => {
+    expect(sampleSizeT(-1)).toBeNull();
+  });
+});

@@ -43,3 +43,18 @@ describe('replicatorDynamics', () => {
   it('equilibrium sums to 1', () => { const r = replicatorDynamics(A, { steps: 20 }); const sum = r.equilibrium.reduce((s, v) => s + v, 0); expect(sum).toBeCloseTo(1, 1); });
   it('trajectory non-empty', () => { const r = replicatorDynamics(A, { steps: 20 }); if (r) { expect(Array.isArray(r.trajectory)).toBe(true); expect(r.trajectory.length).toBeGreaterThan(0); } });
 });
+
+describe('hardening — game theory edge cases', () => {
+  it('nashEquilibrium null for non-2x2 matrix', () => expect(nashEquilibrium([[1,2,3]])).toBeNull());
+  it('nashEquilibrium null for null matrix', () => expect(nashEquilibrium(null)).toBeNull());
+  it('shapleyValue null for empty players', () => expect(shapleyValue([], {A:1})).toBeNull());
+  it('shapleyValue null for null coalitionValues', () => expect(shapleyValue(['A','B'], null)).toBeNull());
+  it('dominatedStrategies null for null matrix', () => expect(dominatedStrategies(null)).toBeNull());
+  it('dominatedStrategies handles empty matrix', () => expect(dominatedStrategies([])).toBeNull());
+  it('paretoOptimal null for null outcomes', () => expect(paretoOptimal(null)).toBeNull());
+  it('auctionRevenue null for single bid', () => expect(auctionRevenue([5])).toBeNull());
+  it('auctionRevenue null for null bids', () => expect(auctionRevenue(null)).toBeNull());
+  it('evolutionarilyStableStrategy null for non-square', () => expect(evolutionarilyStableStrategy([[3,1]])).toBeNull());
+  it('replicatorDynamics null for non-square', () => expect(replicatorDynamics([[1,2]])).toBeNull());
+  it('replicatorDynamics null for null matrix', () => expect(replicatorDynamics(null)).toBeNull());
+});

@@ -337,3 +337,72 @@ describe('cugTest', () => { const A = [[0,1,0],[1,0,1],[0,1,0]]; it('contract ke
 describe('networkAutocorrelation', () => { const A2 = [[0,1,0],[1,0,1],[0,1,0]]; it('contract keys', () => expectKeys(networkAutocorrelation(A2, [1,2,3]), ['test','I','n','apa'])); it('autocorr between -1-1', () => { const r = networkAutocorrelation(A2, [1,2,3]); expect(r.I).toBeGreaterThanOrEqual(-1); expect(r.I).toBeLessThanOrEqual(1); }); });
 describe('degreeAssortativity', () => { const A2 = [[0,1,0],[1,0,1],[0,1,0]]; it('contract keys', () => expectKeys(degreeAssortativity(A2), ['test','assortativity','m','n','apa'])); it('assortativity between -1-1', () => { const r = degreeAssortativity(A2); expect(r.assortativity).toBeGreaterThanOrEqual(-1); expect(r.assortativity).toBeLessThanOrEqual(1); }); });
 describe('clusteringProfile', () => { const A2 = [[0,1,0],[1,0,1],[0,1,0]]; it('contract keys', () => expectKeys(clusteringProfile(A2), ['test','profile','n','apa'])); it('profile non-empty', () => { const r = clusteringProfile(A2); expect(r.profile.length).toBeGreaterThan(0); }); });
+
+describe('hardening — invariants', () => {
+  it('parses weighted edges', () => {
+    const net = networkFromEdgeList('A-B:2,C-D');
+    expect(net.edges.find(e => e.from === 'A')?.weight).toBe(2);
+  });
+});
+
+describe('hardening — adjacencyFromEdges invalid inputs', () => {
+  it('returns empty matrix for empty edges', () => {
+    const r = adjacencyFromEdges(['A', 'B'], []);
+    expect(r.length).toBe(2);
+    expect(r[0][0]).toBe(0);
+  });
+});
+
+describe('hardening — networkDiffusion invalid inputs', () => {
+  it('returns null for null adjacency', () => {
+    expect(networkDiffusion(null, [0])).toBeNull();
+  });
+});
+
+describe('hardening — SIRModel invalid inputs', () => {
+  it('returns null for null adjacency', () => {
+    expect(SIRModel(null, { steps: 5 })).toBeNull();
+  });
+});
+
+describe('hardening — pageRank invalid inputs', () => {
+  it('returns null for null adjacency', () => {
+    expect(pageRank(null)).toBeNull();
+  });
+});
+
+describe('hardening — closenessCentrality invalid inputs', () => {
+  it('returns null for null adjacency', () => {
+    expect(closenessCentrality(null)).toBeNull();
+  });
+});
+
+describe('hardening — graphMetrics invalid inputs', () => {
+  it('returns null for null adjacency', () => {
+    expect(graphMetrics(null)).toBeNull();
+  });
+});
+
+describe('hardening — louvainCommunities invalid inputs', () => {
+  it('returns null for null adjacency', () => {
+    expect(louvainCommunities(null)).toBeNull();
+  });
+});
+
+describe('hardening — fitPowerLaw invalid inputs', () => {
+  it('returns null for empty array', () => {
+    expect(fitPowerLaw([])).toBeNull();
+  });
+});
+
+describe('hardening — communityDetection invalid inputs', () => {
+  it('throws for null adjacency', () => {
+    expect(() => communityDetection(null)).toThrow();
+  });
+});
+
+describe('hardening — sociogramLayout invalid inputs', () => {
+  it('throws for null adjacency', () => {
+    expect(() => sociogramLayout(null)).toThrow();
+  });
+});

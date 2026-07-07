@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { xbarChart, rChart, sChart, pChart, cChart, cusumChart, ewmaChart, processCapability, hotellingT2Chart, mewmaChart, ocCurve, aoqCurve, rectifyingInspection, reliabilitySampling, asnCurve, multivariateControl, cpkPpk } from './spc.js';
 import { expectKeys } from './__fixtures__/helpers.js';
+import ref from './__fixtures__/reference.json' with { type: 'json' };
+
+const rs = ref.spc;
 
 const data = [];
 for (let i = 0; i < 50; i++) data.push(10 + ((i * 7 + 3) % 11 - 5) * 0.3);
@@ -11,12 +14,18 @@ describe('xbarChart', () => {
   it('ucl > centerline', () => { const r = xbarChart(data, 5); expect(r.ucl).toBeGreaterThan(r.centerline); expect(r.lcl).toBeLessThan(r.centerline); });
   it('points have signal boolean', () => { const r = xbarChart(data, 5); r.points.forEach(p => expect(typeof p.signal).toBe('boolean')); });
   it('apa string', () => { const r = xbarChart(data, 5); expect(typeof r.apa).toBe('string'); expect(r.apa.length).toBeGreaterThan(0); });
+  it('centerline matches oracle', () => { const r = xbarChart(data, 5); expect(r.centerline).toBeCloseTo(rs.xbarChart_basic.centerline, 4); });
+  it('ucl matches oracle', () => { const r = xbarChart(data, 5); expect(r.ucl).toBeCloseTo(rs.xbarChart_basic.ucl, 4); });
+  it('lcl matches oracle', () => { const r = xbarChart(data, 5); expect(r.lcl).toBeCloseTo(rs.xbarChart_basic.lcl, 4); });
 });
 
 describe('rChart', () => {
   it('null small', () => expect(rChart(data.slice(0, 8), 5)).toBeNull());
   it('contract keys', () => expectKeys(rChart(data, 5), ['test', 'centerline', 'ucl', 'lcl', 'points', 'nSubgroups', 'apa']));
   it('ranges non-negative', () => { const r = rChart(data, 5); r.points.forEach(p => expect(p.range).toBeGreaterThanOrEqual(0)); });
+  it('centerline matches oracle', () => { const r = rChart(data, 5); expect(r.centerline).toBeCloseTo(rs.rChart_basic.centerline, 4); });
+  it('ucl matches oracle', () => { const r = rChart(data, 5); expect(r.ucl).toBeCloseTo(rs.rChart_basic.ucl, 4); });
+  it('lcl matches oracle', () => { const r = rChart(data, 5); expect(r.lcl).toBeCloseTo(rs.rChart_basic.lcl, 4); });
 });
 
 describe('sChart', () => {
@@ -55,6 +64,8 @@ describe('processCapability', () => {
   it('contract keys', () => expectKeys(processCapability(data, 9, 11), ['test', 'cp', 'cpk', 'sigma', 'mean', 'lsl', 'usl', 'n', 'apa']));
   it('cp >= 0', () => { const r = processCapability(data, 9, 11); expect(r.cp).toBeGreaterThanOrEqual(0); });
   it('cpk <= cp', () => { const r = processCapability(data, 9, 11); expect(r.cpk).toBeLessThanOrEqual(r.cp); });
+  it('cp matches oracle', () => { const r = processCapability(data, 9, 11); expect(r.cp).toBeCloseTo(rs.processCapability_basic.cp, 4); });
+  it('cpk matches oracle', () => { const r = processCapability(data, 9, 11); expect(r.cpk).toBeCloseTo(rs.processCapability_basic.cpk, 4); });
 });
 
 describe('spc edge cases', () => {
@@ -96,8 +107,90 @@ describe('multivariateControl', () => {
   it('signals non-empty', () => { const r = multivariateControl(d, ['v1', 'v2']); if (r) expect(r.signals.length).toBeGreaterThan(0); });
 });
 describe('cpkPpk', () => {
-  const data = Array.from({length: 30}, () => 10 + Math.random() * 2);
   it('contract keys', () => expectKeys(cpkPpk(data, 7, 13), ['test','cp','cpk','pp','ppk','mu','sigma','n','lsl','usl','apa']));
   it('null lsl>=usl', () => expect(cpkPpk(data, 13, 7)).toBeNull());
   it('cp >= 0', () => { const r = cpkPpk(data, 7, 13); if (r) expect(r.cp).toBeGreaterThanOrEqual(0); });
+  it('cp matches oracle', () => { const r = cpkPpk(data, 7, 13); expect(r.cp).toBeCloseTo(rs.cpkPpk_basic.cp, 4); });
+  it('cpk matches oracle', () => { const r = cpkPpk(data, 7, 13); expect(r.cpk).toBeCloseTo(rs.cpkPpk_basic.cpk, 4); });
+});
+
+describe('hardening — invalid inputs', () => {
+  it('xbarChart null for null', () => expect(xbarChart(null, 5)).toBeNull());
+  it('rChart null for null', () => expect(rChart(null, 5)).toBeNull());
+  it('sChart null for null', () => expect(sChart(null, 5)).toBeNull());
+  it('pChart null for null', () => expect(pChart(null, [10, 10])).toBeNull());
+  it('cChart null for null', () => expect(cChart(null)).toBeNull());
+  it('cusumChart null for null', () => expect(cusumChart(null)).toBeNull());
+  it('ewmaChart null for null', () => expect(ewmaChart(null)).toBeNull());
+  it('processCapability null for null', () => expect(processCapability(null, 9, 11)).toBeNull());
+  it('hotellingT2Chart null for null', () => expect(hotellingT2Chart(null, ['x1', 'x2'])).toBeNull());
+  it('mewmaChart null for null', () => expect(mewmaChart(null, ['x1', 'x2'])).toBeNull());
+  it('ocCurve null for null', () => expect(ocCurve(null, 2, [0.01])).toBeNull());
+  it('aoqCurve null for null', () => expect(aoqCurve(null, 2, [0.01], 1000)).toBeNull());
+  it('rectifyingInspection null for null', () => expect(rectifyingInspection(null, 2, 0.05, 1000)).toBeNull());
+  it('reliabilitySampling null for null life', () => expect(reliabilitySampling(null, 0.01)).toBeNull());
+  it('asnCurve null for null', () => expect(asnCurve(null, 2, [0.01])).toBeNull());
+  it('multivariateControl null for null', () => expect(multivariateControl(null, ['v1', 'v2'])).toBeNull());
+  it('cpkPpk null for null', () => expect(cpkPpk(null, 7, 13)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('xbarChart with constant data has zero range', () => {
+    const constData = Array(25).fill(10);
+    const r = xbarChart(constData, 5);
+    if (r) expect(r.centerline).toBeCloseTo(10, 4);
+  });
+  it('cChart cbar positive for valid counts', () => {
+    const r = cChart([2, 3, 1, 4, 2, 3, 1, 5]);
+    if (r) expect(r.cbar).toBeGreaterThan(0);
+  });
+  it('pChart pbar in [0, 1]', () => {
+    const r = pChart([2, 3, 1, 4, 2], [20, 20, 20, 20, 20]);
+    if (r) { expect(r.pbar).toBeGreaterThanOrEqual(0); expect(r.pbar).toBeLessThanOrEqual(1); }
+  });
+  it('ewmaChart ewma values same length as input', () => {
+    const r = ewmaChart(data);
+    if (r) expect(r.ewma.length).toBe(data.length);
+  });
+  it('processCapability cp >= 0', () => {
+    const r = processCapability(data, 9, 11);
+    if (r) expect(r.cp).toBeGreaterThanOrEqual(0);
+  });
+  it('multivariateControl UCL positive', () => {
+    const d = []; for (let i = 0; i < 30; i++) d.push({ v1: i + Math.random(), v2: i * 0.5 + Math.random() });
+    const r = multivariateControl(d, ['v1', 'v2']);
+    if (r) expect(r.UCL).toBeGreaterThan(0);
+  });
+  it('cpkPpk cp >= 0', () => {
+    const r = cpkPpk(data, 7, 13);
+    if (r) expect(r.cp).toBeGreaterThanOrEqual(0);
+  });
+  it('reliabilitySampling n and t positive', () => {
+    const r = reliabilitySampling(100, 0.01);
+    if (r) { expect(r.n).toBeGreaterThan(0); expect(r.t).toBeGreaterThan(0); }
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('xbarChart ucl > centerline > lcl', () => {
+    const r = xbarChart(data, 5);
+    if (r) { expect(r.ucl).toBeGreaterThan(r.centerline); expect(r.lcl).toBeLessThan(r.centerline); }
+  });
+  it('rChart centerline >= 0', () => {
+    const r = rChart(data, 5);
+    if (r) expect(r.centerline).toBeGreaterThanOrEqual(0);
+  });
+  it('cusumChart cplus >= 0', () => {
+    const r = cusumChart(data);
+    if (r) r.cplus.forEach(v => expect(v).toBeGreaterThanOrEqual(0));
+  });
+  it('processCapability cpk <= cp', () => {
+    const r = processCapability(data, 9, 11);
+    if (r) expect(r.cpk).toBeLessThanOrEqual(r.cp);
+  });
+  it('hotellingT2Chart T2 non-negative', () => {
+    const d = []; for (let i = 0; i < 30; i++) d.push({ x1: i * 0.5, x2: Math.sin(i) });
+    const r = hotellingT2Chart(d, ['x1', 'x2']);
+    if (r) r.T2.forEach(v => expect(v).toBeGreaterThanOrEqual(0));
+  });
 });

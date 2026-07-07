@@ -69,3 +69,78 @@ describe('spatialLagModel', () => {
   it('rho between -1-1', () => { const r = spatialLagModel(pts, 'v', pts); if (r && r.rho !== undefined && Number.isFinite(r.rho)) { expect(r.rho).toBeGreaterThan(-2); expect(r.rho).toBeLessThan(2); } });
   it('z finite', () => { const r = spatialLagModel(pts, 'v', pts); if (r) expect(Number.isFinite(r.z)).toBe(true); });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('moransI null for null data', () => expect(moransI(null, 'v')).toBeNull());
+  it('moransI null for null value field', () => expect(moransI(pts, null)).toBeNull());
+  it('gearysC null for null data', () => expect(gearysC(null, 'v')).toBeNull());
+  it('semivariogram null for null', () => expect(semivariogram(null, 'v')).toBeNull());
+  it('ordinaryKriging null for null observations', () => expect(ordinaryKriging(null, 'v', predPts)).toBeNull());
+  it('ordinaryKriging null for null prediction points', () => expect(ordinaryKriging(pts, 'v', null)).toBeNull());
+  it('idw null for null data', () => expect(idw(null, 'v', predPts)).toBeNull());
+  it('ripleysK null for null', () => expect(ripleysK(null)).toBeNull());
+  it('spatialErrorModel null for null', () => expect(spatialErrorModel(null, 'v', pts)).toBeNull());
+  it('spatialLagModel null for null', () => expect(spatialLagModel(null, 'v', pts)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('moransI I in [-1, 1]', () => {
+    const r = moransI(pts, 'v');
+    if (r) { expect(r.I).toBeGreaterThanOrEqual(-1); expect(r.I).toBeLessThanOrEqual(1); }
+  });
+  it('gearysC C >= 0', () => {
+    const r = gearysC(pts, 'v');
+    if (r) expect(r.C).toBeGreaterThanOrEqual(0);
+  });
+  it('semivariogram sill >= nugget', () => {
+    const r = semivariogram(pts, 'v');
+    if (r) expect(r.sill).toBeGreaterThanOrEqual(r.nugget);
+  });
+  it('ordinaryKriging predictions length matches prediction points', () => {
+    const r = ordinaryKriging(pts, 'v', predPts);
+    if (r && r.predictions) expect(r.predictions.length).toBe(predPts.length);
+  });
+  it('idw power is positive', () => {
+    const r = idw(pts, 'v', predPts);
+    if (r) expect(r.power).toBeGreaterThan(0);
+  });
+  it('ripleysK lambda positive', () => {
+    const r = ripleysK(pts, { nRadii: 5 });
+    if (r) expect(r.lambda).toBeGreaterThan(0);
+  });
+  it('spatialErrorModel se positive', () => {
+    const r = spatialErrorModel(pts, 'v', pts);
+    if (r) expect(r.se).toBeGreaterThan(0);
+  });
+  it('spatialLagModel z finite', () => {
+    const r = spatialLagModel(pts, 'v', pts);
+    if (r) expect(Number.isFinite(r.z)).toBe(true);
+  });
+});
+
+describe('hardening — reproducibility', () => {
+  it('ordinaryKriging deterministic for same inputs', () => {
+    const r1 = ordinaryKriging(pts, 'v', predPts);
+    const r2 = ordinaryKriging(pts, 'v', predPts);
+    if (r1 && r2 && r1.predictions) {
+      r1.predictions.forEach((p, i) => {
+        if (p.value !== undefined && r2.predictions[i].value !== undefined)
+          expect(p.value).toBeCloseTo(r2.predictions[i].value, 4);
+      });
+    }
+  });
+  it('semivariogram deterministic', () => {
+    const r1 = semivariogram(pts, 'v');
+    const r2 = semivariogram(pts, 'v');
+    if (r1 && r2) expect(r1.sill).toBeCloseTo(r2.sill, 4);
+  });
+  it('idw deterministic', () => {
+    const r1 = idw(pts, 'v', predPts);
+    const r2 = idw(pts, 'v', predPts);
+    if (r1 && r2 && r1.predictions) {
+      r1.predictions.forEach((p, i) => {
+        if (r2.predictions[i].value !== undefined) expect(p.value).toBeCloseTo(r2.predictions[i].value, 4);
+      });
+    }
+  });
+});

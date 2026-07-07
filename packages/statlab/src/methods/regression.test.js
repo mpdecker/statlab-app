@@ -1302,3 +1302,124 @@ describe('pressStatistic', () => {
     expect(pressStatistic([[1, 1], [1, 2]], [1, 2])).toBeNull();
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('bootstrapMediation returns null when all resamples fail', () => {
+    expect(bootstrapMediation([], [], [])).toBeNull();
+  });
+
+  it('logisticReg rejects all-one-class', () => {
+    const Y = [1, 1, 1, 1, 1, 1];
+    const X = Y.map(() => [0.1]);
+    expect(logisticReg(Y, X, ['x'])).toBeNull();
+  });
+});
+
+describe('hardening — degenerate data', () => {
+  it('kendallTau rejects all ties', () => {
+    expect(kendallTau([1, 1, 1], [2, 2, 2])).toBeNull();
+  });
+
+  it('pointBiserial rejects single-level binary', () => {
+    expect(pointBiserial([1, 1, 1], [2, 3, 4])).toBeNull();
+  });
+
+  it('multipleOLS perfect fit returns model with F null', () => {
+    const xs = [[1], [2], [3], [4], [5]];
+    const ys = [2, 4, 6, 8, 10];
+    const r = multipleOLS(ys, xs, ['x']);
+    expect(r).not.toBeNull();
+    expect(r.r2).toBe(1);
+    expect(r.F).toBeNull();
+  });
+});
+
+describe('hardening — reproducibility', () => {
+  it('bootstrapMediation reproducible with seed', () => {
+    const X = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const M = X.map(x => x * 0.8 + 0.5);
+    const Y = X.map(x => x * 1.2 + M[0] * 0.3);
+    const a = bootstrapMediation(X, M, Y, 400, 0.05, 11);
+    const b = bootstrapMediation(X, M, Y, 400, 0.05, 11);
+    expect(a.lo).toBe(b.lo);
+    expect(a.hi).toBe(b.hi);
+    expect(a.sig).toBe(b.sig);
+  });
+});
+
+describe('hardening — pearsonTest invalid inputs', () => {
+  it('throws for null inputs', () => {
+    expect(() => pearsonTest(null, [1, 2, 3])).toThrow();
+    expect(() => pearsonTest([1, 2, 3], null)).toThrow();
+  });
+});
+
+describe('hardening — spearman invalid inputs', () => {
+  it('throws for null inputs', () => {
+    expect(() => spearman(null, [1, 2, 3])).toThrow();
+    expect(() => spearman([1, 2, 3], null)).toThrow();
+  });
+});
+
+describe('hardening — simpleOLS invalid inputs', () => {
+  it('throws for null inputs', () => {
+    expect(() => simpleOLS(null, [1, 2, 3])).toThrow();
+    expect(() => simpleOLS([1, 2, 3], null)).toThrow();
+  });
+
+  it('returns object with NaN coeff for mismatched lengths', () => {
+    const r = simpleOLS([1, 2, 3], [1, 2]);
+    expect(r.coeffs[1].b).toBeNaN();
+  });
+});
+
+describe('hardening — polynomialOLS invalid inputs', () => {
+  it('throws for null inputs', () => {
+    expect(() => polynomialOLS(null, [1, 2, 3])).toThrow();
+    expect(() => polynomialOLS([1, 2, 3], null)).toThrow();
+  });
+});
+
+describe('hardening — hierarchicalOLS invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => hierarchicalOLS(null, 'y', ['x1'])).toThrow();
+  });
+});
+
+describe('hardening — ordinalLogisticRegression invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => ordinalLogisticRegression(null, 'y', ['x'])).toThrow();
+  });
+});
+
+describe('hardening — poissonRegression invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => poissonRegression(null, 'y', ['x'])).toThrow();
+  });
+});
+
+describe('hardening — negativeBinomialRegression invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => negativeBinomialRegression(null, 'y', ['x'])).toThrow();
+  });
+});
+
+describe('hardening — mediation invalid inputs', () => {
+  it('throws for null inputs', () => {
+    expect(() => mediation(null, [1, 2], [1, 2])).toThrow();
+  });
+});
+
+describe('hardening — moderation invalid inputs', () => {
+  it('throws for null data', () => {
+    expect(() => moderation(null, 'y', 'x', 'w')).toThrow();
+  });
+});
+
+describe('hardening — invariants', () => {
+  it('pearsonTest r in [-1, 1]', () => {
+    const r = pearsonTest([1, 2, 3, 4, 5], [5, 4, 3, 2, 1]);
+    expect(r.r).toBeGreaterThanOrEqual(-1);
+    expect(r.r).toBeLessThanOrEqual(1);
+  });
+});

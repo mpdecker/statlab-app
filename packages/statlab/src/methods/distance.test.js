@@ -80,3 +80,21 @@ describe('partialDistanceCorr controls for z (Szekely-Rizzo)', () => {
     expect(partialDistanceCorr(xd, yd, z).pdCorr).toBeGreaterThan(0.4);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('distanceMatrix null for null', () => expect(distanceMatrix(null)).toBeNull());
+  it('distanceMatrix null for short data', () => expect(distanceMatrix([1, 2, 3])).toBeNull());
+  it('distanceCovariance null for null', () => expect(distanceCovariance(null, [1, 2, 3])).toBeNull());
+  it('distanceCorrelation null for null', () => expect(distanceCorrelation(null, [1, 2, 3])).toBeNull());
+  it('energyTest null for short x', () => expect(energyTest([1, 2], [3, 4, 5, 6, 7])).toBeNull());
+  it('partialDistanceCorr null for mismatched lengths', () => expect(partialDistanceCorr([1, 2, 3], [4, 5], [6, 7, 8])).toBeNull());
+  it('mahalanobisDistance null for <2 dims', () => expect(mahalanobisDistance([1], [2])).toBeNull());
+  it('gowerDistance null for empty arrays', () => expect(gowerDistance([], [])).toBeNull());
+});
+
+describe('hardening — invariants', () => {
+  it('distanceMatrix diagonal is zero', () => { const D = distanceMatrix([1, 2, 3, 4, 5]); if (D) { for (let i = 0; i < D.length; i++) expect(D[i][i]).toBe(0); } });
+  it('distanceCorrelation in [0,1] for linear data', () => { const r = distanceCorrelation(x, y); expect(r.dCorr).toBeGreaterThanOrEqual(0); expect(r.dCorr).toBeLessThanOrEqual(1); });
+  it('gowerDistance >= 0 for simple inputs', () => { const r = gowerDistance([1, 2, 3], [4, 5, 6]); expect(r.distance).toBeGreaterThanOrEqual(0); });
+  it('mahalanobisDistance >= 0', () => { const r = mahalanobisDistance([1, 2, 3], [4, 5, 6], [[1, 0, 0], [0, 1, 0], [0, 0, 1]]); expect(r.distance).toBeGreaterThanOrEqual(0); });
+});

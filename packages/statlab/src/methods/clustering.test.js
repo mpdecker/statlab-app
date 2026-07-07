@@ -420,3 +420,105 @@ describe('spectralClustering', () => {
   it('labels present', () => { const r = spectralClustering(rows, ['x', 'y'], 3); if (r) expect(r.labels).toHaveLength(rows.length); });
   it('nClusters matches input', () => { const r = spectralClustering(rows, ['x', 'y'], 3); if (r) expect(r.nClusters).toBe(3); });
 });
+
+describe('hardening — reproducibility', () => {
+  it('kmeans same seed yields same labels', () => {
+    const data = clusterRows(40).map((r, i) => ({ ...r, x1: r.x + i * 0.01 }));
+    const a = kmeans(data, ['x1', 'x'], 3, 50, 99);
+    const b = kmeans(data, ['x1', 'x'], 3, 50, 99);
+    expect(a.labels).toEqual(b.labels);
+  });
+});
+
+describe('hardening — hierarchicalCluster invalid inputs', () => {
+  it('returns null for empty data', () => {
+    expect(hierarchicalCluster([], ['x', 'y'])).toBeNull();
+  });
+});
+
+describe('hardening — hierarchicalCluster reproducibility', () => {
+  it('same data same linkage yields same merge heights', () => {
+    const data = clusterRows(20);
+    const a = hierarchicalCluster(data, ['x', 'y'], 'ward');
+    const b = hierarchicalCluster(data, ['x', 'y'], 'ward');
+    expect(a.mergeHeights).toEqual(b.mergeHeights);
+  });
+});
+
+describe('hardening — dbscan invalid inputs', () => {
+  it('returns null for empty data', () => {
+    expect(dbscan([], ['x', 'y'], 0.5, 3)).toBeNull();
+  });
+});
+
+describe('hardening — gaussianMixture invalid inputs', () => {
+  it('returns null for empty data', () => {
+    expect(gaussianMixture([], ['x', 'y'], 2)).toBeNull();
+  });
+});
+
+describe('hardening — gaussianMixture reproducibility', () => {
+  it('same seed yields same labels', () => {
+    const data = clusterRows(30);
+    const a = gaussianMixture(data, ['x', 'y'], 2, { maxIter: 20, seed: 42 });
+    const b = gaussianMixture(data, ['x', 'y'], 2, { maxIter: 20, seed: 42 });
+    expect(a.labels).toEqual(b.labels);
+  });
+});
+
+describe('hardening — silhouetteScore invariants', () => {
+  it('silhouette in [-1, 1] for various k values', () => {
+    const data = clusterRows(30);
+    const r = kmeans(data, ['x', 'y'], 3);
+    const s = silhouetteScore(data, ['x', 'y'], r.labels, 3);
+    expect(s.silhouette).toBeGreaterThanOrEqual(-1);
+    expect(s.silhouette).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('hardening — calinskiHarabasz invariants', () => {
+  it('CH index is finite and positive for valid clusters', () => {
+    const data = clusterRows(30);
+    const r = kmeans(data, ['x', 'y'], 3);
+    const ch = calinskiHarabasz(data, ['x', 'y'], r.labels, 3);
+    expect(Number.isFinite(ch.chIndex)).toBe(true);
+    expect(ch.chIndex).toBeGreaterThan(0);
+  });
+});
+
+describe('hardening — daviesBouldin invariants', () => {
+  it('DB index is finite and positive for valid clusters', () => {
+    const data = clusterRows(30);
+    const r = kmeans(data, ['x', 'y'], 3);
+    const db = daviesBouldin(data, ['x', 'y'], r.labels, 3);
+    expect(Number.isFinite(db.dbIndex)).toBe(true);
+    expect(db.dbIndex).toBeGreaterThan(0);
+  });
+});
+
+describe('hardening — optimalK invalid inputs', () => {
+  it('returns null for empty data', () => {
+    expect(optimalK([], ['x', 'y'], 5)).toBeNull();
+  });
+});
+
+describe('hardening — latentClassAnalysis invariants', () => {
+  it('class proportions sum to approximately 1 across runs', () => {
+    const data = clusterRows(50);
+    const r = latentClassAnalysis(data, ['c1', 'c2'], 2);
+    const sum = r.classProportions.reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(1, 2);
+  });
+});
+
+describe('hardening — eigengap invalid inputs', () => {
+  it('returns null for empty eigenvalues', () => {
+    expect(eigengap([])).toBeNull();
+  });
+});
+
+describe('hardening — spectralClustering invalid inputs', () => {
+  it('returns null for null data', () => {
+    expect(spectralClustering(null, ['x', 'y'], 3)).toBeNull();
+  });
+});

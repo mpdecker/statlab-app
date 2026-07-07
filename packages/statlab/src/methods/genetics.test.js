@@ -83,3 +83,60 @@ describe('genetics edge cases', () => {
   it('polygenicPrediction null <10', () => expect(polygenicPrediction([1, 2, 3], [[0, 1]])).toBeNull());
   it('manhattanData null for empty', () => expect(manhattanData([], [], [])).toBeNull());
 });
+
+describe('hardening — invalid inputs', () => {
+  it('prsScore null for null genotypes', () => expect(prsScore(null, [0.5, 0.3, 0.2])).toBeNull());
+  it('prsScore null for null weights', () => expect(prsScore(g, null)).toBeNull());
+  it('prsScore null for mismatched lengths', () => expect(prsScore(g, [0.5])).toBeNull());
+  it('aceHeritability null for null MZ', () => expect(aceHeritability(null, [10, 9, 12, 11, 8, 10, 11, 9, 9.5, 8.5])).toBeNull());
+  it('aceHeritability null for null DZ', () => expect(aceHeritability([10, 11, 12, 10.5, 9, 9.5, 11, 10, 10.5, 11.5], null)).toBeNull());
+  it('ldPruning null for null', () => expect(ldPruning(null)).toBeNull());
+  it('polygenicPrediction null for null phenotype', () => expect(polygenicPrediction(null, g)).toBeNull());
+  it('polygenicPrediction null for null genotype', () => expect(polygenicPrediction([5, 3, 7, 4, 6, 2], null)).toBeNull());
+  it('manhattanData handles mismatched lengths gracefully', () => expect(manhattanData([1, 2], [100, 200, 300], [0.01, 0.02])).not.toBeNull());
+  it('heritabilityGCTA null for null GRM', () => expect(heritabilityGCTA(null, [0, 1, 0])).toBeNull());
+  it('ldScoreRegression null for null chi2', () => expect(ldScoreRegression(null, [10, 11, 12], 1000)).toBeNull());
+  it('mendelianRandomization null for zero instrument coefficient', () => expect(mendelianRandomization(0.5, 0.1, 0, 0.05)).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('prsScore with zero weights returns all zero scores', () => {
+    const r = prsScore(g, [0, 0, 0]);
+    if (r) r.scores.forEach(s => expect(s).toBeCloseTo(0, 4));
+  });
+  it('aceHeritability A + C + E appx 1', () => {
+    const mz = [10, 11, 12, 10.5, 9, 9.5, 11, 10, 10.5, 11.5];
+    const dz = [10, 9, 12, 11, 8, 10, 11, 9, 9.5, 8.5];
+    const r = aceHeritability(mz, dz);
+    expect(r.A + r.C + r.E).toBeCloseTo(1, 0);
+  });
+  it('ldPruning with identical columns keeps at least one marker', () => {
+    const identical = [[0, 1], [0, 1], [0, 1], [1, 0], [0, 1]];
+    const r = ldPruning(identical, { threshold: 0.5 });
+    if (r) expect(r.kept.length).toBeGreaterThan(0);
+  });
+  it('polygenicPrediction rSquared in [0, 1]', () => {
+    const r = polygenicPrediction([5, 3, 7, 4, 6, 2], g);
+    if (r && r.rSquared !== null) { expect(r.rSquared).toBeGreaterThanOrEqual(0); expect(r.rSquared).toBeLessThanOrEqual(1); }
+  });
+  it('heritabilityGCTA h2 in [0, 1]', () => {
+    const GRM = Array.from({ length: 10 }, (_, i) => Array.from({ length: 10 }, (_, j) => i === j ? 1 : +(Math.random() * 0.05).toFixed(4)));
+    const pheno = Array.from({ length: 10 }, () => Math.random() * 2 - 1);
+    const r = heritabilityGCTA(GRM, pheno);
+    if (r) { expect(r.h2).toBeGreaterThanOrEqual(0); expect(r.h2).toBeLessThanOrEqual(1); }
+  });
+  it('ldScoreRegression h2 between 0-1', () => {
+    const chi2 = Array.from({ length: 15 }, () => 1.5 + Math.random() * 2);
+    const ld = Array.from({ length: 15 }, () => 10 + Math.random() * 5);
+    const r = ldScoreRegression(chi2, ld, 1000);
+    if (r) { expect(r.h2).toBeGreaterThanOrEqual(0); expect(r.h2).toBeLessThanOrEqual(1); }
+  });
+  it('mendelianRandomization estimate is finite', () => {
+    const r = mendelianRandomization(0.5, 0.1, 0.3, 0.05);
+    if (r) expect(Number.isFinite(r.estimate)).toBe(true);
+  });
+  it('manhattanData data points match input length', () => {
+    const r = manhattanData([1, 2, 3], [100, 200, 300], [0.01, 0.02, 0.03]);
+    if (r && r.data) expect(r.data.length).toBe(3);
+  });
+});

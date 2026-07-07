@@ -90,3 +90,39 @@ describe('isomap matches scikit-learn (regression test for the asymmetric-kNN-gr
     expect(correlation).toBeGreaterThan(0.9);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('tsne rejects null/short', () => {
+    expect(tsne(null)).toBeNull();
+    expect(tsne([])).toBeNull();
+    expect(tsne(X.slice(0, 3))).toBeNull();
+  });
+  it('isomap rejects null/short', () => {
+    expect(isomap(null)).toBeNull();
+    expect(isomap([])).toBeNull();
+    expect(isomap(X.slice(0, 3))).toBeNull();
+  });
+  it('lle rejects null/short', () => {
+    expect(lle(null)).toBeNull();
+    expect(lle([])).toBeNull();
+    expect(lle(X.slice(0, 3))).toBeNull();
+  });
+  it('umapApprox rejects null/short', () => {
+    expect(umapApprox(null)).toBeNull();
+    expect(umapApprox([])).toBeNull();
+    expect(umapApprox(X.slice(0, 3))).toBeNull();
+  });
+});
+
+describe('hardening — reproducibility', () => {
+  it('tsne reproducible with seed', () => {
+    const r1 = tsne(X, { perplexity: 5, maxIter: 20, seed: 42 });
+    const r2 = tsne(X, { perplexity: 5, maxIter: 20, seed: 42 });
+    expect(r1.embedding).toEqual(r2.embedding);
+  });
+  it('umapApprox reproducible with seed', () => {
+    const r1 = umapApprox(X, { seed: 42 });
+    const r2 = umapApprox(X, { seed: 42 });
+    expect(r1.embedding).toEqual(r2.embedding);
+  });
+});

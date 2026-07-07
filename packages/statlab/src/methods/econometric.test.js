@@ -274,3 +274,61 @@ describe('heckmanSelection runs a real two-step (probit + IMR-augmented OLS)', (
     expect(Math.abs(xc.b - 1.5)).toBeLessThan(0.4);
   });
 });
+
+describe('hardening — invalid inputs', () => {
+  it('tobitModel null for empty data', () => expect(tobitModel([], 'y', ['x1'])).toBeNull());
+  it('tobitModel null for null', () => expect(tobitModel(null, 'y', ['x1'])).toBeNull());
+  it('heckmanSelection null for null data', () => expect(heckmanSelection(null, 'y', ['x1'], 'sel', ['z1'])).toBeNull());
+  it('bivariateProbit null for empty data', () => expect(bivariateProbit([], 'y1', 'y2', ['x1'])).toBeNull());
+  it('psmCaliper null for mismatched treatment variable', () => expect(psmCaliper([], 'sel', 'y', ['x1'])).toBeNull());
+  it('localLinearIV null for empty data', () => expect(localLinearIV([], 'x1', 'y', 'z1')).toBeNull());
+  it('panelFixedEffects null for null data', () => expect(panelFixedEffects(null, 'y', ['x1'])).toBeNull());
+  it('panelRandomEffects null for empty', () => expect(panelRandomEffects([], 'y', ['x1'])).toBeNull());
+  it('hausmanTest null for mismatched lengths', () => expect(hausmanTest([0.5], [0.1], [0.3, 0.25], [0.08, 0.08])).toBeNull());
+  it('arellanoBond null for empty data', () => expect(arellanoBond([], 'y', ['x1'])).toBeNull());
+  it('sur null for null data', () => expect(sur(null, ['y1'], ['x1'])).toBeNull());
+  it('threeSLS null for empty data', () => expect(threeSLS([], ['y1'], ['x1'], ['z1'])).toBeNull());
+  it('gmm null for empty', () => expect(gmm([], 'y', ['x1'], ['z1'])).toBeNull());
+  it('cointegration null for empty data', () => expect(cointegration([], 'y', ['x1'])).toBeNull());
+  it('vecm null for empty', () => expect(vecm([], ['y1'])).toBeNull());
+  it('structuralVAR null for empty', () => expect(structuralVAR([], ['y1'])).toBeNull());
+  it('tobitModel null for no xVars', () => expect(tobitModel(d, 'y', [])).toBeNull());
+});
+
+describe('hardening — degenerate data', () => {
+  it('bivariateProbit rho in [-1, 1] with degenerate data', () => {
+    const r = bivariateProbit(d, 'y1', 'y2', ['x1']);
+    expect(r.rho).toBeGreaterThanOrEqual(-1);
+    expect(r.rho).toBeLessThanOrEqual(1);
+  });
+  it('cointegration with stationary data', () => {
+    const data = [{ y: 0, x1: 0 }];
+    for (let i = 1; i < 30; i++) data.push({ y: Math.random() - 0.5, x1: Math.random() - 0.5 });
+    const r = cointegration(data, 'y', ['x1']);
+    if (r) { expect(r.p).toBeGreaterThanOrEqual(0); expect(r.p).toBeLessThanOrEqual(1); }
+  });
+  it('panelFixedEffects handles single predictor', () => {
+    const r = panelFixedEffects(d, 'y', ['x1'], { idVar: 'id' });
+    if (r) expect(r.coefficients.length).toBe(1);
+  });
+  it('panelRandomEffects theta in [0, 1]', () => {
+    const r = panelRandomEffects(d, 'y', ['x1'], { idVar: 'id' });
+    if (r) { expect(r.theta).toBeGreaterThanOrEqual(0); expect(r.theta).toBeLessThanOrEqual(1); }
+  });
+  it('hausmanTest H non-negative', () => {
+    const r = hausmanTest([0.5], [0.1], [0.3], [0.08]);
+    if (r) expect(r.H).toBeGreaterThanOrEqual(0);
+  });
+  it('cointegration rho in [-1, 1]', () => {
+    const r = cointegration(d, 'y', ['x1']);
+    if (r) { expect(r.rho).toBeGreaterThanOrEqual(-1); expect(r.rho).toBeLessThanOrEqual(1); }
+  });
+  it('vecm reports positive rank', () => {
+    const r = vecm(d, ['y1', 'y2'], { lags: 1 });
+    if (r) expect(r.rank).toBeGreaterThan(0);
+  });
+  it('gmm jStat >= 0', () => {
+    const r = gmm(d, 'y', ['x1'], ['z1']);
+    if (r) expect(r.jStat).toBeGreaterThanOrEqual(0);
+  });
+});
