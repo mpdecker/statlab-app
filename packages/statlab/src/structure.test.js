@@ -49,7 +49,7 @@ describe('library structure', () => {
           if (f.isDirectory()) walk(dir, rel);
           else if (f.name.endsWith('.js') && !f.name.endsWith('.test.js')) {
             const src = readFileSync(join(srcDir, rel), 'utf8');
-            if (/function mulberry32\b|mulberry32\s*=/.test(src)) defs.push(rel);
+            if (/function mulberry32\b|mulberry32\s*=/.test(src)) defs.push(rel.replace(/\\/g, '/'));
           }
         }
       };
