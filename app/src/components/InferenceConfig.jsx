@@ -5,7 +5,7 @@ import { methodNoteForTest } from '../config/methodNotes.js';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
-export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set }) {
+export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set, width = '100%', borderRight = false }) {
   const {
     grpVar, setGrpVar, tgtVar, setTgtVar, g1, setG1, g2, setG2,
     xVar, setXVar, yVar, setYVar, zVar, setZVar, mVar, setMVar,
@@ -56,24 +56,24 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
 
   // Shared config blocks
   const grpCfg = <>
-    <Sel label="Group var" value={grpVar} onChange={v => { setGrpVar(v); setG1('—'); setG2('—'); }} options={categorical} width={130} />
-    <Sel label="Target var" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+    <Sel label="Group var" value={grpVar} onChange={v => { setGrpVar(v); setG1('—'); setG2('—'); }} options={categorical} width="100%" />
+    <Sel label="Target var" value={tgtVar} onChange={setTgtVar} options={numeric} width="100%" />
   </>;
-  const twoGrp = <>
-    <Sel label="Group 1" value={g1} onChange={setG1} options={['—', ...groups]} width={100} />
-    <Sel label="Group 2" value={g2} onChange={setG2} options={['—', ...groups]} width={100} />
-  </>;
-  const xyPick = <>
-    <Sel label="X" value={xVar} onChange={setXVar} options={numeric} width={130} />
-    <Sel label="Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
-  </>;
+  const twoGrp = <div style={{ display: 'flex', gap: 6 }}>
+    <div style={{ flex: 1 }}><Sel label="Group 1" value={g1} onChange={setG1} options={['—', ...groups]} width="100%" /></div>
+    <div style={{ flex: 1 }}><Sel label="Group 2" value={g2} onChange={setG2} options={['—', ...groups]} width="100%" /></div>
+  </div>;
+  const xyPick = <div style={{ display: 'flex', gap: 6 }}>
+    <div style={{ flex: 1 }}><Sel label="X" value={xVar} onChange={setXVar} options={numeric} width="100%" /></div>
+    <div style={{ flex: 1 }}><Sel label="Y" value={yVar} onChange={setYVar} options={numeric} width="100%" /></div>
+  </div>;
   const tbl2x2 = <>
     <div style={{ fontSize: 8, color: C.dim, ...mono, textTransform: 'uppercase', marginBottom: 3 }}>2×2 table</div>
-    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-      <Inp label="a (++)" value={fx_a} onChange={setFxa} width={55} />
-      <Inp label="b (+-)" value={fx_b} onChange={setFxb} width={55} />
-      <Inp label="c (-+)" value={fx_c} onChange={setFxc} width={55} />
-      <Inp label="d (--)" value={fx_d} onChange={setFxd} width={55} />
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+      <Inp label="a (++)" value={fx_a} onChange={setFxa} width="100%" />
+      <Inp label="b (+-)" value={fx_b} onChange={setFxb} width="100%" />
+      <Inp label="c (-+)" value={fx_c} onChange={setFxc} width="100%" />
+      <Inp label="d (--)" value={fx_d} onChange={setFxd} width="100%" />
     </div>
   </>;
 
@@ -539,7 +539,7 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
   };
 
   return (
-    <div style={{ width: 220, borderRight: `1px solid ${C.border}`, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flexShrink: 0 }}>
+    <div style={{ width, borderRight: borderRight ? `1px solid ${C.border}` : 'none', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flexShrink: 0 }}>
       <Inp label="α (significance)" value={alpha} onChange={setAlpha} width={65} />
       {configMap[active] || <div style={{ color: C.dim, ...mono, fontSize: 10 }}>Select a test</div>}
       {methodNoteForTest(active, null) && (
