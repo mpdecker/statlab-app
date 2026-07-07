@@ -197,7 +197,7 @@ export function polynomialOLS(xs, ys, degree = 2) {
 }
 
 // ── Hierarchical regression (model comparison) ────────────────────────────────
-/** Hierarchical OLS (block entry) with ΔR² test. @param {number[]} Y @param {number[][]} X1raw block-1 predictors. @param {number[][]} X2raw block-2 predictors. @param {number} n1 @param {number} n2 */
+/** Hierarchical OLS (block entry) with ΔR² test. @param {number[]} Y @param {number[][]} X1raw block-1 predictors. @param {number[][]} X2raw block-2 predictors. @param {string[]} n1 @param {string[]} n2 */
 export function hierarchicalOLS(Y, X1raw, X2raw, n1, n2) {
   const m1 = multipleOLS(Y, X1raw, n1);
   const combined = X1raw.map((r, i) => [...r, ...X2raw[i]]);
@@ -1435,7 +1435,7 @@ export function clusterSE(res, X, Y, clusterVar) {
 }
 
 // ── Brant Test ─────────────────────────────────────────────────────────────
-/** Brant test of the proportional-odds assumption. @param {Array<Record<string, number>>} data @param {string} yVar @param {string[]} xVars */
+/** Brant test of the proportional-odds assumption. @param {*[]} data @param {string} yVar @param {string[]} xVars */
 export function brantTest(data, yVar, xVars) {
   if (!data || data.length < 20 || !yVar || !xVars || !xVars.length) return null;
   const y = data.map(r => +r[yVar]);
@@ -1916,7 +1916,7 @@ export function heckman2Step(data, yVar, xVars, selectVar, zVars) {
 }
 
 // ── Censored Quantile Regression ──────────────────────────────────
-/** Censored quantile regression (Powell). @param {number[]} y @param {number[][]} x design rows. @param {number} [tau=0.5] @param {{lower?: number|null, upper?: number|null}} [options] */
+/** Censored quantile regression (Powell). @param {number[]} y @param {number[]} x predictor values. @param {number} [tau=0.5] @param {{lower?: number|null, upper?: number|null}} [options] */
 export function censoredQuantile(y, x, tau = 0.5, { lower = null, upper = null } = {}) {
   if (!y || !x || y.length < 10 || x.length !== y.length) return null;
   const n = y.length;
@@ -1939,6 +1939,7 @@ export function censoredQuantile(y, x, tau = 0.5, { lower = null, upper = null }
 export function mallowCpWeight(models, data, yVar) {
   if (!models || !models.length) return null;
   const n = data.length;
+  /** @type {Array<{model: number, k: *, rss: *, cp: number, weight?: number}>} */
   const weights = models.map((m, i) => {
     const k = m.coefficients?.length || 2;
     const rss = m.rss || 0;
@@ -1986,6 +1987,7 @@ export function modelConfidenceSet(models, { seed = 42, alpha = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!models || !models.length) return null;
   const n = models.length;
+  /** @type {Array<{model: number, mse: number, inMCS?: boolean}>} */
   const mse = models.map((m, i) => ({ model: i + 1, mse: +(m.mse || __rng()).toFixed(4) }));
   const bestMSE = Math.min(...mse.map(m => m.mse));
   mse.forEach(m => { m.inMCS = m.mse <= bestMSE * 1.2; });

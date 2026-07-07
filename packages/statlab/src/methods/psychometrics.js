@@ -136,8 +136,8 @@ export function irtRasch1PL(matrix) {
 /** 2PL IRT — per-item a and b (simplified JML) */
 
 // ── IRT 2PL ───────────────────────────────────────────────────────
-/** 2PL IRT model. @param {number[][]} matrix respondents × items (0/1). */
-export function irt2PL(matrix) {
+/** 2PL IRT model. @param {(number[][]|Array<object>)} matrix respondents × items (0/1). @param {string[]} [itemNames] */
+export function irt2PL(matrix, itemNames) {
   const n = matrix.length;
   const k = matrix[0]?.length;
   if (!n || !k || n < 15) return null;
@@ -462,7 +462,7 @@ export function partialCreditModel(matrix, { maxIter = 50, tolerance = 1e-5 } = 
 }
 
 // ── Test information function ────────────────────────────────────────────────
-/** Test information function over a theta grid. @param {Array<Record<string, number>>} items item parameters. @param {number} [thetaMin=-4] @param {number} [thetaMax=4] @param {number} [nPoints=81] */
+/** Test information function over a theta grid. @param {Array<Record<string, any>>} items item parameters. @param {number} [thetaMin=-4] @param {number} [thetaMax=4] @param {number} [nPoints=81] */
 export function testInformation(items, thetaMin = -4, thetaMax = 4, nPoints = 81) {
   if (!items || !items.length) return null;
   const pts = [];
@@ -630,7 +630,7 @@ export function eapScoring(itemParams, response, { nQPoints = 40 } = {}) {
 }
 
 // ── Multidimensional 2PL ──────────────────────────────────────────
-/** Multidimensional 2PL IRT model. @param {Array<Record<string, number>>} data @param {string[]} items @param {number} dimensions */
+/** Multidimensional 2PL IRT model. @param {Array<Record<string, number>>} data @param {string[]} items @param {Array<{name: string, items: Array<number|string>}>} dimensions */
 export function multidimensional2PL(data, items, dimensions) {
   if (!data || data.length < 20 || !items || !items.length || !dimensions || !dimensions.length) return null;
   const n = data.length;
@@ -746,7 +746,7 @@ export function itemFit(itemParams, responseMatrix, scores) {
 }
 
 // ── Nominal Response Model ────────────────────────────────────────
-/** Bock nominal response model. @param {number[][]} itemResponses @param {number} categories */
+/** Bock nominal response model. @param {number[]} itemResponses @param {number} categories */
 export function nominalResponseModel(itemResponses, categories) {
   if (!itemResponses || itemResponses.length < 10) return null;
   const n = itemResponses.length, k = categories || 3;
@@ -758,7 +758,7 @@ export function nominalResponseModel(itemResponses, categories) {
 }
 
 // ── Generalized Partial Credit Model ──────────────────────────────
-/** Generalized partial credit model. @param {number[][]} itemScores @param {number} nCategories */
+/** Generalized partial credit model. @param {number[]} itemScores @param {number} nCategories */
 export function generalizedPartialCredit(itemScores, nCategories) {
   if (!itemScores || itemScores.length < 10) return null;
   const n = itemScores.length, k = nCategories || 3;

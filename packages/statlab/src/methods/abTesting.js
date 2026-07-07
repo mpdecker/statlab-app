@@ -51,7 +51,7 @@ export function unequalAllocationT(control, treatment, ratio) {
 }
 
 // ── Minimum Detectable Effect ─────────────────────────────────────
-/** @param {number} n @param {number} [alpha] @param {number} [beta] @param {number[]} [baseline] */
+/** @param {number} n @param {number} [alpha] @param {number} [beta] @param {number} [baseline] */
 export function minimumDetectableEffect(n, alpha = 0.05, beta = 0.2, baseline = 0.5) {
   if (!n || n < 2 || baseline <= 0 || baseline >= 1) return null;
   const za = normalINV(1 - alpha / 2);
@@ -62,7 +62,7 @@ export function minimumDetectableEffect(n, alpha = 0.05, beta = 0.2, baseline = 
 }
 
 // ── Required Sample Size ──────────────────────────────────────────
-/** @param {number[]} baseline @param {number} [alpha] @param {number} [beta] @param {number} mde */
+/** @param {number} baseline @param {number} mde @param {number} [alpha] @param {number} [beta] */
 export function requiredSampleSize(baseline, mde, alpha = 0.05, beta = 0.2) {
   if (!baseline || baseline <= 0 || baseline >= 1 || !mde || mde <= 0) return null;
   const za = normalINV(1 - alpha / 2);
@@ -90,7 +90,7 @@ export function bayesianABTest(dataA, dataB, { seed = 42, nSim = 1000 } = {}) {
 function gaussBoxMuller() { let u = 0, v = 0; while(u === 0) u = __rng(); while(v === 0) v = __rng(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
 
 // ── Multi-Arm Bandit (Thompson) ───────────────────────────────────
-/** @param {number} arms */
+/** @param {number[]} arms */
 export function multiArmBandit(arms, { seed = 42, iterations = 200 } = {}) {
   __rng = mulberry32(seed);
   if (!arms || arms.length < 3 || iterations < 10) return null;

@@ -190,7 +190,7 @@ export function ewmaChart(data, { lambda = 0.2, L = 3 } = {}) {
 }
 
 // ── Process Capability ─────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {number|null} [lsl] @param {number|null} [usl] */
+/** @param {number[]} data @param {number|null} [lsl] @param {number|null} [usl] */
 export function processCapability(data, lsl = null, usl = null) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -277,7 +277,7 @@ export function mewmaChart(data, vars, { lambda = 0.2, subgroupSize = 5 } = {}) 
 }
 
 // ── OC Curve ──────────────────────────────────────────────────────
-/** @param {number} n @param {number} p @param {number} c */
+/** @param {number} n @param {number} c @param {number[]} p */
 export function ocCurve(n, c, p) {
   if (!n || !Number.isFinite(c) || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
@@ -300,7 +300,7 @@ function binomialProb(n, k, p) {
 }
 
 // ── AOQ Curve ─────────────────────────────────────────────────────
-/** @param {number} n @param {number} p @param {number} c @param {number} N */
+/** @param {number} n @param {number} c @param {number[]} p @param {number} N */
 export function aoqCurve(n, c, p, N) {
   if (!n || !Number.isFinite(c) || !N || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];
@@ -331,7 +331,7 @@ export function reliabilitySampling(t, r, { alpha = 0.05, beta = 0.1 } = {}) {
 }
 
 // ── ASN Curve ─────────────────────────────────────────────────────
-/** @param {number} n @param {number} p @param {number} c */
+/** @param {number} n @param {number} c @param {number[]} p */
 export function asnCurve(n, c, p) {
   if (!n || !Number.isFinite(c) || !p || !p.length) return null;
   if (!Array.isArray(p)) p = [p];

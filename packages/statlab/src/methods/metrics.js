@@ -1,7 +1,7 @@
 import { avg } from '../math/core.js';
 
 // ── PSNR ──────────────────────────────────────────────────────────
-/** @param {number[][]} img1 @param {number[][]} img2 */
+/** @param {number[]} img1 @param {number[]} img2 @param {{maxVal?: number}} [opts] */
 export function psnr(img1, img2, { maxVal = 255 } = {}) {
   if (!img1 || !img2 || img1.length !== img2.length || !img1.length) return null;
   const n = img1.length;
@@ -13,7 +13,7 @@ export function psnr(img1, img2, { maxVal = 255 } = {}) {
 }
 
 // ── SSIM ──────────────────────────────────────────────────────────
-/** @param {number[][]} img1 @param {number[][]} img2 */
+/** @param {number[]} img1 @param {number[]} img2 @param {{L?: number, k1?: number, k2?: number}} [opts] */
 export function ssim(img1, img2, { L = 255, k1 = 0.01, k2 = 0.03 } = {}) {
   if (!img1 || !img2 || img1.length !== img2.length || !img1.length) return null;
   const n = img1.length;
@@ -42,7 +42,7 @@ export function iou(box1, box2) {
 }
 
 // ── BLEU Score ────────────────────────────────────────────────────
-/** @param {string|string[]} candidate @param {Array<string|string[]>} references @param {number} [n] */
+/** @param {string|string[]} candidate @param {Array<string|string[]>} references @param {{n?: number}} [opts] */
 export function bleuScore(candidate, references, { n = 4 } = {}) {
   if (!candidate || !references || !candidate.length || !references.length) return null;
   const cand = Array.isArray(candidate) ? candidate : candidate.toLowerCase().split(/\s+/);
@@ -91,7 +91,7 @@ export function perplexity(logLik, nTokens) {
 }
 
 // ── Matthews Correlation Coefficient ──────────────────────────────
-/** @param {Function} fn @param {number} tp @param {number} fp @param {number} tn */
+/** @param {number} tp @param {number} fp @param {number} tn @param {number} fn */
 export function matthewsCorrelation(tp, fp, tn, fn) {
   if (tp == null || fp == null || tn == null || fn == null) return null;
   const num = tp * tn - fp * fn;

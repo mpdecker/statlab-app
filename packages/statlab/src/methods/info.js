@@ -91,7 +91,7 @@ export function mutualInformation(x, y, { discrete = true, bins = 10 } = {}) {
 }
 
 // ── KL Divergence ──────────────────────────────────────────────────────────
-/** @param {number} p @param {number} q */
+/** @param {number[]} p @param {number[]} q */
 export function klDivergence(p, q, { smoothing = 1e-10 } = {}) {
   if (!p || !q || p.length !== q.length || p.length < 2) return null;
   const n = p.length;
@@ -111,7 +111,7 @@ export function klDivergence(p, q, { smoothing = 1e-10 } = {}) {
 }
 
 // ── Jensen-Shannon Divergence ──────────────────────────────────────────────
-/** @param {number} p @param {number} q */
+/** @param {number[]} p @param {number[]} q */
 export function jensenShannonDivergence(p, q) {
   if (!p || !q || p.length !== q.length || p.length < 2) return null;
   const n = p.length;
@@ -145,7 +145,7 @@ export function aicc(logLik, nParams, n) {
 }
 
 // ── BIC Weights ────────────────────────────────────────────────────────────
-/** @param {Array<{bic: number}>} models */
+/** @param {Array<{bic: number, name: string}>} models */
 export function bicWeights(models) {
   if (!models || models.length < 2) return null;
   const valid = models.filter(m => Number.isFinite(m.bic));
