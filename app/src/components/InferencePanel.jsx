@@ -80,6 +80,43 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
     return initial;
   });
 
+  const [favorites, setFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('statlab_favorites_v1')) || []; }
+    catch { return []; }
+  });
+  const [recent, setRecent] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('statlab_recent_v1')) || []; }
+    catch { return []; }
+  });
+  const [favExpanded, setFavExpanded] = useState(true);
+  const [recExpanded, setRecExpanded] = useState(true);
+
+  useEffect(() => { try { localStorage.setItem('statlab_favorites_v1', JSON.stringify(favorites)); } catch {} }, [favorites]);
+  useEffect(() => {
+    if (active != null) {
+      setRecent(prev => {
+        const next = [active, ...prev.filter(id => id !== active)].slice(0, 10);
+        try { localStorage.setItem('statlab_recent_v1', JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+  }, [active]);
+
+  const testLookup = useMemo(() => {
+    const map = {};
+    for (const cat of TREE) {
+      for (const t of cat.tests) {
+        map[t.id] = { ...t, category: cat.cat, color: cat.color };
+      }
+    }
+    return map;
+  }, []);
+
+  const toggleFavorite = useCallback((e, testId) => {
+    e.stopPropagation();
+    setFavorites(prev => prev.includes(testId) ? prev.filter(id => id !== testId) : [...prev, testId]);
+  }, []);
+
   useEffect(() => {
     if (activeCat) {
       setExpandedCats(prev => {
@@ -102,6 +139,37 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
       return next;
     });
   }, []);
+
+  const CAT_ICON = {
+    "COMPARE MEANS": 't',
+    "ANALYSIS OF VARIANCE": 'F',
+    "NONPARAMETRIC": '\u03C1',
+    "CORRELATION": 'r',
+    "REGRESSION": '\u03B2',
+    "CATEGORICAL": '\u03C7\u00B2',
+    "EQUIVALENCE & BAYES": 'B',
+    "MULTIVARIATE": '\u03A3',
+    "PSYCHOMETRICS": '\u03C8',
+    "MULTILEVEL MODELS": '\u2282',
+    "CLUSTERING": '\u2295',
+    "NETWORK": '\u2B21',
+    "META & CAUSAL": '\u2192',
+    "DIAGNOSTICS": '\u2611',
+    "ROBUST STATS": 'R',
+    "BAYESIAN MODELING": '\u03B2',
+    "MISSING DATA": '\u2205',
+    "POWER ANALYSIS": '\u26A1',
+    "AGENT-BASED": '\u25C9',
+    "BANDITS": 'Bd',
+    "RECORD LINKAGE": '\u2A3F',
+    "PRIVACY": 'Lk',
+    "PRO": 'Po',
+    "RISK-ADJUSTED": '\u2316',
+    "RECOMMENDATION": '\u2605',
+    "SCED": '\u21F5',
+    "SENSITIVITY": '\u0394',
+    "BOOTSTRAP": '\u21BB',
+  };
 
   const expandAll = () => {
     setExpandedCats(new Set(TREE.map(cat => cat.cat)));
@@ -189,6 +257,126 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
 
       {/* Scrollable list */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* Favorites section — hidden when search is active */}
+        {!searchQuery.trim() && favorites.length > 0 && (
+          <div style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div
+              onClick={() => setFavExpanded(prev => !prev)}
+              style={{
+                position: 'sticky', top: 0, zIndex: 1,
+                fontSize: 9, ...mono, fontWeight: 700, color: C.accent,
+                textTransform: 'uppercase', letterSpacing: '.12em',
+                padding: '6px 10px', display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', cursor: 'pointer', background: C.bg,
+                userSelect: 'none', borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <span>\u2605 FAVORITES ({favorites.length})</span>
+              <span style={{ fontSize: 8, color: C.dim }}>{favExpanded ? '\u25BC' : '\u25B6'}</span>
+            </div>
+            {favExpanded && (
+              <div style={{ background: 'rgba(0,0,0,0.1)' }}>
+                {favorites.map(favId => {
+                  const info = testLookup[favId];
+                  if (!info) return null;
+                  const isFav = favorites.includes(favId);
+                  return (
+                    <div key={favId} style={{ borderTop: `1px dashed ${C.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <button
+                          onClick={() => setActive(favId)}
+                          style={{
+                            flex: 1, display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left',
+                            background: active === favId ? 'rgba(255,255,255,.04)' : 'transparent',
+                            color: active === favId ? info.color : C.text,
+                            border: 'none',
+                            borderLeft: active === favId ? `3px solid ${info.color}` : '3px solid transparent',
+                            fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13,
+                            padding: '6px 8px', cursor: 'pointer', lineHeight: 1.15, transition: 'all .1s',
+                          }}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: info.color, flexShrink: 0 }} />
+                          {info.label}
+                        </button>
+                        <button
+                          onClick={(e) => toggleFavorite(e, favId)}
+                          title={isFav ? 'Remove favorite' : 'Add favorite'}
+                          style={{
+                            background: 'transparent', border: 'none', color: isFav ? C.accent : C.dim,
+                            cursor: 'pointer', fontSize: 11, padding: '6px 8px', ...mono,
+                          }}
+                        >
+                          {isFav ? '\u2605' : '\u2606'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Recent section — hidden when search is active */}
+        {!searchQuery.trim() && recent.length > 0 && (
+          <div style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div
+              onClick={() => setRecExpanded(prev => !prev)}
+              style={{
+                position: 'sticky', top: favorites.length > 0 && favExpanded ? undefined : 0, zIndex: 1,
+                fontSize: 9, ...mono, fontWeight: 700, color: C.dim,
+                textTransform: 'uppercase', letterSpacing: '.12em',
+                padding: '6px 10px', display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', cursor: 'pointer', background: C.bg,
+                userSelect: 'none', borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <span>\u21BB RECENT ({recent.length})</span>
+              <span style={{ fontSize: 8, color: C.dim }}>{recExpanded ? '\u25BC' : '\u25B6'}</span>
+            </div>
+            {recExpanded && (
+              <div style={{ background: 'rgba(0,0,0,0.1)' }}>
+                {recent.map(recId => {
+                  const info = testLookup[recId];
+                  if (!info) return null;
+                  const isFav = favorites.includes(recId);
+                  return (
+                    <div key={recId} style={{ borderTop: `1px dashed ${C.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <button
+                          onClick={() => setActive(recId)}
+                          style={{
+                            flex: 1, display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left',
+                            background: active === recId ? 'rgba(255,255,255,.04)' : 'transparent',
+                            color: active === recId ? info.color : C.text,
+                            border: 'none',
+                            borderLeft: active === recId ? `3px solid ${info.color}` : '3px solid transparent',
+                            fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13,
+                            padding: '6px 8px', cursor: 'pointer', lineHeight: 1.15, transition: 'all .1s',
+                          }}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: info.color, flexShrink: 0 }} />
+                          {info.label}
+                        </button>
+                        <button
+                          onClick={(e) => toggleFavorite(e, recId)}
+                          title={isFav ? 'Remove favorite' : 'Add favorite'}
+                          style={{
+                            background: 'transparent', border: 'none', color: isFav ? C.accent : C.dim,
+                            cursor: 'pointer', fontSize: 11, padding: '6px 8px', ...mono,
+                          }}
+                        >
+                          {isFav ? '\u2605' : '\u2606'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {filteredTree.map(cat => {
           const expanded = isExpanded(cat.cat);
           return (
@@ -197,31 +385,33 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
               <div
                 onClick={() => toggleCategory(cat.cat)}
                 style={{
-                  fontSize: 8,
-                  ...mono,
+                  position: 'sticky', top: 0, zIndex: 1,
+                  fontSize: 9, ...mono,
                   color: cat.color,
                   textTransform: 'uppercase',
                   letterSpacing: '.12em',
                   padding: '6px 10px',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   cursor: 'pointer',
-                  background: 'rgba(255,255,255,.01)',
+                  background: C.bg,
                   userSelect: 'none',
                 }}
               >
-                <span>{cat.cat} ({cat.tests.length})</span>
-                <span style={{ fontSize: 8, color: C.dim, transition: 'transform 0.15s ease', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>
-                  ▶
+                <span>{CAT_ICON[cat.cat] ? CAT_ICON[cat.cat] + ' ' : ''}{cat.cat} <span style={{ fontSize: 8, color: C.dim }}>({cat.tests.length})</span></span>
+                <span style={{ fontSize: 8, color: C.dim }}>
+                  {expanded ? '\u25BC' : '\u25B6'}
                 </span>
               </div>
 
               {/* Tests list */}
               {expanded && (
                 <div style={{ background: 'rgba(0,0,0,0.1)' }}>
-                  {cat.tests.map(t => (
+                  {cat.tests.map(t => {
+                    const isFav = favorites.includes(t.id);
+                    return (
                     <div key={t.id} style={{ borderTop: `1px dashed ${C.border}` }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                         <button
@@ -238,6 +428,16 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
                         >
                           <span style={{ color: active === t.id ? cat.color : C.text }}>{t.label}</span>
                           <div style={{ fontSize: 8, ...mono, color: C.dim, fontWeight: 400, marginTop: 2 }}>{t.tag}</div>
+                        </button>
+                        <button
+                          onClick={(e) => toggleFavorite(e, t.id)}
+                          title={isFav ? 'Remove favorite' : 'Add favorite'}
+                          style={{
+                            background: 'transparent', border: 'none', color: isFav ? C.accent : C.dim,
+                            cursor: 'pointer', fontSize: 11, padding: '6px 4px 6px 0', ...mono,
+                          }}
+                        >
+                          {isFav ? '\u2605' : '\u2606'}
                         </button>
                         {METHOD_NOTES[t.id] && (
                           <button
@@ -277,7 +477,7 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
                         </div>
                       )}
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
             </div>

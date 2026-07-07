@@ -25,15 +25,15 @@ import {
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
 const CHART_ICONS = [
-  { id: 'violin', label: '\u266A', title: 'Violin' },
-  { id: 'box', label: '\u25A4', title: 'Box plot' },
-  { id: 'scatter', label: '\u22B9', title: 'Scatter' },
-  { id: 'histogram', label: '\u25A6', title: 'Histogram' },
-  { id: 'barci', label: '\u229F', title: 'Bar + CI' },
-  { id: 'heatmap', label: '\u229E', title: 'Correlogram' },
-  { id: 'mosaic', label: '\u22A0', title: 'Mosaic' },
-  { id: 'timeseries', label: '\u223F', title: 'Time Series' },
-  { id: 'boot', label: 'B', title: 'Bootstrap' },
+  { id: 'violin', label: 'VLN', title: 'Violin' },
+  { id: 'box', label: 'BOX', title: 'Box plot' },
+  { id: 'scatter', label: 'SCT', title: 'Scatter' },
+  { id: 'histogram', label: 'HST', title: 'Histogram' },
+  { id: 'barci', label: 'BCI', title: 'Bar + CI' },
+  { id: 'heatmap', label: 'HM', title: 'Correlogram heatmap' },
+  { id: 'mosaic', label: 'MOS', title: 'Mosaic plot' },
+  { id: 'timeseries', label: 'TS', title: 'Time series' },
+  { id: 'boot', label: 'BST', title: 'Bootstrap' },
 ];
 
 function computeCorrMatrix(data, vars) {
@@ -64,7 +64,7 @@ function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, grou
               <div style={{ fontSize: 8, color: C.dim }}>{g}</div>
               <ViolinPlot
                 data={(gVar ? data.filter(r => r[gVar] === g) : data).map(r => +r[yVar]).filter(Number.isFinite)}
-                width={90} height={100}
+                  width={90} height={130}
               />
             </div>
           ))}
@@ -294,7 +294,7 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
         onClick={() => fileRef.current.click()}
         style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.text, ...mono, fontSize: 9, padding: '3px 8px', borderRadius: 3, cursor: 'pointer' }}
       >
-        \u2295 CSV
+        + CSV
       </button>
       <input ref={fileRef} type="file" accept=".csv" onChange={handleCSV} style={{ display: 'none' }} />
       {uploadMsg && <span style={{ fontSize: 9, color: C.accent, ...mono }}>{uploadMsg}</span>}
@@ -302,11 +302,11 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
       {/* Panel toggle toolbar */}
       {panelLayout && (
         <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-          <button onClick={() => togglePanel('navigator')} title="Toggle Navigator panel" style={btnStyle(panelLayout.navigator.visible)}>\u25A4</button>
-          <button onClick={() => togglePanel('config')} title="Toggle Config panel" style={btnStyle(panelLayout.config.visible)}>\u2699</button>
-          <button onClick={() => togglePanel('quickView')} title="Toggle Quick View panel" style={btnStyle(panelLayout.quickView.visible)}>\u25C8</button>
-          <button onClick={toggleQvPosition} title="Move Quick View to opposite side" style={btnStyle(false)}>\u21C4</button>
-          <button onClick={resetPanels} title="Reset all panel widths" style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.dim, ...mono, fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer' }}>\u21BA</button>
+          <button onClick={() => togglePanel('navigator')} title="Toggle Navigator panel" style={btnStyle(panelLayout.navigator.visible)}>NAV</button>
+          <button onClick={() => togglePanel('config')} title="Toggle Config panel" style={btnStyle(panelLayout.config.visible)}>CFG</button>
+          <button onClick={() => togglePanel('quickView')} title="Toggle Quick View panel" style={btnStyle(panelLayout.quickView.visible)}>QV</button>
+          <button onClick={toggleQvPosition} title="Move Quick View to opposite side" style={btnStyle(false)}>FLP</button>
+          <button onClick={resetPanels} title="Reset all panel widths" style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.dim, ...mono, fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer' }}>RST</button>
         </div>
       )}
 
@@ -378,7 +378,8 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
             background: effectiveMode === id ? 'rgba(196,255,0,.15)' : 'transparent',
             border: `1px solid ${effectiveMode === id ? C.accent : C.border}`,
             color: effectiveMode === id ? C.accent : C.dim,
-            padding: '3px 8px', borderRadius: 3, fontSize: 10, cursor: 'pointer',
+            padding: '3px 8px', borderRadius: 3, fontSize: 9, cursor: 'pointer',
+            fontFamily: "'IBM Plex Mono', monospace",
           }}
         >
           {label}
@@ -392,7 +393,7 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
       <div style={{ padding: '5px 8px', borderBottom: `1px solid ${C.border}`, fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em' }}>
         {vizX} \u00D7 {vizY}
         {resolved.usingInference && (
-          <span style={{ marginLeft: 6, color: C.warn, fontSize: 6 }}>\u22A2 inference vars</span>
+          <span style={{ marginLeft: 6, color: C.warn, fontSize: 6 }}>\u25B6 inference vars</span>
         )}
       </div>
 
@@ -787,7 +788,7 @@ export default function App() {
                   borderBottom: `2px solid ${activeTab === tab ? C.accent : 'transparent'}`, cursor: 'pointer',
                 }}
               >
-                {tab === 'inference' ? '\u22A2 INFERENCE' : '\u25C8 EXPLORE'}
+                {tab === 'inference' ? '\u25B6 INFERENCE' : '\u25C8 EXPLORE'}
               </button>
             ))}
           </div>
@@ -795,7 +796,7 @@ export default function App() {
           {activeTab === 'inference' && (
             <>
               <div style={{ padding: '3px 10px', borderBottom: `1px solid ${C.border}`, fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em', flexShrink: 0 }}>
-                \u22A2 84 statistical tests \u00B7 mediation \u00B7 moderation \u00B7 TOST \u00B7 Bayes \u00B7 PCA/EFA \u00B7 ICC \u00B7 meta-analysis \u00B7 DiD \u00B7 APA 7 output
+                \u25B6 84 statistical tests \u00B7 mediation \u00B7 moderation \u00B7 TOST \u00B7 Bayes \u00B7 PCA/EFA \u00B7 ICC \u00B7 meta-analysis \u00B7 DiD \u00B7 APA 7 output
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
                 {/* Bootstrap mediation path + CI */}
