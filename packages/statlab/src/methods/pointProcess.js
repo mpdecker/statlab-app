@@ -183,7 +183,7 @@ function borderDist(p, minX, maxX, minY, maxY) {
 }
 
 // ── Pair Correlation Function ─────────────────────────────────────
-/** @param {number[]} points */
+/** @param {Array<{x: number, y: number}>} points */
 export function pairCorrelation(points, { nBins = 20, maxRadius = null } = {}) {
   if (!points || points.length < 20) return null;
   const n = points.length;
@@ -213,7 +213,7 @@ export function pairCorrelation(points, { nBins = 20, maxRadius = null } = {}) {
 }
 
 // ── L-Function ────────────────────────────────────────────────────
-/** @param {number[]} points */
+/** @param {Array<{x: number, y: number}>} points */
 export function lFunction(points, { nRadii = 15, maxRadius = null } = {}) {
   if (!points || points.length < 20) return null;
   const n = points.length;

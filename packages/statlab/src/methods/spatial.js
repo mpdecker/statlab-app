@@ -47,7 +47,7 @@ export function buildSpatialWeights(points, valueField, { type = 'inverseDistanc
 }
 
 // ── Moran's I ────────────────────────────────────────────────────────────────
-/** @param {number[]} points @param {string} valueField */
+/** @param {Array<{x: number, y: number}>} points @param {string} valueField */
 export function moransI(points, valueField, { weightType = 'inverseDistance', threshold = null } = {}) {
   if (!points || points.length < 10 || !valueField) return null;
   const { W, val, n } = buildSpatialWeights(points, valueField, { type: weightType, threshold });
@@ -75,7 +75,7 @@ export function moransI(points, valueField, { weightType = 'inverseDistance', th
 }
 
 // ── Geary's C ────────────────────────────────────────────────────────────────
-/** @param {number[]} points @param {string} valueField */
+/** @param {Array<{x: number, y: number}>} points @param {string} valueField */
 export function gearysC(points, valueField, { weightType = 'inverseDistance', threshold = null } = {}) {
   if (!points || points.length < 10 || !valueField) return null;
   const { W, val, n } = buildSpatialWeights(points, valueField, { type: weightType, threshold });
@@ -97,7 +97,7 @@ export function gearysC(points, valueField, { weightType = 'inverseDistance', th
 }
 
 // ── Semi-Variogram ──────────────────────────────────────────────────────────
-/** @param {number[]} points @param {string} valueField */
+/** @param {Array<{x: number, y: number}>} points @param {string} valueField */
 export function semivariogram(points, valueField, { nLags = 10, maxDistance = null } = {}) {
   if (!points || points.length < 5 || !valueField) return null;
   const n = points.length;
@@ -129,7 +129,7 @@ export function semivariogram(points, valueField, { nLags = 10, maxDistance = nu
 }
 
 // ── Ordinary Kriging ─────────────────────────────────────────────────────────
-/** @param {number[]} points @param {string} valueField @param {Array<Record<string, number>>} predictPoints */
+/** @param {Array<{x: number, y: number}>} points @param {string} valueField @param {Array<{x: number, y: number}>} predictPoints */
 export function ordinaryKriging(points, valueField, predictPoints, { variogram = null } = {}) {
   if (!points || points.length < 5 || !valueField || !predictPoints || !predictPoints.length) return null;
   const n = points.length;
@@ -201,7 +201,7 @@ export function ordinaryKriging(points, valueField, predictPoints, { variogram =
 }
 
 // ── Inverse Distance Weighting ──────────────────────────────────────────────
-/** @param {number[]} points @param {string} valueField @param {Array<Record<string, number>>} predictPoints */
+/** @param {Array<{x: number, y: number}>} points @param {string} valueField @param {Array<{x: number, y: number}>} predictPoints */
 export function idw(points, valueField, predictPoints, { power = 2, nNeighbors = 10 } = {}) {
   if (!points || points.length < 3 || !valueField || !predictPoints || !predictPoints.length) return null;
   const n = points.length;
@@ -230,7 +230,7 @@ export function idw(points, valueField, predictPoints, { power = 2, nNeighbors =
 }
 
 // ── Ripley's K ──────────────────────────────────────────────────────────────
-/** @param {number[]} points */
+/** @param {Array<{x: number, y: number}>} points */
 export function ripleysK(points, { seed = 42, nRadii = 15, maxRadius = null, nSim = 99 } = {}) {
   __rng = mulberry32(seed);
   if (!points || points.length < 20) return null;
@@ -298,7 +298,7 @@ export function ripleysK(points, { seed = 42, nRadii = 15, maxRadius = null, nSi
 }
 
 // ── Spatial Error Model ─────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} valueField @param {number[]} points */
+/** @param {Array<Record<string, any>>} data @param {string} valueField @param {Array<{x: number, y: number}>} points */
 export function spatialErrorModel(data, valueField, points, { weightType = 'inverseDistance' } = {}) {
   if (!data || data.length < 20 || !valueField || !points || points.length < 20) return null;
   const n = data.length;
@@ -315,7 +315,7 @@ export function spatialErrorModel(data, valueField, points, { weightType = 'inve
 }
 
 // ── Spatial Lag Model ───────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} valueField @param {number[]} points */
+/** @param {Array<Record<string, any>>} data @param {string} valueField @param {Array<{x: number, y: number}>} points */
 export function spatialLagModel(data, valueField, points, { weightType = 'inverseDistance' } = {}) {
   if (!data || data.length < 20 || !valueField || !points || points.length < 20) return null;
   const n = data.length;

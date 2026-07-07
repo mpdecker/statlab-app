@@ -5,7 +5,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Morris Elementary Effects ─────────────────────────────────────
-/** @param {number} model @param {number[][]} X */
+/** @param {Function} model @param {number[][]} X */
 export function morrisMethod(model, X, { seed = 42, levels = 4, grid = 2 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
@@ -27,7 +27,7 @@ export function morrisMethod(model, X, { seed = 42, levels = 4, grid = 2 } = {})
 }
 
 // ── FAST Sensitivity ──────────────────────────────────────────────
-/** @param {number} model @param {number[][]} X */
+/** @param {Function} model @param {number[][]} X */
 export function fastSensitivity(model, X, { seed = 42, M = 4 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
@@ -80,7 +80,7 @@ export function forecastCombination(forecasts, actual, { method = 'equal' } = {}
 }
 
 // ── Sobol First Order ─────────────────────────────────────────────
-/** @param {number} model @param {number[][]} X */
+/** @param {Function} model @param {number[][]} X */
 export function sobolFirstOrder(model, X, { seed = 42, nSamples = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;
@@ -106,7 +106,7 @@ export function sobolFirstOrder(model, X, { seed = 42, nSamples = 50 } = {}) {
 }
 
 // ── Sobol Total Index ─────────────────────────────────────────────
-/** @param {number} model @param {number[][]} X */
+/** @param {Function} model @param {number[][]} X */
 export function sobolTotalIndex(model, X, { seed = 42, nSamples = 50 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || X.length < 5 || !X[0]) return null;

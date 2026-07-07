@@ -328,6 +328,7 @@ export function sem(opts = {}) {
     test: 'SEM' + (loadPrefix ? ' (' + loadPrefix + ')' : ''),
     model: { equations, latents, observables: varOrder.length, n },
     coefficients,
+    /** @type {Array<{ from: string, estimate: number, se: number, z?: number, p?: number, indicator?: string }>} */
     loadings: coefficients.filter(c => c.from.startsWith('Load')),
     paths: coefficients.filter(c => c.from.startsWith('Path')),
     fit: {
@@ -377,6 +378,11 @@ export function semMultiGroup(data, groupVar, equations) {
 // intercepts are shared (in which case they're free except in the first group,
 // which anchors the scale) — the standard identification scheme for nested
 // configural/metric/scalar/strict invariance tests.
+/**
+ * @param {Array<{ group: string, n: number, S: number[][], means: number[] }>} groupStats
+ * @param {number} m
+ * @param {{ shareLoadings?: boolean, shareIntercepts?: boolean, shareResiduals?: boolean, maxIter?: number, tolerance?: number }} [opts]
+ */
 function _fitMultiGroupCFA(groupStats, m, { shareLoadings, shareIntercepts, shareResiduals, maxIter = 60, tolerance = 1e-5 } = {}) {
   const G = groupStats.length;
   const nLoad = m - 1;
@@ -729,7 +735,7 @@ function orthogonalProcrustes(A, Target) {
 // group B's loading as ~0.002 (its true 0.6 signal was misattributed entirely
 // into an inflated "general" loading of ~0.62); the rotated version recovers
 // both groups' loadings in the correct 0.5-0.6 range.)
-/** @param {Array<Record<string, any>>} data @param {string[]} generalFactor @param {Record<string, string[]>} groupFactors */
+/** @param {Array<Record<string, any>>} data @param {string[]} generalFactor @param {Array<{ items: string[] }>} groupFactors */
 export function bifactorModel(data, generalFactor, groupFactors, { maxIter = 50 } = {}) {
   if (!data || data.length < 20 || !groupFactors || !groupFactors.length) return null;
   const allItems = groupFactors.flatMap(g => g.items);

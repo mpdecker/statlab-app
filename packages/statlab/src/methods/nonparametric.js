@@ -290,7 +290,7 @@ export function nadarayaWatson(xs, ys, bandwidth = null, xEval = null) {
 }
 
 // Mood's Median Test
-/** Mood's median test. @param {number[][]} groups */
+/** Mood's median test. @param {Array<{vals: number[], name?: string}>} groups */
 export function moodsMedian(groups) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 3);
@@ -326,7 +326,7 @@ export function moodsMedian(groups) {
 }
 
 // ── Jonckheere-Terpstra Test ──────────────────────────────────────
-/** Jonckheere–Terpstra trend test for ordered groups. @param {number[][]} groups */
+/** Jonckheere–Terpstra trend test for ordered groups. @param {Array<{vals: number[]}>} groups */
 export function jonckheereTerpstra(groups) {
   if (!groups || groups.length < 3) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 2);

@@ -11,6 +11,7 @@ export function mixtureOfRegressions(x, y, nComponents = 2, { maxIter = 50, seed
   const n = x.length, K = nComponents;
   const tol = 1e-7;
   // Initialise responsibilities from a random hard partition (one-hot rows).
+  /** @type {number[][]} */
   let gamma = Array.from({ length: n }, () => {
     const k = Math.floor(__rng() * K);
     return Array.from({ length: K }, (_, j) => (j === k ? 1 : 0));
@@ -178,6 +179,7 @@ export function mixtureOfExperts(x, y, nExperts = 2, { maxIter = 60, seed = 42, 
   };
   // Break symmetry with a random hard partition (a near-uniform gate would keep both
   // experts fit to the same average line and never differentiate).
+  /** @type {number[][]} */
   let gamma = Array.from({ length: n }, () => {
     const k = Math.floor(__rng() * K);
     return Array.from({ length: K }, (_, j) => (j === k ? 1 : 0));
@@ -235,7 +237,7 @@ export function gaussianMixtureModel(data, k = 2, { seed = 42, maxIter = 30, tol
   if (!data || data.length < k * 3 || k < 2) return null;
   const n = data.length;
   const d = Array.isArray(data[0]) ? data[0].length : 1;
-  const X = d > 1 ? data : data.map(v => [v]);
+  const X = /** @type {number[][]} */ (d > 1 ? data : data.map(v => [v]));
   let mu = Array.from({length: k}, (_, i) => X[Math.floor(i * n / k)].map(v => v + (__rng() - 0.5)));
   let sigma2 = Array(k).fill(sampleVar(X.flat()) || 1);
   let pi = Array(k).fill(1 / k);

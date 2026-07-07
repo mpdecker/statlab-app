@@ -111,7 +111,7 @@ function normObj(o) {
 }
 
 // ── Belief Propagation (Sum-Product) ──────────────────────────────
-/** @param {string[]} factors @param {object[]} variables @param {object} evidence */
+/** @param {(string[]|{vars: string[], table: object})[]} factors @param {object[]} variables @param {object} evidence */
 export function beliefPropagation(factors, variables, evidence, { maxIter = 10 } = {}) {
   if (!factors || !variables || !evidence || variables.length < 2) return null;
   // Accept array factors (scope only → uniform potential) or {vars,table} factors.
@@ -158,7 +158,7 @@ export function factorGraph(variables, factors) {
 }
 
 // ── BIC Score ─────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string[]} vars @param {Array<{from: number, to: number}>} edges */
+/** @param {Array<Record<string, any>>} data @param {(string|number)[]} vars @param {Array<{from: number, to: number}>} edges */
 export function bicScore(data, vars, edges) {
   if (!data || data.length < 5 || !vars || !edges) return null;
   const n = data.length, k = edges.length;
@@ -181,7 +181,7 @@ export function dseparation(edges, x, y, zVars) {
 }
 
 // ── Variable Elimination ──────────────────────────────────────────
-/** @param {string[]} factors @param {number[]} queryVars @param {object} [evidence] */
+/** @param {{vars: string[], table: object}[]} factors @param {number[]} queryVars @param {object} [evidence] */
 export function variableElimination(factors, queryVars, evidence = {}) {
   if (!factors || !factors.length || !queryVars) return null;
   const nFactors = factors.length;
@@ -243,7 +243,7 @@ export function treeWidth(edges, nVars) {
 }
 
 // ── Junction Tree Construction ────────────────────────────────────
-/** @param {number} nVars @param {Array<{from: number, to: number}>} edges */
+/** @param {number} nVars @param {[number, number][]} edges */
 export function junctionTree(edges, nVars) {
   if (!edges || !nVars || nVars < 2 || !edges.length) return null;
   const clusters = [];
