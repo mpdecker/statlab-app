@@ -45,6 +45,32 @@ import { tauU, pnd, pem, nap, randomizationTest, baselineCorrectedTau, betweenCa
 import { morrisMethod, fastSensitivity, modelComparison, forecastCombination, sobolFirstOrder, sobolTotalIndex, deltaMethod, andrewsPlot } from 'statlab/methods/sensitivity';
 import { bootstrapCI, bootstrapSE, bootstrapTest, jackknife, bootstrapT_CI, empiricalInfluence, bootstrapMediation as bsMediation, moderatedMediation, splitConformal, conformalPvalues, jackknifePlus } from 'statlab/methods/bootstrap';
 import { powerCoxPH, powerMetaAnalysis, powerEquivalence, powerInteractionANOVA, powerANOVA, powerChiSq, powerLogisticReg, powerMultilevel, powerCorrelation, powerMediationTest, requiredNT, requiredNCorrelation, requiredNOneProp, requiredNTwoProp, requiredNWilcoxon, requiredNLogRank, requiredNOLS, requiredNANOVA, powerTTestWrapper, powerProportionOne, powerProportionTwo, powerWilcoxonTest, powerLogRankTest, powerRMANOVA, powerOLS_apa, powerSpearmanTest } from 'statlab/methods/power';
+import { theilSenSlope, mmEstimator, madScale, hampelM, mcdCovariance, sEstimator, ltsRegression, qqConfidence } from 'statlab/methods/robust';
+import {
+  bicBayesFactor, betaBinomialPosterior, gammaPoissonPosterior, normalNormalPosterior,
+  normalInverseGammaPosterior, bayesianLinearRegression, bayesianLogisticRegression,
+  bayesianPoissonRegression, bayesianDIC, bmaRegression,
+} from 'statlab/methods/bayesian';
+import { littlesMCAR, mice, rubinPool, fmi as fractionMissingInfo, emImpute, missingnessPattern, completeCases } from 'statlab/methods/missing';
+import { kmEstimate, logRankTest, coxPH } from 'statlab/methods/survival';
+import { adfTest, acf, pacf } from 'statlab/methods/timeseries';
+import { localOutlierFactor, isolationForest } from 'statlab/methods/outlier';
+import { mulberry32 } from 'statlab/math/rng';
+
+function injectMissing(data, vars, pct, seed) {
+  if (!data?.length || !vars?.length) return data;
+  const rng = mulberry32(seed);
+  return data.map(row => {
+    const r = { ...row };
+    for (const v of vars) if (rng() * 100 < pct) r[v] = null;
+    return r;
+  });
+}
+
+function gaussianLogLik(ssRes, n) {
+  const ss = Math.max(ssRes, 1e-12);
+  return -0.5 * n * Math.log(2 * Math.PI) - 0.5 * n * Math.log(ss / n) - 0.5 * n;
+}
 
 const POWER_TESTS = new Set(['pow_anova', 'pow_chi', 'pow_logit', 'pow_mixed', 'pow_med']);
 
@@ -271,7 +297,7 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
                 userSelect: 'none', borderBottom: `1px solid ${C.border}`,
               }}
             >
-              <span>\u2605 FAVORITES ({favorites.length})</span>
+              <span>{'\u2605 FAVORITES'} ({favorites.length})</span>
               <span style={{ fontSize: 8, color: C.dim }}>{favExpanded ? '\u25BC' : '\u25B6'}</span>
             </div>
             {favExpanded && (
@@ -331,7 +357,7 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
                 userSelect: 'none', borderBottom: `1px solid ${C.border}`,
               }}
             >
-              <span>\u21BB RECENT ({recent.length})</span>
+              <span>{'\u21BB RECENT'} ({recent.length})</span>
               <span style={{ fontSize: 8, color: C.dim }}>{recExpanded ? '\u25BC' : '\u25B6'}</span>
             </div>
             {recExpanded && (
@@ -602,6 +628,50 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [sensNSamples, setSensNSamples] = useState('100');
   const [sensNTrajectories, setSensNTrajectories] = useState('10');
   const [sensGridLevels, setSensGridLevels] = useState('4');
+
+  // ── robust statistics ──────────────────────────────────────────────────────
+  const [robSeed, setRobSeed] = useState('42');
+
+  // ── Bayesian modeling ────────────────────────────────────────────────────
+  const [bbPriorA, setBbPriorA] = useState('1');
+  const [bbPriorB, setBbPriorB] = useState('1');
+  const [gpPriorShape, setGpPriorShape] = useState('1');
+  const [gpPriorRate, setGpPriorRate] = useState('1');
+  const [nnPriorMean, setNnPriorMean] = useState('0');
+  const [nnPriorSD, setNnPriorSD] = useState('10');
+  const [nnKnownSigma, setNnKnownSigma] = useState('1');
+  const [bayesMcmcIter, setBayesMcmcIter] = useState('800');
+
+  // ── missing data ─────────────────────────────────────────────────────────
+  const [missPct, setMissPct] = useState('15');
+  const [missSeed, setMissSeed] = useState('42');
+
+  // ── extended power/sample-size calculators (previously dispatched but not in the Navigator) ──
+  const [cfgPowCox, setCfgPowCox] = useState({ nEvents: '60', hr: '0.6' });
+  const [cfgPowMeta, setCfgPowMeta] = useState({ k: '10', d: '0.3' });
+  const [cfgPowEquiv, setCfgPowEquiv] = useState({ meanDiff: '0.2', se: '0.1', dL: '-0.5', dU: '0.5' });
+  const [cfgPowIntAnova, setCfgPowIntAnova] = useState({ kA: '2', kB: '3', nPerCell: '20', fInt: '0.25' });
+  const [cfgPowCorr, setCfgPowCorr] = useState({ n: '50', r: '0.3' });
+  const [cfgReqnT, setCfgReqnT] = useState({ d: '0.5' });
+  const [cfgReqnCorr, setCfgReqnCorr] = useState({ r: '0.3' });
+  const [cfgReqnOneProp, setCfgReqnOneProp] = useState({ p0: '0.5', p1: '0.7' });
+  const [cfgReqnTwoProp, setCfgReqnTwoProp] = useState({ p1: '0.5', p2: '0.7' });
+  const [cfgReqnWilcoxon, setCfgReqnWilcoxon] = useState({ d: '0.5' });
+  const [cfgReqnLogrank, setCfgReqnLogrank] = useState({ hr: '0.7' });
+  const [cfgReqnOls, setCfgReqnOls] = useState({ rSquared: '0.2' });
+  const [cfgReqnAnova, setCfgReqnAnova] = useState({ cohenF: '0.25', k: '3' });
+  const [cfgPowTtest, setCfgPowTtest] = useState({ n1: '30', n2: '30', d: '0.5' });
+  const [cfgPowOneProp, setCfgPowOneProp] = useState({ n: '50', p0: '0.5', p1: '0.7' });
+  const [cfgPowTwoProp, setCfgPowTwoProp] = useState({ n1: '50', n2: '50', p1: '0.5', p2: '0.7' });
+  const [cfgPowWilcoxon, setCfgPowWilcoxon] = useState({ n1: '30', n2: '30', d: '0.5' });
+  const [cfgPowLogrank, setCfgPowLogrank] = useState({ nEvents: '60', hr: '0.7' });
+  const [cfgPowRmanova, setCfgPowRmanova] = useState({ k: '3', n: '20', epsilon: '1', f: '0.25' });
+  const [cfgPowOlsApa, setCfgPowOlsApa] = useState({ rSquared: '0.2', n: '50', k: '3' });
+  const [cfgPowSpearman, setCfgPowSpearman] = useState({ n: '50', rho: '0.3' });
+
+  // ── survival analysis / time series / outlier detection ──────────────────
+  const [outlierK, setOutlierK] = useState('5');
+  const [outlierSeed, setOutlierSeed] = useState('42');
 
   // ── bootstrap ──────────────────────────────────────────────────────────────
   const [bsResult, setBsResult]     = useState(null);
@@ -992,27 +1062,154 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'boot_confpval') { const d = allTgt.length >= 30 ? allTgt : Array.from({length: 30}, () => Math.random() * 10); const r = conformalPvalues(d.slice(0, 20), avg(d.slice(20, 30))); return r ? { ...r, test: 'Conformal P-values' } : null; }
       if (a === 'boot_jackplus') { const X = allTgt.length >= 15 ? allTgt.slice(0, 15) : Array.from({length: 15}, () => Math.random() * 10); const Y = allTgt.length >= 15 ? allTgt.slice(0, 15).map(v => v * 0.8 + 2) : Array.from({length: 15}, () => Math.random() * 10); const r = jackknifePlus(X, Y); return r ? { ...r, test: 'Jackknife+' } : null; }
       // ── batch 9: Power Analysis ──────────────────────────────────────────────
-      if (a === 'pow_cox') { const r = powerCoxPH(60, 0.6); return r ? { ...r, test: 'Cox PH Power' } : null; }
-      if (a === 'pow_meta') { const r = powerMetaAnalysis(10, 0.3); return r ? { ...r, test: 'Meta-Analysis Power' } : null; }
-      if (a === 'pow_equiv') { const r = powerEquivalence(0.2, 0.1, -0.5, 0.5); return r ? { ...r, test: 'Equivalence Power (TOST)' } : null; }
-      if (a === 'pow_intanova') { const r = powerInteractionANOVA(2, 3, 20, 0.25); return r ? { ...r, test: 'Interaction ANOVA Power' } : null; }
-      if (a === 'pow_corr') { const r = powerCorrelation(50, 0.3); return r ? { ...r, test: 'Correlation Power' } : null; }
-      if (a === 'reqn_t') { const r = requiredNT(0.5); return r ? { ...r, test: 'Required N (t-test)' } : null; }
-      if (a === 'reqn_corr') { const r = requiredNCorrelation(0.3); return r ? { ...r, test: 'Required N (Correlation)' } : null; }
-      if (a === 'reqn_oneprop') { const r = requiredNOneProp(0.5, 0.7); return r ? { ...r, test: 'Required N (One Proportion)' } : null; }
-      if (a === 'reqn_twoprop') { const r = requiredNTwoProp(0.5, 0.7); return r ? { ...r, test: 'Required N (Two Proportions)' } : null; }
-      if (a === 'reqn_wilcoxon') { const r = requiredNWilcoxon(0.5); return r ? { ...r, test: 'Required N (Wilcoxon)' } : null; }
-      if (a === 'reqn_logrank') { const r = requiredNLogRank(0.7); return r ? { ...r, test: 'Required N (Log-Rank)' } : null; }
-      if (a === 'reqn_ols') { const r = requiredNOLS(0.2); return r ? { ...r, test: 'Required N (OLS)' } : null; }
-      if (a === 'reqn_anova') { const r = requiredNANOVA(0.25, 3); return r ? { ...r, test: 'Required N (ANOVA)' } : null; }
-      if (a === 'pow_ttest') { const r = powerTTestWrapper(30, 30, 0.5); return r ? { ...r, test: 'T-Test Power' } : null; }
-      if (a === 'pow_oneprop') { const r = powerProportionOne(50, 0.5, 0.7); return r ? { ...r, test: 'One-Proportion Power' } : null; }
-      if (a === 'pow_twoprop') { const r = powerProportionTwo(50, 50, 0.5, 0.7); return r ? { ...r, test: 'Two-Proportion Power' } : null; }
-      if (a === 'pow_wilcoxon') { const r = powerWilcoxonTest(30, 30, 0.5); return r ? { ...r, test: 'Wilcoxon Power' } : null; }
-      if (a === 'pow_logrank') { const r = powerLogRankTest(60, 0.7); return r ? { ...r, test: 'Log-Rank Power' } : null; }
-      if (a === 'pow_rmanova') { const r = powerRMANOVA(3, 20, 1, 0.25); return r ? { ...r, test: 'RM ANOVA Power' } : null; }
-      if (a === 'pow_olsapa') { const r = powerOLS_apa(0.2, 50, 3); return r ? { ...r, test: 'OLS Power' } : null; }
-      if (a === 'pow_spearman') { const r = powerSpearmanTest(50, 0.3); return r ? { ...r, test: 'Spearman Power' } : null; }
+      if (a === 'pow_cox') { const c = cfgPowCox; const r = powerCoxPH(parseFinite(c.nEvents, 60), parseFinite(c.hr, 0.6), 0, 1, aval); return r ? { ...r, test: 'Cox PH Power' } : null; }
+      if (a === 'pow_meta') { const c = cfgPowMeta; const r = powerMetaAnalysis(parseInt(c.k, 10) || 10, parseFinite(c.d, 0.3), 0, 50, aval); return r ? { ...r, test: 'Meta-Analysis Power' } : null; }
+      if (a === 'pow_equiv') { const c = cfgPowEquiv; const r = powerEquivalence(parseFinite(c.meanDiff, 0.2), parseFinite(c.se, 0.1), parseFinite(c.dL, -0.5), parseFinite(c.dU, 0.5), aval); return r ? { ...r, test: 'Equivalence Power (TOST)' } : null; }
+      if (a === 'pow_intanova') { const c = cfgPowIntAnova; const r = powerInteractionANOVA(parseInt(c.kA, 10) || 2, parseInt(c.kB, 10) || 3, parseInt(c.nPerCell, 10) || 20, parseFinite(c.fInt, 0.25), aval); return r ? { ...r, test: 'Interaction ANOVA Power' } : null; }
+      if (a === 'pow_corr') { const c = cfgPowCorr; const r = powerCorrelation(parseInt(c.n, 10) || 50, parseFinite(c.r, 0.3), aval); return r ? { ...r, test: 'Correlation Power' } : null; }
+      if (a === 'reqn_t') { const c = cfgReqnT; const r = requiredNT(parseFinite(c.d, 0.5), 0.8, aval); return r ? { ...r, test: 'Required N (t-test)' } : null; }
+      if (a === 'reqn_corr') { const c = cfgReqnCorr; const r = requiredNCorrelation(parseFinite(c.r, 0.3), 0.8, aval); return r ? { ...r, test: 'Required N (Correlation)' } : null; }
+      if (a === 'reqn_oneprop') { const c = cfgReqnOneProp; const r = requiredNOneProp(parseFinite(c.p0, 0.5), parseFinite(c.p1, 0.7), 0.8, aval); return r ? { ...r, test: 'Required N (One Proportion)' } : null; }
+      if (a === 'reqn_twoprop') { const c = cfgReqnTwoProp; const r = requiredNTwoProp(parseFinite(c.p1, 0.5), parseFinite(c.p2, 0.7), 0.8, aval); return r ? { ...r, test: 'Required N (Two Proportions)' } : null; }
+      if (a === 'reqn_wilcoxon') { const c = cfgReqnWilcoxon; const r = requiredNWilcoxon(parseFinite(c.d, 0.5), 0.8, aval); return r ? { ...r, test: 'Required N (Wilcoxon)' } : null; }
+      if (a === 'reqn_logrank') { const c = cfgReqnLogrank; const r = requiredNLogRank(parseFinite(c.hr, 0.7), 0.8, aval); return r ? { ...r, test: 'Required N (Log-Rank)' } : null; }
+      if (a === 'reqn_ols') { const c = cfgReqnOls; const r = requiredNOLS(parseFinite(c.rSquared, 0.2), 1, 0.8, aval); return r ? { ...r, test: 'Required N (OLS)' } : null; }
+      if (a === 'reqn_anova') { const c = cfgReqnAnova; const r = requiredNANOVA(parseFinite(c.cohenF, 0.25), parseInt(c.k, 10) || 3, 0.8, aval); return r ? { ...r, test: 'Required N (ANOVA)' } : null; }
+      if (a === 'pow_ttest') { const c = cfgPowTtest; const r = powerTTestWrapper(parseInt(c.n1, 10) || 30, parseInt(c.n2, 10) || 30, parseFinite(c.d, 0.5), 'two-sample', aval); return r ? { ...r, test: 'T-Test Power' } : null; }
+      if (a === 'pow_oneprop') { const c = cfgPowOneProp; const r = powerProportionOne(parseInt(c.n, 10) || 50, parseFinite(c.p0, 0.5), parseFinite(c.p1, 0.7), aval); return r ? { ...r, test: 'One-Proportion Power' } : null; }
+      if (a === 'pow_twoprop') { const c = cfgPowTwoProp; const r = powerProportionTwo(parseInt(c.n1, 10) || 50, parseInt(c.n2, 10) || 50, parseFinite(c.p1, 0.5), parseFinite(c.p2, 0.7), aval); return r ? { ...r, test: 'Two-Proportion Power' } : null; }
+      if (a === 'pow_wilcoxon') { const c = cfgPowWilcoxon; const r = powerWilcoxonTest(parseInt(c.n1, 10) || 30, parseInt(c.n2, 10) || 30, parseFinite(c.d, 0.5), aval); return r ? { ...r, test: 'Wilcoxon Power' } : null; }
+      if (a === 'pow_logrank') { const c = cfgPowLogrank; const r = powerLogRankTest(parseInt(c.nEvents, 10) || 60, parseFinite(c.hr, 0.7), aval); return r ? { ...r, test: 'Log-Rank Power' } : null; }
+      if (a === 'pow_rmanova') { const c = cfgPowRmanova; const r = powerRMANOVA(parseInt(c.k, 10) || 3, parseInt(c.n, 10) || 20, parseFinite(c.epsilon, 1), parseFinite(c.f, 0.25), aval); return r ? { ...r, test: 'RM ANOVA Power' } : null; }
+      if (a === 'pow_olsapa') { const c = cfgPowOlsApa; const r = powerOLS_apa(parseFinite(c.rSquared, 0.2), parseInt(c.n, 10) || 50, parseInt(c.k, 10) || 3, aval); return r ? { ...r, test: 'OLS Power' } : null; }
+      if (a === 'pow_spearman') { const c = cfgPowSpearman; const r = powerSpearmanTest(parseInt(c.n, 10) || 50, parseFinite(c.rho, 0.3), aval); return r ? { ...r, test: 'Spearman Power' } : null; }
+      // ── survival analysis ────────────────────────────────────────────────────
+      if (a === 'km' || a === 'coxph') {
+        if (!tgtVar || !cat1) return null;
+        const cats = [...new Set(data.map(r => r[cat1]))].filter(v => v != null).sort();
+        const posVal = cats[1] || cats[0];
+        if (a === 'km') {
+          const obs = data.filter(r => Number.isFinite(+r[tgtVar]) && r[cat1] != null).map(r => ({ time: +r[tgtVar], event: r[cat1] === posVal ? 1 : 0 }));
+          return kmEstimate(obs);
+        }
+        const Xc = preds.filter(c => c && c !== tgtVar);
+        if (!Xc.length) return null;
+        const obs = data.filter(r => Number.isFinite(+r[tgtVar]) && r[cat1] != null && Xc.every(c => Number.isFinite(+r[c])))
+          .map(r => ({ time: +r[tgtVar], event: r[cat1] === posVal ? 1 : 0, ...Object.fromEntries(Xc.map(c => [c, +r[c]])) }));
+        return coxPH(obs, Xc);
+      }
+      if (a === 'logrank') {
+        if (!tgtVar || !cat1 || !grpVar) return null;
+        const cats = [...new Set(data.map(r => r[cat1]))].filter(v => v != null).sort();
+        const posVal = cats[1] || cats[0];
+        const toObs = g => data.filter(r => r[grpVar] === g && Number.isFinite(+r[tgtVar]) && r[cat1] != null)
+          .map(r => ({ time: +r[tgtVar], event: r[cat1] === posVal ? 1 : 0 }));
+        if (!g1 || g1 === '—' || !g2 || g2 === '—') return null;
+        const obsA = toObs(g1), obsB = toObs(g2);
+        return logRankTest(obsA, obsB);
+      }
+      // ── time series ──────────────────────────────────────────────────────────
+      if (a === 'adf') return allTgt.length >= 10 ? adfTest(allTgt) : null;
+      if (a === 'acf' || a === 'pacf') {
+        if (allTgt.length < 4) return null;
+        const vals = a === 'acf' ? acf(allTgt) : pacf(allTgt);
+        if (!vals) return null;
+        return { test: a === 'acf' ? 'Autocorrelation (ACF)' : 'Partial Autocorrelation (PACF)', series: vals, n: allTgt.length,
+          apa: `${a === 'acf' ? 'ACF' : 'PACF'} computed for ${vals.length - 1} lags (n=${allTgt.length}).` };
+      }
+      // ── outlier detection ────────────────────────────────────────────────────
+      if (a === 'lof' || a === 'iforest') {
+        const vars = scaleVars.filter(c => numeric.includes(c));
+        if (vars.length < 1) return null;
+        const X = data.filter(r => vars.every(c => Number.isFinite(+r[c]))).map(r => vars.map(c => +r[c]));
+        if (a === 'lof') return localOutlierFactor(X, { k: Math.max(2, parseInt(outlierK, 10) || 5) });
+        return isolationForest(X, { seed: parseInt(outlierSeed, 10) || 42 });
+      }
+      // ── robust statistics ────────────────────────────────────────────────────
+      if (a === 'theil_sen') return theilSenSlope(xy.xs, xy.ys);
+      if (a === 'mm_estimator') return mmEstimator(xy.xs, xy.ys, parseInt(robSeed, 10) || 42);
+      if (a === 'mad_scale') return madScale(allTgt);
+      if (a === 'hampel_m') return hampelM(allTgt);
+      if (a === 'mcd_cov') {
+        const vars = scaleVars.filter(c => numeric.includes(c));
+        if (vars.length < 2) return null;
+        const res = mcdCovariance(data, vars, { seed: parseInt(robSeed, 10) || 42 });
+        if (!res) return null;
+        // mcdCovariance's own `p`/`h` mean "# variables" / "MCD subset size" — rename
+        // before returning so they don't collide with the UI's generic p-value / Cohen's h chips.
+        const { p: nVars, h: subsetH, ...rest } = res;
+        return { ...rest, nVars, subsetH };
+      }
+      if (a === 's_estimator') return sEstimator(xy.xs, xy.ys);
+      if (a === 'lts_reg') {
+        const res = ltsRegression(xy.xs, xy.ys, { seed: parseInt(robSeed, 10) || 42 });
+        if (!res) return null;
+        // ltsRegression's `h` means "trimmed subset size", not Cohen's h — rename
+        // so it doesn't collide with the UI's generic Cohen's h chip.
+        const { h: subsetH, ...rest } = res;
+        return { ...rest, subsetH };
+      }
+      if (a === 'qq_band') return qqConfidence(allTgt);
+      // ── Bayesian modeling ────────────────────────────────────────────────────
+      if (a === 'bic_bf') {
+        if (xy.xs.length < 5) return null;
+        const my = avg(xy.ys);
+        const ssRes0 = xy.ys.reduce((s, y) => s + (y - my) ** 2, 0);
+        const fit = simpleOLS(xy.xs, xy.ys);
+        if (!fit) return null;
+        const ssRes1 = fit.mse * (fit.n - 2);
+        const logLik0 = gaussianLogLik(ssRes0, fit.n);
+        const logLik1 = gaussianLogLik(ssRes1, fit.n);
+        return bicBayesFactor(logLik0, logLik1, fit.n, 1, 2);
+      }
+      if (a === 'beta_binom_post') { const r = betaBinomialPosterior(+binoK, +binoN, parseFinite(bbPriorA, 1), parseFinite(bbPriorB, 1)); return r ? { ...r, test: 'Beta-Binomial Posterior', apa: `Posterior mean = ${r.posteriorMean.toFixed(4)}, 95% credible [${r.credible95[0]}, ${r.credible95[1]}]` } : null; }
+      if (a === 'gamma_pois_post') { const counts = allTgt.filter(v => v >= 0).map(v => Math.round(v)); if (counts.length < 1) return null; const r = gammaPoissonPosterior(counts, parseFinite(gpPriorShape, 1), parseFinite(gpPriorRate, 1)); return r ? { ...r, test: 'Gamma-Poisson Posterior', apa: `Posterior mean = ${r.posteriorMean.toFixed(4)}, 95% credible [${r.credible95[0]}, ${r.credible95[1]}]` } : null; }
+      if (a === 'norm_norm_post') { const r = normalNormalPosterior(allTgt, parseFinite(nnPriorMean, 0), parseFinite(nnPriorSD, 10), parseFinite(nnKnownSigma, 1)); return r ? { ...r, test: 'Normal-Normal Posterior', apa: `Posterior mean = ${r.posteriorMean.toFixed(4)} (SD=${r.posteriorSD.toFixed(4)}), 95% credible [${r.credible95[0]}, ${r.credible95[1]}]` } : null; }
+      if (a === 'nig_post') { if (xy.xs.length < 5) return null; const X = xy.xs.map(x => [1, x]); const r = normalInverseGammaPosterior(xy.ys, X); return r ? { ...r, test: 'Normal-Inverse-Gamma Posterior', apa: `β = ${r.coefficients.map(c => c.posteriorMean.toFixed(3)).join(', ')}, σ² = ${r.sigma2.toFixed(4)}` } : null; }
+      if (a === 'bayes_linreg') { if (xy.xs.length < 5) return null; const X = xy.xs.map(x => [1, x]); return bayesianLinearRegression(xy.ys, X); }
+      if (a === 'bayes_logit') {
+        const Xc = preds.filter(c => c);
+        if (!Xc.length || !cat1) return null;
+        const cats = [...new Set(data.map(r => r[cat1]))].filter(v => v != null).sort();
+        const posVal = cats[1] || cats[0];
+        const rows = data.filter(r => cats.includes(r[cat1]) && rowFinite(r, Xc));
+        if (rows.length < 10) return null;
+        return bayesianLogisticRegression(rows.map(r => r[cat1] === posVal ? 1 : 0), rows.map(r => Xc.map(c => +r[c])), { nIter: Math.max(200, parseInt(bayesMcmcIter, 10) || 800), nBurnin: Math.max(100, Math.floor((parseInt(bayesMcmcIter, 10) || 800) / 3)) });
+      }
+      if (a === 'bayes_pois') {
+        const Xc = preds.filter(c => c && c !== yVar);
+        if (!Xc.length || !yVar) return null;
+        const rows = data.filter(r => rowFinite(r, [yVar, ...Xc]) && +r[yVar] >= 0);
+        if (rows.length < 10) return null;
+        return bayesianPoissonRegression(rows.map(r => Math.round(+r[yVar])), rows.map(r => Xc.map(c => +r[c])), { nIter: Math.max(200, parseInt(bayesMcmcIter, 10) || 800), nBurnin: Math.max(100, Math.floor((parseInt(bayesMcmcIter, 10) || 800) / 3)) });
+      }
+      if (a === 'bayes_dic') { if (xy.xs.length < 5) return null; const fit = simpleOLS(xy.xs, xy.ys); if (!fit) return null; const ssRes = fit.mse * (fit.n - 2); const ll = gaussianLogLik(ssRes, fit.n); return bayesianDIC(ll, 2, null); }
+      if (a === 'bma_reg') { const Xc = preds.filter(c => c && c !== yVar); if (Xc.length < 2 || !yVar) return null; return bmaRegression(data, yVar, Xc); }
+      // ── missing data ─────────────────────────────────────────────────────────
+      if (['little_mcar', 'mice_imp', 'rubin_pool', 'fmi', 'em_impute', 'miss_patt', 'complete_cases'].includes(a)) {
+        const vars = scaleVars.filter(c => numeric.includes(c));
+        if (vars.length < 2) return null;
+        const holey = injectMissing(data, vars, parseFinite(missPct, 15), parseInt(missSeed, 10) || 42);
+        if (a === 'little_mcar') return littlesMCAR(holey);
+        if (a === 'miss_patt') return missingnessPattern(holey.map(r => Object.fromEntries(vars.map(v => [v, r[v]]))));
+        if (a === 'complete_cases') return completeCases(holey, vars);
+        if (a === 'em_impute') return emImpute(holey, vars);
+        if (a === 'mice_imp') return mice(holey, vars, { seed: parseInt(missSeed, 10) || 42 });
+        if (a === 'rubin_pool' || a === 'fmi') {
+          const mi = mice(holey, vars, { seed: parseInt(missSeed, 10) || 42 });
+          if (!mi) return null;
+          const target = tgtVar && vars.includes(tgtVar) ? tgtVar : vars[0];
+          const pooled = rubinPool(mi.imputedDatasets, ds => {
+            const v = finiteNums(ds.map(r => +r[target]));
+            if (v.length < 2) return null;
+            const m = avg(v), se = sampleSD(v) / Math.sqrt(v.length);
+            return { estimates: [{ name: target, estimate: m, se }] };
+          });
+          if (!pooled) return null;
+          return a === 'rubin_pool' ? pooled : fractionMissingInfo(pooled);
+        }
+        return null;
+      }
       if (a === 'bootstrap') return null;
     } catch (e) { return { error: String(e) }; }
     return null;
@@ -1035,6 +1232,13 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     banditNStates, banditNActions, banditNEpisodes,
     privEpsilon, privDelta, privPct,
     sensSeed, sensNSamples, sensNTrajectories, sensGridLevels,
+    robSeed, bbPriorA, bbPriorB, gpPriorShape, gpPriorRate,
+    nnPriorMean, nnPriorSD, nnKnownSigma, bayesMcmcIter, missPct, missSeed,
+    cfgPowCox, cfgPowMeta, cfgPowEquiv, cfgPowIntAnova, cfgPowCorr,
+    cfgReqnT, cfgReqnCorr, cfgReqnOneProp, cfgReqnTwoProp, cfgReqnWilcoxon,
+    cfgReqnLogrank, cfgReqnOls, cfgReqnAnova, cfgPowTtest, cfgPowOneProp,
+    cfgPowTwoProp, cfgPowWilcoxon, cfgPowLogrank, cfgPowRmanova, cfgPowOlsApa, cfgPowSpearman,
+    outlierK, outlierSeed,
   ]);
 
   const displayResult = POWER_TESTS.has(active) ? powerResult : result;
@@ -1091,6 +1295,23 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     privEpsilon, setPrivEpsilon, privDelta, setPrivDelta, privPct, setPrivPct,
     sensSeed, setSensSeed, sensNSamples, setSensNSamples,
     sensNTrajectories, setSensNTrajectories, sensGridLevels, setSensGridLevels,
+    robSeed, setRobSeed,
+    bbPriorA, setBbPriorA, bbPriorB, setBbPriorB,
+    gpPriorShape, setGpPriorShape, gpPriorRate, setGpPriorRate,
+    nnPriorMean, setNnPriorMean, nnPriorSD, setNnPriorSD, nnKnownSigma, setNnKnownSigma,
+    bayesMcmcIter, setBayesMcmcIter,
+    missPct, setMissPct, missSeed, setMissSeed,
+    cfgPowCox, setCfgPowCox, cfgPowMeta, setCfgPowMeta, cfgPowEquiv, setCfgPowEquiv,
+    cfgPowIntAnova, setCfgPowIntAnova, cfgPowCorr, setCfgPowCorr,
+    cfgReqnT, setCfgReqnT, cfgReqnCorr, setCfgReqnCorr,
+    cfgReqnOneProp, setCfgReqnOneProp, cfgReqnTwoProp, setCfgReqnTwoProp,
+    cfgReqnWilcoxon, setCfgReqnWilcoxon, cfgReqnLogrank, setCfgReqnLogrank,
+    cfgReqnOls, setCfgReqnOls, cfgReqnAnova, setCfgReqnAnova,
+    cfgPowTtest, setCfgPowTtest, cfgPowOneProp, setCfgPowOneProp,
+    cfgPowTwoProp, setCfgPowTwoProp, cfgPowWilcoxon, setCfgPowWilcoxon,
+    cfgPowLogrank, setCfgPowLogrank, cfgPowRmanova, setCfgPowRmanova,
+    cfgPowOlsApa, setCfgPowOlsApa, cfgPowSpearman, setCfgPowSpearman,
+    outlierK, setOutlierK, outlierSeed, setOutlierSeed,
   };
 
   return {

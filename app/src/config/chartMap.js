@@ -179,4 +179,7 @@ export const CHART_FOR_TEST = {
   pow_twoprop: 'histogram', pow_wilcoxon: 'histogram',
   pow_logrank: 'histogram', pow_rmanova: 'histogram',
   pow_olsapa: 'histogram', pow_spearman: 'histogram',
+  km: 'histogram', logrank: 'histogram', coxph: 'barci',
+  adf: 'histogram', acf: 'barci', pacf: 'barci',
+  lof: 'histogram', iforest: 'histogram',
 };

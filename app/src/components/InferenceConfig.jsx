@@ -44,7 +44,30 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set,
     privEpsilon, setPrivEpsilon, privDelta, setPrivDelta, privPct, setPrivPct,
     sensSeed, setSensSeed, sensNSamples, setSensNSamples,
     sensNTrajectories, setSensNTrajectories, sensGridLevels, setSensGridLevels,
+    robSeed, setRobSeed,
+    bbPriorA, setBbPriorA, bbPriorB, setBbPriorB,
+    gpPriorShape, setGpPriorShape, gpPriorRate, setGpPriorRate,
+    nnPriorMean, setNnPriorMean, nnPriorSD, setNnPriorSD, nnKnownSigma, setNnKnownSigma,
+    bayesMcmcIter, setBayesMcmcIter,
+    missPct, setMissPct, missSeed, setMissSeed,
+    cfgPowCox, setCfgPowCox, cfgPowMeta, setCfgPowMeta, cfgPowEquiv, setCfgPowEquiv,
+    cfgPowIntAnova, setCfgPowIntAnova, cfgPowCorr, setCfgPowCorr,
+    cfgReqnT, setCfgReqnT, cfgReqnCorr, setCfgReqnCorr,
+    cfgReqnOneProp, setCfgReqnOneProp, cfgReqnTwoProp, setCfgReqnTwoProp,
+    cfgReqnWilcoxon, setCfgReqnWilcoxon, cfgReqnLogrank, setCfgReqnLogrank,
+    cfgReqnOls, setCfgReqnOls, cfgReqnAnova, setCfgReqnAnova,
+    cfgPowTtest, setCfgPowTtest, cfgPowOneProp, setCfgPowOneProp,
+    cfgPowTwoProp, setCfgPowTwoProp, cfgPowWilcoxon, setCfgPowWilcoxon,
+    cfgPowLogrank, setCfgPowLogrank, cfgPowRmanova, setCfgPowRmanova,
+    cfgPowOlsApa, setCfgPowOlsApa, cfgPowSpearman, setCfgPowSpearman,
+    outlierK, setOutlierK, outlierSeed, setOutlierSeed,
   } = state;
+
+  // Field editor for the object-shaped power-calculator configs above:
+  // <Fld cfg={cfgPowCox} setCfg={setCfgPowCox} k="nEvents" label="N events" width={70} />
+  const Fld = ({ cfg, setCfg, k, label, width = 65 }) => (
+    <Inp label={label} value={cfg[k]} onChange={v => setCfg(c => ({ ...c, [k]: v }))} width={width} />
+  );
 
   const scaffold = txt => (<div style={{ fontSize: 9, color: C.dim, ...mono, lineHeight: 1.45 }}>{txt}</div>);
   const numeric = ds?.numeric || [];
@@ -59,6 +82,7 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set,
     <Sel label="Group var" value={grpVar} onChange={v => { setGrpVar(v); setG1('—'); setG2('—'); }} options={categorical} width="100%" />
     <Sel label="Target var" value={tgtVar} onChange={setTgtVar} options={numeric} width="100%" />
   </>;
+  const singleVarCfg = <Sel label="Variable" value={tgtVar} onChange={setTgtVar} options={numeric} width="100%" />;
   const twoGrp = <div style={{ display: 'flex', gap: 6 }}>
     <div style={{ flex: 1 }}><Sel label="Group 1" value={g1} onChange={setG1} options={['—', ...groups]} width="100%" /></div>
     <div style={{ flex: 1 }}><Sel label="Group 2" value={g2} onChange={setG2} options={['—', ...groups]} width="100%" /></div>
@@ -514,28 +538,204 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set,
     boot_splitconf: <></>,
     boot_confpval: <></>,
     boot_jackplus: <></>,
-    // ── batch 9: Power Analysis ──────────────────────────────────────────────
-    pow_cox: <></>,
-    pow_meta: <></>,
-    pow_equiv: <></>,
-    pow_intanova: <></>,
-    pow_corr: <></>,
-    reqn_t: <></>,
-    reqn_corr: <></>,
-    reqn_oneprop: <></>,
-    reqn_twoprop: <></>,
-    reqn_wilcoxon: <></>,
-    reqn_logrank: <></>,
-    reqn_ols: <></>,
-    reqn_anova: <></>,
-    pow_ttest: <></>,
-    pow_oneprop: <></>,
-    pow_twoprop: <></>,
-    pow_wilcoxon: <></>,
-    pow_logrank: <></>,
-    pow_rmanova: <></>,
-    pow_olsapa: <></>,
-    pow_spearman: <></>,
+    // ── batch 9: Power Analysis (extended) ───────────────────────────────────
+    pow_cox: <>
+      <Fld cfg={cfgPowCox} setCfg={setCfgPowCox} k="nEvents" label="N events" />
+      <Fld cfg={cfgPowCox} setCfg={setCfgPowCox} k="hr" label="Hazard ratio" />
+    </>,
+    pow_meta: <>
+      <Fld cfg={cfgPowMeta} setCfg={setCfgPowMeta} k="k" label="K studies" />
+      <Fld cfg={cfgPowMeta} setCfg={setCfgPowMeta} k="d" label="Effect d" />
+    </>,
+    pow_equiv: <>
+      <Fld cfg={cfgPowEquiv} setCfg={setCfgPowEquiv} k="meanDiff" label="Mean diff" />
+      <Fld cfg={cfgPowEquiv} setCfg={setCfgPowEquiv} k="se" label="SE" />
+      <Fld cfg={cfgPowEquiv} setCfg={setCfgPowEquiv} k="dL" label="Lower Δ" />
+      <Fld cfg={cfgPowEquiv} setCfg={setCfgPowEquiv} k="dU" label="Upper Δ" />
+    </>,
+    pow_intanova: <>
+      <Fld cfg={cfgPowIntAnova} setCfg={setCfgPowIntAnova} k="kA" label="Levels A" width={55} />
+      <Fld cfg={cfgPowIntAnova} setCfg={setCfgPowIntAnova} k="kB" label="Levels B" width={55} />
+      <Fld cfg={cfgPowIntAnova} setCfg={setCfgPowIntAnova} k="nPerCell" label="n/cell" />
+      <Fld cfg={cfgPowIntAnova} setCfg={setCfgPowIntAnova} k="fInt" label="Cohen's f (int.)" width={80} />
+    </>,
+    pow_corr: <>
+      <Fld cfg={cfgPowCorr} setCfg={setCfgPowCorr} k="n" label="N" width={55} />
+      <Fld cfg={cfgPowCorr} setCfg={setCfgPowCorr} k="r" label="r" width={55} />
+    </>,
+    reqn_t: <Fld cfg={cfgReqnT} setCfg={setCfgReqnT} k="d" label="Cohen's d" />,
+    reqn_corr: <Fld cfg={cfgReqnCorr} setCfg={setCfgReqnCorr} k="r" label="r" />,
+    reqn_oneprop: <>
+      <Fld cfg={cfgReqnOneProp} setCfg={setCfgReqnOneProp} k="p0" label="p₀" />
+      <Fld cfg={cfgReqnOneProp} setCfg={setCfgReqnOneProp} k="p1" label="p₁" />
+    </>,
+    reqn_twoprop: <>
+      <Fld cfg={cfgReqnTwoProp} setCfg={setCfgReqnTwoProp} k="p1" label="p₁" />
+      <Fld cfg={cfgReqnTwoProp} setCfg={setCfgReqnTwoProp} k="p2" label="p₂" />
+    </>,
+    reqn_wilcoxon: <Fld cfg={cfgReqnWilcoxon} setCfg={setCfgReqnWilcoxon} k="d" label="Cohen's d" />,
+    reqn_logrank: <Fld cfg={cfgReqnLogrank} setCfg={setCfgReqnLogrank} k="hr" label="Hazard ratio" />,
+    reqn_ols: <Fld cfg={cfgReqnOls} setCfg={setCfgReqnOls} k="rSquared" label="R²" />,
+    reqn_anova: <>
+      <Fld cfg={cfgReqnAnova} setCfg={setCfgReqnAnova} k="cohenF" label="Cohen's f" />
+      <Fld cfg={cfgReqnAnova} setCfg={setCfgReqnAnova} k="k" label="k groups" width={55} />
+    </>,
+    pow_ttest: <>
+      <Fld cfg={cfgPowTtest} setCfg={setCfgPowTtest} k="n1" label="n₁" width={55} />
+      <Fld cfg={cfgPowTtest} setCfg={setCfgPowTtest} k="n2" label="n₂" width={55} />
+      <Fld cfg={cfgPowTtest} setCfg={setCfgPowTtest} k="d" label="Cohen's d" />
+    </>,
+    pow_oneprop: <>
+      <Fld cfg={cfgPowOneProp} setCfg={setCfgPowOneProp} k="n" label="N" width={55} />
+      <Fld cfg={cfgPowOneProp} setCfg={setCfgPowOneProp} k="p0" label="p₀" />
+      <Fld cfg={cfgPowOneProp} setCfg={setCfgPowOneProp} k="p1" label="p₁" />
+    </>,
+    pow_twoprop: <>
+      <Fld cfg={cfgPowTwoProp} setCfg={setCfgPowTwoProp} k="n1" label="n₁" width={55} />
+      <Fld cfg={cfgPowTwoProp} setCfg={setCfgPowTwoProp} k="n2" label="n₂" width={55} />
+      <Fld cfg={cfgPowTwoProp} setCfg={setCfgPowTwoProp} k="p1" label="p₁" />
+      <Fld cfg={cfgPowTwoProp} setCfg={setCfgPowTwoProp} k="p2" label="p₂" />
+    </>,
+    pow_wilcoxon: <>
+      <Fld cfg={cfgPowWilcoxon} setCfg={setCfgPowWilcoxon} k="n1" label="n₁" width={55} />
+      <Fld cfg={cfgPowWilcoxon} setCfg={setCfgPowWilcoxon} k="n2" label="n₂" width={55} />
+      <Fld cfg={cfgPowWilcoxon} setCfg={setCfgPowWilcoxon} k="d" label="Cohen's d" />
+    </>,
+    pow_logrank: <>
+      <Fld cfg={cfgPowLogrank} setCfg={setCfgPowLogrank} k="nEvents" label="N events" />
+      <Fld cfg={cfgPowLogrank} setCfg={setCfgPowLogrank} k="hr" label="Hazard ratio" />
+    </>,
+    pow_rmanova: <>
+      <Fld cfg={cfgPowRmanova} setCfg={setCfgPowRmanova} k="k" label="k occasions" width={65} />
+      <Fld cfg={cfgPowRmanova} setCfg={setCfgPowRmanova} k="n" label="n" width={55} />
+      <Fld cfg={cfgPowRmanova} setCfg={setCfgPowRmanova} k="epsilon" label="ε (GG)" width={60} />
+      <Fld cfg={cfgPowRmanova} setCfg={setCfgPowRmanova} k="f" label="Cohen's f" />
+    </>,
+    pow_olsapa: <>
+      <Fld cfg={cfgPowOlsApa} setCfg={setCfgPowOlsApa} k="rSquared" label="R²" />
+      <Fld cfg={cfgPowOlsApa} setCfg={setCfgPowOlsApa} k="n" label="n" width={55} />
+      <Fld cfg={cfgPowOlsApa} setCfg={setCfgPowOlsApa} k="k" label="k predictors" width={70} />
+    </>,
+    pow_spearman: <>
+      <Fld cfg={cfgPowSpearman} setCfg={setCfgPowSpearman} k="n" label="n" width={55} />
+      <Fld cfg={cfgPowSpearman} setCfg={setCfgPowSpearman} k="rho" label="ρ" width={55} />
+    </>,
+    // ── survival analysis ────────────────────────────────────────────────────
+    km: <>
+      <Sel label="Time var" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+      <Sel label="Event (binary)" value={cat1} onChange={setCat1} options={categorical} width={130} />
+    </>,
+    logrank: <>
+      <Sel label="Group var" value={grpVar} onChange={v => { setGrpVar(v); setG1('—'); setG2('—'); }} options={categorical} width={130} />
+      {twoGrp}
+      <Sel label="Time var" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+      <Sel label="Event (binary)" value={cat1} onChange={setCat1} options={categorical} width={130} />
+    </>,
+    coxph: <>
+      <Sel label="Time var" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+      <Sel label="Event (binary)" value={cat1} onChange={setCat1} options={categorical} width={130} />
+      <CheckList label="Covariates" items={numeric.filter(c => c !== tgtVar)} selected={preds} onChange={setPreds} />
+    </>,
+    // ── time series ──────────────────────────────────────────────────────────
+    adf: singleVarCfg,
+    acf: singleVarCfg,
+    pacf: singleVarCfg,
+    // ── outlier detection ────────────────────────────────────────────────────
+    lof: <>
+      <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="k (neighbors)" value={outlierK} onChange={setOutlierK} width={65} />
+    </>,
+    iforest: <>
+      <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Seed" value={outlierSeed} onChange={setOutlierSeed} width={55} />
+    </>,
+    // ── robust statistics ────────────────────────────────────────────────────
+    theil_sen: xyPick,
+    mm_estimator: <>{xyPick}<Inp label="Seed" value={robSeed} onChange={setRobSeed} width={55} /></>,
+    mad_scale: singleVarCfg,
+    hampel_m: singleVarCfg,
+    mcd_cov: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Seed" value={robSeed} onChange={setRobSeed} width={55} />
+    </>,
+    s_estimator: xyPick,
+    lts_reg: <>{xyPick}<Inp label="Seed" value={robSeed} onChange={setRobSeed} width={55} /></>,
+    qq_band: singleVarCfg,
+    // ── Bayesian modeling ────────────────────────────────────────────────────
+    bic_bf: xyPick,
+    beta_binom_post: <>
+      <Inp label="k (successes)" value={binoK} onChange={setBinoK} width={65} />
+      <Inp label="n (trials)" value={binoN} onChange={setBinoN} width={65} />
+      <Inp label="Prior α" value={bbPriorA} onChange={setBbPriorA} width={60} />
+      <Inp label="Prior β" value={bbPriorB} onChange={setBbPriorB} width={60} />
+    </>,
+    gamma_pois_post: <>
+      {singleVarCfg}
+      <Inp label="Prior shape" value={gpPriorShape} onChange={setGpPriorShape} width={70} />
+      <Inp label="Prior rate" value={gpPriorRate} onChange={setGpPriorRate} width={70} />
+    </>,
+    norm_norm_post: <>
+      {singleVarCfg}
+      <Inp label="Prior mean" value={nnPriorMean} onChange={setNnPriorMean} width={70} />
+      <Inp label="Prior SD" value={nnPriorSD} onChange={setNnPriorSD} width={65} />
+      <Inp label="Known σ" value={nnKnownSigma} onChange={setNnKnownSigma} width={65} />
+    </>,
+    nig_post: xyPick,
+    bayes_linreg: xyPick,
+    bayes_logit: <>
+      <Sel label="Binary outcome" value={cat1} onChange={setCat1} options={categorical} width={130} />
+      <CheckList label="Predictors" items={numeric} selected={preds} onChange={setPreds} />
+      <Inp label="MCMC iter" value={bayesMcmcIter} onChange={setBayesMcmcIter} width={70} />
+    </>,
+    bayes_pois: <>
+      <Sel label="Count outcome Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <CheckList label="Predictors X" items={numeric.filter(c => c !== yVar)} selected={preds} onChange={setPreds} />
+      <Inp label="MCMC iter" value={bayesMcmcIter} onChange={setBayesMcmcIter} width={70} />
+    </>,
+    bayes_dic: xyPick,
+    bma_reg: <>
+      <Sel label="Outcome Y" value={yVar} onChange={setYVar} options={numeric} width={130} />
+      <CheckList label="Candidate predictors (2+)" items={numeric.filter(c => c !== yVar)} selected={preds} onChange={setPreds} />
+    </>,
+    // ── missing data ─────────────────────────────────────────────────────────
+    little_mcar: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+      <div style={{ fontSize: 7, color: C.dim, ...mono }}>Missingness injected for demo — real data has none.</div>
+    </>,
+    mice_imp: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
+    rubin_pool: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Sel label="Pool estimate for" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
+    fmi: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Sel label="Pool estimate for" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
+    em_impute: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
+    miss_patt: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
+    complete_cases: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Missing %" value={missPct} onChange={setMissPct} width={60} />
+      <Inp label="Seed" value={missSeed} onChange={setMissSeed} width={55} />
+    </>,
   };
 
   return (
