@@ -168,8 +168,8 @@ export function requiredNCorr(r, power = .8, alpha = .05) {
 }
 
 // ── Unified t-test power ───────────────────────────────────────────────────────
-/** Unified t-test power (two-sample, paired, or one-sample). @param {number} n1 @param {number} [n2=n1] @param {number} d Cohen's d. @param {'two-sample'|'paired'|'one-sample'} [type='two-sample'] @param {number} [alpha=0.05] @returns {{power:number,type:string,d:number,alpha:number,apa:string,n?:number,n1?:number,n2?:number}|null} */
-export function powerTTest(n1, n2 = n1, d, type = 'two-sample', alpha = .05) {
+/** Unified t-test power (two-sample, paired, or one-sample). @param {number} n1 @param {number} [n2=n1] @param {number} [d=0.5] Cohen's d. @param {'two-sample'|'paired'|'one-sample'} [type='two-sample'] @param {number} [alpha=0.05] @returns {{power:number,type:string,d:number,alpha:number,apa:string,n?:number,n1?:number,n2?:number}|null} */
+export function powerTTest(n1, n2 = n1, d = 0.5, type = 'two-sample', alpha = .05) {
   if (n1 < 2 || !Number.isFinite(d) || !(alpha > 0 && alpha < 1)) return null;
   if (type === 'paired') {
     const n = Math.min(n1, n2);
@@ -211,8 +211,8 @@ export function powerTwoProportion(n1, n2, p1, p2, alpha = .05) {
 }
 
 // ── Wilcoxon power (Pitman ARE) ────────────────────────────────────────────────
-/** Mann–Whitney/Wilcoxon power via Pitman asymptotic relative efficiency. @param {number} n1 @param {number} [n2=n1] @param {number} d @param {number} [alpha=0.05] @returns {object|null} */
-export function powerWilcoxon(n1, n2 = n1, d, alpha = .05) {
+/** Mann–Whitney/Wilcoxon power via Pitman asymptotic relative efficiency. @param {number} n1 @param {number} [n2=n1] @param {number} [d=0.5] @param {number} [alpha=0.05] @returns {object|null} */
+export function powerWilcoxon(n1, n2 = n1, d = 0.5, alpha = .05) {
   const ARE = 0.955;
   const neff = Math.round((n1 + n2) * ARE);
   const nEffPer = Math.round(neff / 2);

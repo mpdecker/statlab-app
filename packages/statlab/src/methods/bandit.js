@@ -15,7 +15,7 @@ function nextStateFrom(transitions, state, action, nStates, rand) {
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Epsilon-Greedy ──────────────────────────────────────────────────────────
-/** @param {number} arms @param {number[]} rewards @param {number} [nIterations] */
+/** @param {number[]} arms @param {Array<number|Function>} rewards @param {number} [nIterations] */
 export function epsilonGreedy(arms, rewards, nIterations = 100, { seed = 42, epsilon = 0.1 } = {}) {
   __rng = mulberry32(seed);
   if (!arms || arms.length < 2 || !rewards || nIterations < 10) return null;

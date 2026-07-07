@@ -68,7 +68,7 @@ export function blandAltman(methodA, methodB) {
 }
 
 // ── Diagnostic Accuracy ─────────────────────────────────────────────────────
-/** @param {Function} fn @param {number} tp @param {number} fp @param {number} tn */
+/** @param {number} tp @param {number} fp @param {number} tn @param {number} fn */
 export function diagnosticAccuracy(tp, fp, tn, fn) {
   if (![tp, fp, tn, fn].every(v => Number.isFinite(v) && v >= 0)) return null;
   const N = tp + fp + tn + fn;
@@ -100,7 +100,7 @@ export function diagnosticAccuracy(tp, fp, tn, fn) {
 }
 
 // ── Likelihood Ratios ───────────────────────────────────────────────────────
-/** @param {Function} fn @param {number} tp @param {number} fp @param {number} tn */
+/** @param {number} tp @param {number} fp @param {number} tn @param {number} fn */
 export function likelihoodRatios(tp, fp, tn, fn) {
   if (![tp, fp, tn, fn].every(v => Number.isFinite(v) && v >= 0)) return null;
   if (tp === 0 || fp === 0 || fn === 0 || tn === 0) return null;
@@ -337,7 +337,7 @@ export function blandAltmanRatio(methodA, methodB) {
 }
 
 // ── Diagnostic Odds Ratio ───────────────────────────────────────────────────
-/** @param {Function} fn @param {number} tp @param {number} fp @param {number} tn */
+/** @param {number} tp @param {number} fp @param {number} tn @param {number} fn */
 export function diagnosticOddsRatio(tp, fp, tn, fn) {
   if (![tp, fp, tn, fn].every(v => Number.isFinite(v) && v >= 0)) return null;
   if (tp === 0 || fp === 0 || tn === 0 || fn === 0) return null;
@@ -354,7 +354,7 @@ export function diagnosticOddsRatio(tp, fp, tn, fn) {
 }
 
 // Youden's J optimal threshold
-/** @param {number} sens @param {number} spec */
+/** @param {number[]} sens @param {number[]} spec */
 export function youdenIndex(sens, spec) {
   if (!sens || !spec || sens.length < 2 || sens.length !== spec.length) return null;
   const jVals = sens.map((s, i) => s + spec[i] - 1);
@@ -568,7 +568,7 @@ export function rankBiserial(data, groupVar, scoreVar) {
 }
 
 // ── Stochastic Ordering ───────────────────────────────────────────
-/** @param {number[][]} groups */
+/** @param {Array<{vals: number[], name?: string}>} groups */
 export function stochasticOrdering(groups) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 3);

@@ -2,7 +2,7 @@ import { avg, sampleVar, sampleSD, effEta, fmtP } from '../math/core.js';
 import { tPVal, fPVal, chiPVal, tInv2 } from '../math/distributions.js';
 
 // ── One-Way ANOVA + Tukey HSD ─────────────────────────────────────────────────
-/** One-way (between-subjects) ANOVA. @param {number[][]} groups one array per group. */
+/** One-way (between-subjects) ANOVA. @param {Array<{vals: number[], name?: string}>} groups one array per group. */
 export function oneWayANOVA(groups) {
   if (groups.length < 2) return null;
   const all = groups.flatMap(g => g.vals), N = all.length, k = groups.length;
@@ -42,7 +42,7 @@ export function oneWayANOVA(groups) {
 // missing (k-2)=1 factor is invisible so F still matched a real oracle, but df2 was
 // wrong for every k, understating p by orders of magnitude. Verified against
 // statsmodels.stats.oneway.anova_oneway(..., use_var='unequal') at k=2,3,4.
-/** Welch's ANOVA (unequal variances). @param {number[][]} groups */
+/** Welch's ANOVA (unequal variances). @param {Array<{vals: number[], name?: string}>} groups */
 export function welchANOVA(groups) {
   const valid = groups.filter(g => g.vals.length >= 2);
   if (valid.length < 2) return null;
@@ -101,7 +101,7 @@ export function twoWayANOVA(data, factA, factB, resp) {
 }
 
 // ── ANCOVA ────────────────────────────────────────────────────────────────────
-/** One-way ANCOVA with a single covariate. @param {Array<{vals: number[]}>} groups @param {number[][]} cov covariate values per group. */
+/** One-way ANCOVA with a single covariate. @param {Array<{vals: number[], name?: string}>} groups @param {number[][]} cov covariate values per group. */
 export function ancova(groups, cov) {
   if (groups.length < 2) return null;
   const all = groups.flatMap((g, gi) => g.vals.map((v, i) => ({ y: v, x: cov[gi][i], g: gi }))).filter(r => Number.isFinite(r.x));
@@ -175,10 +175,10 @@ export function friedman(matrix) {
 }
 
 // ── Kruskal-Wallis ────────────────────────────────────────────────────────────
-/** Kruskal–Wallis rank test. @param {number[][]} groups */
+/** Kruskal–Wallis rank test. @param {Array<{vals: number[], name?: string}>} groups */
 export function kruskalWallis(groups) {
   if (groups.length < 2) return null;
-  const all = groups.flatMap((g, gi) => g.vals.map(v => ({ v, gi }))).sort((a, b) => a.v - b.v);
+  /** @type {Array<{v: number, gi: number, rank?: number}>} */ const all = groups.flatMap((g, gi) => g.vals.map(v => ({ v, gi }))).sort((a, b) => a.v - b.v);
   const N = all.length, k = groups.length;
   let i = 0;
   while (i < all.length) { let j = i; while (j < all.length && all[j].v === all[i].v) j++; const mr = (i + j + 1) / 2; for (let p = i; p < j; p++) all[p].rank = mr; i = j; }
@@ -253,7 +253,7 @@ export function cohensD(a, b) {
 }
 
 // ── Games-Howell post-hoc ─────────────────────────────────────────────────────
-/** Games–Howell post-hoc test (unequal variances). @param {number[][]} groups @param {number} [alpha=0.05] */
+/** Games–Howell post-hoc test (unequal variances). @param {Array<{vals: number[], name?: string}>} groups @param {number} [alpha=0.05] */
 export function gamesHowell(groups, alpha = 0.05) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 2);
@@ -291,7 +291,7 @@ export function gamesHowell(groups, alpha = 0.05) {
 }
 
 // ── Dunnett's Test ────────────────────────────────────────────────────────────
-/** Dunnett's test vs a control group. @param {number[][]} groups @param {number} [controlIndex=0] @param {number} [alpha=0.05] */
+/** Dunnett's test vs a control group. @param {Array<{vals: number[], name?: string}>} groups @param {number} [controlIndex=0] @param {number} [alpha=0.05] */
 export function dunnettTest(groups, controlIndex = 0, alpha = 0.05) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 2);

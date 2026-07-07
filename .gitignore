@@ -11,4 +11,7 @@ dist/
 .vercel
 
 scripts/_fixtures_dump.json
+# local
+.kilo/kilo.jsonc
+
 package-lock.json

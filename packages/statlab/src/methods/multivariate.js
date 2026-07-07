@@ -399,7 +399,8 @@ export function linearDiscriminant(data, groupVar, xVars) {
 /** Cohen's kappa inter-rater agreement. @param {Array<string|number>} r1 rater-1 codes. @param {Array<string|number>} r2 rater-2 codes. */
 export function cohensKappa(r1, r2) {
   if (r1.length !== r2.length || r1.length < 1) return null;
-  const n = r1.length, cats = [...new Set([...r1, ...r2])];
+  const n = r1.length;
+  /** @type {any[]} */ const cats = [...new Set([...r1, ...r2])];
   const mat = cats.map(a => cats.map(b => r1.filter((_, i) => r1[i] === a && r2[i] === b).length));
   const rowS = mat.map(r => r.reduce((s, v) => s + v, 0));
   const colS = cats.map((_, j) => mat.reduce((s, r) => s + r[j], 0));
@@ -428,7 +429,7 @@ export function cohensKappa(r1, r2) {
 }
 
 // ── Random-effects meta-analysis (DerSimonian-Laird) ─────────────────────────
-/** Random-effects meta-analysis (DerSimonian–Laird). @param {Array<{es: number, se: number}>} studies */
+/** Random-effects meta-analysis (DerSimonian–Laird). @param {Array<{d: number, se: number, name?: string}>} studies */
 export function metaAnalysis(studies) {
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
   if (clean.length < 2) return null;
@@ -489,7 +490,7 @@ export function differencesInDifferences(preCtrl, postCtrl, preTreat, postTreat)
 }
 
 // ── Meta-Regression ───────────────────────────────────────────────────────────
-/** Mixed-effects meta-regression on one moderator. @param {Array<{es: number, se: number}>} studies @param {number[]} moderator @param {string} moderatorLabel */
+/** Mixed-effects meta-regression on one moderator. @param {Array<{d: number, se: number}>} studies @param {number[]} moderator @param {string} moderatorLabel */
 export function metaRegression(studies, moderator, moderatorLabel) {
   const clean = studies.filter((s, i) => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0 && Number.isFinite(moderator[i]));
   if (clean.length < 3) return null;
@@ -580,7 +581,7 @@ export function metaRegression(studies, moderator, moderatorLabel) {
 }
 
 // ── Egger's Regression Test ───────────────────────────────────────────────────
-/** Egger's regression test for publication bias. @param {Array<{es: number, se: number}>} studies */
+/** Egger's regression test for publication bias. @param {Array<{d: number, se: number}>} studies */
 export function eggersTest(studies) {
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
   if (clean.length < 3) return null;
@@ -612,7 +613,7 @@ export function eggersTest(studies) {
 }
 
 // ── Trim-and-Fill ─────────────────────────────────────────────────────────────
-/** Duval–Tweedie trim-and-fill adjustment. @param {Array<{es: number, se: number}>} studies */
+/** Duval–Tweedie trim-and-fill adjustment. @param {Array<{d: number, se: number}>} studies */
 export function trimAndFill(studies) {
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
   if (clean.length < 3) return null;
@@ -671,9 +672,9 @@ export function trimAndFill(studies) {
 }
 
 // ── Effect size converter ─────────────────────────────────────────────────────
-/** Convert between effect-size metrics (d, r, OR, …). @param {string} from source metric. @param {number} val */
+/** Convert between effect-size metrics (d, r, OR, …). @param {string} from source metric. @param {number|string} val */
 export function convertEffectSize(from, val) {
-  const v = parseFloat(val);
+  const v = parseFloat(/** @type {string} */(val));
   if (!Number.isFinite(v)) return null;
   let d, r, OR, eta2, f;
   if (from === "d")    { d = v; r = v / Math.sqrt(v ** 2 + 4); OR = Math.exp(v * Math.PI / Math.sqrt(3)); eta2 = v ** 2 / (v ** 2 + 4); f = Math.abs(v) / 2; }
@@ -972,7 +973,7 @@ export function baujatPlot(metaResult) {
 }
 
 // ── Leave-One-Out Meta-Analysis ───────────────────────────────────
-/** Leave-one-out meta-analysis sensitivity. @param {Array<{es: number, se: number}>} studies */
+/** Leave-one-out meta-analysis sensitivity. @param {Array<{d: number, se: number}>} studies */
 export function leaveOneOutMeta(studies) {
   if (!studies || studies.length < 4) return null;
   const clean = studies.filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0);
@@ -1108,7 +1109,7 @@ export function labbePlot(eventsA, totalsA, eventsB, totalsB) {
 }
 
 // ── Forest Plot Data ───────────────────────────────────────────────────────
-/** Forest plot data from studies. @param {Array<{es: number, se: number}>} studies */
+/** Forest plot data from studies. @param {Array<{d: number, se: number, name?: string}>} studies */
 export function forestPlotData(studies) {
   if (!studies || studies.length < 3) return null;
   const n = studies.length;
@@ -1120,7 +1121,7 @@ export function forestPlotData(studies) {
 }
 
 // ── Cumulative Meta-Analysis ───────────────────────────────────────────────
-/** Cumulative meta-analysis. @param {Array<{es: number, se: number}>} studies @param {{order?: string}} [options] */
+/** Cumulative meta-analysis. @param {Array<{d: number, se: number}>} studies @param {{order?: string}} [options] */
 export function cumulativeMeta(studies, { order = 'chronological' } = {}) {
   if (!studies || studies.length < 4) return null;
   const n = studies.length;

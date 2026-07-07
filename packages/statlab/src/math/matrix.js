@@ -49,7 +49,7 @@ export function solveNormalEquations(XtX, XtY) {
 export function jacobiEigen(A0) {
   const n = A0.length;
   const A = A0.map(r => [...r]);
-  let V = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? 1 : 0));
+  /** @type {number[][]} */ let V = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? 1 : 0));
 
   for (let it = 0; it < 200; it++) {
     let mx = 0, p = 0, q = 1;

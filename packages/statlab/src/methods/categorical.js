@@ -288,7 +288,7 @@ export function sensitivityLOO(vals, testFn) {
 }
 
 // Cochran-Mantel-Haenszel
-/** Cochran–Mantel–Haenszel test across strata. @param {number[][][]} tables one 2×2 table per stratum. */
+/** Cochran–Mantel–Haenszel test across strata. @param {Array<number[]|number[][]|{a: number, b: number, c: number, d: number}>} tables one 2×2 table per stratum. */
 export function cmhTest(tables) {
   if (!tables || tables.length < 2) return null;
   const formatted = tables.map(t => {
@@ -423,7 +423,7 @@ export function kendallW(data, vars) {
 }
 
 // Dunn's Test
-/** Dunn's post-hoc test after Kruskal–Wallis. @param {number[][]} groups @param {{alpha?: number}} [options] */
+/** Dunn's post-hoc test after Kruskal–Wallis. @param {Array<{vals: number[], name?: string}>} groups @param {{alpha?: number}} [options] */
 export function dunnTest(groups, { alpha = 0.05 } = {}) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 3);
@@ -453,7 +453,7 @@ export function dunnTest(groups, { alpha = 0.05 } = {}) {
 }
 
 // ── Nemenyi Test ──────────────────────────────────────────────────
-/** Nemenyi post-hoc test. @param {number[][]} groups @param {{alpha?: number}} [options] */
+/** Nemenyi post-hoc test. @param {Array<{vals: number[], name?: string}>} groups @param {{alpha?: number}} [options] */
 export function nemenyiTest(groups, { alpha = 0.05 } = {}) {
   if (!groups || groups.length < 2) return null;
   const valid = groups.filter(g => g.vals && g.vals.length >= 3);
@@ -480,7 +480,7 @@ export function nemenyiTest(groups, { alpha = 0.05 } = {}) {
 }
 
 // Cochran's Q Post-Hoc
-/** Post-hoc pairwise comparisons after Cochran's Q. @param {string[]} vars @param {{alpha?: number}} [options] @param {Array<Record<string, any>>} data */
+/** Post-hoc pairwise comparisons after Cochran's Q. @param {Array<Record<string, any>>} data @param {string[]} vars @param {{alpha?: number}} [options] */
 export function cochranQPost(data, vars, { alpha = 0.05 } = {}) {
   if (!data || data.length < 3 || !vars || vars.length < 3) return null;
   const k = vars.length, nSubjects = data.length;
