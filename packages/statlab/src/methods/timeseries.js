@@ -575,7 +575,7 @@ export function seasonalDecompose(series, { period = 4, robust = false, innerIte
 }
 
 // ── Vector Autoregression ─────────────────────────────────────────────────────
-/** @param {number[]} series @param {number} [p] */
+/** @param {number[][]|object} series @param {number} [p] */
 export function varModel(series, p = 1, { horizon = 10 } = {}) {
   if (!series) return null;
   const names = Array.isArray(series) ? null : Object.keys(series);
@@ -769,7 +769,7 @@ export function varModel(series, p = 1, { horizon = 10 } = {}) {
 }
 
 // ── Granger Causality ─────────────────────────────────────────────────────────
-/** @param {number[]} series @param {number} [maxLag] @param {string|number} cause @param {string|number} effect */
+/** @param {number[][]|object} series @param {number} [maxLag] @param {string|number} cause @param {string|number} effect */
 export function grangerCausality(series, cause, effect, maxLag = 4) {
   if (!series || typeof series !== 'object') return null;
   const names = Array.isArray(series) ? null : Object.keys(series);
@@ -778,8 +778,8 @@ export function grangerCausality(series, cause, effect, maxLag = 4) {
   const T = vals[0].length;
   if (T < 2 * maxLag + 10) return null;
   const k = vals.length;
-  const causeIdx = names ? names.indexOf(cause) : (typeof cause === 'number' ? cause : -1);
-  const effectIdx = names ? names.indexOf(effect) : (typeof effect === 'number' ? effect : -1);
+  const causeIdx = names ? names.indexOf(/** @type {string} */(cause)) : (typeof cause === 'number' ? cause : -1);
+  const effectIdx = names ? names.indexOf(/** @type {string} */(effect)) : (typeof effect === 'number' ? effect : -1);
   if (causeIdx < 0 || effectIdx < 0 || causeIdx >= k || effectIdx >= k) return null;
 
   const Y = vals[effectIdx].slice();
@@ -1000,7 +1000,7 @@ export function kalmanFilter(data, { systemNoise = 1, obsNoise = 1, initialState
 }
 
 // ── Johansen Cointegration ──────────────────────────────────────────────────
-/** @param {number[]} series @param {number} p */
+/** @param {object} series @param {number} p */
 export function johansenTest(series, p, { deterministic = 'const' } = {}) {
   if (!series || !Object.keys(series).length || !p) return null;
   const names = Object.keys(series);
@@ -1157,7 +1157,7 @@ export function bottomUpReconciliation(bottomForecasts, hierarchy) {
 }
 
 // ── Top-Down Reconciliation ───────────────────────────────────────
-/** @param {number[]} topForecast @param {number[]} proportions */
+/** @param {number} topForecast @param {number[]} proportions */
 export function topDownReconciliation(topForecast, proportions, { method = 'proportions' } = {}) {
   if (!topForecast || !proportions || !proportions.length) return null;
   const sumP = proportions.reduce((s, v) => s + v, 0);
@@ -1166,7 +1166,7 @@ export function topDownReconciliation(topForecast, proportions, { method = 'prop
 }
 
 // ── Middle-Out Reconciliation ─────────────────────────────────────
-/** @param {number[][]} middleForecasts @param {number[][]} hierarchy */
+/** @param {number[]} middleForecasts @param {number[][]} hierarchy */
 export function middleOutReconciliation(middleForecasts, upperMapping, lowerMapping, hierarchy) {
   if (!middleForecasts || !middleForecasts.length) return null;
   const upper = upperMapping ? upperMapping.map((_, i) => +middleForecasts.reduce((s, v, j) => upperMapping[j] === i ? s + v : s, 0).toFixed(4)) : [];
@@ -1378,7 +1378,7 @@ export function segmentedMeans(breakpoints, data) {
 }
 
 // ── Rolling Origin CV ─────────────────────────────────────────────
-/** @param {(train: number[]) => number} modelFn @param {number[]} data */
+/** @param {(train: number[], horizon: number) => number[]} modelFn @param {number[]} data */
 export function rollingOriginCV(data, modelFn, { initialWindow = 10, horizon = 1 } = {}) {
   if (!data || data.length < initialWindow + horizon) return null;
   const n = data.length;
@@ -1408,7 +1408,7 @@ export function slidingWindow(data, modelFn, { windowSize = 20, step = 1 } = {})
 }
 
 // ── Gap Validation ────────────────────────────────────────────────
-/** @param {(train: number[]) => number} modelFn @param {number[]} data */
+/** @param {(train: number[], h: number) => number[]} modelFn @param {number[]} data */
 export function gapValidation(data, modelFn, { gapSize = 0 } = {}) {
   if (!data || data.length < 20) return null;
   const n = data.length;
@@ -1435,7 +1435,7 @@ export function tsFeatures(series) {
 }
 
 // ── Forecast Reconciliation Diagnostics ───────────────────────────
-/** @param {number[][]} forecasts @param {number[][]} hierarchy @param {number[]} actuals */
+/** @param {number[]} forecasts @param {number[][]} hierarchy @param {number[]} actuals */
 export function forecastReconciliation(forecasts, hierarchy, actuals) {
   if (!forecasts || !hierarchy || !forecasts.length) return null;
   const n = forecasts.length;
@@ -1594,7 +1594,7 @@ export function varmax(data, yVar, xVars, { p = 1, q = 1 } = {}) {
 export function cointegrationRank(data, { maxRank = 3 } = {}) {
   if (!data || (Array.isArray(data) && data.length === 0)) return null;
   // Build a multivariate series object for Johansen: rows×k matrix or column object.
-  let series, k;
+    let /** @type {Record<string, number[]>} */ series, k;
   if (Array.isArray(data) && Array.isArray(data[0])) {
     k = data[0].length; series = {}; for (let j = 0; j < k; j++) series['v' + j] = data.map(r => r[j]);
   } else if (!Array.isArray(data) && typeof data === 'object') {
@@ -2083,7 +2083,7 @@ export function egarch(data, { p = 1, q = 1 } = {}) {
 }
 
 // ── State Space Model ──────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} obs */
+/** @param {number[]} obs */
 export function stateSpace(obs, { F = 1, G = 1, systemVar = 0.1, obsVar = 0.5 } = {}) {
   if (!obs || obs.length < 5) return null;
   const n = obs.length;

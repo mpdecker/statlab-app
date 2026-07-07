@@ -39,7 +39,7 @@ function weightedOLS(Y, X, weights = null) {
   return { coefficients: coeffs, fitted, resid, n, k };
 }
 
-/** @param {number[]} y @param {number[][]} X */
+/** @param {number[]} y @param {number[] | number[][]} X @returns {{test: string, coefficients: [string, number][], lambda: number, alpha: number, mse: number, n: number, fitted: number[], apa: string} | null} */
 export function elasticNet(y, X, { lambda = 0.1, alpha = 0.5, maxIter = 200, tolerance = 1e-5 } = {}) {
   if (!y || !X || y.length < 3 || lambda < 0 || alpha < 0 || alpha > 1) return null;
   const n = y.length;
@@ -80,17 +80,17 @@ export function elasticNet(y, X, { lambda = 0.1, alpha = 0.5, maxIter = 200, tol
   const fitted = Xmat.map(row => row.reduce((s, v, j) => s + coef[j] * v, 0));
   const resid = y.map((v, i) => v - fitted[i]);
   const mse = resid.reduce((s, e) => s + e * e, 0) / n;
-  const Xnames = isSimple ? ['x'] : Array.from({ length: X[0].length }, (_, j) => `X${j + 1}`);
+  const Xnames = isSimple ? ['x'] : Array.from({ length: /** @type {number[][]} */(X)[0].length }, (_, j) => `X${j + 1}`);
   return {
     test: alpha === 0 ? 'Ridge Regression' : alpha === 1 ? 'Lasso Regression' : 'Elastic Net',
-    coefficients: [['Intercept', +coef[0].toFixed(6)], ...Xnames.map((name, j) => [name, +coef[j + 1].toFixed(6)])],
+    coefficients: [/** @type {[string, number]} */(['Intercept', +coef[0].toFixed(6)]), ...Xnames.map((name, j) => /** @type {[string, number]} */([name, +coef[j + 1].toFixed(6)]))],
     lambda, alpha, mse: +mse.toFixed(6), n,
     fitted: fitted.map(v => +v.toFixed(6)),
     apa: `${alpha === 0 ? 'Ridge' : alpha === 1 ? 'Lasso' : 'Elastic Net'} (Î» = ${lambda}, Î± = ${alpha}): MSE = ${mse.toFixed(4)}`,
   };
 }
 
-/** @param {number[]} y @param {number[][]} X */
+/** @param {number[]} y @param {number[] | number[][]} X */
 export function elasticNetCV(y, X, { alpha = 0.5, k = 5, lambdaGrid = null, maxIter = 200 } = {}) {
   if (!y || !X || y.length < 10) return null;
   const n = y.length;
@@ -106,7 +106,7 @@ export function elasticNetCV(y, X, { alpha = 0.5, k = 5, lambdaGrid = null, maxI
       const trainX = Xmat.filter((_, i) => i < testStart || i >= testEnd);
       const testY = y.slice(testStart, testEnd);
       const testX = Xmat.slice(testStart, testEnd);
-      const model = elasticNet(trainY, trainX, { lambda: lam, alpha, maxIter: 100, tolerance: 1e-4 });
+      const model = elasticNet(trainY, /** @type {number[][]} */(trainX), { lambda: lam, alpha, maxIter: 100, tolerance: 1e-4 });
       if (!model) continue;
       const preds = testX.map(row => {
         let pred = model.coefficients[0]?.[1] ?? 0;
@@ -610,7 +610,7 @@ export function classificationReport(actual, predicted, labels = null) {
 }
 
 // ── Label Propagation ─────────────────────────────────────────────
-/** @param {number[]} X @param {number[]} y */
+/** @param {number[][]} X @param {number[]} y */
 export function labelPropagation(X, y, { sigma = 1, maxIter = 20 } = {}) {
   if (!X || !y || X.length < 5 || X.length !== y.length) return null;
   const n = X.length;
@@ -674,7 +674,7 @@ export function isolationScore(data, vars, { seed = 42, nTrees = 100 } = {}) {
 }
 
 // ── Self-Training (SSL) ───────────────────────────────────────────
-/** @param {number[]} X @param {number[]} y */
+/** @param {number[][]} X @param {number[]} y */
 export function selfTraining(X, y, { nIterations = 5 } = {}) {
   if (!X || !y || X.length < 5 || X.length !== y.length) return null;
   const n = X.length;
@@ -708,7 +708,7 @@ export function anomalyThreshold(scores, { pct = 95 } = {}) {
 }
 
 // ── Partial Dependence ────────────────────────────────────────────
-/** @param {number} model @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} targetVar */
+/** @param {Function} model @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} targetVar */
 export function partialDependence(model, data, vars, targetVar, { grid = 10 } = {}) {
   if (!model || !data || !data.length || !vars || targetVar == null) return null;
   const n = data.length;
@@ -729,7 +729,7 @@ export function partialDependence(model, data, vars, targetVar, { grid = 10 } = 
 }
 
 // ── Accumulated Local Effects ─────────────────────────────────────
-/** @param {number} model @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} targetVar */
+/** @param {Function} model @param {Array<Record<string, any>>} data @param {string[]} vars @param {string} targetVar */
 export function accumulatedLE(model, data, vars, targetVar, { grid = 10 } = {}) {
   if (!model || !data || !data.length || !vars || targetVar == null) return null;
   const n = data.length;
@@ -755,7 +755,7 @@ export function accumulatedLE(model, data, vars, targetVar, { grid = 10 } = {}) 
 }
 
 // ── Permutation Importance ────────────────────────────────────────
-/** @param {number[]} X @param {number} y @param {object} model */
+/** @param {Function} model @param {number[][]} X @param {number[]} y */
 export function permutationImportance(model, X, y, { seed = 42, nPerm = 10 } = {}) {
   __rng = mulberry32(seed);
   if (!model || !X || !y || !X.length) return null;
@@ -774,7 +774,7 @@ export function permutationImportance(model, X, y, { seed = 42, nPerm = 10 } = {
 }
 
 // ── SHAP Approximation ────────────────────────────────────────────
-/** @param {number} model @param {number[]} baseline @param {number[][]} X */
+/** @param {Function} model @param {number[][]} X @param {number[]} baseline */
 export function shapleyApprox(model, X, baseline, { nSamples = 50 } = {}) {
   if (!model || !X || !baseline || !X.length) return null;
   const n = X.length; const p = X[0]?.length || 0;
@@ -797,7 +797,7 @@ export function shapleyApprox(model, X, baseline, { nSamples = 50 } = {}) {
 }
 
 // ── Feature Interaction ───────────────────────────────────────────
-/** @param {number} model @param {number[][]} X @param {number} i @param {number} j */
+/** @param {Function} model @param {number[][]} X @param {number} i @param {number} j */
 export function featureInteraction(model, X, i, j) {
   if (!model || !X || X.length < 3 || !X[0] || i == null || j == null) return null;
   const n = X.length;

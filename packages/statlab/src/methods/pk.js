@@ -124,7 +124,7 @@ export function terminalHalfLife(time, concentration, { nPoints = 3 } = {}) {
 }
 
 // ── Clearance ──────────────────────────────────────────────────────────────
-/** @param {number[]} dose @param {number} auc */
+/** @param {number} dose @param {number} auc */
 export function clearance(dose, auc) {
   if (!(dose > 0) || !(auc > 0)) return null;
   const cl = dose / auc;
@@ -170,7 +170,7 @@ export function oneCompartmentIV(time, concentration, { dose = null } = {}) {
 }
 
 // ── Bioequivalence ─────────────────────────────────────────────────────────
-/** @param {number} testAUC @param {number} refAUC */
+/** @param {number[]} testAUC @param {number[]} refAUC */
 export function bioequivalence(testAUC, refAUC, { alpha = 0.05 } = {}) {
   if (!testAUC || !refAUC || testAUC.length < 3 || refAUC.length < 3) return null;
   const nT = testAUC.length, nR = refAUC.length;
@@ -306,7 +306,7 @@ export function pkpdLink(conc, effect) {
 }
 
 // ── Superposition ─────────────────────────────────────────────────
-/** @param {number[]} times @param {number[]} doses @param {number} ke @param {number} Vd */
+/** @param {number[]} doses @param {number[]} times @param {number} ke @param {number} Vd */
 export function superposition(doses, times, ke, Vd, { tau = 24 } = {}) {
   if (!doses || !times || !doses.length || doses.length !== times.length) return null;
   const n = doses.length;
@@ -319,7 +319,7 @@ export function superposition(doses, times, ke, Vd, { tau = 24 } = {}) {
 }
 
 // ── AUC Ratio ─────────────────────────────────────────────────────
-/** @param {number} testAUC @param {number} refAUC */
+/** @param {number[]} testAUC @param {number[]} refAUC */
 export function aucRatio(testAUC, refAUC) {
   if (!testAUC || !refAUC || testAUC.length < 3 || refAUC.length < 3) return null;
   const nT = testAUC.length, nR = refAUC.length;
