@@ -232,6 +232,96 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
       {active === 'pow_mixed' && r.power != null && <Row><Chip label="cluster RT power" value={r.power} color={C.accent} /><Chip label="ICC" value={r.ICC} color={C.dim} /><Chip label="clust/arm" value={r.clustersPerArm} color={C.dim} /><Chip label="subs/clust" value={r.subjectsPerCluster} color={C.dim} /><Chip label="d" value={r.CohenD} color={C.dim} /></Row>}
       {active === 'pow_med' && r.powerMC != null && <Row><Chip label="mediation MC power" value={r.powerMC} color={C.accent} /><Chip label="Sobel power" value={r.powerAsymp} color={C.dim} /><Chip label="z (ab)" value={r.zObs} color={C.dim} /></Row>}
 
+      {/* ── Robust statistics ── */}
+      {active === 'theil_sen' && r.slope != null && <Row><Chip label="slope" value={r.slope} color={C.accent} /><Chip label="intercept" value={r.intercept} color={C.dim} /><Chip label="R²" value={r.rSquared} color={C.warn} /><Chip label="n" value={r.n} color={C.dim} /></Row>}
+      {active === 'mm_estimator' && r.slope != null && <Row><Chip label="slope" value={r.slope} color={C.accent} /><Chip label="intercept" value={r.intercept} color={C.dim} /><Chip label="σ" value={r.sigma} color={C.dim} /><Chip label="R²" value={r.rSquared} color={C.warn} /></Row>}
+      {active === 'mad_scale' && r.mad != null && <Row><Chip label="MAD" value={r.mad} color={C.accent} /><Chip label="median" value={r.median} color={C.dim} /><Chip label="n" value={r.n} color={C.dim} /></Row>}
+      {active === 'hampel_m' && r.mu != null && <Row><Chip label="μ (robust)" value={r.mu} color={C.accent} /><Chip label="σ" value={r.sigma} color={C.dim} /><Chip label="n" value={r.n} color={C.dim} /></Row>}
+      {active === 'mcd_cov' && r.center && <>
+        <Row><Chip label="h / n" value={`${r.subsetH} / ${r.n}`} color={C.accent} /><Chip label="log|Σ|" value={r.logDet} color={C.dim} /></Row>
+        <div style={{ fontSize: 8, color: C.dim, ...mono }}>center: [{r.center.join(', ')}]</div>
+      </>}
+      {active === 's_estimator' && r.coefficients && <Row>{r.coefficients.map(c => <Chip key={c.name} label={c.name} value={c.b} color={C.accent} />)}</Row>}
+      {active === 'lts_reg' && r.coefficients && <Row>{r.coefficients.map(c => <Chip key={c.name} label={c.name} value={c.b} color={C.accent} />)}<Chip label="h" value={r.subsetH} color={C.dim} /></Row>}
+
+      {/* ── Bayesian modeling ── */}
+      {active === 'bic_bf' && r.interpretation && <Row><Chip label="verdict" value={r.interpretation} color={C.warn} /></Row>}
+      {['beta_binom_post', 'gamma_pois_post', 'norm_norm_post'].includes(active) && r.posteriorMean != null && <Row><Chip label="posterior mean" value={r.posteriorMean} color={C.accent} /><Chip label="95% credible" value={`[${r.credible95[0]}, ${r.credible95[1]}]`} color={C.pos} /></Row>}
+      {active === 'nig_post' && r.coefficients && <Row>{r.coefficients.map((c, i) => <Chip key={i} label={`β${i}`} value={c.posteriorMean} sub={`SD=${c.posteriorSD}`} color={C.accent} />)}<Chip label="σ²" value={r.sigma2} color={C.dim} /></Row>}
+      {active === 'bayes_linreg' && r.coefficients && <Row>{r.coefficients.map((c, i) => <Chip key={i} label={`β${i}`} value={c.posteriorMean} sub={c.posteriorSD != null ? `SD=${(+c.posteriorSD).toFixed(4)}` : ''} color={C.accent} />)}</Row>}
+      {['bayes_logit', 'bayes_pois'].includes(active) && r.coefficients && <Row>{r.coefficients.map((c, i) => <Chip key={i} label={`β${i}`} value={c.posteriorMean} sub={c.posteriorSD != null ? `SD=${(+c.posteriorSD).toFixed(4)}` : ''} color={C.accent} />)}<Chip label="accept rate" value={r.acceptRate} color={C.dim} /></Row>}
+      {active === 'bayes_dic' && r.dic != null && <Row><Chip label="DIC" value={r.dic} color={C.accent} /><Chip label="pD" value={r.pd} color={C.dim} /><Chip label="mean deviance" value={r.meanDeviance} color={C.dim} /></Row>}
+      {active === 'bma_reg' && r.models && <>
+        <Row><Chip label="models" value={r.models.length} color={C.dim} /></Row>
+        <div style={{ fontSize: 8, color: C.dim, ...mono, lineHeight: 1.7 }}>
+          {[...r.models].sort((a, b) => b.weight - a.weight).slice(0, 5).map((m, i) => <div key={i}>w={m.weight} · {m.vars.join('+')}</div>)}
+        </div>
+      </>}
+
+      {/* ── Missing data ── */}
+      {active === 'little_mcar' && r.chi2 != null && <Row><Chip label="χ²" value={r.chi2} color={C.accent} /><Chip label="df" value={r.df} color={C.dim} /></Row>}
+      {active === 'miss_patt' && r.varMissing && <>
+        <Row><Chip label="n" value={r.n} color={C.dim} /><Chip label="vars" value={r.k} color={C.dim} /><Chip label="avg missing/row" value={r.rowMissing?.avg} color={C.accent} /></Row>
+        <div style={{ fontSize: 8, color: C.dim, ...mono, lineHeight: 1.7 }}>
+          {r.varMissing.map(v => <div key={v.variable}>{v.variable}: {v.missing} missing ({v.pct}%)</div>)}
+        </div>
+      </>}
+      {active === 'complete_cases' && r.nComplete != null && <Row><Chip label="complete" value={r.nComplete} color={C.accent} /><Chip label="dropped" value={r.nDropped} color={C.neg} /><Chip label="% dropped" value={r.pctDropped} color={C.warn} /></Row>}
+      {active === 'em_impute' && r.mu && <Row><Chip label="n" value={r.n} color={C.dim} /><Chip label="vars" value={r.k} color={C.dim} />{r.mu.slice(0, 4).map(([name, v]) => <Chip key={name} label={name} value={v} color={C.accent} />)}</Row>}
+      {active === 'mice_imp' && r.nMissing && <>
+        <Row><Chip label="imputations (m)" value={r.m} color={C.accent} /><Chip label="rows" value={r.nRow} color={C.dim} /></Row>
+        <div style={{ fontSize: 8, color: C.dim, ...mono, lineHeight: 1.7 }}>{r.nMissing.map(v => <div key={v.variable}>{v.variable}: {v.pct}% missing</div>)}</div>
+      </>}
+      {(active === 'rubin_pool' || active === 'fmi') && (r.estimates || r.fmiPerParam) && <>
+        {r.estimates && <Row>{r.estimates.map(e => <Chip key={e.name} label={e.name} value={e.estimate} sub={`SE=${e.se}`} color={C.accent} />)}</Row>}
+        {r.fmiPerParam && <Row><Chip label="avg FMI" value={r.avgFmi} color={C.warn} />{r.fmiPerParam.map(f => <Chip key={f.name} label={f.name} value={f.fmi} color={C.dim} />)}</Row>}
+      </>}
+
+      {/* ── Survival analysis ── */}
+      {active === 'km' && r.survivalTable && <>
+        <Row><Chip label="median survival" value={r.medianSurvival ?? 'not reached'} color={C.accent} /><Chip label="events" value={r.nEvents} color={C.dim} /><Chip label="n" value={r.n} color={C.dim} /></Row>
+        <div style={{ maxHeight: 160, overflowY: 'auto', fontSize: 8, ...mono, color: C.dim, lineHeight: 1.8 }}>
+          {r.survivalTable.slice(0, 30).map((row, i) => (
+            <div key={i}>t={row.time} · at risk={row.nAtRisk} · events={row.nEvents} · S(t)={row.survival}</div>
+          ))}
+        </div>
+      </>}
+      {active === 'coxph' && r.coefficients && <>
+        <Row><Chip label="n" value={r.n} color={C.dim} /><Chip label="events" value={r.nEvents} color={C.dim} /><Chip label="log-lik" value={r.logLikelihood} color={C.dim} /></Row>
+        <Row>{r.coefficients.map(c => <Chip key={c.name} label={c.name} value={`HR=${c.hr}`} sub={`${fmtP(c.p)} [${c.hrCI[0]}, ${c.hrCI[1]}]`} color={c.p < 0.05 ? C.ok : C.dim} />)}</Row>
+      </>}
+
+      {/* ── Time series ── */}
+      {active === 'adf' && r.tauStat != null && <>
+        <Row><Chip label="ADF τ" value={r.tauStat} color={C.accent} /><Chip label="p (approx)" value={r.pValue} color={r.stationary ? C.ok : C.neg} /><Chip label="lags" value={r.maxLag} color={C.dim} /><Chip label="n" value={r.n} color={C.dim} /></Row>
+        <div style={{ fontSize: 9, ...mono, color: r.stationary ? C.ok : C.warn }}>{r.stationary ? '✓ stationary at 5%' : '⚠ cannot reject unit root at 5%'}</div>
+      </>}
+      {(active === 'acf' || active === 'pacf') && r.series && <>
+        <Row><Chip label="n" value={r.n} color={C.dim} /><Chip label="lags" value={r.series.length - 1} color={C.dim} /></Row>
+        <div style={{ height: 100, background: C.panel, borderRadius: 3, display: 'flex', alignItems: 'center', padding: '2px 4px', gap: 2, overflow: 'hidden' }}>
+          {r.series.map((s, i) => {
+            const v = s.autocorrelation ?? s.partialAutocorrelation;
+            const h = Math.min(48, Math.abs(v) * 48);
+            return (
+              <div key={i} style={{ flex: 1, height: 96, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'center' }} title={`lag ${s.lag}: ${v}`}>
+                <div style={{ position: 'absolute', top: '50%', height: 1, width: '100%', background: C.border }} />
+                <div style={{ position: 'absolute', width: '60%', left: '20%', background: C.accent, opacity: .8, borderRadius: 1, height: h, ...(v >= 0 ? { bottom: '50%' } : { top: '50%' }) }} />
+              </div>
+            );
+          })}
+        </div>
+      </>}
+
+      {/* ── Outlier detection ── */}
+      {(active === 'lof' || active === 'iforest') && r.outliers && <>
+        <Row><Chip label="outliers found" value={r.outliers.length} color={r.outliers.length ? C.warn : C.ok} /><Chip label="threshold" value={r.threshold} color={C.dim} /></Row>
+        {r.outliers.length > 0 && (
+          <div style={{ fontSize: 8, ...mono, color: C.dim, lineHeight: 1.7 }}>
+            {r.outliers.map(o => <div key={o.index}>row {o.index}: score = {o.lof ?? o.score}</div>)}
+          </div>
+        )}
+      </>}
+
       {/* ── Effect size converter ── */}
       {active === 'effectconv' && r.d != null && <>
         <SectionHead label={`Converted from ${r.from} = ${r.inputVal}`} />

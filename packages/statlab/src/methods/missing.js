@@ -201,7 +201,7 @@ export function emImpute(data, vars, { maxIter = 100, tolerance = 1e-5 } = {}) {
   return {
     method: 'EM (multivariate normal)',
     imputed,
-    mu: mu.map((v, i) => [+vars[i], +v.toFixed(6)]),
+    mu: mu.map((v, i) => [vars[i], +v.toFixed(6)]),
     Sigma: Sigma.map(row => row.map(v => +v.toFixed(6))),
     n, k,
     apa: `EM imputation: ${k} variables, n = ${n}, converged`,

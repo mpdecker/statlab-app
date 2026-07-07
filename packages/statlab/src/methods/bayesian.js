@@ -325,7 +325,7 @@ export function bicBayesFactor(logLik0, logLik1, n, k0, k1) {
     BIC0: +BIC0.toFixed(2),
     BIC1: +BIC1.toFixed(2),
     interpretation: BF10 > 100 ? 'Decisive evidence for H1' : BF10 > 10 ? 'Strong evidence for H1' : BF10 > 3 ? 'Moderate evidence for H1' : BF10 > 1 ? 'Anecdotal evidence for H1' : BF10 > 1 / 3 ? 'Anecdotal evidence for H0' : BF10 > 1 / 10 ? 'Moderate evidence for H0' : BF10 > 1 / 100 ? 'Strong evidence for H0' : 'Decisive evidence for H0',
-    apa: `BFâ‚â‚â‚€â‚Ž = ${BF10.toFixed(2)}${BF10 > 1 ? ' (H1 favored)' : ' (H0 favored)'}`,
+    apa: `BF₁₀ = ${BF10.toFixed(2)}${BF10 > 1 ? ' (H1 favored)' : ' (H0 favored)'}`,
   };
 }
 
@@ -356,7 +356,7 @@ export function savageDickeyBF(mcmcChain, nullValue, priorDensityFn) {
     priorDensity: +priorDensity.toFixed(6),
     posteriorDensity: +postDensity.toFixed(6),
     interpretation: BF10 > 100 ? 'Decisive evidence for H1' : BF10 > 10 ? 'Strong evidence for H1' : BF10 > 3 ? 'Moderate evidence for H1' : BF10 > 1 ? 'Anecdotal evidence for H1' : BF10 > 1 / 3 ? 'Anecdotal evidence for H0' : BF10 > 1 / 10 ? 'Moderate evidence for H0' : BF10 > 1 / 100 ? 'Strong evidence for H0' : 'Decisive evidence for H0',
-    apa: `BFâ‚â‚â‚€â‚Ž = ${BF10.toFixed(2)} (Savage-Dickey)${BF10 > 1 ? ' (H1 favored)' : ' (H0 favored)'}`,
+    apa: `BF₁₀ = ${BF10.toFixed(2)} (Savage-Dickey)${BF10 > 1 ? ' (H1 favored)' : ' (H0 favored)'}`,
   };
 }
 

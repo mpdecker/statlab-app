@@ -59,6 +59,9 @@ import { powerCoxPH, powerMetaAnalysis, powerEquivalence, powerInteractionANOVA,
 import { theilSenSlope, mmEstimator, madScale, hampelM, mcdCovariance, sEstimator, ltsRegression, qqConfidence } from '../robust.js';
 import { bicBayesFactor, betaBinomialPosterior, gammaPoissonPosterior, normalNormalPosterior, normalInverseGammaPosterior, bayesianLinearRegression, bayesianLogisticRegression, bayesianPoissonRegression, bayesianDIC, bmaRegression } from '../bayesian.js';
 import { littlesMCAR, mice, rubinPool, fmi, emImpute, missingnessPattern, completeCases } from '../missing.js';
+import { kmEstimate, logRankTest, coxPH } from '../survival.js';
+import { adfTest, acf as acfFn, pacf as pacfFn } from '../timeseries.js';
+import { localOutlierFactor, isolationForest } from '../outlier.js';
 
 const ROWS = mkTabular();
 const GROUPS = mkGroups();
@@ -710,6 +713,20 @@ const RUNNERS = {
     try { const r = powerSpearmanTest(50, 0.3); return r ? { ...r, test: 'Spearman Power' } : { test: 'Spearman Power', apa: 'ok' }; }
     catch { return { test: 'Spearman Power', apa: 'ok' }; }
   },
+  // ── SURVIVAL ANALYSIS ────────────────────────────────────────────
+  km: () => kmEstimate(ROWS.map(r => ({ time: r.y, event: r.cat1 === 'yes' ? 1 : 0 }))),
+  logrank: () => logRankTest(
+    ROWS.filter(r => r.group === 'A').map(r => ({ time: r.y, event: r.cat1 === 'yes' ? 1 : 0 })),
+    ROWS.filter(r => r.group === 'B').map(r => ({ time: r.y, event: r.cat1 === 'yes' ? 1 : 0 })),
+  ),
+  coxph: () => coxPH(ROWS.map(r => ({ time: r.y, event: r.cat1 === 'yes' ? 1 : 0, x: r.x })), ['x']),
+  // ── TIME SERIES ──────────────────────────────────────────────────
+  adf: () => adfTest(YS),
+  acf: () => { const s = acfFn(YS); return { test: 'Autocorrelation (ACF)', series: s, n: YS.length, apa: 'ok' }; },
+  pacf: () => { const s = pacfFn(YS); return { test: 'Partial Autocorrelation (PACF)', series: s, n: YS.length, apa: 'ok' }; },
+  // ── OUTLIER DETECTION ────────────────────────────────────────────
+  lof: () => localOutlierFactor(ROWS.map(r => [r.x, r.y]), { k: 5 }),
+  iforest: () => isolationForest(ROWS.map(r => [r.x, r.y])),
 };
 
 function avg(a) {

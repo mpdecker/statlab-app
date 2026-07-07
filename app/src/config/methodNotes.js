@@ -510,6 +510,134 @@ export const METHOD_NOTES = {
     assumptions: ["Path coefficients (a, b, c') are specified correctly", "Linear mediation model", "Monte Carlo replicates are sufficient"],
     cite: "Fritz, M. S., & MacKinnon, D. P. (2007). Required sample size to detect the mediated effect. Psychological Science, 18(3), 233–239.",
   },
+
+  // ── POWER & SAMPLE SIZE (EXTENDED) ──
+  pow_cox: {
+    description: "Cox proportional-hazards power analysis estimates power to detect a hazard ratio given the number of observed events.",
+    usage: "Use when planning survival studies. Power depends on the number of events observed, not total sample size.",
+    assumptions: ["Proportional hazards", "Events accrue as planned"],
+    cite: "Schoenfeld, D. A. (1983). Sample-size formula for the proportional-hazards regression model. Biometrics, 39(2), 499–503.",
+  },
+  pow_meta: {
+    description: "Meta-analysis power estimates the power of a random-effects meta-analysis to detect a pooled effect across K studies.",
+    usage: "Use when planning how many studies (or how much data) a meta-analysis needs to detect an expected effect.",
+    assumptions: ["Random-effects model", "Studies are reasonably homogeneous"],
+    cite: "Hedges, L. V., & Pigott, T. D. (2001). The power of statistical tests in meta-analysis. Psychological Methods, 6(3), 203–217.",
+  },
+  pow_equiv: {
+    description: "Equivalence power (TOST) estimates the power to declare statistical equivalence given a mean difference, its SE, and equivalence bounds.",
+    usage: "Use when planning an equivalence or non-inferiority study.",
+    assumptions: ["Equivalence bounds are pre-specified and justified", "Normal approximation"],
+    cite: "Lakens, D. (2017). Equivalence tests: A practical primer. Social Psychological and Personality Science, 8(4), 355–362.",
+  },
+  pow_intanova: {
+    description: "Two-way ANOVA interaction power estimates the power to detect an interaction effect given cell sizes and Cohen's f.",
+    usage: "Use when planning factorial designs where the interaction, not just the main effects, is the effect of interest.",
+    assumptions: ["Balanced factorial design", "Cohen's f reflects the interaction term specifically"],
+    cite: "Cohen, J. (1988). Statistical power analysis (2nd ed.). Lawrence Erlbaum.",
+  },
+  pow_corr: {
+    description: "Correlation power analysis estimates the power to detect a Pearson correlation of a given magnitude at a given sample size.",
+    usage: "Use when planning correlational studies.",
+    assumptions: ["Bivariate normality", "Fisher z approximation"],
+    cite: "Cohen, J. (1988). Statistical power analysis (2nd ed.). Lawrence Erlbaum.",
+  },
+  pow_ttest: {
+    description: "Two-sample t-test power estimates the power to detect Cohen's d given group sample sizes.",
+    usage: "Use when planning a two-group comparison and checking power for specific (possibly unequal) group sizes.",
+    assumptions: ["Independent groups", "Approximately normal or n large enough"],
+    cite: "Cohen, J. (1988). Statistical power analysis (2nd ed.). Lawrence Erlbaum.",
+  },
+  pow_oneprop: {
+    description: "One-proportion power analysis estimates the power to detect a difference between an observed and a null proportion.",
+    usage: "Use when planning a single-sample proportion study.",
+    assumptions: ["Normal approximation to the binomial", "n large enough for the approximation"],
+    cite: "Fleiss, J. L., Levin, B., & Paik, M. C. (2003). Statistical methods for rates and proportions (3rd ed.). Wiley.",
+  },
+  pow_twoprop: {
+    description: "Two-proportion power analysis estimates the power to detect a difference between two independent proportions.",
+    usage: "Use when planning a two-group proportion comparison (e.g., A/B test, trial arm comparison).",
+    assumptions: ["Independent groups", "Normal approximation to the binomial"],
+    cite: "Fleiss, J. L., Levin, B., & Paik, M. C. (2003). Statistical methods for rates and proportions (3rd ed.). Wiley.",
+  },
+  pow_wilcoxon: {
+    description: "Wilcoxon/Mann-Whitney power analysis estimates power via the asymptotic relative efficiency of the rank test relative to the t-test.",
+    usage: "Use when planning a nonparametric two-group comparison.",
+    assumptions: ["ARE ≈ 0.955 relative to the t-test under normality", "Approximation degrades under heavy departures from this"],
+    cite: "Lehmann, E. L. (1975). Nonparametrics: Statistical methods based on ranks. Holden-Day.",
+  },
+  pow_logrank: {
+    description: "Log-rank test power analysis estimates power to detect a hazard ratio given the number of observed events.",
+    usage: "Use when planning a two-arm survival comparison.",
+    assumptions: ["Proportional hazards", "Events accrue as planned"],
+    cite: "Schoenfeld, D. A. (1983). Sample-size formula for the proportional-hazards regression model. Biometrics, 39(2), 499–503.",
+  },
+  pow_rmanova: {
+    description: "Repeated-measures ANOVA power analysis accounts for sphericity violation via the Greenhouse-Geisser epsilon.",
+    usage: "Use when planning a within-subjects design with 3+ occasions/conditions.",
+    assumptions: ["Occasions are commensurable", "ε reflects the expected sphericity violation"],
+    cite: "Muller, K. E., & Barton, C. N. (1989). Approximate power for repeated-measures ANOVA lacking sphericity. JASA, 84(406), 549–555.",
+  },
+  pow_olsapa: {
+    description: "OLS regression power analysis estimates power to detect an R² given sample size and number of predictors.",
+    usage: "Use when planning a multiple regression study.",
+    assumptions: ["Fixed predictors", "F-test on the overall model"],
+    cite: "Cohen, J. (1988). Statistical power analysis (2nd ed.). Lawrence Erlbaum.",
+  },
+  pow_spearman: {
+    description: "Spearman correlation power analysis estimates power to detect a rank correlation ρ given sample size.",
+    usage: "Use when planning a study relying on a monotonic (not necessarily linear) association.",
+    assumptions: ["ARE ≈ 0.91 relative to Pearson r under bivariate normality"],
+    cite: "Cohen, J. (1988). Statistical power analysis (2nd ed.). Lawrence Erlbaum.",
+  },
+  reqn_t: {
+    description: "Required sample size (t-test) computes the n per group needed to detect Cohen's d at 80% power.",
+    usage: "Use during study planning to determine the minimum group size needed.",
+    assumptions: ["Independent two-sample t-test", "Equal group sizes"],
+    cite: "Cohen, J. (1988). Statistical power analysis (2nd ed.). Lawrence Erlbaum.",
+  },
+  reqn_corr: {
+    description: "Required sample size (correlation) computes the N needed to detect a Pearson r at 80% power.",
+    usage: "Use during study planning for correlational designs.",
+    assumptions: ["Bivariate normality", "Fisher z approximation"],
+    cite: "Cohen, J. (1988). Statistical power analysis (2nd ed.). Lawrence Erlbaum.",
+  },
+  reqn_oneprop: {
+    description: "Required sample size (one proportion) computes the N needed to detect a departure from a null proportion at 80% power.",
+    usage: "Use during study planning for a single-sample proportion design.",
+    assumptions: ["Normal approximation to the binomial"],
+    cite: "Fleiss, J. L., Levin, B., & Paik, M. C. (2003). Statistical methods for rates and proportions (3rd ed.). Wiley.",
+  },
+  reqn_twoprop: {
+    description: "Required sample size (two proportions) computes the n per group needed to detect a difference between two proportions at 80% power.",
+    usage: "Use during study planning for a two-arm proportion comparison.",
+    assumptions: ["Independent groups", "Normal approximation to the binomial"],
+    cite: "Fleiss, J. L., Levin, B., & Paik, M. C. (2003). Statistical methods for rates and proportions (3rd ed.). Wiley.",
+  },
+  reqn_wilcoxon: {
+    description: "Required sample size (Wilcoxon) computes the n needed to detect Cohen's d at 80% power under the rank test's asymptotic relative efficiency.",
+    usage: "Use during study planning for a nonparametric two-group comparison.",
+    assumptions: ["ARE ≈ 0.955 relative to the t-test under normality"],
+    cite: "Lehmann, E. L. (1975). Nonparametrics: Statistical methods based on ranks. Holden-Day.",
+  },
+  reqn_logrank: {
+    description: "Required sample size (log-rank) computes the number of events needed to detect a hazard ratio at 80% power.",
+    usage: "Use during study planning for a two-arm survival comparison.",
+    assumptions: ["Proportional hazards"],
+    cite: "Schoenfeld, D. A. (1983). Sample-size formula for the proportional-hazards regression model. Biometrics, 39(2), 499–503.",
+  },
+  reqn_ols: {
+    description: "Required sample size (OLS) computes the N needed to detect a given R² at 80% power.",
+    usage: "Use during study planning for a multiple regression design.",
+    assumptions: ["Fixed predictors", "F-test on the overall model"],
+    cite: "Cohen, J. (1988). Statistical power analysis (2nd ed.). Lawrence Erlbaum.",
+  },
+  reqn_anova: {
+    description: "Required sample size (ANOVA) computes the n per group needed to detect Cohen's f across k groups at 80% power.",
+    usage: "Use during study planning for a one-way ANOVA design.",
+    assumptions: ["Balanced design", "Homogeneity of variance"],
+    cite: "Cohen, J. (1988). Statistical power analysis (2nd ed.). Lawrence Erlbaum.",
+  },
   effectconv: {
     description: "Effect size converter transforms between Cohen's d, Pearson's r, odds ratio (OR), η², and Cohen's f using standard formulas.",
     usage: "Use to translate effect sizes for power analysis, meta-analysis, or reporting. Conversions assume specific conditions (e.g., d ↔ r assumes continuous normal data; d ↔ OR assumes logistic distribution).",
@@ -1153,6 +1281,60 @@ export const METHOD_NOTES = {
     usage: "Use for distribution-free prediction intervals in machine learning and regression.",
     assumptions: ["Data are exchangeable", "Base model is fit to leave-one-out datasets"],
     cite: "N/A",
+  },
+
+  // ── SURVIVAL ANALYSIS ──
+  km: {
+    description: "The Kaplan-Meier estimator computes a nonparametric survival curve from time-to-event data with censoring.",
+    usage: "Use to visualize and summarize survival experience — median survival, survival probability at a given time.",
+    assumptions: ["Censoring is independent of the event process (noninformative)", "Event times are accurately recorded"],
+    cite: "Kaplan, E. L., & Meier, P. (1958). Nonparametric estimation from incomplete observations. JASA, 53(282), 457–481.",
+  },
+  logrank: {
+    description: "The log-rank test compares the survival distributions of two groups, testing whether their hazard functions differ.",
+    usage: "Use to test for a survival difference between two groups (e.g., treatment vs. control).",
+    assumptions: ["Proportional hazards between groups (or at least non-crossing survival curves)", "Independent censoring"],
+    cite: "Mantel, N. (1966). Evaluation of survival data and two new rank order statistics. Cancer Chemotherapy Reports, 50(3), 163–170.",
+  },
+  coxph: {
+    description: "Cox proportional-hazards regression models the hazard of an event as a function of covariates, without specifying a baseline hazard shape.",
+    usage: "Use to estimate hazard ratios for one or more predictors of time-to-event outcomes.",
+    assumptions: ["Proportional hazards over time", "Covariates are linearly related to the log-hazard", "Independent censoring"],
+    cite: "Cox, D. R. (1972). Regression models and life-tables. Journal of the Royal Statistical Society B, 34(2), 187–220.",
+  },
+
+  // ── TIME SERIES ──
+  adf: {
+    description: "The Augmented Dickey-Fuller test checks for a unit root in a time series — i.e., whether it is non-stationary.",
+    usage: "Use before fitting ARIMA-style models, which require (or difference to achieve) stationarity.",
+    assumptions: ["Series is regularly (evenly) spaced in time", "No structural breaks"],
+    cite: "Dickey, D. A., & Fuller, W. A. (1979). Distribution of the estimators for autoregressive time series with a unit root. JASA, 74(366), 427–431.",
+  },
+  acf: {
+    description: "The autocorrelation function measures the correlation between a series and its own lagged values.",
+    usage: "Use to identify seasonality, trend, or the moving-average order (q) in ARIMA modeling.",
+    assumptions: ["Series is (weakly) stationary for the standard interpretation to hold"],
+    cite: "Box, G. E. P., & Jenkins, G. M. (1970). Time series analysis: Forecasting and control. Holden-Day.",
+  },
+  pacf: {
+    description: "The partial autocorrelation function measures the correlation between a series and its lag k, after controlling for shorter lags.",
+    usage: "Use to identify the autoregressive order (p) in ARIMA modeling.",
+    assumptions: ["Series is (weakly) stationary for the standard interpretation to hold"],
+    cite: "Box, G. E. P., & Jenkins, G. M. (1970). Time series analysis: Forecasting and control. Holden-Day.",
+  },
+
+  // ── OUTLIER DETECTION ──
+  lof: {
+    description: "Local Outlier Factor scores each point by comparing its local density to that of its neighbors — points in sparser regions score higher.",
+    usage: "Use for multivariate outlier detection when outlyingness may vary by local density, not just distance from a global center.",
+    assumptions: ["Meaningful distance metric across the chosen variables (consider scaling if units differ widely)"],
+    cite: "Breunig, M. M., Kriegel, H.-P., Ng, R. T., & Sander, J. (2000). LOF: Identifying density-based local outliers. ACM SIGMOD.",
+  },
+  iforest: {
+    description: "Isolation Forest scores each point by how few random splits are needed to isolate it — outliers isolate faster than typical points.",
+    usage: "Use for multivariate outlier detection, especially with larger datasets where distance-based methods get expensive.",
+    assumptions: ["No strong assumption on distribution", "Performance depends on the chosen number of trees/sample size"],
+    cite: "Liu, F. T., Ting, K. M., & Zhou, Z.-H. (2008). Isolation forest. ICDM.",
   },
 };
 
