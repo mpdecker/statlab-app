@@ -121,7 +121,7 @@ export function hpdInterval(samples, prob = 0.95) {
   return { lo: +sorted[bestLo].toFixed(6), hi: +sorted[bestLo + windowSize - 1].toFixed(6), prob };
 }
 
-/** @param {object} mcmcResult @param {(params: number[]) => number[]} logLikFn @param {number} nObservations */
+/** @param {object} mcmcResult @param {(i: number, params: number[]) => number} logLikFn @param {number} nObservations */
 export function waic(mcmcResult, logLikFn, nObservations) {
   if (!mcmcResult || !mcmcResult.chains || !mcmcResult.chains.length || !logLikFn || !nObservations) return null;
   const { chains } = mcmcResult;
@@ -577,12 +577,12 @@ export function jszBayesFactorT(a, b, { r = Math.SQRT1_2 } = {}) {
 }
 
 // ── Bayesian DIC ──────────────────────────────────────────────────
-/** @param {number[]} logLik @param {number} nParams @param {number[][]|null} [posteriorSamples] */
+/** @param {number|((params: number[]) => number)} logLik @param {number} nParams @param {number[][]|null} [posteriorSamples] */
 export function bayesianDIC(logLik, nParams, posteriorSamples = null) {
   if (!Number.isFinite(nParams) || nParams < 0) return null;
   if (!posteriorSamples) {
     if (!Number.isFinite(logLik)) return null;
-    const dev = -2 * logLik;
+    const dev = -2 * /** @type {number} */ (logLik);
     const pd = nParams;
     const dic = dev + pd;
     const dicAlt = dev + 2 * pd;
@@ -657,12 +657,16 @@ export function posteriorPredictiveCheck(yObs, yRep, { stat = 'mean' } = {}) {
 }
 
 // ── BMA Regression ────────────────────────────────────────────────
+/**
+ * @typedef {{ vars: string[], beta: number[], bic: number, r2: number, weight?: number }} BMAModel
+ */
 /** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xCandidates */
 export function bmaRegression(data, yVar, xCandidates, { nModels = null, seed = 42 } = {}) {
   if (!data || data.length < 15 || !yVar || !xCandidates || xCandidates.length < 2) return null;
   const n = data.length; const k = xCandidates.length;
   const maxM = nModels || Math.min(64, Math.pow(2, k));
   const y = data.map(r => +r[yVar]);
+  /** @type {BMAModel[]} */
   const models = [];
   // Enumerate all or random subset
   for (let m = 0; m < maxM; m++) {

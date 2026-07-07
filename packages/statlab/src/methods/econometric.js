@@ -216,7 +216,7 @@ function _panelUnitMeans(data, yVar, xVars, idVar, ids) {
 }
 
 // ── Panel Fixed Effects (within / LSDV estimator) ───────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {{idVar?: string, timeVar?: string}} [options] */
 export function panelFixedEffects(data, yVar, xVars, { idVar, timeVar } = {}) {
   if (!data || data.length < 10 || !yVar || !xVars || !xVars.length || !idVar) return null;
   const ids = [...new Set(data.map(r => r[idVar]))];
@@ -245,7 +245,7 @@ export function panelFixedEffects(data, yVar, xVars, { idVar, timeVar } = {}) {
 }
 
 // ── Panel Random Effects (Swamy-Arora FGLS) ─────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {{idVar?: string, timeVar?: string}} [options] */
 export function panelRandomEffects(data, yVar, xVars, { idVar, timeVar } = {}) {
   if (!data || data.length < 10 || !yVar || !xVars || !xVars.length || !idVar) return null;
   const ids = [...new Set(data.map(r => r[idVar]))];
@@ -325,7 +325,7 @@ export function hausmanTest(betaFE, seFE, betaRE, seRE) {
 // periods). Reports the AB AR(2) serial-correlation diagnostic (differenced
 // residuals must be uncorrelated at lag 2 for the instruments to be valid)
 // and a Sargan/Hansen overidentification statistic from the GMM objective.
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} [xVars] */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} [xVars] @param {{idVar?: string, timeVar?: string, maxLags?: number}} [options] */
 export function arellanoBond(data, yVar, xVars = [], { idVar, timeVar, maxLags = 4 } = {}) {
   if (!data || data.length < 15 || !yVar || !idVar) return null;
   const ids = [...new Set(data.map(r => r[idVar]))];

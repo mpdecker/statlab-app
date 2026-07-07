@@ -19,7 +19,7 @@ function logAbsDet(M0) {
 }
 
 // ── Spatial Durbin Model: y = ρWy + Xβ + WXθ + ε (Gaussian MLE) ──────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {number[]} W */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {number[][]} W */
 export function spatialDurbin(data, yVar, xVars, W) {
   if (!data || data.length < 10 || !yVar || !xVars || !xVars.length || !W || W.length !== data.length) return null;
   const n = data.length, p = xVars.length;
@@ -75,7 +75,7 @@ export function spatialDurbin(data, yVar, xVars, W) {
 }
 
 // ── Spatial Panel Model: y = ρWy + Xβ + μ_i + ε (fixed-effects SAR, MLE) ──────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {number[]} W */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {number[][]} W @param {{idVar?: string, timeVar?: string}} [options] */
 export function spatialPanel(data, yVar, xVars, W, { idVar, timeVar } = {}) {
   if (!data || data.length < 15 || !yVar || !xVars || !xVars.length || !idVar || !W || W.length !== data.length) return null;
   const n = data.length, p = xVars.length;

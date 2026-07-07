@@ -4,7 +4,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Laplace Mechanism (Differential Privacy) ───────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {number} [epsilon] */
+/** @param {number[]} data @param {number} [epsilon] */
 export function laplaceMechanism(data, epsilon = 1, { seed = 42, sensitivity = null } = {}) {
   __rng = mulberry32(seed);
   if (!data || !data.length) return null;
@@ -52,7 +52,7 @@ export function kAnonymityCheck(data, quasiIdentifiers, { k = 2 } = {}) {
 }
 
 // ── Differential Privacy Budget ────────────────────────────────────────────
-/** @param {number} epsilon @param {number} [delta] @param {number[]} queries */
+/** @param {Array<{epsilon?: number}>} queries @param {number} epsilon @param {number} [delta] */
 export function differentialPrivacy(queries, epsilon, delta = 0) {
   if (!queries || !queries.length || epsilon <= 0) return null;
   const n = queries.length;

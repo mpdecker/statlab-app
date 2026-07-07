@@ -36,8 +36,9 @@ export function propensityScoreMatch(data, treatVar, outcomeVar, covariates = []
   const used = new Set();
   const pairs = [];
   treated.forEach(t => {
-    let best = null;
-    let bd = Infinity;
+  /** @type {{ i: number, r: Record<string, any>, ps: number }|null} */
+  let best = null;
+  let bd = Infinity;
     control.forEach(c => {
       if (used.has(c.i)) return;
       const d = Math.abs(t.ps - c.ps);
@@ -413,7 +414,7 @@ export function doubleML(y, D, Xraw, { splits = 2, seed = 42 } = {}) {
 }
 
 // ── Backdoor adjustment (DAG-based) ─────────────────────────────────────────
-/** Backdoor criterion adjustment-set search. @param {Record<string, string[]>} adjacencyList DAG as node → children. @param {string} treatment @param {string} outcome */
+/** Backdoor criterion adjustment-set search. @param {Array<[string, string]>} adjacencyList DAG as array of [from, to] edges. @param {string} treatment @param {string} outcome */
 export function backdoorAdjustment(adjacencyList, treatment, outcome) {
   if (!adjacencyList || !treatment || !outcome) return null;
   const adj = {};
@@ -1075,7 +1076,7 @@ export function durbinWuHausman(data, yVar, xVar, instruments) {
 }
 
 // ── IV Diagnostics Summary ────────────────────────────────────────
-/** Combined IV diagnostics summary. @param {number} fsFstat first-stage F. @param {object} sarganJ @param {object} hausman */
+/** Combined IV diagnostics summary. @param {{ isWeak?: boolean }} fsFstat first-stage F stat object. @param {{ p: number }} sarganJ @param {{ p: number }} hausman */
 export function ivDiagnosticsSummary(fsFstat, sarganJ, hausman) {
   if (!fsFstat || !sarganJ || !hausman) return null;
   return { test: 'IV Diagnostics Summary', weakInstruments: fsFstat.isWeak || false, overidentified: sarganJ.p < 0.05, endogenous: hausman.p < 0.05, apa: `IV diag: weak=${fsFstat.isWeak}, overID=${sarganJ.p < 0.05}, endog=${hausman.p < 0.05}` };

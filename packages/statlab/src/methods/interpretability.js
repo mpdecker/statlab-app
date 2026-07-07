@@ -153,7 +153,7 @@ export function permutationImportance(X, y, baselineScore, { nRepeats = 10 } = {
 }
 
 // ── ALE Plot (Accumulated Local Effects) ──────────────────────────
-/** @param {number} model @param {number[][]} X @param {number} featureIndex */
+/** @param {Function} model @param {number[][]} X @param {number} featureIndex */
 export function alePlot(X, model, featureIndex, { nIntervals = 10 } = {}) {
   if (!X || X.length < 5 || !X[0] || featureIndex == null) return null;
   const n = X.length;
@@ -188,7 +188,7 @@ export function alePlot(X, model, featureIndex, { nIntervals = 10 } = {}) {
 }
 
 // ── Feature Interaction (Friedman's H) ────────────────────────────
-/** @param {number} model @param {number[][]} X @param {number} i @param {number} j */
+/** @param {Function} model @param {number[][]} X @param {number} i @param {number} j */
 export function featureInteraction(X, model, i, j) {
   if (!X || X.length < 5 || i == null || j == null) return null;
   const n = X.length;

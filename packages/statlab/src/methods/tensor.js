@@ -62,7 +62,7 @@ function unfoldTensor(X, mode) {
 }
 
 // ── PARAFAC (CP decomposition via Alternating Least Squares) ──────
-/** @param {number[][]} X @param {number} [nFactors] */
+/** @param {number[][][]} X @param {number} [nFactors] */
 export function parafac(X, nFactors = 2, { maxIter = 50, seed = 42, tol = 1e-8 } = {}) {
   if (!X || !X.length || !X[0]?.length) return null;
   const I = X.length, J = X[0].length, K = X[0]?.[0]?.length || 1;
@@ -71,7 +71,8 @@ export function parafac(X, nFactors = 2, { maxIter = 50, seed = 42, tol = 1e-8 }
   let s = seed >>> 0;
   const rand = () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 2 ** 32; };
   const randMat = rows => Array.from({ length: rows }, () => Array.from({ length: F }, () => rand() - 0.5));
-  const get = (i, j, k) => (K > 1 ? (X[i]?.[j]?.[k] ?? 0) : (X[i]?.[j] ?? 0));
+  /** @returns {number} */
+  const get = (i, j, k) => K > 1 ? (X[i]?.[j]?.[k] ?? 0) : /** @type {number} */ (X[i]?.[j] ?? 0);
 
   let A = randMat(I), B = randMat(J), C = randMat(K);
 
@@ -134,7 +135,7 @@ export function parafac(X, nFactors = 2, { maxIter = 50, seed = 42, tol = 1e-8 }
 }
 
 // ── Tucker Decomposition ──────────────────────────────────────────
-/** @param {number[]} X */
+/** @param {number[][][]} X */
 export function tuckerDecomp(X, ranks = [2, 2, 2], { seed = 42, maxIter = 30 } = {}) {
   __rng = mulberry32(seed);
   if (!X || !X.length) return null;
@@ -161,7 +162,7 @@ export function tuckerDecomp(X, ranks = [2, 2, 2], { seed = 42, maxIter = 30 } =
 }
 
 // ── Unfold ────────────────────────────────────────────────────────
-/** @param {number[]} X @param {number} [mode] */
+/** @param {number[][][]} X @param {number} [mode] */
 export function unfold(X, mode = 1) {
   if (!X || !X.length) return null;
   const M = unfoldTensor(X, mode);
@@ -169,7 +170,7 @@ export function unfold(X, mode = 1) {
 }
 
 // ── Multiway PCA ──────────────────────────────────────────────────
-/** @param {number[]} X @param {number} [nComp] @param {number} [seed] */
+/** @param {number[][][]} X @param {number} [nComp] @param {number} [seed] */
 export function multiwayPCA(X, nComp = 2, seed = 42) {
   __rng = mulberry32(seed);
   if (!X || !X.length) return null;
@@ -194,14 +195,15 @@ export function multiwayPCA(X, nComp = 2, seed = 42) {
 }
 
 // ── Tensor Regression (CP) ────────────────────────────────────────
-/** @param {number[]} X @param {number[]} y */
+/** @param {number[][][]} X @param {number[]} y */
 export function tensorRegression(X, y, ranks = [2]) {
   if (!X || !y || !X.length || X.length !== y.length) return null;
   const n = X.length;
   // Flatten each X_i into vector
+  /** @type {number[][]} */
   const flat = X.map(xi => {
-    if (Array.isArray(xi[0])) return xi.flat(Infinity);
-    return xi;
+    if (Array.isArray(xi[0])) return /** @type {number[]} */ (xi.flat(Infinity));
+    return /** @type {number[]} */ (/** @type {unknown} */ (xi));
   });
   const p = flat[0]?.length || 0;
   if (!p) return null;
@@ -235,7 +237,7 @@ export function cpDecomposition(tensor, rank = 2, { seed = 42, maxIter = 50 } = 
 }
 
 // ── Tucker Regression ─────────────────────────────────────────────
-/** @param {number[]} X @param {number[]} y */
+/** @param {number[][][]} X @param {number[]} y */
 export function tuckerRegression(X, y, { seed = 42, rank = [2, 2], maxIter = 50 } = {}) {
   if (!X || !y || X.length < 5 || y.length < 5) return null;
   const n = X.length, d1 = X[0]?.length || 0, d2 = X[0]?.[0]?.length || 0;
