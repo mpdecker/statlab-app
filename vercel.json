@@ -1,3 +1,6 @@
 {
-  "outputDirectory": "app/dist"
+  "buildCommand": "pnpm --filter statlab build && pnpm --filter statlab-app build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "app/dist",
+  "framework": null
 }
