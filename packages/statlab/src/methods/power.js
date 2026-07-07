@@ -224,8 +224,8 @@ export function requiredNANOVA(cohenF, k, power = 0.8, alpha = 0.05) {
 }
 
 // ── Already-APA Re-exports ──────────────────────────────────────────────────
-/** @param {number} d @param {string} [type] @param {number} [alpha] @param {number} n1 @param {number} [n2] */
-export function powerTTestWrapper(n1, n2 = n1, d, type = 'two-sample', alpha = 0.05) {
+/** @param {number} n1 @param {number} [n2] @param {number} [d] @param {"two-sample" | "paired" | "one-sample"} [type] @param {number} [alpha] */
+export function powerTTestWrapper(n1, n2 = n1, d = 0.5, type = 'two-sample', alpha = 0.05) {
   const r = _powerTTest(n1, n2, d, type, alpha);
   if (!r) return null;
   return { test: 'T-Test Power', ...r };
@@ -251,8 +251,8 @@ export function powerProportionTwo(n1, n2, p1, p2, alpha = 0.05) {
 
 // ── Wilcoxon Power ────────────────────────────────────────────────
 
-/** @param {number} d @param {number} [alpha] @param {number} n1 @param {number} [n2] */
-export function powerWilcoxonTest(n1, n2 = n1, d, alpha = 0.05) {
+/** @param {number} n1 @param {number} [n2] @param {number} [d] @param {number} [alpha] */
+export function powerWilcoxonTest(n1, n2 = n1, d = 0.5, alpha = 0.05) {
   const r = _powerWilcoxon(n1, n2, d, alpha);
   if (!r) return null;
   return { test: 'Wilcoxon Power', ...r };
@@ -269,8 +269,8 @@ export function powerLogRankTest(nEvents, hr, alpha = 0.05) {
 
 // ── RM ANOVA Power ────────────────────────────────────────────────
 
-/** @param {number} k @param {number} n @param {number} [epsilon] @param {number} [alpha] @param {number} f */
-export function powerRMANOVA(k, n, epsilon = 1, f, alpha = 0.05) {
+/** @param {number} k @param {number} n @param {number} [epsilon] @param {number} [f] @param {number} [alpha] */
+export function powerRMANOVA(k, n, epsilon = 1, f = 0.25, alpha = 0.05) {
   const r = _powerRMANOVA(k, n, epsilon, f, alpha);
   if (!r) return null;
   return { test: 'RM ANOVA Power', ...r };

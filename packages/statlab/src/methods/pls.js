@@ -137,7 +137,7 @@ export function rda(Y, X, { permutations = 199, seed = 42 } = {}) {
 }
 
 // ── db-RDA ────────────────────────────────────────────────────────
-/** @param {number[]} D @param {number[][]} X */
+/** @param {number[][]} D @param {number[][]} X */
 export function dbRDA(D, X, { permutations = 199 } = {}) {
   if (!D || !X || D.length < 10 || X.length < 10) return null;
   const n = Math.min(D.length, X.length);

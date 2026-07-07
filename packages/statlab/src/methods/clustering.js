@@ -653,7 +653,7 @@ export function spectralClustering(data, vars, nClusters = 2, { type = 'symmetri
   if (!data || !vars || data.length < 5) return null;
   const A = affinityMatrix(data, vars, { sigma });
   if (!A) return null;
-  const emb = spectralEmbedding(A.A || A, nClusters, { type });
+  const emb = spectralEmbedding(/** @type {number[][]} */ (A.A || A), nClusters, { type });
   if (!emb) return null;
   const embed = emb.embedding;
   // k-means on embedding

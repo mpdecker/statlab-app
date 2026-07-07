@@ -124,6 +124,7 @@ export function iiaTest(data, yVar, xVars, groupVar, altVar) {
  * Fit a McFadden conditional logit on choice sets defined by groupVar
  * (chosen alternative has yVar === 1). Returns { beta, cov, se } or null.
  */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {string} groupVar */
 function _fitChoiceModel(data, yVar, xVars, groupVar) {
   if (!groupVar) return null;
   const groups = [...new Set(data.map(r => r[groupVar]))];
@@ -209,9 +210,9 @@ export function nestedLogit(data, yVar, xVars, groupVar, nestVar, { seed = 42, m
   const allNests = [...new Set(data.map(r => r[nestVar]))];
   const nIdx = Object.fromEntries(allNests.map((nm, i) => [nm, i]));
   const groups = [...new Set(data.map(r => r[groupVar]))];
-  const sets = groups
+  const sets = /** @type {number[][]} */ (groups
     .map(g => data.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []))
-    .filter(idx => idx.length >= 2);
+    .filter(idx => idx.length >= 2));
   if (sets.length < 2) return null;
   const X = data.map(r => xVars.map(c => +r[c]));
   const y = data.map(r => +r[yVar]);
@@ -363,7 +364,7 @@ export function choiceProbability(data, yVar, xVars, groupVar) {
   if (groupVar) {
     const groups = [...new Set(data.map(r => r[groupVar]))];
     for (const g of groups) {
-      const idx = data.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []);
+      const idx = /** @type {number[]} */ (data.reduce((arr, r, i) => { if (r[groupVar] === g) arr.push(i); return arr; }, []));
       const mx = Math.max(...idx.map(i => utils[i]));
       let den = 0; for (const i of idx) den += Math.exp(utils[i] - mx);
       for (const i of idx) probs[i] = +(Math.exp(utils[i] - mx) / den).toFixed(4);

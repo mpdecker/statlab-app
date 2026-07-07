@@ -2,7 +2,7 @@ import { avg } from '../math/core.js';
 import { matInv } from '../math/matrix.js';
 
 // Pairwise distance matrix
-/** @param {number[]} x */
+/** @param {number[][]} x */
 export function distanceMatrix(x) {
   if (!x || x.length < 5) return null;
   const n = x.length;

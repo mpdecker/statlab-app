@@ -107,7 +107,7 @@ export function madScale(data) {
 }
 
 // ── Hampel M-Estimator ─────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {number[]} data */
 export function hampelM(data, { a = 1.5, b = 3, c = 8 } = {}) {
   if (!data || data.length < 8) return null;
   const n = data.length;
@@ -207,9 +207,9 @@ export function sEstimator(x, y, { bdp = 0.5, maxIter = 20 } = {}) {
   for (let iter = 0; iter < maxIter; iter++) {
     const resid = y.map((yi, i) => yi - beta[0] - beta[1] * x[i]);
     const mad = madScale(resid);
-    if (mad < 1e-10) break;
+    if (!mad || mad.mad < 1e-10) break;
     const rho = resid.map(r => {
-      const z = r / mad;
+      const z = r / mad.mad;
       const z2 = z * z;
       if (Math.abs(z) <= 1.547) return z2 / 2;
       if (Math.abs(z) <= 2.548) return 1.547 * Math.abs(z) - 1.547 * 1.547 / 2;

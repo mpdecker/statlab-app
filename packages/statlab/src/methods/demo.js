@@ -37,7 +37,7 @@ export function leeCarter(logMx, years, ages) {
 }
 
 // ── Population Projection (cohort-component) ──────────────────────
-/** @param {number[]} basePop @param {number[]} fertility @param {number[]} mortality */
+/** @param {number[]} basePop @param {number} fertility @param {number[]} mortality */
 export function populationProjection(basePop, fertility, mortality, { nYears = 5 } = {}) {
   if (!basePop || !fertility || !mortality || basePop.length < 3) return null;
   const n = basePop.length;
@@ -59,7 +59,7 @@ export function lifeExpectancy(lt) {
 }
 
 // ── Population Growth Rate ────────────────────────────────────────
-/** @param {number[]} pop */
+/** @param {number[][]} pop */
 export function populationGrowth(pop, { t = 1 } = {}) {
   if (!pop || !pop.length || !pop[0]) return null;
   const n = pop.length;

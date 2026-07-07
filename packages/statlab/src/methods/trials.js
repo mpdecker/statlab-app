@@ -60,7 +60,7 @@ export function stratifiedPermutedBlocks(strata, seed = 42) {
   uniqueStrata.forEach(s => {
     const indices = strata.reduce((arr, st, i) => { if (st === s) arr.push(i); return arr; }, []);
     const trts = indices.map(i => assignment[i]);
-    for (let k = trts.length - 1; k > 0; k--) { const r = Math.floor(__rng() * (k + 1)); [trts[k], trts[r]] = [trts[r], trts[k]]; }
+    for (let k = trts.length - 1; k > 0; k--) { const r = Math.floor(__rng() * (k + 1)); const tmp = trts[k]; trts[k] = trts[r]; trts[r] = tmp; }
     indices.forEach((i, j) => { assignment[i] = trts[j]; });
   });
   return { test: 'Stratified Permuted Blocks', assignment, nStrata: uniqueStrata.length, n: strata.length, apa: `Stratified blocks: ${uniqueStrata.length} strata, n = ${strata.length}` };

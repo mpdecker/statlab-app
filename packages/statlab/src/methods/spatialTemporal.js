@@ -2,7 +2,7 @@ import { avg } from '../math/core.js';
 import { solveNormalEquations, matInv } from '../math/matrix.js';
 
 // ── STAR Model ────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {number[]} W */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {number[][]} W */
 export function starModel(data, yVar, xVars, W, { p = 1 } = {}) {
   if (!data || data.length < 10 || !yVar || !xVars || !W) return null;
   const n = data.length, k = xVars.length;
@@ -27,7 +27,7 @@ export function starModel(data, yVar, xVars, W, { p = 1 } = {}) {
 }
 
 // ── GSTAR ─────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {number[]} W */
+/** @param {Array<Record<string, any>>} data @param {string} yVar @param {string[]} xVars @param {number[][]} W */
 export function gstarModel(data, yVar, xVars, W, { p = 1, q = 1 } = {}) {
   if (!data || data.length < 10 || !yVar || !W) return null;
   const n = data.length;

@@ -6,7 +6,7 @@ import { mulberry32 } from '../math/rng.js';
 let __rng = mulberry32(42); // reseeded per stochastic call for reproducibility
 
 // ── Markov Chain ────────────────────────────────────────────────────────────
-/** @param {Array<string|number>} sequence */
+/** @param {number[]} sequence */
 export function markovChain(sequence, { nStates = null } = {}) {
   if (!sequence || sequence.length < 20) return null;
   const n = sequence.length;

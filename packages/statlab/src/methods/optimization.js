@@ -102,13 +102,17 @@ export function differentialEvolution(fn, bounds, { seed = 42, popSize = 20, ite
 /** @param {Function} fn @param {object} paramGrid */
 export function gridSearch(fn, paramGrid) {
   if (!fn || !paramGrid || !paramGrid.length) return null;
-  let bestVal = Infinity; let bestParams = null;
+  let bestVal = Infinity;
+  /** @type {number[] | null} */
+  let bestParams = null;
   function search(depth, params) {
     if (depth === paramGrid.length) { const val = fn(params.map(p => p.val)); if (val < bestVal) { bestVal = val; bestParams = [...params.map(p => p.val)]; } return; }
     paramGrid[depth].values.forEach(v => { search(depth + 1, [...params, { name: paramGrid[depth].name, val: v }]); });
   }
   search(0, []);
-  return { test: 'Grid Search', optimum: bestParams?.map(v => +v.toFixed(4)) || [], value: +bestVal.toFixed(4), nPoints: paramGrid.reduce((p, g) => p * g.values.length, 1), apa: `Grid: minimum = ${bestVal.toFixed(4)}` };
+  /** @type {number[]} */
+  const optimum = bestParams ? bestParams.map(v => +v.toFixed(4)) : [];
+  return { test: 'Grid Search', optimum, value: +bestVal.toFixed(4), nPoints: paramGrid.reduce((p, g) => p * g.values.length, 1), apa: `Grid: minimum = ${bestVal.toFixed(4)}` };
 }
 
 // ── BFGS ────────────────────────────────────────────────────────────────────
@@ -117,6 +121,7 @@ export function bfgs(fn, grad, init, { maxIter = 100, tol = 1e-6 } = {}) {
   if (!fn || !grad || !init || !init.length) return null;
   const n = init.length;
   let x = [...init];
+  /** @type {number[][]} */
   let H = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? 1 : 0));
   let g = grad(x);
   const history = [{ iter: 0, value: +fn(x).toFixed(4) }];
@@ -136,6 +141,7 @@ export function bfgs(fn, grad, init, { maxIter = 100, tol = 1e-6 } = {}) {
     const rho = 1 / Math.max(y.reduce((ss, yi, i) => ss + yi * s[i], 0), 1e-10);
 
     if (rho < 1e10) {
+      /** @type {number[][]} */
       const Isy = Array.from({ length: n }, (_, i) => Array(n).fill(0));
       for (let i = 0; i < n; i++) { Isy[i][i] = 1; Isy[i][i] -= rho * s[i] * y[i]; }
       for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) Isy[i][j] -= i === j ? 0 : -rho * s[i] * y[j];

@@ -92,7 +92,7 @@ export function nelsonAalen(obs) {
     apa: `Nelson-Aalen cumulative hazard: ${cumHazard.toFixed(4)}, n = ${n}, events = ${totalEvents}` };
 }
 
-/** Cox proportional-hazards model. @param {Array<Record<string, number>>} obs @param {string[]} covNames @param {{maxIter?: number, tolerance?: number, strata?: string|null}} [options] */
+/** Cox proportional-hazards model. @param {Array<Record<string, any>>} obs @param {string[]} covNames @param {{maxIter?: number, tolerance?: number, strata?: string|null}} [options] */
 export function coxPH(obs, covNames, { maxIter = 50, tolerance = 1e-6, strata = null } = {}) {
   if (!obs || obs.length < 3 || !covNames || covNames.length < 1) return null;
   const valid = obs.filter(o => covNames.every(c => Number.isFinite(o[c])) && Number.isFinite(o.time) && (o.event === 0 || o.event === 1));
@@ -782,6 +782,7 @@ export function cureModel(obs, covNames, { maxIter = 50, tolerance = 1e-5 } = {}
   // Baseline S_u(t) for the uncured partial-population Cox model, refreshed after
   // each M-step and used by the *next* E-step (iteration 0 starts from S_u≡1, i.e.
   // no survival information yet — the standard EM cold-start for mixture cure models).
+  /** @type {function(number): number} */
   let baselineS0 = () => 1;
 
   for (let iter = 0; iter < maxIter; iter++) {

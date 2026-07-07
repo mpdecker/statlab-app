@@ -14,7 +14,7 @@ export function softmax(logits) {
 }
 
 // ── Activation functions ──────────────────────────────────────────
-/** @param {number[]} x @param {string} [type] */
+/** @param {number | number[]} x @param {string} [type] */
 export function activate(x, type = 'relu') {
   if (Array.isArray(x)) {
     const y = x.map(v => type === 'relu' ? Math.max(0, v) : type === 'sigmoid' ? 1 / (1 + Math.exp(-v)) : Math.tanh(v));
@@ -38,7 +38,7 @@ export function softmaxCrossEntropy(logits, targets) {
 }
 
 // ── Gradient Descent (Mini-batch SGD for linear model) ────────────
-/** @param {number[]} X @param {number[]} y */
+/** @param {number[][]} X @param {number[]} y */
 export function gradientDescent(X, y, { lr = 0.01, epochs = 100, batchSize = null } = {}) {
   if (!X || !y || X.length < 5 || X.length !== y.length) return null;
   const n = X.length, p = X[0]?.length || 0;
@@ -144,7 +144,7 @@ export function convolution1D(signal, kernel) {
 }
 
 // ── 2D Convolution ────────────────────────────────────────────────
-/** @param {number[]} kernel @param {number[][]} input */
+/** @param {number[][]} input @param {number[][]} kernel */
 export function conv2D(input, kernel, { stride = 1, padding = 0 } = {}) {
   if (!input || !kernel || !input.length || !input[0] || kernel.length > input.length) return null;
   const h = input.length, w = input[0].length, kh = kernel.length, kw = kernel[0].length;

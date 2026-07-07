@@ -63,7 +63,7 @@ export function iqrOutliers(data, { multiplier = 1.5 } = {}) {
 }
 
 // ── MAD Outliers ────────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {number[]} data */
 export function madOutliers(data, { threshold = 3.5 } = {}) {
   if (!data || data.length < 5) return null;
   const n = data.length;
@@ -126,7 +126,7 @@ export function equalWidthBinning(data, nBins = 5) {
 }
 
 // ── Winsorize ───────────────────────────────────────────────────────────────
-/** @param {Array<Record<string, any>>} data */
+/** @param {number[]} data */
 export function winsorize(data, { lower = 0.05, upper = 0.05 } = {}) {
   if (!data || data.length < 3) return null;
   const n = data.length;
@@ -194,7 +194,7 @@ export function smote(X, y, { seed = 42, k = 5, multiplier = 1 } = {}) {
 }
 
 // ── ADASYN ────────────────────────────────────────────────────────
-/** @param {number[]} X @param {number[]} y */
+/** @param {number[][]} X @param {number[]} y */
 export function adasyn(X, y, { seed = 42, k = 5, beta = 0.5 } = {}) {
   __rng = mulberry32(seed);
   if (!X || !y || X.length < 5) return null;

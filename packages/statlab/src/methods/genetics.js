@@ -13,7 +13,7 @@ export function prsScore(genotypes, weights) {
 }
 
 // ── ACE Heritability ──────────────────────────────────────────────
-/** @param {number[][]} mz MZ twin pairs. @param {number[][]} dz DZ twin pairs. */
+/** @param {number[]} mz MZ twin pairs. @param {number[]} dz DZ twin pairs. */
 export function aceHeritability(mz, dz) {
   if (!mz || !dz || mz.length < 10 || dz.length < 10) return null;
   const n1 = mz.length, n2 = dz.length;

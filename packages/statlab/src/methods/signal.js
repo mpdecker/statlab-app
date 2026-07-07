@@ -396,7 +396,7 @@ export function crossWavelet(x, y, { nScales = 8 } = {}) {
 // white-noise background level P_k is estimated as the mean power across all
 // scales/times — the standard practical stand-in when no separate noise
 // model (e.g. AR(1) red noise) is fit.
-/** @param {number} power @param {number} n */
+/** @param {number[][]} power @param {number} n */
 export function waveletSignificance(power, n, { alpha = 0.05 } = {}) {
   if (!power || !power.length) return null;
   const flat = power.flat();

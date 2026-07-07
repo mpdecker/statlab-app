@@ -129,7 +129,7 @@ export function particleMCMC(prior, likelihood, { nParticles = 100, nIter = 50, 
   }
   const vec = Array.isArray(kept[0]);
   const d = vec ? kept[0].length : 1;
-  const posteriorMean = vec ? Array.from({ length: d }, (_, j) => +avg(kept.map(s => s[j])).toFixed(4)) : +avg(kept).toFixed(4);
+  const posteriorMean = vec ? Array.from({ length: d }, (_, j) => +avg(kept.map(s => s[j])).toFixed(4)) : +avg(/** @type {number[]} */ (/** @type {unknown} */ (kept))).toFixed(4);
   const acceptRate = nAcc / total;
   const ess = +(kept.length * acceptRate).toFixed(2); // rough effective sample size
   return { test: 'Particle MCMC', ess, acceptRate: +acceptRate.toFixed(4), posteriorMean, nParticles, nIter, best: best?.map ? best.map(v => +v.toFixed(4)) : best, apa: `pMCMC: ESS=${ess.toFixed(1)}, accept=${(acceptRate * 100).toFixed(0)}%` };

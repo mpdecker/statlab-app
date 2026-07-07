@@ -160,7 +160,7 @@ export function equivalenceT(group1, group2, dL, dU, alpha = 0.05) {
 /** Required sample size for a t-test. @param {number} d Cohen's d. @param {number} [power=0.8] @param {number} [alpha=0.05] @param {'two-sample'|'paired'|'one-sample'} [type='two-sample'] */
 export function sampleSizeT(d, power = 0.8, alpha = 0.05, type = 'two-sample') {
   if (!Number.isFinite(d) || d <= 0) return null;
-  const isPaired = type === 'pair' || type === 'paired' || type === 'one-sample';
+  const isPaired = type === 'paired' || type === 'one-sample';
   const nPerGroup = requiredNTTest(Math.abs(d), isPaired ? 'paired' : 'two-sample', power, alpha);
   if (!Number.isFinite(nPerGroup)) return null;
   const total = isPaired ? nPerGroup : nPerGroup * 2;

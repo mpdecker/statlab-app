@@ -224,7 +224,7 @@ export function envfit(ordination, envData, envVar, { permutations = 999, seed =
 function corr(a, b) { const m = avg(a); const m2 = avg(b); return a.reduce((s, v, i) => s + (v - m) * (b[i] - m2), 0) / Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) * b.reduce((s, v) => s + (v - m2) ** 2, 0) + 1e-10); }
 
 // ── Variation Partitioning ────────────────────────────────────────
-/** @param {number} R2total @param {number} R2part */
+/** @param {number} R2total @param {number[]} R2part */
 export function varpart(R2total, R2part) {
   if (!R2part || R2part.length < 2) return null;
   const ab = R2part[0], bc = R2part[1];
