@@ -1282,6 +1282,60 @@ export const METHOD_NOTES = {
     assumptions: ["Data are exchangeable", "Base model is fit to leave-one-out datasets"],
     cite: "N/A",
   },
+
+  // ── SURVIVAL ANALYSIS ──
+  km: {
+    description: "The Kaplan-Meier estimator computes a nonparametric survival curve from time-to-event data with censoring.",
+    usage: "Use to visualize and summarize survival experience — median survival, survival probability at a given time.",
+    assumptions: ["Censoring is independent of the event process (noninformative)", "Event times are accurately recorded"],
+    cite: "Kaplan, E. L., & Meier, P. (1958). Nonparametric estimation from incomplete observations. JASA, 53(282), 457–481.",
+  },
+  logrank: {
+    description: "The log-rank test compares the survival distributions of two groups, testing whether their hazard functions differ.",
+    usage: "Use to test for a survival difference between two groups (e.g., treatment vs. control).",
+    assumptions: ["Proportional hazards between groups (or at least non-crossing survival curves)", "Independent censoring"],
+    cite: "Mantel, N. (1966). Evaluation of survival data and two new rank order statistics. Cancer Chemotherapy Reports, 50(3), 163–170.",
+  },
+  coxph: {
+    description: "Cox proportional-hazards regression models the hazard of an event as a function of covariates, without specifying a baseline hazard shape.",
+    usage: "Use to estimate hazard ratios for one or more predictors of time-to-event outcomes.",
+    assumptions: ["Proportional hazards over time", "Covariates are linearly related to the log-hazard", "Independent censoring"],
+    cite: "Cox, D. R. (1972). Regression models and life-tables. Journal of the Royal Statistical Society B, 34(2), 187–220.",
+  },
+
+  // ── TIME SERIES ──
+  adf: {
+    description: "The Augmented Dickey-Fuller test checks for a unit root in a time series — i.e., whether it is non-stationary.",
+    usage: "Use before fitting ARIMA-style models, which require (or difference to achieve) stationarity.",
+    assumptions: ["Series is regularly (evenly) spaced in time", "No structural breaks"],
+    cite: "Dickey, D. A., & Fuller, W. A. (1979). Distribution of the estimators for autoregressive time series with a unit root. JASA, 74(366), 427–431.",
+  },
+  acf: {
+    description: "The autocorrelation function measures the correlation between a series and its own lagged values.",
+    usage: "Use to identify seasonality, trend, or the moving-average order (q) in ARIMA modeling.",
+    assumptions: ["Series is (weakly) stationary for the standard interpretation to hold"],
+    cite: "Box, G. E. P., & Jenkins, G. M. (1970). Time series analysis: Forecasting and control. Holden-Day.",
+  },
+  pacf: {
+    description: "The partial autocorrelation function measures the correlation between a series and its lag k, after controlling for shorter lags.",
+    usage: "Use to identify the autoregressive order (p) in ARIMA modeling.",
+    assumptions: ["Series is (weakly) stationary for the standard interpretation to hold"],
+    cite: "Box, G. E. P., & Jenkins, G. M. (1970). Time series analysis: Forecasting and control. Holden-Day.",
+  },
+
+  // ── OUTLIER DETECTION ──
+  lof: {
+    description: "Local Outlier Factor scores each point by comparing its local density to that of its neighbors — points in sparser regions score higher.",
+    usage: "Use for multivariate outlier detection when outlyingness may vary by local density, not just distance from a global center.",
+    assumptions: ["Meaningful distance metric across the chosen variables (consider scaling if units differ widely)"],
+    cite: "Breunig, M. M., Kriegel, H.-P., Ng, R. T., & Sander, J. (2000). LOF: Identifying density-based local outliers. ACM SIGMOD.",
+  },
+  iforest: {
+    description: "Isolation Forest scores each point by how few random splits are needed to isolate it — outliers isolate faster than typical points.",
+    usage: "Use for multivariate outlier detection, especially with larger datasets where distance-based methods get expensive.",
+    assumptions: ["No strong assumption on distribution", "Performance depends on the chosen number of trees/sample size"],
+    cite: "Liu, F. T., Ting, K. M., & Zhou, Z.-H. (2008). Isolation forest. ICDM.",
+  },
 };
 
 /** Simplified implementation notes used as fallback when an educational note doesn't exist. */

@@ -52,6 +52,9 @@ import {
   bayesianPoissonRegression, bayesianDIC, bmaRegression,
 } from 'statlab/methods/bayesian';
 import { littlesMCAR, mice, rubinPool, fmi as fractionMissingInfo, emImpute, missingnessPattern, completeCases } from 'statlab/methods/missing';
+import { kmEstimate, logRankTest, coxPH } from 'statlab/methods/survival';
+import { adfTest, acf, pacf } from 'statlab/methods/timeseries';
+import { localOutlierFactor, isolationForest } from 'statlab/methods/outlier';
 import { mulberry32 } from 'statlab/math/rng';
 
 function injectMissing(data, vars, pct, seed) {
@@ -343,6 +346,10 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [cfgPowRmanova, setCfgPowRmanova] = useState({ k: '3', n: '20', epsilon: '1', f: '0.25' });
   const [cfgPowOlsApa, setCfgPowOlsApa] = useState({ rSquared: '0.2', n: '50', k: '3' });
   const [cfgPowSpearman, setCfgPowSpearman] = useState({ n: '50', rho: '0.3' });
+
+  // ── survival analysis / time series / outlier detection ──────────────────
+  const [outlierK, setOutlierK] = useState('5');
+  const [outlierSeed, setOutlierSeed] = useState('42');
 
   // ── bootstrap ──────────────────────────────────────────────────────────────
   const [bsResult, setBsResult]     = useState(null);
@@ -754,6 +761,48 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'pow_rmanova') { const c = cfgPowRmanova; const r = powerRMANOVA(parseInt(c.k, 10) || 3, parseInt(c.n, 10) || 20, parseFinite(c.epsilon, 1), parseFinite(c.f, 0.25), aval); return r ? { ...r, test: 'RM ANOVA Power' } : null; }
       if (a === 'pow_olsapa') { const c = cfgPowOlsApa; const r = powerOLS_apa(parseFinite(c.rSquared, 0.2), parseInt(c.n, 10) || 50, parseInt(c.k, 10) || 3, aval); return r ? { ...r, test: 'OLS Power' } : null; }
       if (a === 'pow_spearman') { const c = cfgPowSpearman; const r = powerSpearmanTest(parseInt(c.n, 10) || 50, parseFinite(c.rho, 0.3), aval); return r ? { ...r, test: 'Spearman Power' } : null; }
+      // ── survival analysis ────────────────────────────────────────────────────
+      if (a === 'km' || a === 'coxph') {
+        if (!tgtVar || !cat1) return null;
+        const cats = [...new Set(data.map(r => r[cat1]))].filter(v => v != null).sort();
+        const posVal = cats[1] || cats[0];
+        if (a === 'km') {
+          const obs = data.filter(r => Number.isFinite(+r[tgtVar]) && r[cat1] != null).map(r => ({ time: +r[tgtVar], event: r[cat1] === posVal ? 1 : 0 }));
+          return kmEstimate(obs);
+        }
+        const Xc = preds.filter(c => c && c !== tgtVar);
+        if (!Xc.length) return null;
+        const obs = data.filter(r => Number.isFinite(+r[tgtVar]) && r[cat1] != null && Xc.every(c => Number.isFinite(+r[c])))
+          .map(r => ({ time: +r[tgtVar], event: r[cat1] === posVal ? 1 : 0, ...Object.fromEntries(Xc.map(c => [c, +r[c]])) }));
+        return coxPH(obs, Xc);
+      }
+      if (a === 'logrank') {
+        if (!tgtVar || !cat1 || !grpVar) return null;
+        const cats = [...new Set(data.map(r => r[cat1]))].filter(v => v != null).sort();
+        const posVal = cats[1] || cats[0];
+        const toObs = g => data.filter(r => r[grpVar] === g && Number.isFinite(+r[tgtVar]) && r[cat1] != null)
+          .map(r => ({ time: +r[tgtVar], event: r[cat1] === posVal ? 1 : 0 }));
+        if (!g1 || g1 === '—' || !g2 || g2 === '—') return null;
+        const obsA = toObs(g1), obsB = toObs(g2);
+        return logRankTest(obsA, obsB);
+      }
+      // ── time series ──────────────────────────────────────────────────────────
+      if (a === 'adf') return allTgt.length >= 10 ? adfTest(allTgt) : null;
+      if (a === 'acf' || a === 'pacf') {
+        if (allTgt.length < 4) return null;
+        const vals = a === 'acf' ? acf(allTgt) : pacf(allTgt);
+        if (!vals) return null;
+        return { test: a === 'acf' ? 'Autocorrelation (ACF)' : 'Partial Autocorrelation (PACF)', series: vals, n: allTgt.length,
+          apa: `${a === 'acf' ? 'ACF' : 'PACF'} computed for ${vals.length - 1} lags (n=${allTgt.length}).` };
+      }
+      // ── outlier detection ────────────────────────────────────────────────────
+      if (a === 'lof' || a === 'iforest') {
+        const vars = scaleVars.filter(c => numeric.includes(c));
+        if (vars.length < 1) return null;
+        const X = data.filter(r => vars.every(c => Number.isFinite(+r[c]))).map(r => vars.map(c => +r[c]));
+        if (a === 'lof') return localOutlierFactor(X, { k: Math.max(2, parseInt(outlierK, 10) || 5) });
+        return isolationForest(X, { seed: parseInt(outlierSeed, 10) || 42 });
+      }
       // ── robust statistics ────────────────────────────────────────────────────
       if (a === 'theil_sen') return theilSenSlope(xy.xs, xy.ys);
       if (a === 'mm_estimator') return mmEstimator(xy.xs, xy.ys, parseInt(robSeed, 10) || 42);
@@ -867,6 +916,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     cfgReqnT, cfgReqnCorr, cfgReqnOneProp, cfgReqnTwoProp, cfgReqnWilcoxon,
     cfgReqnLogrank, cfgReqnOls, cfgReqnAnova, cfgPowTtest, cfgPowOneProp,
     cfgPowTwoProp, cfgPowWilcoxon, cfgPowLogrank, cfgPowRmanova, cfgPowOlsApa, cfgPowSpearman,
+    outlierK, outlierSeed,
   ]);
 
   const displayResult = POWER_TESTS.has(active) ? powerResult : result;
@@ -939,6 +989,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     cfgPowTwoProp, setCfgPowTwoProp, cfgPowWilcoxon, setCfgPowWilcoxon,
     cfgPowLogrank, setCfgPowLogrank, cfgPowRmanova, setCfgPowRmanova,
     cfgPowOlsApa, setCfgPowOlsApa, cfgPowSpearman, setCfgPowSpearman,
+    outlierK, setOutlierK, outlierSeed, setOutlierSeed,
   };
 
   return {

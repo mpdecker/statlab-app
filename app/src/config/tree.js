@@ -334,4 +334,24 @@ export const TREE = [
       { id: "boot_jackplus",  label: "Jackknife+",             tag: "predictive inference" },
     ],
   },
+  { cat: "SURVIVAL ANALYSIS", color: '#4ade80',
+    tests: [
+      { id: "km",      label: "Kaplan-Meier",  tag: "survival curve · median survival" },
+      { id: "logrank", label: "Log-Rank Test", tag: "2-group survival comparison" },
+      { id: "coxph",   label: "Cox PH",        tag: "hazard ratios · covariates" },
+    ],
+  },
+  { cat: "TIME SERIES", color: '#38bdf8',
+    tests: [
+      { id: "adf",  label: "Augmented Dickey-Fuller", tag: "unit root · stationarity" },
+      { id: "acf",  label: "Autocorrelation (ACF)",   tag: "lag correlation" },
+      { id: "pacf", label: "Partial Autocorrelation (PACF)", tag: "lag correlation, controlled" },
+    ],
+  },
+  { cat: "OUTLIER DETECTION", color: '#f87171',
+    tests: [
+      { id: "lof",     label: "Local Outlier Factor", tag: "density-based · k-neighbors" },
+      { id: "iforest", label: "Isolation Forest",     tag: "tree-based anomaly score" },
+    ],
+  },
 ];

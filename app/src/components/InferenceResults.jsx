@@ -277,6 +277,51 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         {r.fmiPerParam && <Row><Chip label="avg FMI" value={r.avgFmi} color={C.warn} />{r.fmiPerParam.map(f => <Chip key={f.name} label={f.name} value={f.fmi} color={C.dim} />)}</Row>}
       </>}
 
+      {/* ── Survival analysis ── */}
+      {active === 'km' && r.survivalTable && <>
+        <Row><Chip label="median survival" value={r.medianSurvival ?? 'not reached'} color={C.accent} /><Chip label="events" value={r.nEvents} color={C.dim} /><Chip label="n" value={r.n} color={C.dim} /></Row>
+        <div style={{ maxHeight: 160, overflowY: 'auto', fontSize: 8, ...mono, color: C.dim, lineHeight: 1.8 }}>
+          {r.survivalTable.slice(0, 30).map((row, i) => (
+            <div key={i}>t={row.time} · at risk={row.nAtRisk} · events={row.nEvents} · S(t)={row.survival}</div>
+          ))}
+        </div>
+      </>}
+      {active === 'coxph' && r.coefficients && <>
+        <Row><Chip label="n" value={r.n} color={C.dim} /><Chip label="events" value={r.nEvents} color={C.dim} /><Chip label="log-lik" value={r.logLikelihood} color={C.dim} /></Row>
+        <Row>{r.coefficients.map(c => <Chip key={c.name} label={c.name} value={`HR=${c.hr}`} sub={`${fmtP(c.p)} [${c.hrCI[0]}, ${c.hrCI[1]}]`} color={c.p < 0.05 ? C.ok : C.dim} />)}</Row>
+      </>}
+
+      {/* ── Time series ── */}
+      {active === 'adf' && r.tauStat != null && <>
+        <Row><Chip label="ADF τ" value={r.tauStat} color={C.accent} /><Chip label="p (approx)" value={r.pValue} color={r.stationary ? C.ok : C.neg} /><Chip label="lags" value={r.maxLag} color={C.dim} /><Chip label="n" value={r.n} color={C.dim} /></Row>
+        <div style={{ fontSize: 9, ...mono, color: r.stationary ? C.ok : C.warn }}>{r.stationary ? '✓ stationary at 5%' : '⚠ cannot reject unit root at 5%'}</div>
+      </>}
+      {(active === 'acf' || active === 'pacf') && r.series && <>
+        <Row><Chip label="n" value={r.n} color={C.dim} /><Chip label="lags" value={r.series.length - 1} color={C.dim} /></Row>
+        <div style={{ height: 100, background: C.panel, borderRadius: 3, display: 'flex', alignItems: 'center', padding: '2px 4px', gap: 2, overflow: 'hidden' }}>
+          {r.series.map((s, i) => {
+            const v = s.autocorrelation ?? s.partialAutocorrelation;
+            const h = Math.min(48, Math.abs(v) * 48);
+            return (
+              <div key={i} style={{ flex: 1, height: 96, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'center' }} title={`lag ${s.lag}: ${v}`}>
+                <div style={{ position: 'absolute', top: '50%', height: 1, width: '100%', background: C.border }} />
+                <div style={{ position: 'absolute', width: '60%', left: '20%', background: C.accent, opacity: .8, borderRadius: 1, height: h, ...(v >= 0 ? { bottom: '50%' } : { top: '50%' }) }} />
+              </div>
+            );
+          })}
+        </div>
+      </>}
+
+      {/* ── Outlier detection ── */}
+      {(active === 'lof' || active === 'iforest') && r.outliers && <>
+        <Row><Chip label="outliers found" value={r.outliers.length} color={r.outliers.length ? C.warn : C.ok} /><Chip label="threshold" value={r.threshold} color={C.dim} /></Row>
+        {r.outliers.length > 0 && (
+          <div style={{ fontSize: 8, ...mono, color: C.dim, lineHeight: 1.7 }}>
+            {r.outliers.map(o => <div key={o.index}>row {o.index}: score = {o.lof ?? o.score}</div>)}
+          </div>
+        )}
+      </>}
+
       {/* ── Effect size converter ── */}
       {active === 'effectconv' && r.d != null && <>
         <SectionHead label={`Converted from ${r.from} = ${r.inputVal}`} />

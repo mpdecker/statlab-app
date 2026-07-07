@@ -60,6 +60,7 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     cfgPowTwoProp, setCfgPowTwoProp, cfgPowWilcoxon, setCfgPowWilcoxon,
     cfgPowLogrank, setCfgPowLogrank, cfgPowRmanova, setCfgPowRmanova,
     cfgPowOlsApa, setCfgPowOlsApa, cfgPowSpearman, setCfgPowSpearman,
+    outlierK, setOutlierK, outlierSeed, setOutlierSeed,
   } = state;
 
   // Field editor for the object-shaped power-calculator configs above:
@@ -618,6 +619,35 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set 
     pow_spearman: <>
       <Fld cfg={cfgPowSpearman} setCfg={setCfgPowSpearman} k="n" label="n" width={55} />
       <Fld cfg={cfgPowSpearman} setCfg={setCfgPowSpearman} k="rho" label="ρ" width={55} />
+    </>,
+    // ── survival analysis ────────────────────────────────────────────────────
+    km: <>
+      <Sel label="Time var" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+      <Sel label="Event (binary)" value={cat1} onChange={setCat1} options={categorical} width={130} />
+    </>,
+    logrank: <>
+      <Sel label="Group var" value={grpVar} onChange={v => { setGrpVar(v); setG1('—'); setG2('—'); }} options={categorical} width={130} />
+      {twoGrp}
+      <Sel label="Time var" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+      <Sel label="Event (binary)" value={cat1} onChange={setCat1} options={categorical} width={130} />
+    </>,
+    coxph: <>
+      <Sel label="Time var" value={tgtVar} onChange={setTgtVar} options={numeric} width={130} />
+      <Sel label="Event (binary)" value={cat1} onChange={setCat1} options={categorical} width={130} />
+      <CheckList label="Covariates" items={numeric.filter(c => c !== tgtVar)} selected={preds} onChange={setPreds} />
+    </>,
+    // ── time series ──────────────────────────────────────────────────────────
+    adf: singleVarCfg,
+    acf: singleVarCfg,
+    pacf: singleVarCfg,
+    // ── outlier detection ────────────────────────────────────────────────────
+    lof: <>
+      <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="k (neighbors)" value={outlierK} onChange={setOutlierK} width={65} />
+    </>,
+    iforest: <>
+      <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Seed" value={outlierSeed} onChange={setOutlierSeed} width={55} />
     </>,
     // ── robust statistics ────────────────────────────────────────────────────
     theil_sen: xyPick,
