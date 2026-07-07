@@ -1,11 +1,15 @@
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, LineChart,
-  Scatter, ScatterChart, BarChart, ReferenceLine, ErrorBar, CartesianGrid,
+  Scatter, ScatterChart, BarChart, ReferenceLine, ErrorBar, CartesianGrid, Tooltip,
 } from 'recharts';
 import { normalINV } from 'statlab/math/distributions';
 import { avg, sampleSD } from 'statlab/math/core';
 import { ViolinPlot, BoxPlot, HeatmapCorr, MosaicPlot } from './charts.jsx';
 import { fitOLS } from '../utils/vizHelpers.js';
+import { C, PAL } from '../palette.js';
+import { CTip } from './ui.jsx';
+
+const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
 function histBins(values, nBins = 20) {
   const min = Math.min(...values), max = Math.max(...values);
@@ -66,7 +70,7 @@ function euclidean(a, b, vars) {
 
 // ── Distribution charts ───────────────────────────────────────────────────────
 
-export function ExViolin({ data, xVar, groupVar, width = 400, height = 240, color = '#c4ff00' }) {
+export function ExViolin({ data, xVar, groupVar, width = 400, height = 240, color = C.accent }) {
   const groups = groupVar ? [...new Set(data.map(r => r[groupVar]))] : ['all'];
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
@@ -74,7 +78,7 @@ export function ExViolin({ data, xVar, groupVar, width = 400, height = 240, colo
         const vals = (groupVar ? data.filter(r => r[groupVar] === g) : data).map(r => r[xVar]).filter(v => typeof v === 'number');
         return (
           <div key={g} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 9, color: '#555', marginBottom: 2 }}>{g}</div>
+            <div style={{ fontSize: 9, color: C.dim, marginBottom: 2 }}>{g}</div>
             <ViolinPlot data={vals} width={Math.min(100, width / groups.length)} height={height} color={color} />
           </div>
         );
@@ -91,7 +95,7 @@ export function ExBox({ data, xVar, groupVar, width = 400, height = 120 }) {
         const vals = (groupVar ? data.filter(r => r[groupVar] === g) : data).map(r => r[xVar]).filter(v => typeof v === 'number');
         return (
           <div key={g} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 9, color: '#555', width: 60, textAlign: 'right' }}>{g}</span>
+            <span style={{ fontSize: 9, color: C.dim, width: 60, textAlign: 'right' }}>{g}</span>
             <BoxPlot data={vals} width={width - 80} height={40} />
           </div>
         );
@@ -106,9 +110,11 @@ export function ExHistogram({ data, xVar, groupVar, width = 400, height = 240 })
   return (
     <ResponsiveContainer width={width} height={height}>
       <ComposedChart data={bins} margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-        <XAxis dataKey="x" tick={{ fill: '#555', fontSize: 9 }} />
-        <YAxis tick={{ fill: '#555', fontSize: 9 }} />
-        <Bar dataKey="count" fill="#c4ff00" fillOpacity={0.3} stroke="#c4ff00" strokeWidth={0.5} />
+        <XAxis dataKey="x" tick={{ fill: C.dim, fontSize: 9 }} />
+        <YAxis tick={{ fill: C.dim, fontSize: 9 }} />
+        <CartesianGrid stroke={C.border} strokeOpacity={0.3} />
+        <Tooltip content={<CTip />} />
+        <Bar dataKey="count" fill={C.accent} fillOpacity={0.3} stroke={C.accent} strokeWidth={0.5} />
       </ComposedChart>
     </ResponsiveContainer>
   );
@@ -122,9 +128,9 @@ export function ExRainCloud({ data, xVar, groupVar, width = 400, height = 200 })
       <ViolinPlot data={vals} width={width} height={height * 0.6} />
       <ResponsiveContainer width={width} height={height * 0.35}>
         <ScatterChart margin={{ top: 0, right: 10, bottom: 10, left: 10 }}>
-          <XAxis dataKey="x" type="number" domain={['auto', 'auto']} tick={{ fill: '#555', fontSize: 9 }} />
+          <XAxis dataKey="x" type="number" domain={['auto', 'auto']} tick={{ fill: C.dim, fontSize: 9 }} />
           <YAxis dataKey="y" type="number" domain={[-1, 1]} hide />
-          <Scatter data={jittered} fill="#c4ff00" fillOpacity={0.5} r={2} />
+          <Scatter data={jittered} fill={C.accent} fillOpacity={0.5} r={2} />
         </ScatterChart>
       </ResponsiveContainer>
     </div>
@@ -137,9 +143,11 @@ export function ExECDF({ data, xVar, width = 400, height = 240 }) {
   return (
     <ResponsiveContainer width={width} height={height}>
       <LineChart data={ecdfData} margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-        <XAxis dataKey="x" tick={{ fill: '#555', fontSize: 9 }} />
-        <YAxis tick={{ fill: '#555', fontSize: 9 }} domain={[0, 1]} />
-        <Line dataKey="p" dot={false} stroke="#c4ff00" strokeWidth={2} />
+        <XAxis dataKey="x" tick={{ fill: C.dim, fontSize: 9 }} />
+        <YAxis tick={{ fill: C.dim, fontSize: 9 }} domain={[0, 1]} />
+        <CartesianGrid stroke={C.border} strokeOpacity={0.3} />
+        <Tooltip content={<CTip />} />
+        <Line dataKey="p" dot={false} stroke={C.accent} strokeWidth={2} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -155,10 +163,12 @@ export function ExScatterFit({ data, xVar, yVar, groupVar, width = 400, height =
   return (
     <ResponsiveContainer width={width} height={height}>
       <ComposedChart margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-        <XAxis dataKey="x" type="number" name={xVar} tick={{ fill: '#555', fontSize: 9 }} />
-        <YAxis dataKey="y" type="number" name={yVar} tick={{ fill: '#555', fontSize: 9 }} />
-        <Scatter data={points} fill="#c4ff00" fillOpacity={0.6} r={3} />
-        {fit && <Line data={fit.line} dataKey="y" stroke="#4daaff" strokeWidth={2} dot={false} name={`r=${fit.r.toFixed(3)}`} />}
+        <XAxis dataKey="x" type="number" name={xVar} tick={{ fill: C.dim, fontSize: 9 }} />
+        <YAxis dataKey="y" type="number" name={yVar} tick={{ fill: C.dim, fontSize: 9 }} />
+        <CartesianGrid stroke={C.border} strokeOpacity={0.3} />
+        <Tooltip content={<CTip />} />
+        <Scatter data={points} fill={C.accent} fillOpacity={0.6} r={3} />
+        {fit && <Line data={fit.line} dataKey="y" stroke={C.pos} strokeWidth={2} dot={false} name={`r=${fit.r.toFixed(3)}`} />}
       </ComposedChart>
     </ResponsiveContainer>
   );
@@ -180,9 +190,11 @@ export function ExBubble({ data, xVar, yVar, sizeVar, groupVar, width = 400, hei
   return (
     <ResponsiveContainer width={width} height={height}>
       <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-        <XAxis dataKey="x" type="number" tick={{ fill: '#555', fontSize: 9 }} />
-        <YAxis dataKey="y" type="number" tick={{ fill: '#555', fontSize: 9 }} />
-        <Scatter data={points.map(p => ({ ...p, r: 4 + (p.z / maxZ) * 20 }))} fill="#c4ff00" fillOpacity={0.5} />
+        <CartesianGrid stroke={C.border} strokeOpacity={0.3} />
+        <Tooltip content={<CTip />} />
+        <XAxis dataKey="x" type="number" tick={{ fill: C.dim, fontSize: 9 }} />
+        <YAxis dataKey="y" type="number" tick={{ fill: C.dim, fontSize: 9 }} />
+        <Scatter data={points.map(p => ({ ...p, r: 4 + (p.z / maxZ) * 20 }))} fill={C.accent} fillOpacity={0.5} />
       </ScatterChart>
     </ResponsiveContainer>
   );
@@ -195,10 +207,10 @@ export function ExScatterMatrix({ data, vars, width = 480, height = 480 }) {
   return (
     <svg width={width} height={height}>
       {vars.map((v, i) => (
-        <text key={`yl${i}`} x={18} y={40 + i * cellH + cellH / 2 + 4} textAnchor="middle" fontSize={8} fill="#555" transform={`rotate(-90, 18, ${40 + i * cellH + cellH / 2})`}>{v}</text>
+        <text key={`yl${i}`} x={18} y={40 + i * cellH + cellH / 2 + 4} textAnchor="middle" fontSize={8} fill={C.dim} transform={`rotate(-90, 18, ${40 + i * cellH + cellH / 2})`}>{v}</text>
       ))}
       {vars.map((v, j) => (
-        <text key={`xl${j}`} x={40 + j * cellW + cellW / 2} y={14} textAnchor="middle" fontSize={8} fill="#555">{v}</text>
+        <text key={`xl${j}`} x={40 + j * cellW + cellW / 2} y={14} textAnchor="middle" fontSize={8} fill={C.dim}>{v}</text>
       ))}
       {vars.map((yv, i) => vars.map((xv, j) => {
         const pts = data.map(r => ({ x: r[xv], y: r[yv] })).filter(p => typeof p.x === 'number' && typeof p.y === 'number');
@@ -209,10 +221,10 @@ export function ExScatterMatrix({ data, vars, width = 480, height = 480 }) {
         const py = y => 40 + i * cellH + (1 - (y - minY) / (maxY - minY || 1)) * (cellH - 4);
         return (
           <g key={`${i}-${j}`}>
-            <rect x={40 + j * cellW} y={40 + i * cellH} width={cellW - 2} height={cellH - 2} fill="#111" stroke="#1e1e1e" />
+            <rect x={40 + j * cellW} y={40 + i * cellH} width={cellW - 2} height={cellH - 2} fill={C.bg} stroke={C.border} />
             {i === j
-              ? <text x={40 + j * cellW + cellW / 2} y={40 + i * cellH + cellH / 2 + 4} textAnchor="middle" fontSize={9} fill="#c4ff00">{xv}</text>
-              : pts.slice(0, 200).map((p, k) => <circle key={k} cx={px(p.x)} cy={py(p.y)} r={1.5} fill="#c4ff00" fillOpacity={0.5} />)
+              ? <text x={40 + j * cellW + cellW / 2} y={40 + i * cellH + cellH / 2 + 4} textAnchor="middle" fontSize={9} fill={C.accent}>{xv}</text>
+              : pts.slice(0, 200).map((p, k) => <circle key={k} cx={px(p.x)} cy={py(p.y)} r={1.5} fill={C.accent} fillOpacity={0.5} />)
             }
           </g>
         );
@@ -228,10 +240,12 @@ export function ExBarCI({ data, xVar, yVar, width = 400, height = 280 }) {
   return (
     <ResponsiveContainer width={width} height={height}>
       <BarChart data={stats} margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-        <XAxis dataKey="name" tick={{ fill: '#555', fontSize: 9 }} />
-        <YAxis tick={{ fill: '#555', fontSize: 9 }} />
-        <Bar dataKey="mean" fill="#c4ff00" fillOpacity={0.5}>
-          <ErrorBar dataKey="ci95" width={4} strokeWidth={1.5} stroke="#c4ff00" />
+        <XAxis dataKey="name" tick={{ fill: C.dim, fontSize: 9 }} />
+        <YAxis tick={{ fill: C.dim, fontSize: 9 }} />
+        <CartesianGrid stroke={C.border} strokeOpacity={0.3} />
+        <Tooltip content={<CTip />} />
+        <Bar dataKey="mean" fill={C.accent} fillOpacity={0.5}>
+          <ErrorBar dataKey="ci95" width={4} strokeWidth={1.5} stroke={C.accent} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>
@@ -244,10 +258,12 @@ export function ExDotCI({ data, xVar, yVar, width = 400, height = 280 }) {
   return (
     <ResponsiveContainer width={width} height={height}>
       <LineChart data={stats} margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
-        <XAxis dataKey="name" tick={{ fill: '#555', fontSize: 9 }} />
-        <YAxis tick={{ fill: '#555', fontSize: 9 }} />
-        <ReferenceLine y={grand} stroke="#333" strokeDasharray="3 3" />
-        <Line dataKey="mean" stroke="#c4ff00" strokeWidth={0} dot={{ r: 6, fill: '#c4ff00' }} />
+        <XAxis dataKey="name" tick={{ fill: C.dim, fontSize: 9 }} />
+        <YAxis tick={{ fill: C.dim, fontSize: 9 }} />
+        <CartesianGrid stroke={C.border} strokeOpacity={0.3} />
+        <Tooltip content={<CTip />} />
+        <ReferenceLine y={grand} stroke={C.border} strokeDasharray="3 3" />
+        <Line dataKey="mean" stroke={C.accent} strokeWidth={0} dot={{ r: 6, fill: C.accent }} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -270,10 +286,10 @@ export function ExLollipop({ data, xVar, yVar, width = 400, height = 280 }) {
         const x2 = pad.l + ((mean - minMean) / range) * w;
         return (
           <g key={name}>
-            <text x={pad.l - 4} y={y + 4} textAnchor="end" fontSize={9} fill="#555">{name}</text>
-            <line x1={x1} y1={y} x2={x2} y2={y} stroke="#c4ff00" strokeWidth={1.5} />
-            <circle cx={x2} cy={y} r={5} fill="#c4ff00" fillOpacity={0.8} />
-            <text x={x2 + 8} y={y + 4} fontSize={8} fill="#888">{mean.toFixed(1)}</text>
+            <text x={pad.l - 4} y={y + 4} textAnchor="end" fontSize={9} fill={C.dim}>{name}</text>
+            <line x1={x1} y1={y} x2={x2} y2={y} stroke={C.accent} strokeWidth={1.5} />
+            <circle cx={x2} cy={y} r={5} fill={C.accent} fillOpacity={0.8} />
+            <text x={x2 + 8} y={y + 4} fontSize={8} fill={C.dim}>{mean.toFixed(1)}</text>
           </g>
         );
       })}
@@ -299,11 +315,11 @@ export function ExStripPlot({ data, xVar, yVar, width = 400, height = 280 }) {
         const cy = pad.t + i * groupH + groupH / 2;
         return (
           <g key={g}>
-            <text x={pad.l - 4} y={cy + 4} textAnchor="end" fontSize={9} fill="#555">{g}</text>
+            <text x={pad.l - 4} y={cy + 4} textAnchor="end" fontSize={9} fill={C.dim}>{g}</text>
             {vals.slice(0, 200).map((v, j) => (
-              <circle key={j} cx={scaleX(v)} cy={cy + (Math.random() - 0.5) * (groupH * 0.6)} r={2} fill="#c4ff00" fillOpacity={0.4} />
+              <circle key={j} cx={scaleX(v)} cy={cy + (Math.random() - 0.5) * (groupH * 0.6)} r={2} fill={C.accent} fillOpacity={0.4} />
             ))}
-            <line x1={scaleX(mean) - 6} y1={cy} x2={scaleX(mean) + 6} y2={cy} stroke="#ff4d6d" strokeWidth={2} />
+            <line x1={scaleX(mean) - 6} y1={cy} x2={scaleX(mean) + 6} y2={cy} stroke={C.neg} strokeWidth={2} />
           </g>
         );
       })}
@@ -324,12 +340,14 @@ export function ExInteractionPlot({ data, xVar, yVar, modVar, width = 400, heigh
     }
     return row;
   });
-  const colors = ['#c4ff00', '#4daaff', '#ff4d6d', '#ff9f40'];
+  const colors = [C.accent, C.pos, C.neg, C.orange];
   return (
     <ResponsiveContainer width={width} height={height}>
       <LineChart data={lineData} margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-        <XAxis dataKey="x" tick={{ fill: '#555', fontSize: 9 }} />
-        <YAxis tick={{ fill: '#555', fontSize: 9 }} />
+        <XAxis dataKey="x" tick={{ fill: C.dim, fontSize: 9 }} />
+        <YAxis tick={{ fill: C.dim, fontSize: 9 }} />
+        <CartesianGrid stroke={C.border} strokeOpacity={0.3} />
+        <Tooltip content={<CTip />} />
         {modVals.map((m, i) => (
           <Line key={m} dataKey={m} stroke={colors[i]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
         ))}
@@ -349,7 +367,7 @@ export function ExSimpleSlopes({ data, xVar, yVar, modVar, width = 400, height =
   ];
   const xNums = data.map(r => r[xVar]).filter(v => typeof v === 'number');
   const xMin = Math.min(...xNums), xMax = Math.max(...xNums);
-  const colors = ['#4daaff', '#c4ff00', '#ff4d6d'];
+  const colors = [C.pos, C.accent, C.neg];
   const lineData = [xMin, xMax].map(x => {
     const row = { x };
     for (const { label, filter } of levels) {
@@ -361,8 +379,10 @@ export function ExSimpleSlopes({ data, xVar, yVar, modVar, width = 400, height =
   return (
     <ResponsiveContainer width={width} height={height}>
       <LineChart data={lineData} margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-        <XAxis dataKey="x" type="number" tick={{ fill: '#555', fontSize: 9 }} />
-        <YAxis tick={{ fill: '#555', fontSize: 9 }} />
+        <XAxis dataKey="x" type="number" tick={{ fill: C.dim, fontSize: 9 }} />
+        <YAxis tick={{ fill: C.dim, fontSize: 9 }} />
+        <CartesianGrid stroke={C.border} strokeOpacity={0.3} />
+        <Tooltip content={<CTip />} />
         {levels.map(({ label }, i) => (
           <Line key={label} dataKey={label} stroke={colors[i]} strokeWidth={2} dot={false} connectNulls />
         ))}
@@ -381,7 +401,7 @@ export function ExSpotlight({ data, xVar, yVar, modVar, width = 400, height = 28
     if (v < q(0.8)) return 3;
     return 4;
   };
-  const colors = ['#4daaff', '#7dccff', '#c4ff00', '#ffcc00', '#ff4d6d'];
+  const colors = [C.pos, C.sky, C.accent, C.yellow, C.neg];
   const points = data.map(r => ({ x: r[xVar], y: r[yVar], q: typeof r[modVar] === 'number' ? quintile(r[modVar]) : 2 }))
     .filter(p => typeof p.x === 'number' && typeof p.y === 'number');
   const allX = points.map(p => p.x), allY = points.map(p => p.y);
@@ -408,7 +428,7 @@ export function ExMosaic({ data, xVar, yVar, width = 400, height = 280 }) {
 export function ExStackedBar100({ data, xVar, yVar, width = 400, height = 280 }) {
   const xVals = [...new Set(data.map(r => r[xVar]))];
   const yVals = [...new Set(data.map(r => r[yVar]))];
-  const colors = ['#c4ff00', '#4daaff', '#ff4d6d', '#ff9f40', '#9f7fff'];
+  const colors = [C.accent, C.pos, C.neg, C.orange, C.violet];
   const barData = xVals.map(x => {
     const rows = data.filter(r => r[xVar] === x);
     const total = rows.length;
@@ -421,8 +441,10 @@ export function ExStackedBar100({ data, xVar, yVar, width = 400, height = 280 })
   return (
     <ResponsiveContainer width={width} height={height}>
       <BarChart data={barData} margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-        <XAxis dataKey="name" tick={{ fill: '#555', fontSize: 9 }} />
-        <YAxis tick={{ fill: '#555', fontSize: 9 }} unit="%" />
+        <XAxis dataKey="name" tick={{ fill: C.dim, fontSize: 9 }} />
+        <YAxis tick={{ fill: C.dim, fontSize: 9 }} unit="%" />
+        <CartesianGrid stroke={C.border} strokeOpacity={0.3} />
+        <Tooltip content={<CTip />} />
         {yVals.map((y, i) => (
           <Bar key={y} dataKey={y} stackId="a" fill={colors[i % colors.length]} fillOpacity={0.8} />
         ))}
@@ -437,7 +459,7 @@ export function ExDivergingLikert({ data, itemVar, responseVar, neutralValue, wi
   const mid = neutralValue ?? responses[Math.floor(responses.length / 2)];
   const negResponses = responses.filter(r => r < mid);
   const posResponses = responses.filter(r => r > mid);
-  const colors = { neg: '#ff4d6d', neu: '#333', pos: '#4daaff' };
+  const colors = { neg: C.neg, neu: C.dim, pos: C.pos };
   const pad = { t: 10, b: 20, l: 120, r: 10 };
   const h = height - pad.t - pad.b;
   const w = width - pad.l - pad.r;
@@ -454,7 +476,7 @@ export function ExDivergingLikert({ data, itemVar, responseVar, neutralValue, wi
         const cx = pad.l + w / 2;
         return (
           <g key={item}>
-            <text x={pad.l - 4} y={cy + 4} textAnchor="end" fontSize={9} fill="#555">{item}</text>
+            <text x={pad.l - 4} y={cy + 4} textAnchor="end" fontSize={9} fill={C.dim}>{item}</text>
             <rect x={cx - negPct * w / 2 - neuPct * w / 4 - posPct * w / 2} y={cy - barH / 2}
               width={negPct * w / 2} height={barH} fill={colors.neg} fillOpacity={0.7} />
             <rect x={cx - neuPct * w / 4} y={cy - barH / 2}
@@ -464,7 +486,7 @@ export function ExDivergingLikert({ data, itemVar, responseVar, neutralValue, wi
           </g>
         );
       })}
-      <line x1={pad.l + w / 2} y1={pad.t} x2={pad.l + w / 2} y2={height - pad.b} stroke="#444" strokeWidth={1} strokeDasharray="3 3" />
+      <line x1={pad.l + w / 2} y1={pad.t} x2={pad.l + w / 2} y2={height - pad.b} stroke={C.border} strokeWidth={1} strokeDasharray="3 3" />
     </svg>
   );
 }
@@ -472,9 +494,9 @@ export function ExDivergingLikert({ data, itemVar, responseVar, neutralValue, wi
 // ── Multivariate charts ───────────────────────────────────────────────────────
 
 export function ExPCABiplot({ data, vars, groupVar, width = 400, height = 320 }) {
-  if (!vars?.length || !data?.length) return <span style={{ color: '#333', fontSize: 10 }}>Select ≥2 numeric variables</span>;
+  if (!vars?.length || !data?.length) return <span style={{ color: C.dim, fontSize: 10 }}>Select ≥2 numeric variables</span>;
   const numData = data.filter(r => vars.every(v => typeof r[v] === 'number'));
-  if (numData.length < 4) return <span style={{ color: '#333', fontSize: 10 }}>Insufficient numeric data</span>;
+  if (numData.length < 4) return <span style={{ color: C.dim, fontSize: 10 }}>Insufficient numeric data</span>;
   const cov = covMatrix(numData, vars);
   const pc1 = powerIterationPC1(cov);
   const cov2 = cov.map((row, i) => row.map((c, j) => c - pc1[i] * pc1[j] * cov.reduce((s, r, k) => s + r[k], 0)));
@@ -496,24 +518,24 @@ export function ExPCABiplot({ data, vars, groupVar, width = 400, height = 320 })
   return (
     <svg width={width} height={height}>
       {scores.slice(0, 300).map((s, i) => (
-        <circle key={i} cx={px(s.pc1)} cy={py(s.pc2)} r={2.5} fill="#c4ff00" fillOpacity={0.5} />
+        <circle key={i} cx={px(s.pc1)} cy={py(s.pc2)} r={2.5} fill={C.accent} fillOpacity={0.5} />
       ))}
       {vars.map((v, i) => (
         <g key={v}>
-          <line x1={cx} y1={cy} x2={cx + pc1[i] * scale} y2={cy - pc2[i] * scale} stroke="#ff4d6d" strokeWidth={1.5} />
-          <text x={cx + pc1[i] * scale * 1.15} y={cy - pc2[i] * scale * 1.15 + 4} fontSize={9} fill="#ff4d6d" textAnchor="middle">{v}</text>
+          <line x1={cx} y1={cy} x2={cx + pc1[i] * scale} y2={cy - pc2[i] * scale} stroke={C.neg} strokeWidth={1.5} />
+          <text x={cx + pc1[i] * scale * 1.15} y={cy - pc2[i] * scale * 1.15 + 4} fontSize={9} fill={C.neg} textAnchor="middle">{v}</text>
         </g>
       ))}
-      <line x1={pad.l} y1={cy} x2={width - pad.r} y2={cy} stroke="#222" strokeWidth={0.5} />
-      <line x1={cx} y1={pad.t} x2={cx} y2={height - pad.b} stroke="#222" strokeWidth={0.5} />
+      <line x1={pad.l} y1={cy} x2={width - pad.r} y2={cy} stroke={C.border} strokeWidth={0.5} />
+      <line x1={cx} y1={pad.t} x2={cx} y2={height - pad.b} stroke={C.border} strokeWidth={0.5} />
     </svg>
   );
 }
 
 export function ExLoadingHeatmap({ data, vars, width = 360, height = 280 }) {
-  if (!vars?.length || !data?.length) return <span style={{ color: '#333', fontSize: 10 }}>Select ≥2 numeric variables</span>;
+  if (!vars?.length || !data?.length) return <span style={{ color: C.dim, fontSize: 10 }}>Select ≥2 numeric variables</span>;
   const numData = data.filter(r => vars.every(v => typeof r[v] === 'number'));
-  if (numData.length < 4) return <span style={{ color: '#333', fontSize: 10 }}>Insufficient numeric data</span>;
+  if (numData.length < 4) return <span style={{ color: C.dim, fontSize: 10 }}>Insufficient numeric data</span>;
   const cov = covMatrix(numData, vars);
   const pc1 = powerIterationPC1(cov);
   const cov2 = cov.map((row, i) => row.map((c, j) => c - pc1[i] * pc1[j] * cov.reduce((s, r, k) => s + r[k], 0)));
@@ -523,9 +545,9 @@ export function ExLoadingHeatmap({ data, vars, width = 360, height = 280 }) {
 }
 
 export function ExDendrogram({ data, vars, width = 400, height = 320 }) {
-  if (!vars?.length || !data?.length) return <span style={{ color: '#333', fontSize: 10 }}>Select ≥2 numeric variables</span>;
+  if (!vars?.length || !data?.length) return <span style={{ color: C.dim, fontSize: 10 }}>Select ≥2 numeric variables</span>;
   const sample = data.filter(r => vars.every(v => typeof r[v] === 'number')).slice(0, 30);
-  if (sample.length < 3) return <span style={{ color: '#333', fontSize: 10 }}>Need ≥3 rows</span>;
+  if (sample.length < 3) return <span style={{ color: C.dim, fontSize: 10 }}>Need ≥3 rows</span>;
   let clusters = sample.map((r, i) => ({ id: i, members: [i], height: 0 }));
   const links = [];
   while (clusters.length > 1) {
@@ -556,7 +578,7 @@ export function ExDendrogram({ data, vars, width = 400, height = 320 }) {
   return (
     <svg width={width} height={height}>
       {sample.map((_, i) => (
-        <line key={i} x1={leafX[i]} y1={height - pad.b} x2={leafX[i]} y2={height - pad.b - 4} stroke="#333" strokeWidth={1} />
+        <line key={i} x1={leafX[i]} y1={height - pad.b} x2={leafX[i]} y2={height - pad.b - 4} stroke={C.dim} strokeWidth={1} />
       ))}
       {links.map(({ a, b, height: lh }, i) => {
         const ax = a.members.reduce((s, m) => s + (leafX[m] ?? clusterCx[m] ?? 0), 0) / a.members.length;
@@ -564,9 +586,9 @@ export function ExDendrogram({ data, vars, width = 400, height = 320 }) {
         const y = scaleY(lh);
         return (
           <g key={i}>
-            <line x1={ax} y1={y} x2={bx} y2={y} stroke="#c4ff00" strokeWidth={1.5} />
-            <line x1={ax} y1={y} x2={ax} y2={scaleY(a.height)} stroke="#c4ff00" strokeWidth={1} />
-            <line x1={bx} y1={y} x2={bx} y2={scaleY(b.height)} stroke="#c4ff00" strokeWidth={1} />
+            <line x1={ax} y1={y} x2={bx} y2={y} stroke={C.accent} strokeWidth={1.5} />
+            <line x1={ax} y1={y} x2={ax} y2={scaleY(a.height)} stroke={C.accent} strokeWidth={1} />
+            <line x1={bx} y1={y} x2={bx} y2={scaleY(b.height)} stroke={C.accent} strokeWidth={1} />
           </g>
         );
       })}
@@ -575,9 +597,9 @@ export function ExDendrogram({ data, vars, width = 400, height = 320 }) {
 }
 
 export function ExSilhouette({ data, vars, k = 3, width = 400, height = 280 }) {
-  if (!vars?.length || !data?.length) return <span style={{ color: '#333', fontSize: 10 }}>Select ≥2 numeric variables</span>;
+  if (!vars?.length || !data?.length) return <span style={{ color: C.dim, fontSize: 10 }}>Select ≥2 numeric variables</span>;
   const numData = data.filter(r => vars.every(v => typeof r[v] === 'number')).slice(0, 100);
-  if (numData.length < k + 1) return <span style={{ color: '#333', fontSize: 10 }}>Need ≥{k + 1} rows</span>;
+  if (numData.length < k + 1) return <span style={{ color: C.dim, fontSize: 10 }}>Need ≥{k + 1} rows</span>;
   let centroids = numData.slice(0, k).map(r => vars.reduce((o, v) => ({ ...o, [v]: r[v] }), {}));
   let assignments = new Array(numData.length).fill(0);
   for (let iter = 0; iter < 10; iter++) {
@@ -604,7 +626,7 @@ export function ExSilhouette({ data, vars, k = 3, width = 400, height = 280 }) {
     return { score: (b - a) / Math.max(a, b), cluster: ci };
   });
   const sorted = [...scores].sort((a, b) => a.cluster - b.cluster || b.score - a.score);
-  const colors = ['#c4ff00', '#4daaff', '#ff4d6d', '#ff9f40', '#9f7fff'];
+  const colors = [C.accent, C.pos, C.neg, C.orange, C.violet];
   const pad = { t: 10, b: 20, l: 10, r: 40 };
   const w = width - pad.l - pad.r, h = height - pad.t - pad.b;
   const barH = h / sorted.length;
@@ -620,8 +642,8 @@ export function ExSilhouette({ data, vars, k = 3, width = 400, height = 280 }) {
           fillOpacity={0.7}
         />
       ))}
-      <line x1={pad.l + w / 2} y1={pad.t} x2={pad.l + w / 2} y2={height - pad.b} stroke="#444" strokeWidth={1} />
-      <text x={pad.l + w / 2} y={height - 4} textAnchor="middle" fontSize={8} fill="#555">Silhouette score →</text>
+      <line x1={pad.l + w / 2} y1={pad.t} x2={pad.l + w / 2} y2={height - pad.b} stroke={C.border} strokeWidth={1} />
+      <text x={pad.l + w / 2} y={height - 4} textAnchor="middle" fontSize={8} fill={C.dim}>Silhouette score →</text>
     </svg>
   );
 }
@@ -629,19 +651,20 @@ export function ExSilhouette({ data, vars, k = 3, width = 400, height = 280 }) {
 // ── Trend line chart (time series / index) ────────────────────────────────────
 
 export function ExLineChart({ data, xVar, yVar, width = 400, height = 280 }) {
-  if (!data?.length) return <span style={{ color: '#333', fontSize: 10 }}>No data</span>;
+  if (!data?.length) return <span style={{ color: C.dim, fontSize: 10 }}>No data</span>;
   const pts = data.map((r, i) => ({
     x: xVar != null ? +r[xVar] : i + 1,
     y: yVar != null ? +r[yVar] : (xVar != null ? i + 1 : 0),
   })).filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
-  if (!pts.length) return <span style={{ color: '#333', fontSize: 10 }}>No valid data points</span>;
+  if (!pts.length) return <span style={{ color: C.dim, fontSize: 10 }}>No valid data points</span>;
   return (
     <ResponsiveContainer width={width} height={height}>
       <LineChart data={pts} margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
-        <CartesianGrid stroke="#1e1e1e" strokeOpacity={0.5} />
-        <XAxis dataKey="x" tick={{ fill: '#555', fontSize: 9 }} type="number" />
-        <YAxis dataKey="y" tick={{ fill: '#555', fontSize: 9 }} type="number" />
-        <Line type="monotone" dataKey="y" stroke="#c4ff00" strokeWidth={2} dot={false} />
+        <CartesianGrid stroke={C.border} strokeOpacity={0.5} />
+        <Tooltip content={<CTip />} />
+        <XAxis dataKey="x" tick={{ fill: C.dim, fontSize: 9 }} type="number" />
+        <YAxis dataKey="y" tick={{ fill: C.dim, fontSize: 9 }} type="number" />
+        <Line type="monotone" dataKey="y" stroke={C.accent} strokeWidth={2} dot={false} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -650,9 +673,9 @@ export function ExLineChart({ data, xVar, yVar, width = 400, height = 280 }) {
 // ── Q-Q plot (hand-rolled SVG) ────────────────────────────────────────────────
 
 export function ExQQPlot({ data, xVar, width = 400, height = 280 }) {
-  if (!data?.length) return <span style={{ color: '#333', fontSize: 10 }}>No data</span>;
+  if (!data?.length) return <span style={{ color: C.dim, fontSize: 10 }}>No data</span>;
   const vals = data.map(r => r[xVar]).filter(v => typeof v === 'number').sort((a, b) => a - b);
-  if (vals.length < 4) return <span style={{ color: '#333', fontSize: 10 }}>Need ≥4 values</span>;
+  if (vals.length < 4) return <span style={{ color: C.dim, fontSize: 10 }}>Need ≥4 values</span>;
   const n = vals.length, m = avg(vals), sd = sampleSD(vals);
   const pts = vals.map((v, i) => ({ th: normalINV((i + 0.5) / n), sa: v }));
   const thVals = pts.map(p => p.th);
@@ -666,14 +689,14 @@ export function ExQQPlot({ data, xVar, width = 400, height = 280 }) {
   const refX2 = thMax, refY2 = m + sd * thMax;
   return (
     <svg width={width} height={height}>
-      <line x1={sx(refX1)} y1={sy(refY1)} x2={sx(refX2)} y2={sy(refY2)} stroke="#ff4d6d" strokeWidth={1} strokeDasharray="4,2" />
+      <line x1={sx(refX1)} y1={sy(refY1)} x2={sx(refX2)} y2={sy(refY2)} stroke={C.neg} strokeWidth={1} strokeDasharray="4,2" />
       {pts.map((p, i) => (
-        <circle key={i} cx={sx(p.th)} cy={sy(p.sa)} r={2.5} fill="#c4ff00" fillOpacity={0.6} />
+        <circle key={i} cx={sx(p.th)} cy={sy(p.sa)} r={2.5} fill={C.accent} fillOpacity={0.6} />
       ))}
-      <line x1={pad.l} y1={pad.t + h} x2={width - pad.r} y2={pad.t + h} stroke="#222" strokeWidth={1} />
-      <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + h} stroke="#222" strokeWidth={1} />
-      <text x={pad.l + w / 2} y={height - 4} textAnchor="middle" fontSize={9} fill="#555">Theoretical N(0,1)</text>
-      <text x={pad.l - 8} y={pad.t + h / 2} textAnchor="middle" fontSize={9} fill="#555" transform={`rotate(-90,${pad.l - 8},${pad.t + h / 2})`}>Sample</text>
+      <line x1={pad.l} y1={pad.t + h} x2={width - pad.r} y2={pad.t + h} stroke={C.border} strokeWidth={1} />
+      <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + h} stroke={C.border} strokeWidth={1} />
+      <text x={pad.l + w / 2} y={height - 4} textAnchor="middle" fontSize={9} fill={C.dim}>Theoretical N(0,1)</text>
+      <text x={pad.l - 8} y={pad.t + h / 2} textAnchor="middle" fontSize={9} fill={C.dim} transform={`rotate(-90,${pad.l - 8},${pad.t + h / 2})`}>Sample</text>
     </svg>
   );
 }
@@ -681,11 +704,11 @@ export function ExQQPlot({ data, xVar, width = 400, height = 280 }) {
 // ── Parallel coordinates (SVG) ────────────────────────────────────────────────
 
 export function ExParallelCoords({ data, vars, groupVar, width = 500, height = 320 }) {
-  if (!vars?.length || !data?.length) return <span style={{ color: '#333', fontSize: 10 }}>Select ≥2 numeric variables</span>;
+  if (!vars?.length || !data?.length) return <span style={{ color: C.dim, fontSize: 10 }}>Select ≥2 numeric variables</span>;
   const numData = data.filter(r => vars.every(v => typeof r[v] === 'number'));
-  if (numData.length < 2) return <span style={{ color: '#333', fontSize: 10 }}>Insufficient numeric data</span>;
+  if (numData.length < 2) return <span style={{ color: C.dim, fontSize: 10 }}>Insufficient numeric data</span>;
   const groups = groupVar ? [...new Set(numData.map(r => r[groupVar]))] : [];
-  const colors = ['#c4ff00', '#4daaff', '#ff4d6d', '#ff9f40', '#9f7fff', '#4dffd2', '#ff69b4', '#ffe44d'];
+  const colors = [C.accent, C.pos, C.neg, C.orange, C.violet, C.ok, C.rose, C.yellow];
   const groupIdx = groupVar ? Object.fromEntries(groups.map((g, i) => [g, colors[i % colors.length]])) : {};
   const ranges = vars.map(v => ({
     v,
@@ -703,14 +726,14 @@ export function ExParallelCoords({ data, vars, groupVar, width = 500, height = 3
     <svg width={width} height={height}>
       {vars.map((v, i) => (
         <g key={v}>
-          <line x1={colX[i]} y1={pad.t} x2={colX[i]} y2={pad.t + h} stroke="#1e1e1e" strokeWidth={1} />
-          <text x={colX[i]} y={height - 8} textAnchor="middle" fontSize={9} fill="#555">{v}</text>
-          <text x={colX[i]} y={pad.t - 6} textAnchor="middle" fontSize={8} fill="#444">{ranges[i].max.toPrecision(3)}</text>
-          <text x={colX[i]} y={pad.t + h + 10} textAnchor="middle" fontSize={8} fill="#444">{ranges[i].min.toPrecision(3)}</text>
+          <line x1={colX[i]} y1={pad.t} x2={colX[i]} y2={pad.t + h} stroke={C.border} strokeWidth={1} />
+          <text x={colX[i]} y={height - 8} textAnchor="middle" fontSize={9} fill={C.dim}>{v}</text>
+          <text x={colX[i]} y={pad.t - 6} textAnchor="middle" fontSize={8} fill={C.border}>{ranges[i].max.toPrecision(3)}</text>
+          <text x={colX[i]} y={pad.t + h + 10} textAnchor="middle" fontSize={8} fill={C.border}>{ranges[i].min.toPrecision(3)}</text>
         </g>
       ))}
       {numData.map((r, ri) => {
-        const color = groupVar ? (groupIdx[r[groupVar]] || '#333') : '#c4ff00';
+        const color = groupVar ? (groupIdx[r[groupVar]] || C.dim) : C.accent;
         const d = vars.map((v, i) => `${i === 0 ? 'M' : 'L'}${colX[i].toFixed(1)},${scaleY(r[v], i).toFixed(1)}`).join(' ');
         return <path key={ri} d={d} stroke={color} strokeWidth={0.8} fill="none" opacity={0.4} />;
       })}
@@ -719,7 +742,7 @@ export function ExParallelCoords({ data, vars, groupVar, width = 500, height = 3
           {groups.slice(0, 8).map((g, i) => (
             <g key={g} transform={`translate(0,${i * 12})`}>
               <rect x={0} y={0} width={10} height={8} fill={groupIdx[g]} fillOpacity={0.8} />
-              <text x={14} y={8} fontSize={7} fill="#555">{String(g).slice(0, 12)}</text>
+              <text x={14} y={8} fontSize={7} fill={C.dim}>{String(g).slice(0, 12)}</text>
             </g>
           ))}
         </g>

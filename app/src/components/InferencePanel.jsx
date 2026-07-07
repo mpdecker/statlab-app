@@ -61,74 +61,429 @@ function dichotomizeMatrix(matrix) {
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
 // ── Left navigator ────────────────────────────────────────────────────────────
-export function Navigator({ active, setActive }) {
+export function Navigator({ active, setActive, width = '100%', borderRight = false }) {
   const [expandedNote, setExpandedNote] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const activeCat = useMemo(() => {
+    for (const cat of TREE) {
+      if (cat.tests.some(t => t.id === active)) {
+        return cat.cat;
+      }
+    }
+    return null;
+  }, [active]);
+
+  const [expandedCats, setExpandedCats] = useState(() => {
+    const initial = new Set();
+    if (activeCat) initial.add(activeCat);
+    return initial;
+  });
+
+  const [favorites, setFavorites] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('statlab_favorites_v1')) || []; }
+    catch { return []; }
+  });
+  const [recent, setRecent] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('statlab_recent_v1')) || []; }
+    catch { return []; }
+  });
+  const [favExpanded, setFavExpanded] = useState(true);
+  const [recExpanded, setRecExpanded] = useState(true);
+
+  useEffect(() => { try { localStorage.setItem('statlab_favorites_v1', JSON.stringify(favorites)); } catch {} }, [favorites]);
+  useEffect(() => {
+    if (active != null) {
+      setRecent(prev => {
+        const next = [active, ...prev.filter(id => id !== active)].slice(0, 10);
+        try { localStorage.setItem('statlab_recent_v1', JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+  }, [active]);
+
+  const testLookup = useMemo(() => {
+    const map = {};
+    for (const cat of TREE) {
+      for (const t of cat.tests) {
+        map[t.id] = { ...t, category: cat.cat, color: cat.color };
+      }
+    }
+    return map;
+  }, []);
+
+  const toggleFavorite = useCallback((e, testId) => {
+    e.stopPropagation();
+    setFavorites(prev => prev.includes(testId) ? prev.filter(id => id !== testId) : [...prev, testId]);
+  }, []);
+
+  useEffect(() => {
+    if (activeCat) {
+      setExpandedCats(prev => {
+        if (prev.has(activeCat)) return prev;
+        const next = new Set(prev);
+        next.add(activeCat);
+        return next;
+      });
+    }
+  }, [activeCat]);
+
+  const toggleCategory = useCallback((catName) => {
+    setExpandedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(catName)) {
+        next.delete(catName);
+      } else {
+        next.add(catName);
+      }
+      return next;
+    });
+  }, []);
+
+  const CAT_ICON = {
+    "COMPARE MEANS": 't',
+    "ANALYSIS OF VARIANCE": 'F',
+    "NONPARAMETRIC": '\u03C1',
+    "CORRELATION": 'r',
+    "REGRESSION": '\u03B2',
+    "CATEGORICAL": '\u03C7\u00B2',
+    "EQUIVALENCE & BAYES": 'B',
+    "MULTIVARIATE": '\u03A3',
+    "PSYCHOMETRICS": '\u03C8',
+    "MULTILEVEL MODELS": '\u2282',
+    "CLUSTERING": '\u2295',
+    "NETWORK": '\u2B21',
+    "META & CAUSAL": '\u2192',
+    "DIAGNOSTICS": '\u2611',
+    "ROBUST STATS": 'R',
+    "BAYESIAN MODELING": '\u03B2',
+    "MISSING DATA": '\u2205',
+    "POWER ANALYSIS": '\u26A1',
+    "AGENT-BASED": '\u25C9',
+    "BANDITS": 'Bd',
+    "RECORD LINKAGE": '\u2A3F',
+    "PRIVACY": 'Lk',
+    "PRO": 'Po',
+    "RISK-ADJUSTED": '\u2316',
+    "RECOMMENDATION": '\u2605',
+    "SCED": '\u21F5',
+    "SENSITIVITY": '\u0394',
+    "BOOTSTRAP": '\u21BB',
+  };
+
+  const expandAll = () => {
+    setExpandedCats(new Set(TREE.map(cat => cat.cat)));
+  };
+
+  const collapseAll = () => {
+    setExpandedCats(new Set());
+  };
+
+  const filteredTree = useMemo(() => {
+    if (!searchQuery.trim()) return TREE;
+    const query = searchQuery.toLowerCase();
+    return TREE.map(cat => {
+      const catMatches = cat.cat.toLowerCase().includes(query);
+      const matchedTests = cat.tests.filter(t => 
+        t.label.toLowerCase().includes(query) || 
+        t.tag.toLowerCase().includes(query) ||
+        t.id.toLowerCase().includes(query)
+      );
+      if (catMatches) {
+        return { ...cat, tests: cat.tests };
+      } else if (matchedTests.length > 0) {
+        return { ...cat, tests: matchedTests };
+      }
+      return null;
+    }).filter(Boolean);
+  }, [searchQuery]);
+
+  const isExpanded = (catName) => {
+    if (searchQuery.trim()) return true;
+    return expandedCats.has(catName);
+  };
+
   return (
-    <div style={{ width: 200, borderRight: `1px solid ${C.border}`, overflowY: 'auto', flexShrink: 0 }}>
-      {TREE.map(cat => (
-        <div key={cat.cat}>
-          <div style={{ fontSize: 8, ...mono, color: cat.color, textTransform: 'uppercase', letterSpacing: '.12em', padding: '5px 10px 2px', borderBottom: `1px solid ${C.border}`, fontWeight: 600 }}>
-            {cat.cat}
+    <div style={{ width, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: borderRight ? `1px solid ${C.border}` : 'none' }}>
+      {/* Search Header */}
+      <div style={{ padding: '8px 10px', borderBottom: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Search 84 tests..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              background: C.bg,
+              border: `1px solid ${C.border}`,
+              borderRadius: 4,
+              color: C.text,
+              fontFamily: "'IBM Plex Mono', monospace",
+              fontSize: 10,
+              padding: '4px 20px 4px 6px',
+              width: '100%',
+              outline: 'none',
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute',
+                right: 6,
+                background: 'transparent',
+                border: 'none',
+                color: C.dim,
+                cursor: 'pointer',
+                fontSize: 10,
+                padding: 0,
+              }}
+            >
+              &times;
+            </button>
+          )}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 8, color: C.dim, ...mono }}>
+            {searchQuery ? `${filteredTree.reduce((acc, cat) => acc + cat.tests.length, 0)} found` : '84 modules'}
+          </span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={expandAll} style={{ background: 'transparent', border: 'none', color: C.accent, fontSize: 8, ...mono, cursor: 'pointer', padding: 0 }}>EXPAND ALL</button>
+            <span style={{ fontSize: 8, color: C.border }}>|</span>
+            <button onClick={collapseAll} style={{ background: 'transparent', border: 'none', color: C.dim, fontSize: 8, ...mono, cursor: 'pointer', padding: 0 }}>COLLAPSE</button>
           </div>
-          {cat.tests.map(t => (
-            <div key={t.id}>
-              <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                <button
-                  onClick={() => setActive(t.id)}
-                  style={{
-                    flex: 1, display: 'block', textAlign: 'left',
-                    background: active === t.id ? 'rgba(255,255,255,.04)' : 'transparent',
-                    color: active === t.id ? cat.color : C.dim,
-                    border: 'none',
-                    borderLeft: active === t.id ? `2px solid ${cat.color}` : '2px solid transparent',
-                    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 12,
-                    padding: '4px 8px', cursor: 'pointer', lineHeight: 1.1, transition: 'all .1s',
-                  }}
-                >
-                  {t.label}
-                  <div style={{ fontSize: 8, ...mono, color: C.dim, fontWeight: 400 }}>{t.tag}</div>
-                </button>
-                {METHOD_NOTES[t.id] && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setExpandedNote(expandedNote === t.id ? null : t.id); }}
-                    title="Method info"
-                    style={{
-                      background: 'transparent', border: 'none', color: expandedNote === t.id ? C.accent : C.dim,
-                      cursor: 'pointer', fontSize: 11, padding: '4px 6px 4px 0', ...mono,
-                    }}
-                  >
-                    ?
-                  </button>
-                )}
+        </div>
+      </div>
+
+      {/* Scrollable list */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {/* Favorites section — hidden when search is active */}
+        {!searchQuery.trim() && favorites.length > 0 && (
+          <div style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div
+              onClick={() => setFavExpanded(prev => !prev)}
+              style={{
+                position: 'sticky', top: 0, zIndex: 1,
+                fontSize: 9, ...mono, fontWeight: 700, color: C.accent,
+                textTransform: 'uppercase', letterSpacing: '.12em',
+                padding: '6px 10px', display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', cursor: 'pointer', background: C.bg,
+                userSelect: 'none', borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <span>\u2605 FAVORITES ({favorites.length})</span>
+              <span style={{ fontSize: 8, color: C.dim }}>{favExpanded ? '\u25BC' : '\u25B6'}</span>
+            </div>
+            {favExpanded && (
+              <div style={{ background: 'rgba(0,0,0,0.1)' }}>
+                {favorites.map(favId => {
+                  const info = testLookup[favId];
+                  if (!info) return null;
+                  const isFav = favorites.includes(favId);
+                  return (
+                    <div key={favId} style={{ borderTop: `1px dashed ${C.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <button
+                          onClick={() => setActive(favId)}
+                          style={{
+                            flex: 1, display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left',
+                            background: active === favId ? 'rgba(255,255,255,.04)' : 'transparent',
+                            color: active === favId ? info.color : C.text,
+                            border: 'none',
+                            borderLeft: active === favId ? `3px solid ${info.color}` : '3px solid transparent',
+                            fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13,
+                            padding: '6px 8px', cursor: 'pointer', lineHeight: 1.15, transition: 'all .1s',
+                          }}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: info.color, flexShrink: 0 }} />
+                          {info.label}
+                        </button>
+                        <button
+                          onClick={(e) => toggleFavorite(e, favId)}
+                          title={isFav ? 'Remove favorite' : 'Add favorite'}
+                          style={{
+                            background: 'transparent', border: 'none', color: isFav ? C.accent : C.dim,
+                            cursor: 'pointer', fontSize: 11, padding: '6px 8px', ...mono,
+                          }}
+                        >
+                          {isFav ? '\u2605' : '\u2606'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              {expandedNote === t.id && METHOD_NOTES[t.id] && (
-                <div style={{
-                  margin: '0 8px 4px 10px', padding: '6px 8px', background: C.panel, borderRadius: 3,
-                  border: `1px solid ${C.border}`, fontSize: 9, color: C.text, lineHeight: 1.5,
-                }}>
-                  {typeof METHOD_NOTES[t.id] === 'string'
-                    ? METHOD_NOTES[t.id]
-                    : (
-                      <>
-                        <div style={{ color: cat.color, fontWeight: 600, marginBottom: 3 }}>{METHOD_NOTES[t.id].description}</div>
-                        {METHOD_NOTES[t.id].usage && <div style={{ color: C.dim, marginBottom: 4 }}><b style={{ color: C.text }}>Use:</b> {METHOD_NOTES[t.id].usage}</div>}
-                        {METHOD_NOTES[t.id].assumptions && (
-                          <div style={{ marginBottom: 4 }}>
-                            <b style={{ color: C.text }}>Assumptions:</b>
-                            <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
-                              {METHOD_NOTES[t.id].assumptions.map((a, i) => <li key={i} style={{ color: C.dim, marginBottom: 1 }}>{a}</li>)}
-                            </ul>
-                          </div>
+            )}
+          </div>
+        )}
+
+        {/* Recent section — hidden when search is active */}
+        {!searchQuery.trim() && recent.length > 0 && (
+          <div style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div
+              onClick={() => setRecExpanded(prev => !prev)}
+              style={{
+                position: 'sticky', top: favorites.length > 0 && favExpanded ? undefined : 0, zIndex: 1,
+                fontSize: 9, ...mono, fontWeight: 700, color: C.dim,
+                textTransform: 'uppercase', letterSpacing: '.12em',
+                padding: '6px 10px', display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', cursor: 'pointer', background: C.bg,
+                userSelect: 'none', borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <span>\u21BB RECENT ({recent.length})</span>
+              <span style={{ fontSize: 8, color: C.dim }}>{recExpanded ? '\u25BC' : '\u25B6'}</span>
+            </div>
+            {recExpanded && (
+              <div style={{ background: 'rgba(0,0,0,0.1)' }}>
+                {recent.map(recId => {
+                  const info = testLookup[recId];
+                  if (!info) return null;
+                  const isFav = favorites.includes(recId);
+                  return (
+                    <div key={recId} style={{ borderTop: `1px dashed ${C.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <button
+                          onClick={() => setActive(recId)}
+                          style={{
+                            flex: 1, display: 'flex', alignItems: 'center', gap: 6, textAlign: 'left',
+                            background: active === recId ? 'rgba(255,255,255,.04)' : 'transparent',
+                            color: active === recId ? info.color : C.text,
+                            border: 'none',
+                            borderLeft: active === recId ? `3px solid ${info.color}` : '3px solid transparent',
+                            fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13,
+                            padding: '6px 8px', cursor: 'pointer', lineHeight: 1.15, transition: 'all .1s',
+                          }}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: info.color, flexShrink: 0 }} />
+                          {info.label}
+                        </button>
+                        <button
+                          onClick={(e) => toggleFavorite(e, recId)}
+                          title={isFav ? 'Remove favorite' : 'Add favorite'}
+                          style={{
+                            background: 'transparent', border: 'none', color: isFav ? C.accent : C.dim,
+                            cursor: 'pointer', fontSize: 11, padding: '6px 8px', ...mono,
+                          }}
+                        >
+                          {isFav ? '\u2605' : '\u2606'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {filteredTree.map(cat => {
+          const expanded = isExpanded(cat.cat);
+          return (
+            <div key={cat.cat} style={{ borderBottom: `1px solid ${C.border}` }}>
+              {/* Category Header */}
+              <div
+                onClick={() => toggleCategory(cat.cat)}
+                style={{
+                  position: 'sticky', top: 0, zIndex: 1,
+                  fontSize: 9, ...mono,
+                  color: cat.color,
+                  textTransform: 'uppercase',
+                  letterSpacing: '.12em',
+                  padding: '6px 10px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  background: C.bg,
+                  userSelect: 'none',
+                }}
+              >
+                <span>{CAT_ICON[cat.cat] ? CAT_ICON[cat.cat] + ' ' : ''}{cat.cat} <span style={{ fontSize: 8, color: C.dim }}>({cat.tests.length})</span></span>
+                <span style={{ fontSize: 8, color: C.dim }}>
+                  {expanded ? '\u25BC' : '\u25B6'}
+                </span>
+              </div>
+
+              {/* Tests list */}
+              {expanded && (
+                <div style={{ background: 'rgba(0,0,0,0.1)' }}>
+                  {cat.tests.map(t => {
+                    const isFav = favorites.includes(t.id);
+                    return (
+                    <div key={t.id} style={{ borderTop: `1px dashed ${C.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <button
+                          onClick={() => setActive(t.id)}
+                          style={{
+                            flex: 1, display: 'block', textAlign: 'left',
+                            background: active === t.id ? 'rgba(255,255,255,.04)' : 'transparent',
+                            color: active === t.id ? cat.color : C.text,
+                            border: 'none',
+                            borderLeft: active === t.id ? `3px solid ${cat.color}` : '3px solid transparent',
+                            fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13,
+                            padding: '6px 8px', cursor: 'pointer', lineHeight: 1.15, transition: 'all .1s',
+                          }}
+                        >
+                          <span style={{ color: active === t.id ? cat.color : C.text }}>{t.label}</span>
+                          <div style={{ fontSize: 8, ...mono, color: C.dim, fontWeight: 400, marginTop: 2 }}>{t.tag}</div>
+                        </button>
+                        <button
+                          onClick={(e) => toggleFavorite(e, t.id)}
+                          title={isFav ? 'Remove favorite' : 'Add favorite'}
+                          style={{
+                            background: 'transparent', border: 'none', color: isFav ? C.accent : C.dim,
+                            cursor: 'pointer', fontSize: 11, padding: '6px 4px 6px 0', ...mono,
+                          }}
+                        >
+                          {isFav ? '\u2605' : '\u2606'}
+                        </button>
+                        {METHOD_NOTES[t.id] && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setExpandedNote(expandedNote === t.id ? null : t.id); }}
+                            title="Method info"
+                            style={{
+                              background: 'transparent', border: 'none', color: expandedNote === t.id ? C.accent : C.dim,
+                              cursor: 'pointer', fontSize: 11, padding: '6px 8px 6px 0', ...mono,
+                            }}
+                          >
+                            ?
+                          </button>
                         )}
-                        {METHOD_NOTES[t.id].cite && <div style={{ color: C.dim, fontSize: 8, fontStyle: 'italic' }}>{METHOD_NOTES[t.id].cite}</div>}
-                      </>
-                    )}
+                      </div>
+                      {expandedNote === t.id && METHOD_NOTES[t.id] && (
+                        <div style={{
+                          margin: '0 8px 6px 10px', padding: '6px 8px', background: C.panel, borderRadius: 3,
+                          border: `1px solid ${C.border}`, fontSize: 9, color: C.text, lineHeight: 1.5,
+                        }}>
+                          {typeof METHOD_NOTES[t.id] === 'string'
+                            ? METHOD_NOTES[t.id]
+                            : (
+                              <>
+                                <div style={{ color: cat.color, fontWeight: 600, marginBottom: 3 }}>{METHOD_NOTES[t.id].description}</div>
+                                {METHOD_NOTES[t.id].usage && <div style={{ color: C.dim, marginBottom: 4 }}><b style={{ color: C.text }}>Use:</b> {METHOD_NOTES[t.id].usage}</div>}
+                                {METHOD_NOTES[t.id].assumptions && (
+                                  <div style={{ marginBottom: 4 }}>
+                                    <b style={{ color: C.text }}>Assumptions:</b>
+                                    <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
+                                      {METHOD_NOTES[t.id].assumptions.map((a, i) => <li key={i} style={{ color: C.dim, marginBottom: 1 }}>{a}</li>)}
+                                    </ul>
+                                  </div>
+                                )}
+                                {METHOD_NOTES[t.id].cite && <div style={{ color: C.dim, fontSize: 8, fontStyle: 'italic' }}>{METHOD_NOTES[t.id].cite}</div>}
+                              </>
+                            )}
+                        </div>
+                      )}
+                    </div>
+                  );})}
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      ))}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -762,10 +1117,11 @@ export function InferencePanel({ data, ds, active, setActive, onResultChange, on
 
   return (
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      <Navigator active={active} setActive={setActive} />
+      <Navigator active={active} setActive={setActive} width={200} borderRight={true} />
       <InferenceConfig
         active={active} alpha={inf.alpha} setAlpha={inf.setAlpha}
         ds={ds} data={data} state={inf.state}
+        width={220} borderRight={true}
       />
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
         {active === 'med_bootstrap' && (

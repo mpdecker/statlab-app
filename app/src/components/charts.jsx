@@ -105,7 +105,7 @@ export function PowerCurve({ d, alpha = .05, currentN }) {
   }));
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   return (
-    <div style={{ height: 80 }}>
+    <div style={{ height: 110 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={pts} margin={{ top: 2, right: 8, bottom: 16, left: 8 }}>
           <CartesianGrid stroke={C.border} strokeOpacity={.4} />
@@ -270,7 +270,7 @@ function histBins(values, nBins = 20) {
   return bins;
 }
 
-export function ViolinPlot({ data, width = 200, height = 140, color = '#c4ff00' }) {
+export function ViolinPlot({ data, width = 200, height = 140, color = C.accent }) {
   if (!data?.length) return null;
   const sorted = [...data].sort((a, b) => a - b);
   const min = sorted[0], max = sorted[sorted.length - 1];
@@ -343,7 +343,7 @@ export function BoxPlotGrid({ data, groupVar, yVar, width = 210, height = 150 })
   );
 }
 
-export function BoxPlot({ data, width = 200, height = 80, color = '#c4ff00' }) {
+export function BoxPlot({ data, width = 200, height = 80, color = C.accent }) {
   if (!data?.length) return null;
   const sorted = [...data].sort((a, b) => a - b);
   const n = sorted.length;
@@ -369,14 +369,14 @@ export function BoxPlot({ data, width = 200, height = 80, color = '#c4ff00' }) {
   );
 }
 
-export function BarCI({ groups, width = 300, height = 200, color = '#c4ff00' }) {
+export function BarCI({ groups, width = 300, height = 200, color = C.accent }) {
   if (!groups?.length) return null;
   const data = groups.map(g => ({ name: g.name, mean: g.mean, err: (g.se ?? g.ci95 ?? 0) * (g.ci95 != null ? 1 : 1.96) }));
   return (
     <ResponsiveContainer width={width} height={height}>
       <BarChart data={data} margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-        <XAxis dataKey="name" tick={{ fill: '#555', fontSize: 10 }} />
-        <YAxis tick={{ fill: '#555', fontSize: 10 }} />
+        <XAxis dataKey="name" tick={{ fill: C.dim, fontSize: 10 }} />
+        <YAxis tick={{ fill: C.dim, fontSize: 10 }} />
         <Bar dataKey="mean" fill={color} fillOpacity={0.7}>
           <ErrorBar dataKey="err" width={4} strokeWidth={1.5} stroke={color} />
         </Bar>
@@ -385,7 +385,7 @@ export function BarCI({ groups, width = 300, height = 200, color = '#c4ff00' }) 
   );
 }
 
-export function HistogramDensity({ values, width = 300, height = 200, color = '#c4ff00' }) {
+export function HistogramDensity({ values, width = 300, height = 200, color = C.accent }) {
   if (!values?.length) return null;
   const bins = histBins(values);
   const density = kde(values);
@@ -398,8 +398,8 @@ export function HistogramDensity({ values, width = 300, height = 200, color = '#
   return (
     <ResponsiveContainer width={width} height={height}>
       <ComposedChart data={data} margin={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-        <XAxis dataKey="x" tick={{ fill: '#555', fontSize: 9 }} />
-        <YAxis tick={{ fill: '#555', fontSize: 9 }} />
+        <XAxis dataKey="x" tick={{ fill: C.dim, fontSize: 9 }} />
+        <YAxis tick={{ fill: C.dim, fontSize: 9 }} />
         <Bar dataKey="count" fill={color} fillOpacity={0.3} />
         <Line dataKey="density" dot={false} stroke={color} strokeWidth={2} />
       </ComposedChart>
@@ -430,11 +430,11 @@ export function HeatmapCorr({ matrix, labels, rowLabels, width = 240, height = 2
     <svg width={width} height={height}>
       {rowLabs.map((l, i) => (
         <text key={`yl${i}`} x={labelW - 4} y={pad + 16 + i * cellH + cellH / 2 + 4}
-          textAnchor="end" fontSize={9} fill="#555">{l}</text>
+          textAnchor="end" fontSize={9} fill={C.dim}>{l}</text>
       ))}
       {colLabs.map((l, j) => (
         <text key={`xl${j}`} x={labelW + j * cellW + cellW / 2} y={pad + 10}
-          textAnchor="middle" fontSize={9} fill="#555">{l}</text>
+          textAnchor="middle" fontSize={9} fill={C.dim}>{l}</text>
       ))}
       {matrix.map((row, i) => row.map((val, j) => (
         <g key={`${i}-${j}`} onClick={() => onCellClick?.({ row: rowLabs[i], col: colLabs[j], r: val })}
@@ -445,7 +445,7 @@ export function HeatmapCorr({ matrix, labels, rowLabels, width = 240, height = 2
             fill={corrColor(val)} rx={2}
           />
           <text x={labelW + j * cellW + cellW / 2} y={pad + 16 + i * cellH + cellH / 2 + 4}
-            textAnchor="middle" fontSize={9} fill="#ccc">
+            textAnchor="middle" fontSize={9} fill={C.text}>
             {Number(val).toFixed(2)}
           </text>
         </g>
@@ -465,7 +465,7 @@ export function MosaicPlot({ data, xVar, yVar, width = 300, height = 200 }) {
   }
   const xTotals = xVals.map(x => ({ x, total: data.filter(r => r[xVar] === x).length }));
   const grand = data.length;
-  const colors = ['#c4ff00', '#4daaff', '#ff4d6d', '#ff9f40', '#9f7fff'];
+  const colors = [C.accent, C.pos, C.neg, C.orange, C.violet];
   const pad = { t: 20, b: 30, l: 10, r: 10 };
   const w = width - pad.l - pad.r;
   const h = height - pad.t - pad.b;
@@ -492,7 +492,7 @@ export function MosaicPlot({ data, xVar, yVar, width = 300, height = 200 }) {
       {xTotals.reduce((acc, { x, total }, i) => {
         const prev = xTotals.slice(0, i).reduce((s, { total: t }) => s + t, 0);
         const cx = pad.l + (prev / grand) * w + ((total / grand) * w) / 2;
-        acc.push(<text key={x} x={cx} y={height - 6} textAnchor="middle" fontSize={9} fill="#555">{x}</text>);
+        acc.push(<text key={x} x={cx} y={height - 6} textAnchor="middle" fontSize={9} fill={C.dim}>{x}</text>);
         return acc;
       }, [])}
     </svg>
