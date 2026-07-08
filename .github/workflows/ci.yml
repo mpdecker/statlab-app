@@ -77,3 +77,27 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter statlab build
       - run: pnpm pack --pack-destination /tmp --filter statlab
+
+  deploy:
+    name: deploy to Cloudflare Pages
+    runs-on: ubuntu-latest
+    needs: test-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy app/dist --project-name=statlab --branch=main
