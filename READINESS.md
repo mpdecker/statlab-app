@@ -11,7 +11,7 @@
 
 ## Next blocker
 
-Pick a static host (Vercel/Netlify/Cloudflare Pages) and get a live URL. CI also needs merging to `main` (currently only on a feature branch).
+Pick a custom domain or keep the default **https://statlab-3z6.pages.dev** URL. CI deploys on push to `main`.
 
 ## Latest UI/UX pass (2026-07-06)
 

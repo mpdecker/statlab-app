@@ -10,6 +10,10 @@ dist/
 
 .vercel
 
+# Cloudflare local cache (Pages deploy also skips gitignored paths)
+.wrangler/
+.dev.vars
+
 scripts/_fixtures_dump.json
 # local
 .kilo/kilo.jsonc

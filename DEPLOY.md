@@ -37,9 +37,14 @@ Individual workspaces: `npm run test:lib` / `npm run test:app`,
 
 ## Host
 
-Static hosting of the app build. Point the host at the `app` workspace with
-build command `npm run build` and output directory `app/dist` (Vercel,
-Netlify, Cloudflare Pages, or any static host). No runtime config required.
+Static hosting of the app build at **https://statlab-3z6.pages.dev** via Cloudflare
+Pages direct upload (`npx wrangler@4 pages deploy app/dist`). CI builds with
+`pnpm build` on push to `main`, then deploys `app/dist`. No `wrangler.toml`, no
+Worker script, and do not connect this repo to **Workers Builds** in the
+Cloudflare dashboard.
+
+Other static hosts (Netlify, etc.) can use build command `pnpm build` and output
+directory `app/dist`. No runtime config required.
 
 The `packages/statlab` engine can be published separately to npm
 (`npm publish -w statlab`) once versioned.
@@ -52,5 +57,5 @@ The `packages/statlab` engine can be published separately to npm
 
 ## Rollback
 
-Redeploy the previous static build (Vercel/Netlify promotion rollback to the
-prior deployment).
+Redeploy the previous static build (Cloudflare Pages deployment history or host
+promotion rollback to the prior deployment).

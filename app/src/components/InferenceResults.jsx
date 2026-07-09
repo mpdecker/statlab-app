@@ -113,7 +113,7 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
       lines.push('');
     }
     lines.push('---');
-    lines.push('_Results produced by [StatLab](https://statlab.vercel.app). Confirm with reference software before publication._');
+    lines.push('_Results produced by [StatLab](https://statlab-3z6.pages.dev). Confirm with reference software before publication._');
     return lines.join('\n');
   }
 
@@ -130,7 +130,7 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
       lines.push(`Note: ${r.note}`);
       lines.push('');
     }
-    lines.push(`Results produced by StatLab (https://statlab.vercel.app). Confirm with reference software before publication.`);
+    lines.push(`Results produced by StatLab (https://statlab-3z6.pages.dev). Confirm with reference software before publication.`);
     return lines.join('\n');
   }
 
