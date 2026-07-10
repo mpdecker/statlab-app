@@ -811,7 +811,7 @@ export default function App() {
             storageKey="cfg"
           >
             <InferenceConfig
-              active={activeTest} alpha={inference.alpha} setAlpha={inference.setAlpha}
+              active={activeTest}
               ds={ds} data={data} state={inference.state}
             />
           </ResizablePanel>
