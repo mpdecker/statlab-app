@@ -1,5 +1,4 @@
-packages:
-  - 'packages/*'
-  - 'app'
 allowBuilds:
   esbuild: true
+minimumReleaseAgeExclude:
+  - statlab@0.1.0

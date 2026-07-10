@@ -22,61 +22,8 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r test
-      - run: pnpm -r build
-
-  lint:
-    name: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.x'
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter statlab lint
-
-  typecheck:
-    name: type-check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.x'
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter statlab typecheck
-
-  coverage:
-    name: coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.x'
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter statlab exec vitest run --coverage
-
-  pack-verify:
-    name: npm pack verify
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.x'
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter statlab build
-      - run: pnpm pack --pack-destination /tmp --filter statlab
+      - run: pnpm test
+      - run: pnpm build
 
   deploy:
     name: deploy to Cloudflare Pages
@@ -99,4 +46,4 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler@4 pages deploy app/dist --project-name=statlab --branch=main
+        run: npx wrangler@4 pages deploy dist --project-name=statlab --branch=main

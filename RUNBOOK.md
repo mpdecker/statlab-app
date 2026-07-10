@@ -1,71 +1,58 @@
 # StatLab Runbook
 
-> Production-grade statistical analysis engine. Zero external stats libraries.
-> 85 modules · 1,034 functions · 4,403 tests · 0 failures
+> A statistical workbench app powered by the `statlab` npm package.
 
 ---
 
 ## Quick Start
 
 ```bash
-npm install          # install deps (react, recharts, papaparse)
-npm run dev          # start Vite dev server → http://localhost:5173
-npm test             # run full test suite (4,403 tests)
-npm run docs:list    # browse all 84 modules and their functions
-npm run docs:show bayesian   # show all functions in a module
-npm run docs:search garch    # search functions by name/description
-npm run docs:fn moransI      # show detailed signature + params
+pnpm install         # install deps (react, recharts, papaparse, statlab)
+pnpm dev              # start Vite dev server → http://localhost:5173
+pnpm test             # run the app test suite
 ```
+
+To browse the `statlab` library's own function catalog (`docs:list`,
+`docs:show`, `docs:search`), clone [`github.com/mpdecker/statlab`](https://github.com/mpdecker/statlab)
+— those commands live there now.
 
 ---
 
 ## Project Structure
 
 ```
-statlab/
-├── index.html                  Entry point
+statlab-app/
+├── index.html                  Vite entry HTML
+├── index.jsx                   Root entry
 ├── README.md                   Full documentation
 ├── RUNBOOK.md                  This file
 ├── package.json                Scripts + deps
 ├── vite.config.js              Vite configuration
 │
-├── scripts/
-│   ├── statlab.mjs             CLI helper — browse function library
-│   └── document.mjs            Auto-documenter — injects section headers
-│
-├── src/
-│   ├── main.jsx                React entry
-│   ├── App.jsx                 Root component
-│   ├── palette.js              Colors, fonts, CSS tokens
-│   │
-│   ├── math/                   ** Pure math — no React, no DOM **
-│   │   ├── core.js             avg, corr, sampleVar, rank, fmtP, effect labels
-│   │   ├── distributions.js    All CDFs/PDFs, normalCDF, tPVal, chiPVal, fPVal, ...
-│   │   └── matrix.js           matMul, matInv, matTrans, jacobiEigen
-│   │
-│   ├── tests/                  ** 85 statistical modules — 1,034 functions **
-│   │   ├── __fixtures__/       Test helpers + reference oracles
-│   │   ├── means.js            Descriptive stats, t-tests, Cohen's d, sample size
-│   │   ├── anova.js            One/two-way, Welch, ANCOVA, RM, Friedman, Kruskal-Wallis
-│   │   ├── regression.js       OLS, logistic, Poisson, NB, mediation, moderation, ...
-│   │   ├── categorical.js      Chi², Fisher, CMH, McNemar, FDR corrections, ...
-│   │   ├── multivariate.js     PCA, EFA, MANOVA, CCA, LDA, meta, Cronbach, ICC, ...
-│   │   ├── ... (80+ more modules covering every major statistical domain)
-│   │
-│   ├── data/
-│   │   └── datasets.js         Built-in: Iris (150), Diamonds (200), Gapminder (33)
-│   │
-│   ├── config/
-│   │   ├── tree.js             UI Navigator — 84 interactive test entries
-│   │   └── methodNotes.js      Per-test methodology documentation (APA/assumptions/citations)
-│   │
-│   └── components/
-│       ├── ui.jsx              Reusable UI components
-│       ├── charts.jsx          TDistViz, QQPlot, ScreePlot, ForestPlot, ...
-│       ├── InferenceConfig.jsx  Per-test parameter panel
-│       ├── InferenceResults.jsx Result renderer
-│       └── InferencePanel.jsx   Main orchestrator
+└── src/
+    ├── App.jsx                 Root component: header, sidebar, InferencePanel
+    ├── palette.js               Color tokens, fonts, global CSS
+    │
+    ├── data/
+    │   └── datasets.js         Built-in: Iris (150), Diamonds (200), Gapminder (33)
+    │
+    ├── config/
+    │   ├── tree.js              Navigator — UI-accessible tests with labels + tags
+    │   ├── methodNotes.js       Per-test methodology documentation
+    │   ├── contracts.test.js    Integration test: TREE ids vs. statlab runners
+    │   └── fixtures/            Local test harness (runners over the statlab package)
+    │
+    └── components/
+        ├── ui.jsx               Chip, Sel, Inp, TA, CheckList, Toggle, APABlock, etc.
+        ├── charts.jsx            TDistViz, QQPlot, ResidualPlot, Scree, Forest, etc.
+        ├── InferenceConfig.jsx  Per-test parameter control panel
+        ├── InferenceResults.jsx Result renderer — chips, tables, plots, APA output
+        └── InferencePanel.jsx   Orchestrator: Navigator + Config + Results
 ```
+
+All statistical computation comes from the [`statlab`](https://www.npmjs.com/package/statlab)
+npm package — see [`github.com/mpdecker/statlab`](https://github.com/mpdecker/statlab) for its
+own project structure and module list.
 
 ---
 
@@ -73,98 +60,23 @@ statlab/
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start Vite dev server with HMR |
-| `npm run build` | Production build to `dist/` |
-| `npm run preview` | Preview production build |
-| `npm test` | Run full test suite (4,403 tests) |
-| `npm run test:watch` | Watch mode — reruns on file changes |
-| `npm run test:coverage` | Run with coverage report |
-| `npm run docs` | CLI helper (help menu) |
-| `npm run docs:list` | List all 84 modules with function counts |
-| `npm run docs:list -- -d` | List all modules with every function name + signature |
-| `npm run docs:show <module>` | Show all functions in a module |
-| `npm run docs:fn <name>` | Show detailed function signature + params |
-| `npm run docs:search <query>` | Search functions by name, domain, or return keys |
-| `npm run docs:generate` | Auto-inject section headers into all source files |
+| `pnpm dev` | Start Vite dev server with HMR |
+| `pnpm build` | Production build to `dist/` |
+| `pnpm preview` | Preview production build |
+| `pnpm test` | Run the app test suite |
+| `pnpm test:watch` | Watch mode — reruns on file changes |
+| `pnpm test:coverage` | Run with coverage report |
 
 ---
 
-## Adding a New Statistical Function
+## Exposing a statlab Function in the UI
 
-### Step 1: Implement the function
+New statistical functions are added to the
+[`statlab`](https://github.com/mpdecker/statlab) library, not this repo. Once
+a function exists there (and the `statlab` dependency here is bumped to a
+version that ships it), expose it in the UI:
 
-Add to the appropriate `src/tests/<module>.js` file:
-
-```javascript
-// src/tests/<module>.js
-
-// ── Function Name ─────────────────────────────────────────────
-export function functionName(data, options = {}) {
-  // Null guard
-  if (!data || data.length < 5) return null;
-
-  // Compute
-  const result = ...;
-
-  // Return standardized object
-  return {
-    test: 'Function Name',          // human-readable test name
-    result: +result.toFixed(4),      // numeric output (use toFixed for precision)
-    n: data.length,                  // always include sample size
-    apa: `APA sentence here`         // publication-ready APA 7 text
-  };
-}
-```
-
-**Rules:**
-- Import from `../math/core.js`, `../math/distributions.js`, `../math/matrix.js` only
-- Return `{ test, ..., apa }` — every function MUST have `test` and `apa` keys
-- Use `+value.toFixed(N)` for numeric precision
-- Null guard at the top: return `null` for invalid/missing data
-- Section header comment: `// ── Name ──` (50+ dashes to reach ~80 cols)
-- No external stats libraries
-
-### Step 2: Write tests
-
-Create or update `src/tests/<module>.test.js`:
-
-```javascript
-import { describe, it, expect } from 'vitest';
-import { expectKeys } from './__fixtures__/helpers.js';
-import { functionName } from './<module>.js';
-
-describe('functionName', () => {
-  // Contract test — always first
-  it('contract keys', () => expectKeys(functionName(data), [
-    'test', 'result', 'n', 'apa'
-  ]));
-
-  // Null guard
-  it('null for short data', () => expect(functionName(shortData)).toBeNull());
-
-  // Behavioral — numeric range
-  it('result between 0 and 1', () => {
-    const r = functionName(data);
-    if (r) {
-      expect(r.result).toBeGreaterThanOrEqual(0);
-      expect(r.result).toBeLessThanOrEqual(1);
-    }
-  });
-
-  // Behavioral — array dimensions
-  it('r.n matches input length', () => {
-    const r = functionName(data);
-    if (r) expect(r.n).toBe(data.length);
-  });
-});
-```
-
-**Test requirements per function (minimum):**
-1. Contract keys test (check all return object keys exist)
-2. Null guard test (check function returns null for invalid/short data)
-3. At least 1 behavioral test (range check, numeric validation, array dimension)
-
-### Step 3: Update tree.js (if UI-visible)
+### Step 1: Update tree.js (if UI-visible)
 
 Add to `src/config/tree.js` under the appropriate category:
 
@@ -177,7 +89,11 @@ Add to `src/config/tree.js` under the appropriate category:
 }
 ```
 
-### Step 4: Update methodNotes.js (if UI-visible)
+Add a runner for that id in `src/config/fixtures/runners.js` (used by the
+`contracts.test.js` integration test) and wire the real call in the `result`
+`useMemo` inside `InferencePanel.jsx`.
+
+### Step 2: Update methodNotes.js (if UI-visible)
 
 Add methodology documentation to `src/config/methodNotes.js`:
 
@@ -190,12 +106,10 @@ my_test_id: {
 },
 ```
 
-### Step 5: Verify
+### Step 3: Verify
 
 ```bash
-npm test                          # ensure all 4,403+ tests pass
-npm run docs:generate             # update section headers
-npm run docs:list                 # verify function count
+pnpm test                         # ensure all tests pass
 ```
 
 ---
@@ -274,21 +188,6 @@ it('check', () => {
 
 ---
 
-## MATH Modules
-
-Available imports from the math layer:
-
-**`../math/core.js`**
-`avg`, `corr`, `sampleVar`, `sampleSD`, `sampleCov`, `rank`, `fmtP`, `effectLabel`, `sum`, `min`, `max`, `median`, `quantile`, `iqr`
-
-**`../math/distributions.js`**
-`normalCDF`, `normalPDF`, `normalQuantile`, `tCDF`, `tPVal`, `chiCDF`, `chiPVal`, `fCDF`, `fPVal`, `ibeta`, `betaCDF`, `gamma`, `lngamma`
-
-**`../math/matrix.js`**
-`matMul`, `matInv`, `matTrans`, `matDet`, `jacobiEigen`, `solveLinear`, `cholesky`
-
----
-
 ## Troubleshooting
 
 | Issue | Fix |
@@ -312,7 +211,7 @@ git pull origin main
 # After changes
 git add -A
 git commit -m "descriptive message"
-npm test                         # verify 0 failures
+pnpm test                        # verify 0 failures
 git push origin main
 ```
 
