@@ -134,10 +134,28 @@ the workspace link:
 6. Update CI/deploy paths in this repo.
 7. Confirm with owner, then: merge, rename this GitHub repo to `statlab-app`.
 
+## Addendum (found during planning): fixture coupling
+
+`app/src/config/contracts.test.js` imports `runners.js` and `helpers.js` via relative path
+from `packages/statlab/src/methods/fixtures/` and `packages/statlab/src/methods/__fixtures__/`
+— internal test-harness files explicitly excluded from the npm `files` allowlist. `runners.js`
+itself imports fixture-data generators from sibling files `core.js`/`phase3.js` (also excluded,
+also used by 13+ of the library's own `*.test.js` files, so they must stay in the library repo
+too). Once the app depends on published `statlab` instead of a workspace link, this relative
+import breaks.
+
+**Resolution**: copy (not move) `runners.js`, `helpers.js`, `core.js`, `phase3.js` (~930 lines
+total, deterministic synthetic-data generators, no runtime deps) into the app repo under
+`src/config/fixtures/`. Rewrite `runners.js`'s ~30 import lines from relative engine paths
+(`../means.js`, `../anova.js`, …) to public package imports (`statlab/methods/means`,
+`statlab/methods/anova`, …) — the same pattern already used everywhere else in the app.
+Originals stay untouched in the `statlab` repo for its own internal test suite and
+`scripts/gen-reference.py` tooling. Full test coverage preserved; both repos fully decoupled.
+
 ## Out of scope
 
-- No changes to the app's UI/behavior, statistical methods, or test coverage — this is a pure
-  repository/build-topology change.
+- No changes to the app's UI/behavior or statistical methods — this is a repository/build-topology
+  change plus the fixture-decoupling addendum above.
 - No decision made yet about deprecating/archiving vs. deleting `packages/statlab` from this
   repo's git history beyond the normal commit that removes it (history stays intact via normal
   git log; no history rewriting of *this* repo).
