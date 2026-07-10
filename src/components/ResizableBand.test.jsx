@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
 import React from 'react';
-import { describe, test, expect, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { describe, test, expect, vi, afterEach } from 'vitest';
+import { render, fireEvent, cleanup } from '@testing-library/react';
 import { ResizableBand } from './ResizableBand.jsx';
+
+afterEach(cleanup);
 
 describe('ResizableBand', () => {
   test('renders children when expanded', () => {
