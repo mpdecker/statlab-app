@@ -1,4 +1,4 @@
-# StatLab — Inference Engine
+# StatLab App
 
 A modular statistical analysis application built in React, powered by the
 [`statlab`](https://www.npmjs.com/package/statlab) statistics engine.
@@ -301,6 +301,5 @@ See **[RUNBOOK.md](./RUNBOOK.md)** for comprehensive developer documentation inc
 - Step-by-step guide for adding new functions
 - Test patterns and code style rules
 - Math layer import reference
-- CLI helper usage (docs:list, docs:show, docs:search)
 - Troubleshooting common errors
 - Version history
