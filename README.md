@@ -1,90 +1,41 @@
 # StatLab — Inference Engine
 
-A modular, zero-dependency statistical analysis application built in React.
-No external stats libraries — all mathematics implemented from scratch.
+A modular statistical analysis application built in React, powered by the
+[`statlab`](https://www.npmjs.com/package/statlab) statistics engine.
 
 ---
 
 ## Architecture
 
 ```
-statlab/
+statlab-app/
+├── index.html                  Vite entry HTML
 ├── index.jsx                   Root entry
 └── src/
     ├── App.jsx                 Root component: header, sidebar, InferencePanel
-    ├── palette.js              Color tokens, fonts, global CSS
-    │
-    ├── math/
-    │   ├── core.js             Descriptive stats, effect size labels, ranking, fmtP
-    │   ├── distributions.js    Normal/t/F/χ² CDFs, PDFs, inversions; bootstrap; normality
-    │   └── matrix.js           matMul, matTrans, matInv, jacobiEigen (PCA backbone)
-    │
-    ├── tests/                  ** 85 statistical modules — 1,034 functions **
-    │   ├── __fixtures__/       Test helpers, reference oracles
-    │   ├── means.js            t-tests, Cohen's d, equivalence, sample size
-    │   ├── anova.js            One/two-way ANOVA, ANCOVA, RM, Welch, Friedman, Kruskal
-    │   ├── regression.js       OLS, logistic, Poisson, NB, quantile, zero-inflated,
-    │   │                       mediation, moderation, model confidence sets
-    │   ├── categorical.js      χ², Fisher, McNemar, CMH, Mann-Whitney, Wilcoxon,
-    │   │                       FDR corrections, Cramér's V, relative risk
-    │   ├── multivariate.js     PCA, EFA, MANOVA, CCA, LDA, meta-analysis, Cronbach,
-    │   │                       ICC, κ, Procrustes rotation, RV coefficient, CPA
-    │   ├── multilevel.js       Random intercept/slope, ICC, GLMM, GEE, REML, transition
-    │   ├── bayesian.js         JZS t-test, Bayes factors, MCMC, GPR, BMA
-    │   ├── causal.js           PSM, IV/2SLS, DiD, ITS, RDD, DML, synthetic control,
-    │   │                       mediation (moderated, multi, longitudinal)
-    │   ├── survival.js         Cox PH, KM, frailty, RMST, Fine-Gray, joint models
-    │   ├── timeseries.js       ARIMA, Holt-Winters, GARCH, VAR, Kalman, state-space
-    │   ├── clustering.js       k-means, hierarchical, DBSCAN, GMM, spectral, silhouette
-    │   ├── network.js          Centrality, community, PageRank, power law fit
-    │   ├── sem.js              Structural equation modeling
-    │   ├── psychometrics.js    McDonald's ω, IRT 1PL/2PL, parallel analysis, reliability
-    │   ├── power.js            t-test, ANOVA, χ², logistic, mixed, mediation power
-    │   ├── bootstrap.js        Percentile, BCa, studentized
-    │   ├── nonparametric.js    KS, Anderson-Darling, kernel regression, isotonic
-    │   ├── spatial.js          Moran's I, Geary's C, kriging, IDW, Ripley's K, spatial models
-    │   ├── experimental.js     Nested ANOVA, repeated GLM, equivalence, LHS, GP emulator
-    │   ├── econometric.js      Tobit, Heckman, panel (FE/RE), SUR, 3SLS, GMM, cointegration
-    │   ├── finance.js          Black-Scholes, Monte Carlo options, Greeks, VaR
-    │   ├── signal.js           FFT, Welch PSD, STFT, wavelet, cepstrum, Mel
-    │   ├── optimization.js     SA, GA, PSO, DE, grid search, BFGS, Nelder-Mead
-    │   ├── learning.js         Random forest, gradient boosting, LOESS, lowess
-    │   ├── text.js             TF-IDF, LDA, word2vec, BM25, sentiment, TextRank
-    │   ├── circular.js         Circular statistics, von Mises
-    │   ├── extreme.js          GPD, block maxima, peaks over threshold
-    │   ├── doseResponse.js     4PL, EC50, Hill slope
-    │   ├── fitting.js          Distribution fitting, MLE, KS estimation
-    │   ├── ecology.js          Shannon/Simpson diversity, ISA, SIMPER, adonis2, betadisper
-    │   ├── evolutionary.js     Genetic algorithms
-    │   ├── privacy.js          Differential privacy, k-anonymity, l-diversity
-    │   ├── bioinformatics.js   Enrichment analysis, volcano plots, FDR
-    │   ├── deepLearning.js     Autoencoder, VAE, GAN, attention, transformer
-    │   ├── nlp.js              Word2Vec, GloVe, NER, POS tagging, dependency parsing
-    │   ├── compositional.js    CLR/ILR/ALR transforms, compositional PCA
-    │   ├── conjoint.js         Part-worth utilities, attribute importance, choice sim
-    │   ├── dimReduction.js     t-SNE, ISOMAP, LLE, UMAP
-    │   ├── interpretability.js SHAP, LIME, partial dependence, ALE, permutation
-    │   ├── recommendation.js   Collaborative filtering, matrix factorization
-    │   ├── outlier.js          LOF, isolation forest
-    │   ├── spatialEconometric.js SDM, spatial panel, Hausman, direct/indirect effects
-    │   ├── reliability.js      Weibull analysis, ALT, repairable systems, competing risks
-    │   ├── bandit.js           ε-greedy, UCB, Thompson, Q-learning, SARSA, DQN
-    │   ├── and 30+ more...
+    ├── palette.js               Color tokens, fonts, global CSS
     │
     ├── data/
     │   └── datasets.js         Built-in: Iris (150), Diamonds (200), Gapminder (33)
     │
     ├── config/
-    │   ├── tree.js             Navigator — 84 UI-accessible tests with labels + tags
-    │   └── methodNotes.js      Per-test methodology documentation
+    │   ├── tree.js              Navigator — UI-accessible tests with labels + tags
+    │   ├── methodNotes.js       Per-test methodology documentation
+    │   ├── contracts.test.js    Integration test: TREE ids vs. statlab runners
+    │   └── fixtures/            Local test harness (runners over the statlab package)
     │
     └── components/
-        ├── ui.jsx              Chip, Sel, Inp, TA, CheckList, Toggle, APABlock, etc.
-        ├── charts.jsx          TDistViz, QQPlot, ResidualPlot, Scree, Forest, etc.
-        ├── InferenceConfig.jsx Per-test parameter control panel
+        ├── ui.jsx               Chip, Sel, Inp, TA, CheckList, Toggle, APABlock, etc.
+        ├── charts.jsx            TDistViz, QQPlot, ResidualPlot, Scree, Forest, etc.
+        ├── InferenceConfig.jsx  Per-test parameter control panel
         ├── InferenceResults.jsx Result renderer — chips, tables, plots, APA output
-        └── InferencePanel.jsx  Orchestrator: Navigator + Config + Results
+        └── InferencePanel.jsx   Orchestrator: Navigator + Config + Results
 ```
+
+All statistical computation comes from the [`statlab`](https://www.npmjs.com/package/statlab)
+npm package ([source](https://github.com/mpdecker/statlab)) — 84+ method modules, 1,000+
+functions, imported by namespaced subpath (e.g. `import { tWelch } from 'statlab/methods/means'`).
+This app has zero statistical code of its own; it's a UI over the published library.
 
 ---
 
@@ -267,27 +218,6 @@ statlab/
 
 ---
 
-## Backend statistics library (85 modules, 1034 functions)
-
-Beyond the 84 UI-accessible tests, StatLab includes an extensive
-computational statistics library used internally and available for
-direct import:
-
-**Core inference:** `means`, `anova`, `regression`, `categorical`, `multivariate`, `multilevel`
-**Advanced modeling:** `bayesian`, `survival`, `timeseries`, `causal`, `sem`, `econometric`
-**Machine learning:** `learning`, `clustering`, `neural`, `deepLearning`, `bandit`, `optimization`
-**Specialty domains:** `finance`, `signal`, `text`, `nlp`, `bioinformatics`, `reliability`
-**Spatial:** `spatial`, `spatialTemporal`, `spatialEconometric`, `pointProcess`
-**Quality & reliability:** `spc`, `reliability`, `raMonitor`
-**Dimensionality:** `dimReduction`, `mds`, `ordination`, `compositional`, `conjoint`
-**Model interpretation:** `interpretability`, `sensitivity`, `robust`
-**Utilities:** `bootstrap`, `missing`, `fitting`, `preprocessing`, `distance`, `metrics`
-
-All modules export `{ test, ..., apa }` formatted results and are covered by
-contract tests validating key structure and edge-case behavior.
-
----
-
 ## Automatic diagnostics
 
 Every test that compares groups automatically runs and displays:
@@ -319,24 +249,26 @@ d_RE = 0.523, 95% CI [0.341, 0.705], z = 5.62, p < .001, I² = 43.2%, τ = 0.187
 {
   "dependencies": {
     "react": "^18",
-    "recharts": "latest",
-    "papaparse": "latest"
+    "recharts": "^2.12.7",
+    "papaparse": "^5.5.3",
+    "statlab": "^0.1.0"
   }
 }
 ```
 
 All statistical mathematics (distributions, matrix algebra, eigen-decomposition,
-bootstrap, normality tests, power functions) is implemented from scratch with no
-external stats dependencies. The only runtime deps are React for rendering,
-Recharts for charts, and PapaParse for CSV parsing.
+bootstrap, normality tests, power functions) lives in the
+[`statlab`](https://www.npmjs.com/package/statlab) npm package, which itself has
+zero runtime dependencies. This app's own deps are React for rendering, Recharts
+for charts, and PapaParse for CSV parsing.
 
 ---
 
 ## Testing
 
 ```bash
-npm test              # 3,209 unit & contract tests, 0 failures
-npm run test:coverage # math/tests/utils coverage (≥90% lines)
+pnpm test              # app unit & integration tests, 0 failures
+pnpm test:coverage     # coverage report
 ```
 
 Heavy resampling (`bootstrap`, `med_bootstrap`, power Monte Carlo) uses a Web
@@ -345,12 +277,19 @@ the config panel for reproducible bootstrap CIs.
 
 ## Adding a new test
 
-1. Implement the test function in the appropriate `src/tests/*.js` file.
-   Return `{ test: "Name", ..., apa: "APA sentence" }`.
-2. Add an entry to `src/config/tree.js` under the appropriate category.
+New statistical functions are added to the
+[`statlab`](https://github.com/mpdecker/statlab) library, not this repo. To
+expose an existing `statlab` function in this app's UI:
+
+1. Add an entry to `src/config/tree.js` under the appropriate category,
+   referencing the function's TREE id.
+2. Add a runner for that id in `src/config/fixtures/runners.js` (used by the
+   `contracts.test.js` integration test) and wire the real call in the
+   `result` `useMemo` inside `InferencePanel.jsx`.
 3. Add config controls to the `configMap` object in `InferenceConfig.jsx`.
 4. Add result rendering to `InferenceResults.jsx` (chips, tables, plots).
-5. Wire the test call in the `result` `useMemo` inside `InferencePanel.jsx`.
+5. Bump the `statlab` dependency in `package.json` if the function shipped
+   in a newer library version.
 
 ---
 
