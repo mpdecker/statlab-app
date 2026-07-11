@@ -40,6 +40,28 @@ Pages direct upload (`npx wrangler@4 pages deploy dist`). CI builds with
 Worker script, and do not connect this repo to **Workers Builds** in the
 Cloudflare dashboard.
 
+### CI deploy secrets (required, not yet set as of 2026-07-11)
+
+The `deploy` job in `.github/workflows/ci.yml` needs two **GitHub repository
+secrets** (Settings → Secrets and variables → Actions) — these are CI/CD
+credentials for `wrangler`, not app runtime config (the app itself still has
+zero environment variables, per Prerequisites above):
+
+- `CLOUDFLARE_API_TOKEN` — a token with "Cloudflare Pages: Edit" permission
+  for the account that owns the `statlab` Pages project
+  (developers.cloudflare.com/fundamentals/api/get-started/create-token/)
+- `CLOUDFLARE_ACCOUNT_ID` — found on the Cloudflare dashboard's Workers &
+  Pages overview page
+
+Without both secrets, `wrangler pages deploy` fails immediately with
+`CLOUDFLARE_API_TOKEN environment variable` errors — every push-to-main CI
+run has failed this way since the deploy job was added. Add both secrets,
+then re-run the failed workflow (or push again) to deploy. **The current
+live site predates this CI job and was uploaded from an un-built source
+directory** (it serves raw `/src/main.jsx` instead of a compiled bundle,
+so it renders blank) — the first successful CI deploy after adding these
+secrets will replace it with a correct build automatically.
+
 Other static hosts (Netlify, etc.) can use build command `pnpm build` and output
 directory `dist`. No runtime config required.
 
