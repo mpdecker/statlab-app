@@ -5,7 +5,7 @@ import { methodNoteForTest } from '../config/methodNotes.js';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
-export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set, width = '100%', borderRight = false }) {
+export function InferenceConfig({ active, ds, data, state, set, width = '100%', borderRight = false }) {
   const {
     grpVar, setGrpVar, tgtVar, setTgtVar, g1, setG1, g2, setG2,
     xVar, setXVar, yVar, setYVar, zVar, setZVar, mVar, setMVar,
@@ -740,7 +740,6 @@ export function InferenceConfig({ active, alpha, setAlpha, ds, data, state, set,
 
   return (
     <div style={{ width, borderRight: borderRight ? `1px solid ${C.border}` : 'none', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flexShrink: 0 }}>
-      <Inp label="α (significance)" value={alpha} onChange={setAlpha} width={65} />
       {configMap[active] || <div style={{ color: C.dim, ...mono, fontSize: 10 }}>Select a test</div>}
       {methodNoteForTest(active, null) && (
         <div style={{ marginTop: 8, padding: '6px 8px', background: 'rgba(96,165,250,.08)', border: `1px solid ${C.border}`, borderRadius: 3, fontSize: 8, color: C.dim, ...mono, lineHeight: 1.4 }}>

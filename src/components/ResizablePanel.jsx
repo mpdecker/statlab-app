@@ -30,6 +30,7 @@ export function ResizablePanel({
   storageKey,
   collapsedRender,
   children,
+  ...rest
 }) {
   const [internalWidth, setInternalWidth] = useState(() =>
     width != null ? width : loadWidth(storageKey, defaultWidth)
@@ -117,6 +118,7 @@ export function ResizablePanel({
         borderRight: side === 'right' ? `1px solid ${C.border}` : 'none',
         borderLeft: side === 'left' ? `1px solid ${C.border}` : 'none',
       }}
+      {...rest}
     >
       {collapsed && collapsedRender ? (
         <div

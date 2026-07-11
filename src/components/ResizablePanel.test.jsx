@@ -13,4 +13,13 @@ describe('ResizablePanel', () => {
     );
     expect(getByText('Child content')).toBeTruthy();
   });
+
+  test('forwards extra DOM attributes to the root element', () => {
+    const { container } = render(
+      <ResizablePanel defaultWidth={200} data-tutorial-target="navigator">
+        <div>Child content</div>
+      </ResizablePanel>
+    );
+    expect(container.querySelector('[data-tutorial-target="navigator"]')).toBeTruthy();
+  });
 });

@@ -1340,7 +1340,7 @@ export function InferencePanel({ data, ds, active, setActive, onResultChange, on
     <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
       <Navigator active={active} setActive={setActive} width={200} borderRight={true} />
       <InferenceConfig
-        active={active} alpha={inf.alpha} setAlpha={inf.setAlpha}
+        active={active}
         ds={ds} data={data} state={inf.state}
         width={220} borderRight={true}
       />

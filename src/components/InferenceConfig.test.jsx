@@ -245,7 +245,7 @@ const mockState = {
 describe('InferenceConfig', () => {
   test('renders without crashing', () => {
     const { container } = render(
-      <InferenceConfig active="t_welch" alpha={0.05} setAlpha={noop} ds={mockDs} data={[]} state={mockState} set={noop} />
+      <InferenceConfig active="t_welch" ds={mockDs} data={[]} state={mockState} set={noop} />
     );
     expect(container.firstChild).toBeTruthy();
   });

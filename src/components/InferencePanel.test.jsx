@@ -30,7 +30,6 @@ describe('InferencePanel', () => {
       />,
     );
     expect(screen.getAllByText(/Welch t-test/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/α \(significance\)/i)).toBeTruthy();
   });
 
   it('bootstrap mediation run produces indirect effect chips', async () => {
