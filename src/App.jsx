@@ -15,6 +15,10 @@ import { useInference, Navigator } from './components/InferencePanel.jsx';
 import { InferenceConfig } from './components/InferenceConfig.jsx';
 import { InferenceResults } from './components/InferenceResults.jsx';
 import { ResizablePanel } from './components/ResizablePanel.jsx';
+import { ResizableBand } from './components/ResizableBand.jsx';
+import { DatasetPicker } from './components/DatasetPicker.jsx';
+import { Tutorial, hasTutorialSeen } from './components/Tutorial.jsx';
+import { Sel, Inp } from './components/ui.jsx';
 import ExplorePanel from './components/ExplorePanel.jsx';
 import {
   QuickScatter, QuickScatterFit, ViolinPlot, BarCI, HistogramDensity, HeatmapCorr, MosaicPlot,
@@ -24,6 +28,7 @@ import {
 } from './components/charts.jsx';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+const vLabel = { writingMode: 'vertical-rl', fontSize: 9, color: C.dim, ...mono, letterSpacing: '.1em', textTransform: 'uppercase' };
 
 const CHART_ICONS = [
   { id: 'violin', label: 'VLN', title: 'Violin' },
@@ -189,23 +194,14 @@ function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, grou
 // ── Panel layout hook ────────────────────────────────────────────────────────
 const defaultPanelLayout = {
   navigator: { width: 240, visible: true },
-  config: { width: 280, visible: true },
-  quickView: { width: 260, visible: true, position: 'right' },
+  advanced: { width: 280, visible: false },
+  calc: { height: 260, visible: true },
 };
 
 function getBreakpointLayout() {
   const w = window.innerWidth;
   const layout = JSON.parse(JSON.stringify(defaultPanelLayout));
-  if (w < 768) {
-    layout.navigator.visible = false;
-    layout.config.visible = false;
-    layout.quickView.visible = false;
-  } else if (w < 1024) {
-    layout.navigator.visible = false;
-    layout.quickView.visible = false;
-  } else if (w < 1400) {
-    layout.quickView.visible = false;
-  }
+  if (w < 1024) layout.navigator.visible = false;
   return layout;
 }
 
@@ -228,25 +224,16 @@ function usePanelLayout() {
   const setPanelWidth = useCallback((key) => (w) => setLayout(prev => ({
     ...prev, [key]: { ...prev[key], width: w }
   })), []);
-  const toggleQvPosition = useCallback(() => setLayout(prev => ({
-    ...prev, quickView: { ...prev.quickView, position: prev.quickView.position === 'left' ? 'right' : 'left' }
+  const setCalcHeight = useCallback((h) => setLayout(prev => ({
+    ...prev, calc: { ...prev.calc, height: h }
   })), []);
   const resetPanels = useCallback(() => setLayout(getBreakpointLayout()), []);
 
-  return { layout, toggleVisible, setPanelWidth, toggleQvPosition, resetPanels };
+  return { layout, toggleVisible, setPanelWidth, setCalcHeight, resetPanels };
 }
 
 // ── Header ────────────────────────────────────────────────────────────────────
-function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uploadMsg, datasetStatus, xVar, setXVar, yVar, setYVar, colorVar, setColorVar, ds, data, panelLayout, togglePanel, toggleQvPosition, resetPanels }) {
-  const numeric     = ds?.numeric     || [];
-  const categorical = ds?.categorical || [];
-  const btnStyle = (active) => ({
-    background: active ? 'rgba(196,255,0,.12)' : 'transparent',
-    border: `1px solid ${active ? C.accent : C.border}`,
-    color: active ? C.accent : C.dim,
-    ...mono, fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer', lineHeight: 1,
-    transition: 'all .1s',
-  });
+function Header({ dsKey, customDef, switchDs, fileRef, handleCSV, uploadMsg, datasetStatus, ds, data, onOpenTutorial }) {
   return (
     <div style={{ padding: '7px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
       {/* Wordmark */}
@@ -257,38 +244,18 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
         <div style={{ fontSize: 8, color: C.dim, ...mono }}>{`v7 \u00B7 ${TOTAL_TEST_COUNT} tests \u00B7 social science edition`}</div>
       </div>
 
-      {/* Dataset pills */}
-      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-        {Object.entries(BUILTIN).map(([key, d]) => (
-          <button
-            key={key}
-            onClick={() => switchDs(key)}
-            style={{
-              background: dsKey === key ? C.accent : 'transparent',
-              color:      dsKey === key ? '#000'    : C.dim,
-              border:     `1px solid ${dsKey === key ? C.accent : C.border}`,
-              fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 11,
-              padding: '2px 8px', borderRadius: 3, cursor: 'pointer', transition: 'all .1s',
-            }}
-          >
-            {d.label.toUpperCase()}
-          </button>
-        ))}
-        {customDef && (
-          <button
-            onClick={() => switchDs('custom')}
-            style={{
-              background: dsKey === 'custom' ? C.accent : 'transparent',
-              color:      dsKey === 'custom' ? '#000'    : C.dim,
-              border:     `1px solid ${dsKey === 'custom' ? C.accent : C.border}`,
-              fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 11,
-              padding: '2px 8px', borderRadius: 3, cursor: 'pointer',
-            }}
-          >
-            {customDef.label.toUpperCase()}
-          </button>
-        )}
-      </div>
+      <DatasetPicker
+        datasets={Object.entries(BUILTIN)}
+        activeKey={dsKey}
+        activeLabel={ds?.label ?? ''}
+        activeCount={data.length}
+        customEntry={customDef ? { label: customDef.label, desc: customDef.desc } : null}
+        onSelect={switchDs}
+      />
+
+      {datasetStatus === 'loading' && (
+        <span style={{ fontSize: 9, color: C.warn, ...mono }}>{'loading dataset\u2026'}</span>
+      )}
 
       {/* CSV upload */}
       <button
@@ -300,39 +267,18 @@ function Header({ dsKey, setDsKey, customDef, switchDs, fileRef, handleCSV, uplo
       <input ref={fileRef} type="file" accept=".csv" onChange={handleCSV} style={{ display: 'none' }} />
       {uploadMsg && <span style={{ fontSize: 9, color: C.accent, ...mono }}>{uploadMsg}</span>}
 
-      {/* Panel toggle toolbar */}
-      {panelLayout && (
-        <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-          <button onClick={() => togglePanel('navigator')} title="Toggle Navigator panel" aria-label="Toggle Navigator panel" style={btnStyle(panelLayout.navigator.visible)}>NAV</button>
-          <button onClick={() => togglePanel('config')} title="Toggle Config panel" aria-label="Toggle Config panel" style={btnStyle(panelLayout.config.visible)}>CFG</button>
-          <button onClick={() => togglePanel('quickView')} title="Toggle Quick View panel" aria-label="Toggle Quick View panel" style={btnStyle(panelLayout.quickView.visible)}>QV</button>
-          <button onClick={toggleQvPosition} title="Move Quick View to opposite side" aria-label="Move Quick View to opposite side" style={btnStyle(false)}>FLP</button>
-          <button onClick={resetPanels} title="Reset all panel widths" aria-label="Reset all panel widths" style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.dim, ...mono, fontSize: 10, padding: '2px 6px', borderRadius: 3, cursor: 'pointer' }}>RST</button>
-        </div>
-      )}
-
-      {/* Quick-view axis selectors */}
-      <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-        {[
-          { label: 'X', value: xVar, onChange: setXVar, options: [...numeric, ...categorical] },
-          { label: 'Y', value: yVar, onChange: setYVar, options: numeric },
-          { label: 'Color', value: colorVar, onChange: setColorVar, options: ['(none)', ...categorical] },
-        ].map(({ label, value, onChange, options }) => (
-          <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <label style={{ fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em' }}>{label}</label>
-            <select
-              value={value}
-              onChange={e => onChange(e.target.value)}
-              style={{ background: C.bg, border: `1px solid ${C.border}`, color: C.text, ...mono, fontSize: 10, padding: '2px 5px', borderRadius: 3, outline: 'none', cursor: 'pointer' }}
-            >
-              {options.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-        ))}
-        <span style={{ fontSize: 9, color: datasetStatus === 'loading' ? C.warn : C.dim, ...mono }}>
-          {datasetStatus === 'loading' ? 'loading dataset\u2026' : `n=${data.length} \u00B7 ${ds?.desc}`}
-        </span>
-      </div>
+      <button
+        onClick={onOpenTutorial}
+        title="Replay tutorial"
+        aria-label="Replay tutorial"
+        style={{
+          marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.border}`, color: C.dim,
+          ...mono, fontSize: 11, width: 22, height: 22, borderRadius: '50%', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+        }}
+      >
+        ?
+      </button>
     </div>
   );
 }
@@ -445,6 +391,163 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
   );
 }
 
+// ── Viz region (AUTO quick-view / EXPLORE free-form) ─────────────────────────
+function VizRegion({ vizMode, setVizMode, data, xVar, yVar, colorVar, ds, activeTest, chartMode, setChartMode, inferenceResult, inferenceContext, exploreSeed, onBridgeToInference }) {
+  const chipStyle = (active) => ({
+    background: active ? 'rgba(196,255,0,.12)' : 'transparent',
+    border: `1px solid ${active ? C.accent : C.border}`,
+    color: active ? C.accent : C.dim,
+    ...mono, fontSize: 9, padding: '3px 10px', borderRadius: 3, cursor: 'pointer', letterSpacing: '.08em',
+  });
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      <div style={{ display: 'flex', gap: 4, padding: '5px 8px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+        <button type="button" onClick={() => setVizMode('auto')} style={chipStyle(vizMode === 'auto')}>AUTO</button>
+        <button type="button" onClick={() => setVizMode('explore')} style={chipStyle(vizMode === 'explore')}>EXPLORE</button>
+      </div>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        {vizMode === 'explore'
+          ? <ExplorePanel data={data} ds={ds} seed={exploreSeed} inferenceContext={inferenceContext} onBridgeToInference={onBridgeToInference} />
+          : (
+            <QuickView
+              data={data} xVar={xVar} yVar={yVar} colorVar={colorVar} ds={ds}
+              activeTest={activeTest} chartMode={chartMode} setChartMode={setChartMode}
+              inferenceResult={inferenceResult} inferenceContext={inferenceContext}
+            />
+          )}
+      </div>
+    </div>
+  );
+}
+
+// ── Calculation & Interface band (Config + Results) ──────────────────────────
+function CalcBand({ inference, activeTest, ds, data }) {
+  return (
+    <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
+      <div style={{ width: 260, flexShrink: 0, borderRight: `1px solid ${C.border}`, overflowY: 'auto' }}>
+        <InferenceConfig active={activeTest} ds={ds} data={data} state={inference.state} />
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', minWidth: 0 }}>
+        {/* Bootstrap mediation path + CI */}
+        {activeTest === 'med_bootstrap' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {inference.medBs && Number.isFinite(inference.medBs.lo) && Number.isFinite(inference.medBs.hi) && <>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'indirect a×b', value: inference.medBs.ab.toFixed(5), color: inference.medBs.sig ? C.ok : C.warn },
+                  { label: `${Math.round((1 - inference.aval) * 100)}% CI lo`, value: inference.medBs.lo.toFixed(5), color: C.pos },
+                  { label: `${Math.round((1 - inference.aval) * 100)}% CI hi`, value: inference.medBs.hi.toFixed(5), color: C.pos },
+                  { label: 'CI excl. 0', value: inference.medBs.sig ? 'YES' : 'NO', color: inference.medBs.sig ? C.ok : C.neg },
+                  { label: 'B', value: inference.medBs.B, color: C.dim },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 3, padding: '3px 8px' }}>
+                    <div style={{ fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase' }}>{label}</div>
+                    <div style={{ fontSize: 11, color, ...mono, fontWeight: 600 }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ height: 70 }}>
+                <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 2 }}>{'Bootstrap a×b distribution '}(B={inference.medBs.B})</div>
+                <div style={{ height: 60, background: C.panel, borderRadius: 3, display: 'flex', alignItems: 'flex-end', padding: '2px 4px', gap: 1, overflow: 'hidden' }}>
+                  {(() => {
+                    const dist = inference.medBs.dist, lo_ = Math.min(...dist), hi_ = Math.max(...dist), w = (hi_ - lo_) / 24 || 1, cs = Array(24).fill(0);
+                    dist.forEach(x => { cs[Math.min(Math.floor((x - lo_) / w), 23)]++; });
+                    const maxC = Math.max(...cs, 1);
+                    return cs.map((c, i) => (
+                      <div key={i} style={{ flex: 1, height: barHeightPct(c, maxC), background: C.warn, opacity: .7, borderRadius: '1px 1px 0 0' }} />
+                    ));
+                  })()}
+                </div>
+              </div>
+            </>}
+            {!inference.medBs && <div style={{ color: C.dim, ...mono, fontSize: 10 }}>Click RUN BOOTSTRAP in the config panel.</div>}
+          </div>
+        )}
+
+        {/* Bootstrap CI */}
+        {activeTest === 'bootstrap' && inference.bsResult?.dist?.length && Number.isFinite(inference.bsResult.lo) && Number.isFinite(inference.bsResult.hi) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {[
+                { label: inference.bsStat, value: (inference.bsStat === 'mean' ? avg : inference.bsStat === 'median' ? v => { const s = [...v].sort((a, b) => a - b), n = s.length; return n % 2 ? s[Math.floor(n / 2)] : (s[n / 2 - 1] + s[n / 2]) / 2; } : sampleSD)(inference.allTgt).toFixed(4), color: C.accent },
+                { label: `${Math.round((1 - inference.aval) * 100)}% CI lo`, value: inference.bsResult.lo.toFixed(4), color: C.pos },
+                { label: `${Math.round((1 - inference.aval) * 100)}% CI hi`, value: inference.bsResult.hi.toFixed(4), color: C.pos },
+                { label: 'B', value: '1999', color: C.dim },
+                { label: 'n', value: inference.allTgt.length, color: C.dim },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 3, padding: '3px 8px' }}>
+                  <div style={{ fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase' }}>{label}</div>
+                  <div style={{ fontSize: 11, color, ...mono, fontWeight: 600 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 2 }}>Bootstrap distribution (B=1999)</div>
+            <div style={{ height: 60, background: C.panel, borderRadius: 3, display: 'flex', alignItems: 'flex-end', padding: '2px 4px', gap: 1, overflow: 'hidden' }}>
+              {(() => {
+                const dist = inference.bsResult.dist, lo_ = Math.min(...dist), hi_ = Math.max(...dist), w = (hi_ - lo_) / 28 || 1, cs = Array(28).fill(0);
+                dist.forEach(x => { cs[Math.min(Math.floor((x - lo_) / w), 27)]++; });
+                const maxC = Math.max(...cs, 1);
+                return cs.map((c, i) => (
+                  <div key={i} style={{ flex: 1, height: barHeightPct(c, maxC), background: C.accent, opacity: .7, borderRadius: '1px 1px 0 0' }} />
+                ));
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Power running indicator */}
+        {POWER_TESTS_SET.has(activeTest) && inference.powerRunning && (
+          <div style={{ color: C.dim, ...mono, fontSize: 10, padding: 8 }}>{'Computing power…'}</div>
+        )}
+
+        {/* InferenceResults */}
+        {!['bootstrap', 'med_bootstrap'].includes(activeTest) && !(POWER_TESTS_SET.has(activeTest) && inference.powerRunning && !inference.powerResult) && (
+          <InferenceResults
+            r={inference.result}
+            active={activeTest}
+            alpha={inference.alpha}
+            g1={inference.g1} g2={inference.g2}
+            g1vals={inference.g1vals} g2vals={inference.g2vals}
+            normG1={inference.normG1} normG2={inference.normG2}
+            levene={inference.levene}
+            scaleVars={inference.scaleVars}
+            ds={ds}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Advanced panel (variable mapping, global settings, layout reset) ─────────
+function AdvancedPanel({ ds, xVar, setXVar, yVar, setYVar, colorVar, setColorVar, alpha, setAlpha, onResetLayout }) {
+  const numeric     = ds?.numeric     || [];
+  const categorical = ds?.categorical || [];
+  return (
+    <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', height: '100%' }}>
+      <div>
+        <div style={{ fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 6 }}>Variable mapping</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Sel label="X" value={xVar} onChange={setXVar} options={[...numeric, ...categorical]} width="100%" />
+          <Sel label="Y" value={yVar} onChange={setYVar} options={numeric} width="100%" />
+          <Sel label="Color" value={colorVar} onChange={setColorVar} options={['(none)', ...categorical]} width="100%" />
+        </div>
+      </div>
+      <div>
+        <div style={{ fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 6 }}>Global settings</div>
+        <Inp label="α (significance)" value={alpha} onChange={setAlpha} width={70} />
+      </div>
+      <button
+        type="button"
+        onClick={onResetLayout}
+        style={{ marginTop: 'auto', background: 'transparent', border: `1px solid ${C.border}`, color: C.dim, ...mono, fontSize: 9, padding: '5px 8px', borderRadius: 3, cursor: 'pointer' }}
+      >
+        Reset panel layout
+      </button>
+    </div>
+  );
+}
+
 // ── Landing page ──────────────────────────────────────────────────────────────
 // Headline categories get their own row; everything else (diagnostics, power
 // calculators, and the long tail of specialty categories) is bucketed into
@@ -552,7 +655,7 @@ function getInitialState() {
     yVar:       saved?.yVar       || 'petalLength',
     colorVar:   saved?.colorVar   || 'species',
     activeTest: saved?.activeTest || 't_welch',
-    activeTab:  saved?.activeTab  || 'inference',
+    vizMode:    saved?.vizMode    || 'auto',
     hasLaunched: !!saved,
   };
 }
@@ -572,7 +675,9 @@ export default function App() {
   const [dataVersion, setDataVersion] = useState(0);
   const [activeTest, setActiveTest] = useState(init.activeTest);
   const [chartMode, setChartMode] = useState(null);
-  const [activeTab, setActiveTab] = useState(init.activeTab);
+  const [vizMode, setVizMode] = useState(init.vizMode);
+  const [tutorialOpen, setTutorialOpen] = useState(() => !hasTutorialSeen());
+  const forcedAdvancedRef = useRef(false);
   const [exploreSeed, setExploreSeed] = useState(null);
   const [inferenceResult, setInferenceResult] = useState(null);
   const [inferenceContext, setInferenceContext] = useState(null);
@@ -591,13 +696,13 @@ export default function App() {
 
   // ── localStorage persistence ──
   useEffect(() => {
-    saveSession({ dsKey, xVar, yVar, colorVar, activeTest, activeTab });
-  }, [dsKey, xVar, yVar, colorVar, activeTest, activeTab]);
+    saveSession({ dsKey, xVar, yVar, colorVar, activeTest, vizMode });
+  }, [dsKey, xVar, yVar, colorVar, activeTest, vizMode]);
 
   const handleLaunch = useCallback(() => {
     setHasLaunched(true);
-    saveSession({ dsKey, xVar, yVar, colorVar, activeTest, activeTab });
-  }, [dsKey, xVar, yVar, colorVar, activeTest, activeTab]);
+    saveSession({ dsKey, xVar, yVar, colorVar, activeTest, vizMode });
+  }, [dsKey, xVar, yVar, colorVar, activeTest, vizMode]);
 
   useEffect(() => { setChartMode(null); }, [activeTest]);
 
@@ -638,17 +743,17 @@ export default function App() {
       .catch(() => setDatasetStatus('error'));
   }, [dsKey]);
 
-  const handleTabSwitch = useCallback(tab => {
-    if (tab === 'explore' && activeTab === 'inference') {
-      const mode = CHART_FOR_TEST[activeTest] ?? 'scatter';
+  const handleVizModeSwitch = useCallback(mode => {
+    if (mode === 'explore' && vizMode === 'auto') {
+      const chartMode_ = CHART_FOR_TEST[activeTest] ?? 'scatter';
       const resolved = resolveQuickViewVars(activeTest, { xVar, yVar, groupVar: colorVar }, inferenceContext);
       const inc = inferenceContext?.scaleVars?.length
         ? inferenceContext.scaleVars
         : [resolved.xVar, resolved.yVar, ...(ds?.numeric || []).slice(0, 4)];
       setExploreSeed({
-        chartType: mode,
-        chartLabel: explorePanelChartFromMode(mode),
-        chartLabelDisplay: exploreChartLabel(mode),
+        chartType: chartMode_,
+        chartLabel: explorePanelChartFromMode(chartMode_),
+        chartLabelDisplay: exploreChartLabel(chartMode_),
         xVar: resolved.xVar,
         yVar: resolved.yVar,
         groupVar: resolved.groupVar,
@@ -659,15 +764,27 @@ export default function App() {
         activeTest,
       });
     }
-    setActiveTab(tab);
-  }, [activeTab, activeTest, xVar, yVar, colorVar, ds, inferenceContext, inferenceResult]);
+    setVizMode(mode);
+  }, [vizMode, activeTest, xVar, yVar, colorVar, ds, inferenceContext, inferenceResult]);
 
   const handleBridgeToInference = useCallback(({ row, col }) => {
     setXVar(row);
     setYVar(col);
     setActiveTest('pearson');
-    setActiveTab('inference');
+    setVizMode('auto');
   }, []);
+
+  const handleTutorialStepChange = useCallback((stepId) => {
+    if (stepId === 'advanced') {
+      if (!panels.layout.advanced.visible) {
+        forcedAdvancedRef.current = true;
+        panels.toggleVisible('advanced');
+      }
+    } else if (forcedAdvancedRef.current) {
+      forcedAdvancedRef.current = false;
+      panels.toggleVisible('advanced');
+    }
+  }, [panels]);
 
   const handleCSV = useCallback(e => {
     const file = e.target.files[0];
@@ -705,36 +822,6 @@ export default function App() {
     return <LandingPage onLaunch={handleLaunch} />;
   }
 
-  const qvSide = panels.layout.quickView.position === 'left' ? 'right' : 'left';
-
-  const quickViewPanel = (
-    <ResizablePanel
-      title="Quick View"
-      collapsed={!panels.layout.quickView.visible}
-      onToggleCollapse={() => panels.toggleVisible('quickView')}
-      width={panels.layout.quickView.width}
-      minWidth={200}
-      maxWidth={450}
-      defaultWidth={260}
-      onResize={panels.setPanelWidth('quickView')}
-      side={qvSide}
-      storageKey="qv"
-    >
-      <QuickView
-        data={data}
-        xVar={xVar}
-        yVar={yVar}
-        colorVar={colorVar}
-        ds={ds}
-        activeTest={activeTest}
-        chartMode={chartMode}
-        setChartMode={setChartMode}
-        inferenceResult={inferenceResult}
-        inferenceContext={inferenceContext}
-      />
-    </ResizablePanel>
-  );
-
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: C.bg, fontFamily: "'Barlow Condensed', sans-serif", color: C.text, overflow: 'hidden' }}>
       <style>{FONTS}</style>
@@ -761,185 +848,81 @@ export default function App() {
       )}
 
       <Header
-        dsKey={dsKey} setDsKey={setDsKey}
-        customDef={customDef} switchDs={switchDs}
+        dsKey={dsKey} customDef={customDef} switchDs={switchDs}
         fileRef={fileRef} handleCSV={handleCSV} uploadMsg={uploadMsg} datasetStatus={datasetStatus}
-        xVar={xVar} setXVar={setXVar}
-        yVar={yVar} setYVar={setYVar}
-        colorVar={colorVar} setColorVar={setColorVar}
         ds={ds} data={data}
-        panelLayout={panels.layout}
-        togglePanel={panels.toggleVisible}
-        toggleQvPosition={panels.toggleQvPosition}
-        resetPanels={panels.resetPanels}
+        onOpenTutorial={() => setTutorialOpen(true)}
       />
 
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {/* Quick View on left side */}
-        {panels.layout.quickView.position === 'left' && panels.layout.quickView.visible && quickViewPanel}
+        <ResizablePanel
+          title="Navigator"
+          collapsed={!panels.layout.navigator.visible}
+          onToggleCollapse={() => panels.toggleVisible('navigator')}
+          width={panels.layout.navigator.width}
+          minWidth={160}
+          maxWidth={500}
+          defaultWidth={240}
+          onResize={panels.setPanelWidth('navigator')}
+          side="right"
+          storageKey="nav"
+          collapsedRender={<span style={vLabel}>NAVIGATOR</span>}
+          data-tutorial-target="navigator"
+        >
+          <Navigator active={activeTest} setActive={setActiveTest} />
+        </ResizablePanel>
 
-        {/* Navigator panel */}
-        {panels.layout.navigator.visible && activeTab === 'inference' && (
-          <ResizablePanel
-            title="Navigator"
-            collapsed={!panels.layout.navigator.visible}
-            onToggleCollapse={() => panels.toggleVisible('navigator')}
-            width={panels.layout.navigator.width}
-            minWidth={160}
-            maxWidth={500}
-            defaultWidth={240}
-            onResize={panels.setPanelWidth('navigator')}
-            side="right"
-            storageKey="nav"
-          >
-            <Navigator active={activeTest} setActive={setActiveTest} />
-          </ResizablePanel>
-        )}
-
-        {/* Config panel */}
-        {panels.layout.config.visible && activeTab === 'inference' && (
-          <ResizablePanel
-            title="Config"
-            collapsed={!panels.layout.config.visible}
-            onToggleCollapse={() => panels.toggleVisible('config')}
-            width={panels.layout.config.width}
-            minWidth={180}
-            maxWidth={450}
-            defaultWidth={280}
-            onResize={panels.setPanelWidth('config')}
-            side="right"
-            storageKey="cfg"
-          >
-            <InferenceConfig
-              active={activeTest}
-              ds={ds} data={data} state={inference.state}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+          <div data-tutorial-target="viz" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <VizRegion
+              vizMode={vizMode} setVizMode={handleVizModeSwitch}
+              data={data} xVar={xVar} yVar={yVar} colorVar={colorVar} ds={ds}
+              activeTest={activeTest} chartMode={chartMode} setChartMode={setChartMode}
+              inferenceResult={inferenceResult} inferenceContext={inferenceContext}
+              exploreSeed={exploreSeed} onBridgeToInference={handleBridgeToInference}
             />
-          </ResizablePanel>
-        )}
-
-        {/* Content area */}
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-            {['inference', 'explore'].map(tab => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => handleTabSwitch(tab)}
-                style={{
-                  padding: '5px 14px', fontSize: 9, ...mono, textTransform: 'uppercase', letterSpacing: '0.1em',
-                  color: activeTab === tab ? C.accent : C.dim, background: 'transparent', border: 'none',
-                  borderBottom: `2px solid ${activeTab === tab ? C.accent : 'transparent'}`, cursor: 'pointer',
-                }}
-              >
-                {tab === 'inference' ? '\u25B6 INFERENCE' : '\u25C8 EXPLORE'}
-              </button>
-            ))}
           </div>
 
-          {activeTab === 'inference' && (
-            <>
-              <div style={{ padding: '3px 10px', borderBottom: `1px solid ${C.border}`, fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em', flexShrink: 0 }}>
-                {`\u22A2 ${TOTAL_TEST_COUNT} statistical tests \u00B7 mediation \u00B7 moderation \u00B7 TOST \u00B7 Bayes \u00B7 PCA/EFA \u00B7 ICC \u00B7 meta-analysis \u00B7 DiD \u00B7 APA 7 output`}
-              </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
-                {/* Bootstrap mediation path + CI */}
-                {activeTest === 'med_bootstrap' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {inference.medBs && Number.isFinite(inference.medBs.lo) && Number.isFinite(inference.medBs.hi) && <>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {[
-                          { label: 'indirect a\u00D7b', value: inference.medBs.ab.toFixed(5), color: inference.medBs.sig ? C.ok : C.warn },
-                          { label: `${Math.round((1 - inference.aval) * 100)}% CI lo`, value: inference.medBs.lo.toFixed(5), color: C.pos },
-                          { label: `${Math.round((1 - inference.aval) * 100)}% CI hi`, value: inference.medBs.hi.toFixed(5), color: C.pos },
-                          { label: 'CI excl. 0', value: inference.medBs.sig ? 'YES' : 'NO', color: inference.medBs.sig ? C.ok : C.neg },
-                          { label: 'B', value: inference.medBs.B, color: C.dim },
-                        ].map(({ label, value, color }) => (
-                          <div key={label} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 3, padding: '3px 8px' }}>
-                            <div style={{ fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase' }}>{label}</div>
-                            <div style={{ fontSize: 11, color, ...mono, fontWeight: 600 }}>{value}</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{ height: 70 }}>
-                        <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 2 }}>{'Bootstrap a\u00D7b distribution '}(B={inference.medBs.B})</div>
-                        <div style={{ height: 60, background: C.panel, borderRadius: 3, display: 'flex', alignItems: 'flex-end', padding: '2px 4px', gap: 1, overflow: 'hidden' }}>
-                          {(() => {
-                            const dist = inference.medBs.dist, lo_ = Math.min(...dist), hi_ = Math.max(...dist), w = (hi_ - lo_) / 24 || 1, cs = Array(24).fill(0);
-                            dist.forEach(x => { cs[Math.min(Math.floor((x - lo_) / w), 23)]++; });
-                            const maxC = Math.max(...cs, 1);
-                            return cs.map((c, i) => (
-                              <div key={i} style={{ flex: 1, height: barHeightPct(c, maxC), background: C.warn, opacity: .7, borderRadius: '1px 1px 0 0' }} />
-                            ));
-                          })()}
-                        </div>
-                      </div>
-                    </>}
-                    {!inference.medBs && <div style={{ color: C.dim, ...mono, fontSize: 10 }}>Click RUN BOOTSTRAP in the config panel.</div>}
-                  </div>
-                )}
-
-                {/* Bootstrap CI */}
-                {activeTest === 'bootstrap' && inference.bsResult?.dist?.length && Number.isFinite(inference.bsResult.lo) && Number.isFinite(inference.bsResult.hi) && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      {[
-                        { label: inference.bsStat, value: (inference.bsStat === 'mean' ? avg : inference.bsStat === 'median' ? v => { const s = [...v].sort((a, b) => a - b), n = s.length; return n % 2 ? s[Math.floor(n / 2)] : (s[n / 2 - 1] + s[n / 2]) / 2; } : sampleSD)(inference.allTgt).toFixed(4), color: C.accent },
-                        { label: `${Math.round((1 - inference.aval) * 100)}% CI lo`, value: inference.bsResult.lo.toFixed(4), color: C.pos },
-                        { label: `${Math.round((1 - inference.aval) * 100)}% CI hi`, value: inference.bsResult.hi.toFixed(4), color: C.pos },
-                        { label: 'B', value: '1999', color: C.dim },
-                        { label: 'n', value: inference.allTgt.length, color: C.dim },
-                      ].map(({ label, value, color }) => (
-                        <div key={label} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 3, padding: '3px 8px' }}>
-                          <div style={{ fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase' }}>{label}</div>
-                          <div style={{ fontSize: 11, color, ...mono, fontWeight: 600 }}>{value}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 2 }}>Bootstrap distribution (B=1999)</div>
-                    <div style={{ height: 60, background: C.panel, borderRadius: 3, display: 'flex', alignItems: 'flex-end', padding: '2px 4px', gap: 1, overflow: 'hidden' }}>
-                      {(() => {
-                        const dist = inference.bsResult.dist, lo_ = Math.min(...dist), hi_ = Math.max(...dist), w = (hi_ - lo_) / 28 || 1, cs = Array(28).fill(0);
-                        dist.forEach(x => { cs[Math.min(Math.floor((x - lo_) / w), 27)]++; });
-                        const maxC = Math.max(...cs, 1);
-                        return cs.map((c, i) => (
-                          <div key={i} style={{ flex: 1, height: barHeightPct(c, maxC), background: C.accent, opacity: .7, borderRadius: '1px 1px 0 0' }} />
-                        ));
-                      })()}
-                    </div>
-                  </div>
-                )}
-
-                {/* Power running indicator */}
-                {POWER_TESTS_SET.has(activeTest) && inference.powerRunning && (
-                  <div style={{ color: C.dim, ...mono, fontSize: 10, padding: 8 }}>{'Computing power\u2026'}</div>
-                )}
-
-                {/* InferenceResults */}
-                {!['bootstrap', 'med_bootstrap'].includes(activeTest) && !(POWER_TESTS_SET.has(activeTest) && inference.powerRunning && !inference.powerResult) && (
-                  <InferenceResults
-                    r={inference.result}
-                    active={activeTest}
-                    alpha={inference.alpha}
-                    g1={inference.g1} g2={inference.g2}
-                    g1vals={inference.g1vals} g2vals={inference.g2vals}
-                    normG1={inference.normG1} normG2={inference.normG2}
-                    levene={inference.levene}
-                    scaleVars={inference.scaleVars}
-                    ds={ds}
-                  />
-                )}
-              </div>
-            </>
-          )}
-
-          {activeTab === 'explore' && (
-            <ExplorePanel data={data} ds={ds} seed={exploreSeed} inferenceContext={inferenceContext} onBridgeToInference={handleBridgeToInference} />
-          )}
+          <ResizableBand
+            title="Calculation & Interface"
+            collapsed={!panels.layout.calc.visible}
+            onToggleCollapse={() => panels.toggleVisible('calc')}
+            height={panels.layout.calc.height}
+            minHeight={140}
+            maxHeight={520}
+            defaultHeight={260}
+            onResize={panels.setCalcHeight}
+            storageKey="calc"
+            data-tutorial-target="calc"
+          >
+            <CalcBand inference={inference} activeTest={activeTest} ds={ds} data={data} />
+          </ResizableBand>
         </div>
 
-        {/* Quick View on right side */}
-        {panels.layout.quickView.position === 'right' && panels.layout.quickView.visible && quickViewPanel}
+        <ResizablePanel
+          title="Advanced"
+          collapsed={!panels.layout.advanced.visible}
+          onToggleCollapse={() => panels.toggleVisible('advanced')}
+          width={panels.layout.advanced.width}
+          minWidth={200}
+          maxWidth={420}
+          defaultWidth={280}
+          onResize={panels.setPanelWidth('advanced')}
+          side="left"
+          storageKey="adv"
+          collapsedRender={<span style={vLabel}>ADVANCED</span>}
+          data-tutorial-target="advanced"
+        >
+          <AdvancedPanel
+            ds={ds} xVar={xVar} setXVar={setXVar} yVar={yVar} setYVar={setYVar}
+            colorVar={colorVar} setColorVar={setColorVar}
+            alpha={inference.alpha} setAlpha={inference.setAlpha}
+            onResetLayout={panels.resetPanels}
+          />
+        </ResizablePanel>
       </div>
+
+      <Tutorial open={tutorialOpen} onClose={() => setTutorialOpen(false)} onStepChange={handleTutorialStepChange} />
     </div>
   );
 }
