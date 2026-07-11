@@ -12,7 +12,10 @@ statlab-app/
 ├── index.html                  Vite entry HTML
 ├── index.jsx                   Root entry
 └── src/
-    ├── App.jsx                 Root component: header, sidebar, InferencePanel
+    ├── App.jsx                 Root component: four-region workbench (Navigator,
+    │                            Viz, Calculation & Interface band, collapsible
+    │                            Advanced panel) plus the dataset picker and
+    │                            first-run tutorial
     ├── palette.js               Color tokens, fonts, global CSS
     │
     ├── data/
@@ -29,7 +32,12 @@ statlab-app/
         ├── charts.jsx            TDistViz, QQPlot, ResidualPlot, Scree, Forest, etc.
         ├── InferenceConfig.jsx  Per-test parameter control panel
         ├── InferenceResults.jsx Result renderer — chips, tables, plots, APA output
-        └── InferencePanel.jsx   Orchestrator: Navigator + Config + Results
+        ├── InferencePanel.jsx   Navigator + useInference hook
+        ├── ExplorePanel.jsx     Free-form chart browser (EXPLORE mode of the Viz region)
+        ├── ResizablePanel.jsx   Width-resizable, collapsible side panel
+        ├── ResizableBand.jsx    Height-resizable, collapsible bottom band
+        ├── DatasetPicker.jsx    Sample-datasets popover (top bar)
+        └── Tutorial.jsx         First-run guided onboarding overlay
 ```
 
 All statistical computation comes from the [`statlab`](https://www.npmjs.com/package/statlab)
