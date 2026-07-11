@@ -35,4 +35,16 @@ describe('App', () => {
     expect(container.querySelector('[data-tutorial-target="advanced"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="dataset"]')).toBeTruthy();
   });
+
+  test('survives a pre-Task-6 (navigator/config/quickView) localStorage panel layout blob', () => {
+    localStorage.setItem('statlab_panels_v1', JSON.stringify({
+      navigator: { width: 240, visible: true },
+      config: { width: 280, visible: true },
+      quickView: { width: 260, visible: true, position: 'right' },
+    }));
+    const { getByText, container } = render(<App />);
+    fireEvent.click(getByText(/LAUNCH APP/));
+    expect(container.querySelector('[data-tutorial-target="calc"]')).toBeTruthy();
+    expect(container.querySelector('[data-tutorial-target="advanced"]')).toBeTruthy();
+  });
 });

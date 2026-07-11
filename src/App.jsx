@@ -209,7 +209,14 @@ function usePanelLayout() {
   const [layout, setLayout] = useState(() => {
     try {
       const raw = localStorage.getItem('statlab_panels_v1');
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          navigator: { ...defaultPanelLayout.navigator, ...parsed.navigator },
+          advanced: { ...defaultPanelLayout.advanced, ...parsed.advanced },
+          calc: { ...defaultPanelLayout.calc, ...parsed.calc },
+        };
+      }
     } catch { /* ignore */ }
     return getBreakpointLayout();
   });
