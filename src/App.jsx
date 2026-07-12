@@ -17,6 +17,7 @@ import { InferenceResults } from './components/InferenceResults.jsx';
 import { ResizablePanel } from './components/ResizablePanel.jsx';
 import { ResizableBand } from './components/ResizableBand.jsx';
 import { DatasetPicker } from './components/DatasetPicker.jsx';
+import { DatasetRecommendations } from './components/DatasetRecommendations.jsx';
 import { Tutorial, hasTutorialSeen } from './components/Tutorial.jsx';
 import { Sel, Inp } from './components/ui.jsx';
 import ExplorePanel from './components/ExplorePanel.jsx';
@@ -428,10 +429,11 @@ function VizRegion({ vizMode, setVizMode, data, xVar, yVar, colorVar, ds, active
 }
 
 // ── Calculation & Interface band (Config + Results) ──────────────────────────
-function CalcBand({ inference, activeTest, ds, data }) {
+function CalcBand({ inference, activeTest, ds, data, dsKey, switchDs }) {
   return (
     <div style={{ display: 'flex', height: '100%', minHeight: 0 }}>
       <div style={{ width: 260, flexShrink: 0, borderRight: `1px solid ${C.border}`, overflowY: 'auto' }}>
+        <DatasetRecommendations activeTest={activeTest} dsKey={dsKey} onSelectDataset={switchDs} />
         <InferenceConfig active={activeTest} ds={ds} data={data} state={inference.state} />
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', minWidth: 0 }}>
@@ -902,7 +904,7 @@ export default function App() {
             storageKey="calc"
             data-tutorial-target="calc"
           >
-            <CalcBand inference={inference} activeTest={activeTest} ds={ds} data={data} />
+            <CalcBand inference={inference} activeTest={activeTest} ds={ds} data={data} dsKey={dsKey} switchDs={switchDs} />
           </ResizableBand>
         </div>
 

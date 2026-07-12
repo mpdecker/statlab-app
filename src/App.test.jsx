@@ -47,4 +47,11 @@ describe('App', () => {
     expect(container.querySelector('[data-tutorial-target="calc"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="advanced"]')).toBeTruthy();
   });
+
+  test('shows a dataset recommendation chip for a test with a mapping', () => {
+    const { getByText } = render(<App />);
+    fireEvent.click(getByText(/LAUNCH APP/));
+    // default activeTest is 't_welch', which recommends salaries/cps/iris
+    expect(getByText('Salaries')).toBeTruthy();
+  });
 });
