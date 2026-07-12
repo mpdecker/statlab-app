@@ -131,6 +131,42 @@ export function makeGapminder() {
   ];
 }
 
+export function makeLifeSat() {
+  const rng = lcg(4242);
+  const subscales = [['autonomy', 'auto'], ['competence', 'comp'], ['relatedness', 'rel']];
+  const cohorts = ["A", "B", "C"];
+  return Array.from({ length: 200 }, (_, i) => {
+    const row = { cohort: cohorts[i % 3] };
+    subscales.forEach(([, prefix]) => {
+      const trait = clamp(randn(rng, 3, 0.8), 1, 5);
+      for (let j = 1; j <= 4; j++) {
+        const raw = j === 4 ? 6 - trait : trait;
+        row[`${prefix}${j}`] = Math.round(clamp(raw + randn(rng, 0, 0.4), 1, 5));
+      }
+    });
+    return row;
+  });
+}
+
+export function makeVocabTest() {
+  const rng = lcg(9001);
+  const grades = ["9th", "10th", "11th", "12th"];
+  const nItems = 15;
+  const difficulty = (i) => -2 + (4 * i) / (nItems - 1);
+  const discrimination = (i) => 0.7 + (i % 5) * 0.25;
+  return Array.from({ length: 300 }, (_, p) => {
+    const theta = randn(rng, 0, 1);
+    const row = { grade: grades[p % 4] };
+    for (let i = 0; i < nItems; i++) {
+      const b = difficulty(i);
+      const a = discrimination(i);
+      const prob = 1 / (1 + Math.exp(-a * (theta - b)));
+      row[`q${i + 1}`] = rng() < prob ? 1 : 0;
+    }
+    return row;
+  });
+}
+
 /** Per-dataset default axes for Quick View after switch */
 export const DATASET_DEFAULTS = {
   iris: { x: 'sepalLength', y: 'petalLength', color: 'species' },
@@ -142,6 +178,8 @@ export const DATASET_DEFAULTS = {
   mathachieve: { x: 'SES', y: 'MathAch', color: 'Sex' },
   sleep: { x: 'Days', y: 'Reaction', color: 'Subject' },
   affairs: { x: 'age', y: 'affairs', color: 'gender' },
+  lifesat: { x: 'auto1', y: 'comp1', color: 'cohort' },
+  vocabtest: { x: 'q1', y: 'q2', color: 'grade' },
 };
 
 export const BUILTIN = {
@@ -210,6 +248,18 @@ export const BUILTIN = {
     make: null,
     numeric: ['affairs', 'age', 'yearsmarried', 'religiousness', 'education', 'occupation', 'rating'],
     categorical: ['gender', 'children'],
+  },
+  lifesat: {
+    label: "Life Satisfaction Survey", desc: "200 respondents · 12-item scale · 3 subscales",
+    numeric: ["auto1", "auto2", "auto3", "auto4", "comp1", "comp2", "comp3", "comp4", "rel1", "rel2", "rel3", "rel4"],
+    categorical: ["cohort"],
+    make: makeLifeSat,
+  },
+  vocabtest: {
+    label: "Vocabulary Test", desc: "300 respondents · 15 binary items · IRT-structured",
+    numeric: ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"],
+    categorical: ["grade"],
+    make: makeVocabTest,
   },
 };
 
