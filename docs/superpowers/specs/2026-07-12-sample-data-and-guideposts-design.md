@@ -122,7 +122,7 @@ least one entry.
 
 ### UI: `DatasetRecommendations` component (new file, `src/components/DatasetRecommendations.jsx`)
 
-Props: `{ activeTest, ds, data, onSelectDataset }`. Renders `null` if
+Props: `{ activeTest, dsKey, onSelectDataset }`. Renders `null` if
 `getRecommendedDatasets(activeTest)` is empty. Otherwise renders a small
 labeled row ("Try this with:") of chip buttons, one per recommended dataset
 key still present in `BUILTIN` (using each dataset's `label`), calling
