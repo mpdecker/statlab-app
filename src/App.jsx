@@ -12,6 +12,7 @@ import { TREE } from './config/tree.js';
 import { computeStats, corr, avg, sampleSD } from 'statlab/math/core';
 import { barHeightPct } from './utils/parse.js';
 import { useInference, Navigator } from './components/InferencePanel.jsx';
+import { SponsorSlot } from './components/SponsorSlot.jsx';
 import { InferenceConfig } from './components/InferenceConfig.jsx';
 import { InferenceResults } from './components/InferenceResults.jsx';
 import { ResizablePanel } from './components/ResizablePanel.jsx';
@@ -879,6 +880,7 @@ export default function App() {
           data-tutorial-target="navigator"
         >
           <Navigator active={activeTest} setActive={setActiveTest} />
+          <SponsorSlot />
         </ResizablePanel>
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
