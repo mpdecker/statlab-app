@@ -5,6 +5,33 @@ A modular statistical analysis application built in React, powered by the
 
 ---
 
+## Status
+
+| | |
+| --- | --- |
+| Default branch | `main` |
+| Remote | `mpdecker/statlab-app` |
+| Stack | React, powered by the [`statlab`](https://www.npmjs.com/package/statlab) engine |
+| Deploy | Cloudflare Pages (CI-driven) |
+
+> **Duplicate checkout:** `statlab-app` is a second, older working copy of this
+> same repository. `statlab-fix` is a *different* repo (`mpdecker/statlab`, the
+> statistics engine itself).
+
+## Sample data and recommendations
+
+Each test can advertise the datasets it works well with: a per-test
+recommended-datasets mapping drives `DatasetRecommendations` chips surfaced in
+the Calculation & Interface band, so users land on a meaningful example instead
+of an empty grid. Bundled psychometrics datasets include a Life Satisfaction
+Survey and a Vocabulary Test.
+
+## VoxelNetwork sponsor slot
+
+The Navigator panel hosts a `SponsorSlot` served by **VoxelNetwork**, the
+first-party ad network in the Voxel{x} portfolio - this app is one of its
+publisher surfaces.
+
 ## Architecture
 
 ```
