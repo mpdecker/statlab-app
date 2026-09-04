@@ -1336,6 +1336,68 @@ export const METHOD_NOTES = {
     assumptions: ["No strong assumption on distribution", "Performance depends on the chosen number of trees/sample size"],
     cite: "Liu, F. T., Ting, K. M., & Zhou, Z.-H. (2008). Isolation forest. ICDM.",
   },
+
+  // ── ECONOMETRICS (PANEL DATA) ──
+  panel_fe: {
+    description: "The fixed-effects estimator removes unit-specific intercepts by demeaning each variable within its group before running OLS, controlling for any time-invariant unit characteristics (observed or not).",
+    usage: "Use when you suspect unobserved, time-invariant unit characteristics are correlated with your predictors — the classic omitted-variable-bias fix in panel data.",
+    assumptions: ["Multiple observations per unit", "Strict exogeneity of regressors conditional on the unit effect"],
+    cite: "Wooldridge, J. M. (2010). Econometric analysis of cross section and panel data (2nd ed.). MIT Press.",
+  },
+  panel_re: {
+    description: "The random-effects (Swamy-Arora FGLS) estimator treats the unit effect as a random draw uncorrelated with the regressors, partially pooling within- and between-unit variation for more efficient estimates than fixed effects.",
+    usage: "Use when the unit effect is plausibly uncorrelated with your predictors — more efficient than fixed effects if that assumption holds (test it with the Hausman test).",
+    assumptions: ["Unit effects uncorrelated with regressors", "Multiple observations per unit"],
+    cite: "Swamy, P. A. V. B., & Arora, S. S. (1972). The exact finite sample properties of the estimators of coefficients in the error components regression models. Econometrica, 40(2), 261–275.",
+  },
+  hausman_panel: {
+    description: "The Hausman specification test compares fixed- and random-effects coefficient estimates — a large, systematic difference indicates the random-effects assumption (unit effects uncorrelated with regressors) is violated.",
+    usage: "Use to choose between fixed and random effects: rejecting the null means fixed effects is the safer (consistent) choice.",
+    assumptions: ["Both FE and RE estimators are computed on the same sample and specification"],
+    cite: "Hausman, J. A. (1978). Specification tests in econometrics. Econometrica, 46(6), 1251–1271.",
+  },
+
+  // ── GENERALIZED ADDITIVE MODELS ──
+  gam_backfit: {
+    description: "GAM backfitting fits y as a sum of smooth (spline) and/or linear functions of each predictor, iteratively refitting each term against the partial residuals of the others.",
+    usage: "Use when you suspect a nonlinear relationship between predictors and the outcome but don't want to commit to a specific parametric form.",
+    assumptions: ["Additive structure (no unmodeled interactions between smoothed terms)", "Enough data per predictor to estimate a smooth term stably"],
+    cite: "Hastie, T., & Tibshirani, R. (1990). Generalized additive models. Chapman & Hall.",
+  },
+  gam_interact: {
+    description: "A GAM tensor-product interaction smooth models how the effect of one predictor on the outcome changes across levels of a second predictor, without assuming a specific functional form.",
+    usage: "Use when you suspect two continuous predictors interact nonlinearly — e.g., the effect of X on Y depends on the level of Z.",
+    assumptions: ["Sufficient data to estimate a 2-D smooth surface", "Spline df is chosen sensibly relative to sample size"],
+    cite: "Wood, S. N. (2017). Generalized additive models: An introduction with R (2nd ed.). CRC Press.",
+  },
+
+  // ── MIXTURE MODELS ──
+  gmm_cluster: {
+    description: "A Gaussian Mixture Model represents the data as a weighted sum of Gaussian components, fit by EM, and assigns each point a soft (probabilistic) cluster membership.",
+    usage: "Use for clustering when you expect elliptical, overlapping clusters rather than the hard, roughly-spherical partitions k-means assumes.",
+    assumptions: ["Each component is approximately Gaussian", "Number of components (k) is specified in advance"],
+    cite: "Dempster, A. P., Laird, N. M., & Rubin, D. B. (1977). Maximum likelihood from incomplete data via the EM algorithm. JRSS B, 39(1), 1–38.",
+  },
+  lpa: {
+    description: "Latent Profile Analysis fits a finite mixture of Gaussian distributions to continuous indicator variables, identifying unobserved subgroups (profiles) with distinct mean patterns.",
+    usage: "Use to identify subgroups of people/units that share a distinct pattern across several continuous measures (e.g., personality or symptom profiles).",
+    assumptions: ["Indicators are continuous and approximately normal within each profile", "Number of profiles is specified or chosen via BIC/AIC comparison across fits"],
+    cite: "Oberski, D. L. (2016). Mixture models: Latent profile and latent class analysis. In Modern Statistical Methods for HCI. Springer.",
+  },
+
+  // ── DISTANCE & DEPENDENCE ──
+  dist_corr: {
+    description: "Distance correlation measures both linear and nonlinear dependence between two variables, and (unlike Pearson r) is exactly zero only when the variables are truly independent.",
+    usage: "Use when you suspect a nonlinear or non-monotonic relationship that Pearson r or Spearman ρ might miss.",
+    assumptions: ["Finite variances", "Independent observations"],
+    cite: "Székely, G. J., Rizzo, M. L., & Bakirov, N. K. (2007). Measuring and testing dependence by correlation of distances. Annals of Statistics, 35(6), 2769–2794.",
+  },
+  dist_cov: {
+    description: "Distance covariance is the unstandardized building block of distance correlation — a nonzero value indicates the two variables are not independent, of any functional form.",
+    usage: "Use as a general-purpose, assumption-light test for association when you're unsure whether a relationship (if any) would be linear.",
+    assumptions: ["Finite variances", "Independent observations"],
+    cite: "Székely, G. J., Rizzo, M. L., & Bakirov, N. K. (2007). Measuring and testing dependence by correlation of distances. Annals of Statistics, 35(6), 2769–2794.",
+  },
 };
 
 /** Simplified implementation notes used as fallback when an educational note doesn't exist. */

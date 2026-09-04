@@ -55,6 +55,10 @@ import { littlesMCAR, mice, rubinPool, fmi as fractionMissingInfo, emImpute, mis
 import { kmEstimate, logRankTest, coxPH } from 'statlab/methods/survival';
 import { adfTest, acf, pacf } from 'statlab/methods/timeseries';
 import { localOutlierFactor, isolationForest } from 'statlab/methods/outlier';
+import { panelFixedEffects, panelRandomEffects, hausmanTest } from 'statlab/methods/econometric';
+import { gamBackfitting, gamInteraction } from 'statlab/methods/gam';
+import { gaussianMixtureModel, latentProfileAnalysis } from 'statlab/methods/mixture';
+import { distanceCorrelation, distanceCovariance } from 'statlab/methods/distance';
 import { mulberry32 } from 'statlab/math/rng';
 
 function injectMissing(data, vars, pct, seed) {
@@ -682,6 +686,10 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [outlierK, setOutlierK] = useState('5');
   const [outlierSeed, setOutlierSeed] = useState('42');
 
+  // ── econometrics / GAM / mixture models / distance ────────────────────────
+  const [gamDf, setGamDf] = useState('5');
+  const [lpaProfiles, setLpaProfiles] = useState('2');
+
   // ── bootstrap ──────────────────────────────────────────────────────────────
   const [bsResult, setBsResult]     = useState(null);
   const [bsRunning, setBsRunning]   = useState(false);
@@ -1134,6 +1142,45 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
         if (a === 'lof') return localOutlierFactor(X, { k: Math.max(2, parseInt(outlierK, 10) || 5) });
         return isolationForest(X, { seed: parseInt(outlierSeed, 10) || 42 });
       }
+      // ── econometrics (panel data) ────────────────────────────────────────────
+      if (a === 'panel_fe' || a === 'panel_re' || a === 'hausman_panel') {
+        if (!grpVar || !tgtVar) return null;
+        const Xc = preds.filter(c => c && c !== tgtVar && c !== grpVar);
+        if (!Xc.length) return null;
+        const rows = data.filter(r => r[grpVar] != null && Number.isFinite(+r[tgtVar]) && Xc.every(c => Number.isFinite(+r[c])));
+        if (a === 'panel_fe') return panelFixedEffects(rows, tgtVar, Xc, { idVar: grpVar });
+        if (a === 'panel_re') return panelRandomEffects(rows, tgtVar, Xc, { idVar: grpVar });
+        const fe = panelFixedEffects(rows, tgtVar, Xc, { idVar: grpVar });
+        const re = panelRandomEffects(rows, tgtVar, Xc, { idVar: grpVar });
+        if (!fe || !re) return null;
+        const r = hausmanTest(fe.coefficients.map(c => c.b), fe.coefficients.map(c => c.se), re.coefficients.map(c => c.b), re.coefficients.map(c => c.se));
+        return r ? { ...r, feCoeffs: fe.coefficients, reCoeffs: re.coefficients } : null;
+      }
+      // ── generalized additive models ──────────────────────────────────────────
+      if (a === 'gam_backfit') {
+        if (!tgtVar) return null;
+        const Xc = preds.filter(c => c && c !== tgtVar);
+        if (!Xc.length) return null;
+        const rows = data.filter(r => Number.isFinite(+r[tgtVar]) && Xc.every(c => Number.isFinite(+r[c])));
+        if (rows.length < 10) return null;
+        const y = rows.map(r => +r[tgtVar]);
+        const X = rows.map(r => Xc.map(c => +r[c]));
+        return gamBackfitting(y, X, Xc.map((_, i) => i));
+      }
+      if (a === 'gam_interact') {
+        if (!tgtVar || !xVar || !zVar || xVar === zVar || xVar === tgtVar || zVar === tgtVar) return null;
+        return gamInteraction(data, tgtVar, xVar, zVar, { df: Math.max(3, parseInt(gamDf, 10) || 5) });
+      }
+      // ── mixture models ───────────────────────────────────────────────────────
+      if (a === 'gmm_cluster') return gaussianMixtureModel(scaleMatrix, Math.max(2, parseInt(clusterK, 10) || 3), { seed: parseInt(robSeed, 10) || 42 });
+      if (a === 'lpa') {
+        const vars = scaleVars.filter(c => numeric.includes(c));
+        if (vars.length < 2) return null;
+        return latentProfileAnalysis(data, vars, Math.max(2, parseInt(lpaProfiles, 10) || 2), { seed: parseInt(robSeed, 10) || 42 });
+      }
+      // ── distance & dependence ────────────────────────────────────────────────
+      if (a === 'dist_corr') return distanceCorrelation(xy.xs, xy.ys);
+      if (a === 'dist_cov') return distanceCovariance(xy.xs, xy.ys);
       // ── robust statistics ────────────────────────────────────────────────────
       if (a === 'theil_sen') return theilSenSlope(xy.xs, xy.ys);
       if (a === 'mm_estimator') return mmEstimator(xy.xs, xy.ys, parseInt(robSeed, 10) || 42);
@@ -1247,7 +1294,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     cfgReqnT, cfgReqnCorr, cfgReqnOneProp, cfgReqnTwoProp, cfgReqnWilcoxon,
     cfgReqnLogrank, cfgReqnOls, cfgReqnAnova, cfgPowTtest, cfgPowOneProp,
     cfgPowTwoProp, cfgPowWilcoxon, cfgPowLogrank, cfgPowRmanova, cfgPowOlsApa, cfgPowSpearman,
-    outlierK, outlierSeed,
+    outlierK, outlierSeed, gamDf, lpaProfiles,
   ]);
 
   const displayResult = POWER_TESTS.has(active) ? powerResult : result;
@@ -1321,6 +1368,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     cfgPowLogrank, setCfgPowLogrank, cfgPowRmanova, setCfgPowRmanova,
     cfgPowOlsApa, setCfgPowOlsApa, cfgPowSpearman, setCfgPowSpearman,
     outlierK, setOutlierK, outlierSeed, setOutlierSeed,
+    gamDf, setGamDf, lpaProfiles, setLpaProfiles,
   };
 
   return {

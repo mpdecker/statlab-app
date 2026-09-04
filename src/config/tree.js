@@ -354,4 +354,29 @@ export const TREE = [
       { id: "iforest", label: "Isolation Forest",     tag: "tree-based anomaly score" },
     ],
   },
+  { cat: "ECONOMETRICS", color: '#facc15',
+    tests: [
+      { id: "panel_fe",      label: "Panel Fixed Effects",  tag: "within-unit demeaning" },
+      { id: "panel_re",      label: "Panel Random Effects", tag: "Swamy-Arora FGLS" },
+      { id: "hausman_panel", label: "Hausman Test (FE vs RE)", tag: "specification test" },
+    ],
+  },
+  { cat: "GENERALIZED ADDITIVE MODELS", color: '#22d3ee',
+    tests: [
+      { id: "gam_backfit",  label: "GAM Backfitting",  tag: "smooth predictors · R²" },
+      { id: "gam_interact", label: "GAM Interaction",  tag: "tensor-product smooth" },
+    ],
+  },
+  { cat: "MIXTURE MODELS", color: '#c084fc',
+    tests: [
+      { id: "gmm_cluster", label: "Gaussian Mixture Model",  tag: "EM · soft clustering" },
+      { id: "lpa",         label: "Latent Profile Analysis", tag: "EM · continuous indicators" },
+    ],
+  },
+  { cat: "DISTANCE & DEPENDENCE", color: '#5eead4',
+    tests: [
+      { id: "dist_corr", label: "Distance Correlation",  tag: "nonlinear association · Székely" },
+      { id: "dist_cov",  label: "Distance Covariance",   tag: "nonlinear dependence" },
+    ],
+  },
 ];
