@@ -166,6 +166,11 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
     });
   }, []);
 
+  // Keys must match tree.js's `cat` strings exactly \u2014 this drifted out of sync
+  // with several category renames/additions (META & CAUSAL, ROBUST STATS,
+  // AGENT-BASED, BANDITS, PRO, RISK-ADJUSTED, SCED, SENSITIVITY were all stale,
+  // and the 4 newest categories had no entry at all), silently dropping the
+  // icon for 12 of 32 categories.
   const CAT_ICON = {
     "COMPARE MEANS": 't',
     "ANALYSIS OF VARIANCE": 'F',
@@ -179,22 +184,26 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
     "MULTILEVEL MODELS": '\u2282',
     "CLUSTERING": '\u2295',
     "NETWORK": '\u2B21',
-    "META & CAUSAL": '\u2192',
+    "META-ANALYSIS & CAUSAL": '\u2192',
     "DIAGNOSTICS": '\u2611',
-    "ROBUST STATS": 'R',
+    "ROBUST STATISTICS": 'R',
     "BAYESIAN MODELING": '\u03B2',
     "MISSING DATA": '\u2205',
     "POWER ANALYSIS": '\u26A1',
-    "AGENT-BASED": '\u25C9',
-    "BANDITS": 'Bd',
+    "POWER & SAMPLE SIZE (EXTENDED)": '\u26A1',
+    "AGENT-BASED MODELS": '\u25C9',
+    "MULTI-ARMED BANDITS": 'Bd',
     "RECORD LINKAGE": '\u2A3F',
     "PRIVACY": 'Lk',
-    "PRO": 'Po',
-    "RISK-ADJUSTED": '\u2316',
+    "PATIENT-REPORTED OUTCOMES": 'Po',
+    "RISK-ADJUSTED MONITORING": '\u2316',
     "RECOMMENDATION": '\u2605',
-    "SCED": '\u21F5',
-    "SENSITIVITY": '\u0394',
+    "SINGLE-CASE DESIGNS": '\u21F5',
+    "SENSITIVITY ANALYSIS": '\u0394',
     "BOOTSTRAP": '\u21BB',
+    "SURVIVAL ANALYSIS": '\u03BB',
+    "TIME SERIES": '\u223F',
+    "OUTLIER DETECTION": '\u2298',
   };
 
   const expandAll = () => {
