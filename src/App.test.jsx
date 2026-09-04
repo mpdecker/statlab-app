@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import React from 'react';
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { render, fireEvent, cleanup } from '@testing-library/react';
+import { render, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import App from './App.jsx';
 
 // happy-dom's localStorage is unusable in this Node version (Node's own
@@ -26,17 +26,21 @@ describe('App', () => {
     expect(getByText(/LAUNCH APP/)).toBeTruthy();
   });
 
-  test('after launch, renders all four workbench regions and the dataset picker', () => {
+  test('after launch, renders all four workbench regions and the dataset picker', async () => {
     const { getByText, container } = render(<App />);
     fireEvent.click(getByText(/LAUNCH APP/));
-    expect(container.querySelector('[data-tutorial-target="navigator"]')).toBeTruthy();
+    // Workbench is lazy-loaded (code-split from the landing page so first
+    // paint doesn't wait on recharts) — its dynamic import resolves
+    // asynchronously even in the test environment, so assertions on its
+    // content need to wait for the Suspense boundary to settle.
+    await waitFor(() => expect(container.querySelector('[data-tutorial-target="navigator"]')).toBeTruthy(), { timeout: 10000 });
     expect(container.querySelector('[data-tutorial-target="viz"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="calc"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="advanced"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="dataset"]')).toBeTruthy();
   });
 
-  test('survives a pre-Task-6 (navigator/config/quickView) localStorage panel layout blob', () => {
+  test('survives a pre-Task-6 (navigator/config/quickView) localStorage panel layout blob', async () => {
     localStorage.setItem('statlab_panels_v1', JSON.stringify({
       navigator: { width: 240, visible: true },
       config: { width: 280, visible: true },
@@ -44,14 +48,14 @@ describe('App', () => {
     }));
     const { getByText, container } = render(<App />);
     fireEvent.click(getByText(/LAUNCH APP/));
-    expect(container.querySelector('[data-tutorial-target="calc"]')).toBeTruthy();
+    await waitFor(() => expect(container.querySelector('[data-tutorial-target="calc"]')).toBeTruthy(), { timeout: 10000 });
     expect(container.querySelector('[data-tutorial-target="advanced"]')).toBeTruthy();
   });
 
-  test('shows a dataset recommendation chip for a test with a mapping', () => {
-    const { getByText } = render(<App />);
+  test('shows a dataset recommendation chip for a test with a mapping', async () => {
+    const { getByText, findByText } = render(<App />);
     fireEvent.click(getByText(/LAUNCH APP/));
     // default activeTest is 't_welch', which recommends salaries/cps/iris
-    expect(getByText('Salaries')).toBeTruthy();
+    expect(await findByText('Salaries', {}, { timeout: 10000 })).toBeTruthy();
   });
 });

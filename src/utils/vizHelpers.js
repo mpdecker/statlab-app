@@ -1,4 +1,4 @@
-import { corr, sampleSD } from 'statlab/math/core';
+import { corr, sampleSD, fmtP } from 'statlab/math/core';
 
 /** Tests whose QuickView should follow Inference variable selectors */
 export const TESTS_USE_INFERENCE_GROUPS = new Set([
@@ -381,22 +381,24 @@ export function loadingFromResult(result, activeTest, varLabels) {
   return null;
 }
 
+const fmt3 = v => Number.isFinite(v) ? (+v).toFixed(3) : v;
+
 export function formatInferenceSummary(result, activeTest) {
   if (!result) return null;
-  if (result.t != null && result.p != null) return `t = ${result.t}, p = ${result.p}`;
-  if (result.F != null && result.p != null) return `F = ${result.F}, p = ${result.p}`;
-  if (result.r != null && result.p != null) return `r = ${result.r}, p = ${result.p}`;
-  if (result.r2 != null) return `R² = ${result.r2}`;
-  if (result.alpha != null) return `α = ${result.alpha}`;
-  if (result.test && result.p != null) return `${result.test}: p = ${result.p}`;
+  if (result.t != null && result.p != null) return `t = ${fmt3(result.t)}, ${fmtP(result.p)}`;
+  if (result.F != null && result.p != null) return `F = ${fmt3(result.F)}, ${fmtP(result.p)}`;
+  if (result.r != null && result.p != null) return `r = ${fmt3(result.r)}, ${fmtP(result.p)}`;
+  if (result.r2 != null) return `R² = ${fmt3(result.r2)}`;
+  if (result.alpha != null) return `α = ${fmt3(result.alpha)}`;
+  if (result.test && result.p != null) return `${result.test}: ${fmtP(result.p)}`;
   if (result.test === 'MANOVA' && result.wilksLambda != null && result.prob != null) {
-    return `Wilks Λ = ${result.wilksLambda}, p = ${result.prob}`;
+    return `Wilks Λ = ${fmt3(result.wilksLambda)}, ${fmtP(result.prob)}`;
   }
   if (result.test === 'Canonical Correlation' && result.correlations?.length && result.pCanon != null) {
-    return `ρc(max) ≈ ${result.correlations[0]}, p ≈ ${result.pCanon}`;
+    return `ρc(max) ≈ ${fmt3(result.correlations[0])}, ${fmtP(result.pCanon)}`;
   }
   if (result.test === 'LDA' && result.accuracyTrain != null) {
-    return `LDA training accuracy = ${result.accuracyTrain}%`;
+    return `LDA training accuracy = ${fmt3(result.accuracyTrain)}%`;
   }
   return null;
 }

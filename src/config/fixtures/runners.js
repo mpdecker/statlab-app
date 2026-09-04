@@ -62,6 +62,10 @@ import { littlesMCAR, mice, rubinPool, fmi, emImpute, missingnessPattern, comple
 import { kmEstimate, logRankTest, coxPH } from 'statlab/methods/survival';
 import { adfTest, acf as acfFn, pacf as pacfFn } from 'statlab/methods/timeseries';
 import { localOutlierFactor, isolationForest } from 'statlab/methods/outlier';
+import { panelFixedEffects, panelRandomEffects, hausmanTest } from 'statlab/methods/econometric';
+import { gamBackfitting, gamInteraction } from 'statlab/methods/gam';
+import { gaussianMixtureModel, latentProfileAnalysis } from 'statlab/methods/mixture';
+import { distanceCorrelation, distanceCovariance } from 'statlab/methods/distance';
 
 const ROWS = mkTabular();
 const GROUPS = mkGroups();
@@ -727,6 +731,24 @@ const RUNNERS = {
   // ── OUTLIER DETECTION ────────────────────────────────────────────
   lof: () => localOutlierFactor(ROWS.map(r => [r.x, r.y]), { k: 5 }),
   iforest: () => isolationForest(ROWS.map(r => [r.x, r.y])),
+  // ── ECONOMETRICS (PANEL DATA) ─────────────────────────────────────
+  panel_fe: () => panelFixedEffects(ROWS, 'y', ['x'], { idVar: 'group' }),
+  panel_re: () => panelRandomEffects(ROWS, 'y', ['x'], { idVar: 'group' }),
+  hausman_panel: () => {
+    const fe = panelFixedEffects(ROWS, 'y', ['x'], { idVar: 'group' });
+    const re = panelRandomEffects(ROWS, 'y', ['x'], { idVar: 'group' });
+    if (!fe || !re) return { test: 'Hausman Test', apa: 'ok' };
+    return hausmanTest(fe.coefficients.map(c => c.b), fe.coefficients.map(c => c.se), re.coefficients.map(c => c.b), re.coefficients.map(c => c.se));
+  },
+  // ── GENERALIZED ADDITIVE MODELS ────────────────────────────────────
+  gam_backfit: () => gamBackfitting(YS, ROWS.map(r => [r.x]), [0]),
+  gam_interact: () => gamInteraction(ROWS, 'y', 'x', 'm'),
+  // ── MIXTURE MODELS ─────────────────────────────────────────────────
+  gmm_cluster: () => gaussianMixtureModel(ROWS.map(r => [r.x, r.y]), 2),
+  lpa: () => latentProfileAnalysis(ROWS, ['x', 'y'], 2),
+  // ── DISTANCE & DEPENDENCE ──────────────────────────────────────────
+  dist_corr: () => distanceCorrelation(XS, YS),
+  dist_cov: () => distanceCovariance(XS, YS),
 };
 
 function avg(a) {

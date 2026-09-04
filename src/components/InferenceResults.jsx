@@ -322,6 +322,47 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         )}
       </>}
 
+      {/* ── Econometrics (panel data) ── */}
+      {(active === 'panel_fe' || active === 'panel_re') && r.coefficients && <>
+        <Row><Chip label="units" value={r.nUnits} color={C.dim} /><Chip label="periods" value={r.nPeriods} color={C.dim} />{active === 'panel_re' && <Chip label="θ" value={r.theta} color={C.dim} />}</Row>
+        <Row>{r.coefficients.map(c => <Chip key={c.name} label={c.name} value={c.b} sub={`SE=${c.se}, ${fmtP(c.p)}`} color={c.p < 0.05 ? C.ok : C.dim} />)}</Row>
+      </>}
+      {active === 'hausman_panel' && r.H != null && <>
+        <div style={{ fontSize: 9, ...mono, color: C.dim }}>FE vs. RE — {r.p < 0.05 ? 'reject RE, prefer FE' : 'RE not rejected, more efficient'}</div>
+        <Row>{r.feCoeffs?.map(c => <Chip key={c.name} label={`FE: ${c.name}`} value={c.b} sub={`SE=${c.se}`} color={C.accent} />)}</Row>
+        <Row>{r.reCoeffs?.map(c => <Chip key={c.name} label={`RE: ${c.name}`} value={c.b} sub={`SE=${c.se}`} color={C.warn} />)}</Row>
+      </>}
+
+      {/* ── Generalized additive models ── */}
+      {active === 'gam_backfit' && r.betas && <>
+        <Row><Chip label="R²" value={r.rSquared} color={C.warn} /><Chip label="α (intercept)" value={r.alpha} color={C.dim} /><Chip label="n" value={r.n} color={C.dim} /></Row>
+        <div style={{ fontSize: 8, ...mono, color: C.dim }}>smoothed: {r.smoothVars?.length ? r.smoothVars.join(', ') : 'none'}</div>
+      </>}
+      {active === 'gam_interact' && r.rSquared != null && <Row><Chip label="R²" value={r.rSquared} color={C.warn} /><Chip label="interaction terms" value={r.nInteractionTerms} color={C.dim} /><Chip label="n" value={r.n} color={C.dim} /></Row>}
+
+      {/* ── Mixture models ── */}
+      {active === 'gmm_cluster' && r.mu && <>
+        <Row><Chip label="components" value={r.k} color={C.dim} /><Chip label="n" value={r.n} color={C.dim} /></Row>
+        <div style={{ fontSize: 8, ...mono, color: C.dim, lineHeight: 1.7 }}>
+          {r.mu.map((m, i) => <div key={i}>component {i + 1}: π={r.pi[i]}, mean=[{m.join(', ')}]</div>)}
+        </div>
+      </>}
+      {active === 'lpa' && r.profiles && <>
+        <Row><Chip label="profiles" value={r.nProfiles} color={C.dim} /><Chip label="BIC" value={r.bic} color={C.warn} /><Chip label="log-lik" value={r.logLik} color={C.dim} /></Row>
+        <div style={{ fontSize: 8, ...mono, color: C.dim, lineHeight: 1.7 }}>
+          {r.profiles.map(p => <div key={p.profile}>profile {p.profile} (n={p.n}, π={p.pi}): {p.means.map(m => `${m.variable}=${m.mean}`).join(', ')}</div>)}
+        </div>
+      </>}
+
+      {/* ── Distance & dependence ── */}
+      {(active === 'dist_corr' || active === 'dist_cov') && (r.dCorr != null || r.dCov != null) && (
+        <Row>
+          {r.dCorr != null && <Chip label="distance corr." value={r.dCorr} color={C.pos} />}
+          <Chip label="distance cov." value={r.dCov} color={C.dim} />
+          <Chip label="n" value={r.n} color={C.dim} />
+        </Row>
+      )}
+
       {/* ── Effect size converter ── */}
       {active === 'effectconv' && r.d != null && <>
         <SectionHead label={`Converted from ${r.from} = ${r.inputVal}`} />

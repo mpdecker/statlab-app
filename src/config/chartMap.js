@@ -182,4 +182,8 @@ export const CHART_FOR_TEST = {
   km: 'histogram', logrank: 'histogram', coxph: 'barci',
   adf: 'histogram', acf: 'barci', pacf: 'barci',
   lof: 'histogram', iforest: 'histogram',
+  panel_fe: 'barci', panel_re: 'barci', hausman_panel: 'barci',
+  gam_backfit: 'scatterfit', gam_interact: 'scatterfit',
+  gmm_cluster: 'scatter', lpa: 'histogram',
+  dist_corr: 'scatterfit', dist_cov: 'scatterfit',
 };

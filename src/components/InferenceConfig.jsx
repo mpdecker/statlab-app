@@ -61,6 +61,7 @@ export function InferenceConfig({ active, ds, data, state, set, width = '100%', 
     cfgPowLogrank, setCfgPowLogrank, cfgPowRmanova, setCfgPowRmanova,
     cfgPowOlsApa, setCfgPowOlsApa, cfgPowSpearman, setCfgPowSpearman,
     outlierK, setOutlierK, outlierSeed, setOutlierSeed,
+    gamDf, setGamDf, lpaProfiles, setLpaProfiles,
   } = state;
 
   // Field editor for the object-shaped power-calculator configs above:
@@ -649,6 +650,44 @@ export function InferenceConfig({ active, ds, data, state, set, width = '100%', 
       <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />
       <Inp label="Seed" value={outlierSeed} onChange={setOutlierSeed} width={55} />
     </>,
+    // ── econometrics (panel data) ────────────────────────────────────────────
+    panel_fe: <>
+      {grpCfg}
+      <CheckList label="Covariates" items={numeric.filter(c => c !== tgtVar)} selected={preds} onChange={setPreds} />
+    </>,
+    panel_re: <>
+      {grpCfg}
+      <CheckList label="Covariates" items={numeric.filter(c => c !== tgtVar)} selected={preds} onChange={setPreds} />
+    </>,
+    hausman_panel: <>
+      {grpCfg}
+      <CheckList label="Covariates" items={numeric.filter(c => c !== tgtVar)} selected={preds} onChange={setPreds} />
+    </>,
+    // ── generalized additive models ──────────────────────────────────────────
+    gam_backfit: <>
+      <Sel label="Outcome Y" value={tgtVar} onChange={setTgtVar} options={numeric} width="100%" />
+      <CheckList label="Smooth predictors" items={numeric.filter(c => c !== tgtVar)} selected={preds} onChange={setPreds} />
+    </>,
+    gam_interact: <>
+      <Sel label="Outcome Y" value={tgtVar} onChange={setTgtVar} options={numeric} width="100%" />
+      <Sel label="Predictor 1" value={xVar} onChange={setXVar} options={numeric.filter(c => c !== tgtVar)} width="100%" />
+      <Sel label="Predictor 2" value={zVar} onChange={setZVar} options={numeric.filter(c => c !== tgtVar)} width="100%" />
+      <Inp label="Spline df" value={gamDf} onChange={setGamDf} width={55} />
+    </>,
+    // ── mixture models ───────────────────────────────────────────────────────
+    gmm_cluster: <>
+      <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="k (components)" value={clusterK} onChange={setClusterK} width={65} />
+      <Inp label="Seed" value={robSeed} onChange={setRobSeed} width={55} />
+    </>,
+    lpa: <>
+      <CheckList label="Variables (2+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Profiles" value={lpaProfiles} onChange={setLpaProfiles} width={65} />
+      <Inp label="Seed" value={robSeed} onChange={setRobSeed} width={55} />
+    </>,
+    // ── distance & dependence ────────────────────────────────────────────────
+    dist_corr: xyPick,
+    dist_cov: xyPick,
     // ── robust statistics ────────────────────────────────────────────────────
     theil_sen: xyPick,
     mm_estimator: <>{xyPick}<Inp label="Seed" value={robSeed} onChange={setRobSeed} width={55} /></>,
