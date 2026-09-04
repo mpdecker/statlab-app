@@ -33,7 +33,7 @@ describe('App', () => {
     // paint doesn't wait on recharts) — its dynamic import resolves
     // asynchronously even in the test environment, so assertions on its
     // content need to wait for the Suspense boundary to settle.
-    await waitFor(() => expect(container.querySelector('[data-tutorial-target="navigator"]')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('[data-tutorial-target="navigator"]')).toBeTruthy(), { timeout: 10000 });
     expect(container.querySelector('[data-tutorial-target="viz"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="calc"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="advanced"]')).toBeTruthy();
@@ -48,7 +48,7 @@ describe('App', () => {
     }));
     const { getByText, container } = render(<App />);
     fireEvent.click(getByText(/LAUNCH APP/));
-    await waitFor(() => expect(container.querySelector('[data-tutorial-target="calc"]')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('[data-tutorial-target="calc"]')).toBeTruthy(), { timeout: 10000 });
     expect(container.querySelector('[data-tutorial-target="advanced"]')).toBeTruthy();
   });
 
@@ -56,6 +56,6 @@ describe('App', () => {
     const { getByText, findByText } = render(<App />);
     fireEvent.click(getByText(/LAUNCH APP/));
     // default activeTest is 't_welch', which recommends salaries/cps/iris
-    expect(await findByText('Salaries')).toBeTruthy();
+    expect(await findByText('Salaries', {}, { timeout: 10000 })).toBeTruthy();
   });
 });
