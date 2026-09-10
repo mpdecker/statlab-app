@@ -11,6 +11,12 @@ import { saveSession, getInitialState } from './utils/session.js';
 const Workbench = lazy(() => import('./Workbench.jsx'));
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+const featuredCalculators = [
+  ['Welch t-test', '/calculators/welch-t-test/'],
+  ['Mann-Whitney U', '/calculators/mann-whitney-u/'],
+  ['One-way ANOVA', '/calculators/one-way-anova/'],
+  ['Power / sample size', '/calculators/sample-size-power/'],
+];
 
 // ── Landing page ──────────────────────────────────────────────────────────────
 function LandingPage({ onLaunch }) {
@@ -40,6 +46,31 @@ function LandingPage({ onLaunch }) {
         >
           LAUNCH APP &rarr;
         </button>
+
+        <div style={{ margin: '0 auto 28px', maxWidth: 620 }}>
+          <a href="/calculators/" style={{ color: C.accent, fontSize: 13, fontWeight: 700, letterSpacing: '.04em', textDecoration: 'none' }}>
+            Browse SEO calculator pages &rarr;
+          </a>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+            {featuredCalculators.map(([label, href]) => (
+              <a
+                key={href}
+                href={href}
+                style={{
+                  border: `1px solid ${C.border}`,
+                  color: C.text,
+                  borderRadius: 999,
+                  padding: '6px 10px',
+                  fontSize: 12,
+                  textDecoration: 'none',
+                  background: 'rgba(255,255,255,.03)',
+                }}
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4px 16px', textAlign: 'left', maxWidth: 560, margin: '0 auto' }}>
           {TEST_CATEGORIES.map(({ cat, n, color }) => (
