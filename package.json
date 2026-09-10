@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "node scripts/generate-seo-calculators.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
