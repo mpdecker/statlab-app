@@ -236,6 +236,81 @@ export const calculatorPages = [
     ],
     workbenchId: 'effect_size_nonparam',
   },
+  {
+    slug: 'friedman-test',
+    title: 'Friedman test calculator',
+    family: 'Nonparametric',
+    description: 'Perform non-parametric repeated measures ANOVA using the Friedman test for ranked metrics across 3+ matched conditions.',
+    keywords: ['Friedman test', 'nonparametric repeated measures', 'Kendall W', 'rank sum repeated measures'],
+    inputs: ['Matched subject rows', 'Repeated condition columns', 'Post-hoc correction choice'],
+    example: { a: ['System 1: Config A=1, B=2, C=3', 'System 2: Config A=1, B=3, C=2', 'System 3: Config A=2, B=3, C=1'], result: 'Q_F = 4.67, df = 2, p = .097, Kendall W = 0.52' },
+    formula: 'Q_F = [ 12 / (n k (k+1)) ] * Σ R_j² - 3 n (k+1)',
+    code: {
+      python: `from scipy import stats\nres = stats.friedmanchisquare(c1, c2, c3)\nprint(f"Q={res.statistic:.4f}, p={res.pvalue:.4f}")`,
+      r: `friedman.test(as.matrix(df))`,
+      ts: `import { friedmanTest } from '@statlab/core';\nconst res = friedmanTest(matrix);`,
+    },
+    useCases: [
+      'Comparing ranked performance metrics across 3+ database indexing strategies on matched queries.',
+      'Evaluating subjective LLM output ranks across model iterations.'
+    ],
+    when: 'Use when comparing 3+ repeated or matched conditions with ordinal or non-normal data.',
+    cautions: [
+      'Requires complete matched blocks without missing entries.',
+      'Follow up significant results with Nemenyi or Wilcoxon signed-rank post-hoc tests.'
+    ],
+    workbenchId: 'friedman',
+  },
+  {
+    slug: 'dunn-test',
+    title: "Dunn's post-hoc test calculator",
+    family: 'Nonparametric',
+    description: "Perform pairwise rank sum post-hoc comparisons following a significant Kruskal-Wallis test using Dunn's test with Bonferroni or Holm p-value adjustments.",
+    keywords: ['Dunn test', 'Kruskal-Wallis post-hoc', 'pairwise rank test', 'Dunn Bonferroni'],
+    inputs: ['Rank sum matrix or sample groups', 'Kruskal-Wallis mean ranks', 'Alpha & Multiplicity correction'],
+    example: { a: ['Group 1 vs 2: z = 2.14, adj_p = .048', 'Group 1 vs 3: z = 3.85, adj_p = .0003'], result: 'Pairwise rank differences statistically significant after Holm adjustment.' },
+    formula: 'z = (R̄_i - R̄_j) / √[ (N(N+1)/12) * (1/n_i + 1/n_j) ]',
+    code: {
+      python: `import scikit_posthocs as sp\nres = sp.posthoc_dunn(df, val_col='score', group_col='group', p_adjust='holm')`,
+      r: `library(FSA)\ndunnTest(score ~ group, data = df, method = "holm")`,
+      ts: `import { dunnTest } from '@statlab/core';\nconst res = dunnTest(groups);`,
+    },
+    useCases: [
+      'Pinpointing exact multi-region latency rank shifts in VoxelPulse infrastructure monitoring.',
+      'Evaluating specific prompt framework rank differences in VoxelAssurance.'
+    ],
+    when: 'Use after Kruskal-Wallis test indicates significant overall group differences.',
+    cautions: [
+      'Always apply multiplicity corrections (Holm or Bonferroni) to avoid inflated Type I error rates.',
+      'Calculates mean rank differences, not median differences.'
+    ],
+    workbenchId: 'dunn',
+  },
+  {
+    slug: 'kolmogorov-smirnov-test',
+    title: 'Kolmogorov-Smirnov test calculator',
+    family: 'Nonparametric',
+    description: 'Compare empirical cumulative distribution functions (ECDFs) of two continuous sample groups with the two-sample Kolmogorov-Smirnov (K-S) test.',
+    keywords: ['Kolmogorov Smirnov test', 'two sample KS test', 'ECDF comparison', 'distribution shape shift'],
+    inputs: ['Sample A continuous values', 'Sample B continuous values', 'Alternative hypothesis'],
+    example: { a: ['Sample A (N=200): baseline telemetry', 'Sample B (N=200): candidate deployment'], result: 'D = 0.185, p = .0024. Distributions differ significantly in shape or location.' },
+    formula: 'D = sup_x |F_1(x) - F_2(x)|',
+    code: {
+      python: `from scipy import stats\nres = stats.ks_2samp(sample_a, sample_b)\nprint(f"D={res.statistic:.4f}, p={res.pvalue:.4f}")`,
+      r: `ks.test(sample_a, sample_b)`,
+      ts: `import { ks2Samp } from '@statlab/core';\nconst res = ks2Samp(sampleA, sampleB);`,
+    },
+    useCases: [
+      'Detecting entire telemetry distribution shape shifts (not just mean or median shifts) in VoxelPulse.',
+      'Verifying data drift between training baseline and production inference streams in VoxelAssurance.'
+    ],
+    when: 'Use when comparing whether two continuous samples come from identical probability distributions.',
+    cautions: [
+      'Sensitive to differences in mean, variance, skewness, and tail behavior.',
+      'Tied values degrade test sensitivity; use jittering or exact tie-corrected implementations.'
+    ],
+    workbenchId: 'ks_2samp',
+  },
 
   // --- ANOVA FAMILY ---
   {
@@ -340,6 +415,31 @@ export const calculatorPages = [
     workbenchId: 'anova_rm',
   },
   {
+    slug: 'ancova-calculator',
+    title: 'ANCOVA (Analysis of Covariance) calculator',
+    family: 'ANOVA',
+    description: 'Evaluate treatment group differences on a continuous outcome while statistically adjusting for a baseline continuous covariate.',
+    keywords: ['ANCOVA calculator', 'analysis of covariance', 'baseline covariate adjustment', 'adjusted means'],
+    inputs: ['Group factor', 'Outcome Y', 'Continuous Baseline Covariate X', 'Alpha level'],
+    example: { a: ['Control vs Treatment', 'Covariate: Baseline Latency ms', 'Outcome: Post-optimization Latency ms'], result: 'F_Group(1, 47) = 12.4, p = .0009; Covariate adjusted treatment diff = -14.2ms.' },
+    formula: 'Y = β₀ + β₁X_covariate + β₂Group + ε',
+    code: {
+      python: `import statsmodels.api as sm\nfrom statsmodels.formula.api import ols\nmodel = ols('post_val ~ baseline_val + C(group)', data=df).fit()`,
+      r: `res <- aov(post_val ~ baseline_val + group, data = df)\nsummary(res)`,
+      ts: `import { ancova } from '@statlab/core';\nconst res = ancova(df, 'post_val', 'baseline_val', 'group');`,
+    },
+    useCases: [
+      'Evaluating server optimization latency while controlling for pre-test baseline server load.',
+      'Comparing user conversion uplift while controlling for prior account activity level.'
+    ],
+    when: 'Use to increase statistical power by controlling for baseline covariate variation.',
+    cautions: [
+      'Assumes parallel regression slopes across groups (homogeneity of regression slopes).',
+      'Covariate must be measured prior to treatment intervention.'
+    ],
+    workbenchId: 'ancova',
+  },
+  {
     slug: 'tukey-hsd',
     title: 'Tukey HSD post-hoc test calculator',
     family: 'ANOVA',
@@ -388,6 +488,264 @@ export const calculatorPages = [
       'In factorial designs, Partial Eta-squared does not sum to 1.0 across factors.'
     ],
     workbenchId: 'effect_size_anova',
+  },
+
+  // --- BAYESIAN STATISTICS FAMILY ---
+  {
+    slug: 'bayesian-ab-test',
+    title: 'Bayesian A/B testing calculator',
+    family: 'Bayesian Statistics',
+    description: 'Calculate Bayesian posterior probabilities, probability of B beating A, expected loss, and Beta-Binomial credible intervals for A/B conversion experiments.',
+    keywords: ['Bayesian AB test', 'probability of superiority', 'Beta Binomial AB test', 'Bayesian conversion test', 'expected loss'],
+    inputs: ['Control sample N & conversions', 'Variant sample N & conversions', 'Prior Alpha & Beta (e.g. Beta(1,1))', 'Monte Carlo simulation draws (e.g. 50,000)'],
+    example: { a: ['Control A: 850 / 10,000 (8.50%)', 'Variant B: 960 / 10,000 (9.60%)'], result: 'P(B > A) = 99.1%, Expected Loss of choosing B = 0.0001%, 95% Credible Interval for uplift: [+0.38%, +1.82%]' },
+    formula: 'Posterior ~ Beta(α + successes, β + failures), P(B > A) = ∫ P(θ_B > θ_A | data) dθ',
+    code: {
+      python: `import scipy.stats as stats\nimport numpy as np\na_draws = stats.beta.rvs(1 + 850, 1 + 9150, size=50000)\nb_draws = stats.beta.rvs(1 + 960, 1 + 9040, size=50000)\nprob_b_wins = np.mean(b_draws > a_draws)\nprint(f"P(B > A) = {prob_b_wins:.4f}")`,
+      r: `a_draws <- rbeta(50000, 851, 9151)\nb_draws <- rbeta(50000, 961, 9041)\nmean(b_draws > a_draws)`,
+      ts: `import { bayesianAbTest } from '@statlab/core';\nconst res = bayesianAbTest({ a: { n: 10000, conv: 850 }, b: { n: 10000, conv: 960 } });`,
+    },
+    useCases: [
+      'Automating continuous Bayesian decision boundaries in VoxelPulse experiment engines without p-value peeking penalties.',
+      'Evaluating real-time feature flag rollout confidence in live production.'
+    ],
+    when: 'Use when you need intuitive probability statements (e.g. "99% chance B is better than A") and expected loss risk bounds.',
+    cautions: [
+      'Posterior results depend on prior distributions when sample sizes are small.',
+      'Report expected loss alongside win probability to avoid deciding on trivial uplifts.'
+    ],
+    workbenchId: 'bayes_ab',
+  },
+  {
+    slug: 'bayesian-t-test',
+    title: 'Bayesian t-test calculator',
+    family: 'Bayesian Statistics',
+    description: 'Calculate Bayes Factor (BF₁₀ / BF₀₁), Cauchy prior scaling, and posterior distribution estimates for two-sample mean comparisons.',
+    keywords: ['Bayesian t-test', 'Bayes Factor BF10', 'Cauchy prior t-test', 'evidence for null'],
+    inputs: ['Group A numeric values', 'Group B numeric values', 'Cauchy prior scale r (e.g. 0.707 medium)'],
+    example: { a: ['Group A (N=30)', 'Group B (N=30)', 't = 2.85'], result: 'BF₁₀ = 6.42 (Moderate evidence for H₁ over H₀). Median posterior d = 0.71.' },
+    formula: 'BF₁₀ = p(Data | H₁) / p(Data | H₀), integrated under Cauchy(0, r) prior.',
+    code: {
+      python: `import pingouin as pg\nres = pg.bayesfactor_ttest(t=2.85, nx=30, ny=30, r=0.707)\nprint(f"BF10 = {res:.4f}")`,
+      r: `library(BayesFactor)\nttestBF(x = group_a, y = group_b)`,
+      ts: `import { bayesFactorT } from '@statlab/core';\nconst bf = bayesFactorT(groupA, groupB, { r: 0.707 });`,
+    },
+    useCases: [
+      'Quantifying evidence *in favor of the null hypothesis* (e.g., proving two microservices have indistinguishable latency).',
+      'Assessing model equivalence in VoxelAssurance AI benchmark regressions.'
+    ],
+    when: 'Use when you want to distinguish between "no effect" (evidence for null) vs "insufficient data" (inconclusive).',
+    cautions: [
+      'Bayes factors are sensitive to the width of the prior scale parameter r.',
+      'A BF₁₀ between 0.33 and 3.0 represents weak/anecdotal evidence.'
+    ],
+    workbenchId: 'bayes_t',
+  },
+
+  // --- SURVIVAL & RELIABILITY FAMILY ---
+  {
+    slug: 'kaplan-meier-survival',
+    title: 'Kaplan-Meier survival analysis calculator',
+    family: 'Survival & Reliability',
+    description: 'Compute non-parametric Kaplan-Meier survival curves, median survival time, Greenwood standard error, and cumulative failure hazard probabilities.',
+    keywords: ['Kaplan Meier calculator', 'survival curve', 'MTBF survival', 'censored data survival', 'Greenwood SE'],
+    inputs: ['Event / Duration times', 'Censoring status (1 = event occurred, 0 = right-censored)'],
+    example: { a: ['Durations: 12, 24, 35+, 48, 52+, 60', 'Status: 1, 1, 0, 1, 0, 1'], result: 'Median Survival Time = 48.0 time units, 80% survival probability at t=24.' },
+    formula: 'Ŝ(t) = Π_{t_i ≤ t} (1 - d_i / n_i), Var(Ŝ(t)) = Ŝ(t)² Σ [ d_i / (n_i(n_i - d_i)) ]',
+    code: {
+      python: `from lifelines import KaplanMeierFitter\nkmf = KaplanMeierFitter()\nkmf.fit(durations, event_observed=censor_status)\nprint(kmf.median_survival_time_)`,
+      r: `library(survival)\nfit <- survfit(Surv(time, status) ~ 1)\nsummary(fit)`,
+      ts: `import { kaplanMeier } from '@statlab/core';\nconst res = kaplanMeier(durations, status);`,
+    },
+    useCases: [
+      'Analyzing service container uptime, Mean Time Between Failures (MTBF), and crash survival rates.',
+      'Measuring customer subscription retention curves in VoxelPulse telemetry.'
+    ],
+    when: 'Use when analyzing time-to-event data subject to right-censoring.',
+    cautions: [
+      'Assumes censoring is independent of survival probability.',
+      'Censored items must be recorded accurately.'
+    ],
+    workbenchId: 'kaplan_meier',
+  },
+  {
+    slug: 'weibull-reliability',
+    title: 'Weibull reliability and failure rate calculator',
+    family: 'Survival & Reliability',
+    description: 'Estimate Weibull shape parameter β (slope), scale parameter η (characteristic life), Mean Time To Failure (MTTF), and hazard rate functions.',
+    keywords: ['Weibull calculator', 'reliability analysis', 'MTTF Weibull', 'shape parameter beta', 'scale parameter eta'],
+    inputs: ['Failure / Lifetime data points', 'Censoring indicator array', 'Estimation method (MLE / Least Squares Rank)'],
+    example: { a: ['Lifetimes (hrs): 120, 340, 520, 890, 1100'], result: 'Weibull β = 1.45 (wear-out failure mode), η = 680 hrs, MTTF = 618 hrs.' },
+    formula: 'R(t) = exp[ -(t/η)^β ], h(t) = (β/η)(t/η)^(β-1)',
+    code: {
+      python: `from scipy import stats\nshape, loc, scale = stats.weibull_min.fit(durations, floc=0)\nprint(f"beta={shape:.2f}, eta={scale:.2f}")`,
+      r: `library(flexsurv)\nflexsurvreg(Surv(time, status) ~ 1, dist = "weibull")`,
+      ts: `import { weibullFit } from '@statlab/core';\nconst fit = weibullFit(durations);`,
+    },
+    useCases: [
+      'Modeling hardware failure modes (infant mortality β<1 vs wear-out β>1) for cloud infrastructure.',
+      'Predicting component reliability thresholds in VoxelAssurance quality audits.'
+    ],
+    when: 'Use for lifetime data modeling and reliability engineering.',
+    cautions: [
+      'β < 1 indicates decreasing failure rate; β = 1 constant exponential rate; β > 1 wear-out rate.',
+      'Minimum sample size N ≥ 10 recommended for stable MLE shape estimation.'
+    ],
+    workbenchId: 'weibull',
+  },
+  {
+    slug: 'log-rank-test',
+    title: 'Log-rank test calculator',
+    family: 'Survival & Reliability',
+    description: 'Compare survival curves between two or more independent groups using the non-parametric log-rank test (Mantel-Cox test).',
+    keywords: ['log rank test', 'Mantel Cox test', 'compare survival curves', 'hazard ratio comparison'],
+    inputs: ['Group A durations & status', 'Group B durations & status', 'Alternative hypothesis'],
+    example: { a: ['Group A (Baseline server version)', 'Group B (Candidate patch version)'], result: 'χ² = 5.48, df = 1, p = .0192. Survival curves differ significantly.' },
+    formula: 'χ² = [ Σ (O_1j - E_1j) ]² / Σ V_j, where E_1j = n_1j (d_j / n_j)',
+    code: {
+      python: `from lifelines.statistics import logrank_test\nres = logrank_test(durations_a, durations_b, event_observed_A=status_a, event_observed_B=status_b)\nprint(f"p={res.p_value:.4f}")`,
+      r: `library(survival)\nsurvdiff(Surv(time, status) ~ group)`,
+      ts: `import { logRankTest } from '@statlab/core';\nconst res = logRankTest(groupA, groupB);`,
+    },
+    useCases: [
+      'Comparing process failure rates between software patch builds.',
+      'Evaluating node crash survival times across deployment clusters.'
+    ],
+    when: 'Use to test whether two or more survival distributions differ significantly.',
+    cautions: [
+      'Assumes proportional hazards across groups over time.',
+      'Non-parametric test; does not estimate magnitude of hazard ratio directly (use Cox model).'
+    ],
+    workbenchId: 'log_rank',
+  },
+
+  // --- STATISTICAL DIAGNOSTICS FAMILY ---
+  {
+    slug: 'shapiro-wilk-test',
+    title: 'Shapiro-Wilk normality test calculator',
+    family: 'Statistical Diagnostics',
+    description: 'Test whether a sample distribution departs significantly from normality using the Shapiro-Wilk W statistic and p-value.',
+    keywords: ['Shapiro Wilk test', 'normality test calculator', 'W statistic', 'test for normality'],
+    inputs: ['Sample numeric data array (N = 3 to 5,000)', 'Alpha significance level (typically 0.05)'],
+    example: { a: ['Sample: 12.1, 14.5, 13.8, 15.2, 11.9, 14.1, 13.5'], result: 'W = 0.968, p = .882. Sample does not violate normality assumptions (p > .05).' },
+    formula: 'W = [ Σ a_i x_(i) ]² / Σ (x_i - X̄)²',
+    code: {
+      python: `from scipy import stats\nW, p = stats.shapiro(sample_data)\nprint(f"W={W:.4f}, p={p:.4f}")`,
+      r: `shapiro.test(sample_data)`,
+      ts: `import { shapiroWilk } from '@statlab/core';\nconst res = shapiroWilk(sampleData);`,
+    },
+    useCases: [
+      'Validating normality assumptions before deciding between Student/Welch t-test vs Mann-Whitney U test.',
+      'Automated assumption checking in VoxelAssurance statistical pipeline gates.'
+    ],
+    when: 'Use to test continuous data for normality prior to applying parametric inferential tests.',
+    cautions: [
+      'In large samples (N > 500), small trivial departures from normality will yield significant p-values.',
+      'In small samples (N < 20), test power to detect non-normality is low.'
+    ],
+    workbenchId: 'shapiro',
+  },
+  {
+    slug: 'levene-test',
+    title: "Levene's test for equality of variances calculator",
+    family: 'Statistical Diagnostics',
+    description: "Perform Levene's test or Brown-Forsythe test for homoscedasticity across two or more sample groups.",
+    keywords: ['Levene test', 'Brown Forsythe test', 'equality of variances', 'homoscedasticity test'],
+    inputs: ['Sample groups data', 'Center metric choice (Mean / Median / Trimmed Mean)'],
+    example: { a: ['Group 1 (n=20)', 'Group 2 (n=20)', 'Group 3 (n=20)'], result: 'W = 4.12, df = (2, 57), p = .021. Variances are significantly unequal (use Welch ANOVA).' },
+    formula: 'W = [ (N - k)/(k - 1) ] * [ Σ n_i (Z̄_i. - Z̄..)² / Σ Σ (Z_ij - Z̄_i.)² ], where Z_ij = |Y_ij - Ỹ_i|',
+    code: {
+      python: `from scipy import stats\nstat, p = stats.levene(g1, g2, g3, center='median')\nprint(f"W={stat:.4f}, p={p:.4f}")`,
+      r: `library(car)\nleveneTest(val ~ group, data = df, center = median)`,
+      ts: `import { leveneTest } from '@statlab/core';\nconst res = leveneTest([g1, g2, g3]);`,
+    },
+    useCases: [
+      'Checking homoscedasticity before choosing pooled ANOVA vs Welch ANOVA in VoxelPulse.',
+      'Detecting variance instability across server configurations.'
+    ],
+    when: 'Use before ANOVA or independent t-tests to verify equal variance assumptions.',
+    cautions: [
+      'Use median centering (Brown-Forsythe variant) when data is skewed or heavy-tailed.',
+      'Significant Levene result indicates variance inequality.'
+    ],
+    workbenchId: 'levene',
+  },
+
+  // --- AI & MACHINE LEARNING FAMILY ---
+  {
+    slug: 'confusion-matrix-precision-recall',
+    title: 'Confusion matrix, Precision, Recall, and F1 calculator',
+    family: 'AI & Machine Learning',
+    description: 'Calculate classification performance metrics including Accuracy, Precision, Recall (Sensitivity), Specificity, F1-Score, F-beta, and Matthews Correlation Coefficient (MCC).',
+    keywords: ['confusion matrix calculator', 'precision recall F1', 'sensitivity specificity', 'MCC calculator', 'classification metrics'],
+    inputs: ['True Positives (TP)', 'False Positives (FP)', 'True Negatives (TN)', 'False Negatives (FN)'],
+    example: { a: ['TP = 450, FP = 50', 'FN = 100, TN = 1400'], result: 'Accuracy = 92.5%, Precision = 90.0%, Recall = 81.8%, F1 = 85.7%, MCC = 0.812' },
+    formula: 'Precision = TP/(TP+FP), Recall = TP/(TP+FN), F1 = 2*P*R/(P+R), MCC = (TP*TN - FP*FN)/√((TP+FP)(TP+FN)(TN+FP)(TN+FN))',
+    code: {
+      python: `from sklearn.metrics import classification_report, matthews_corrcoef\n# Compute precision, recall, f1-score, and MCC`,
+      r: `library(caret)\nconfusionMatrix(factor(preds), factor(actuals))`,
+      ts: `import { confusionMetrics } from '@statlab/core';\nconst m = confusionMetrics({ tp: 450, fp: 50, fn: 100, tn: 1400 });`,
+    },
+    useCases: [
+      'Evaluating classification model precision/recall tradeoffs in VoxelAssurance AI quality sprints.',
+      'Benchmarking automated moderation and anomaly detection classifiers.'
+    ],
+    when: 'Use when evaluating binary or multi-class classifier model performance.',
+    cautions: [
+      'Do not rely solely on Accuracy when class distributions are severely imbalanced.',
+      'MCC provides a reliable single-number metric even under extreme class imbalance.'
+    ],
+    workbenchId: 'confusion_matrix',
+  },
+  {
+    slug: 'roc-auc-calculator',
+    title: 'ROC curve and AUC calculator',
+    family: 'AI & Machine Learning',
+    description: 'Compute Receiver Operating Characteristic (ROC) curve coordinates, Area Under Curve (AUC-ROC), Gini coefficient, and DeLong confidence intervals.',
+    keywords: ['ROC AUC calculator', 'area under ROC curve', 'DeLong test AUC', 'classifier ROC curve'],
+    inputs: ['True binary labels (0/1)', 'Predicted probability scores'],
+    example: { a: ['Actual labels: [1, 1, 0, 1, 0, 0, 1, 0]', 'Scores: [0.92, 0.85, 0.40, 0.78, 0.15, 0.35, 0.65, 0.20]'], result: 'AUC-ROC = 0.938 (95% DeLong CI: [.812, 1.000]), Gini = 0.875' },
+    formula: 'AUC = ∫ TPR(t) d(FPR(t)) = P(Score_positive > Score_negative)',
+    code: {
+      python: `from sklearn.metrics import roc_auc_score\nauc = roc_auc_score(y_true, y_scores)\nprint(f"AUC={auc:.4f}")`,
+      r: `library(pROC)\nroc_obj <- roc(y_true, y_scores)\nauc(roc_obj)`,
+      ts: `import { rocMetrics } from '@statlab/core';\nconst res = rocMetrics(yTrue, yScores);`,
+    },
+    useCases: [
+      'Evaluating probability calibration and ranking performance of AI classification models.',
+      'Comparing model version AUC scores in VoxelAssurance release readiness sprints.'
+    ],
+    when: 'Use for evaluating threshold-independent probability scoring classifiers.',
+    cautions: [
+      'AUC measures ranking quality; inspect PR-AUC (Precision-Recall AUC) under severe class imbalance.',
+      'DeLong test allows statistical comparison between two correlated ROC curves.'
+    ],
+    workbenchId: 'roc_auc',
+  },
+  {
+    slug: 'cohens-kappa-calculator',
+    title: "Cohen's Kappa and inter-annotator agreement calculator",
+    family: 'AI & Machine Learning',
+    description: "Calculate Cohen's Kappa (κ), Weighted Kappa (linear / quadratic), and percentage agreement for multi-annotator or LLM-judge evaluation alignment.",
+    keywords: ['Cohens Kappa calculator', 'inter annotator agreement', 'LLM judge agreement', 'weighted kappa'],
+    inputs: ['Rater 1 classification categories', 'Rater 2 classification categories', 'Weighting scheme (Unweighted, Linear, Quadratic)'],
+    example: { a: ['Annotator 1 vs LLM Judge', 'Agreement matrix: 180 concordant, 20 discordant'], result: 'Observed Agreement = 90.0%, Chance Agreement = 50.0%, Cohen’s κ = 0.80 (Substantial agreement).' },
+    formula: 'κ = (p_o - p_e) / (1 - p_e)',
+    code: {
+      python: `from sklearn.metrics import cohen_kappa_score\nkappa = cohen_kappa_score(rater1, rater2, weights='quadratic')\nprint(f"kappa={kappa:.4f}")`,
+      r: `library(irr)\nkappa2(data.frame(rater1, rater2))`,
+      ts: `import { cohensKappa } from '@statlab/core';\nconst k = cohensKappa(rater1, rater2);`,
+    },
+    useCases: [
+      'Evaluating agreement between human evaluators and automated LLM-as-a-judge scoring in VoxelAssurance.',
+      'Measuring annotation consistency in supervised dataset labeling pipelines.'
+    ],
+    when: 'Use when measuring inter-rater or judge agreement corrected for chance.',
+    cautions: [
+      'Kappa is sensitive to marginal category prevalence (prevalence paradox).',
+      'Use Weighted Kappa for ordinal rating scales.'
+    ],
+    workbenchId: 'cohens_kappa',
   },
 
   // --- TECH / DEVELOPER PERFORMANCE & TELEMETRY CALCULATORS ---
@@ -776,7 +1134,7 @@ export function renderCalculatorIndex() {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>StatLab Statistical Test Calculators | pSEO Directory</title>
-  <meta name="description" content="Free static, shareable statistical test calculators: Mann-Whitney U, Welch t-test, ANOVA variants, non-parametric tests, power analysis, correlation, and release readiness benchmarking.">
+  <meta name="description" content="Free static, shareable statistical test calculators: Mann-Whitney U, Welch t-test, ANOVA variants, non-parametric tests, Bayesian statistics, survival reliability analysis, AI ML metrics, power analysis, and release readiness benchmarking.">
   <link rel="canonical" href="${ORIGIN}/calculators/">
   <style>
     body{margin:0;background:#080b10;color:#edf4ff;font-family:Inter,ui-sans-serif,system-ui,sans-serif;line-height:1.5}.wrap{max-width:1120px;margin:auto;padding:40px 20px}a{color:#5df2b6}.brand{font-weight:900;letter-spacing:.08em;text-decoration:none;color:#edf4ff;font-size:20px}.brand span{color:#5df2b6}h1{font-size:clamp(36px,6vw,72px);line-height:.95;margin:16px 0 12px;letter-spacing:-.04em}.eyebrow{color:#5df2b6;font-size:12px;text-transform:uppercase;letter-spacing:.14em;font-weight:800}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:28px}.card{display:block;text-decoration:none;color:#edf4ff;background:#111722;border:1px solid #243246;border-radius:18px;padding:20px;transition:border-color .15s ease}.card:hover{border-color:#5df2b6}.banner{background:linear-gradient(135deg,#111722 0%,#0d1420 100%);border:1px solid #243246;border-radius:20px;padding:24px;margin-top:36px;display:grid;grid-template-columns:1fr 1fr;gap:20px}@media(max-width:760px){.grid,.banner{grid-template-columns:1fr}}
