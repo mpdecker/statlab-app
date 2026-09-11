@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { calculatorPages, generateSeoCalculatorPages, renderCalculatorPage, renderSitemap } from '../scripts/generate-seo-calculators.mjs';
 
 describe('SEO calculator pages', () => {
-  it('declares the expansive statistical calculator suite', () => {
+  it('declares the expansive statistical calculator suite (35 pages)', () => {
     expect(calculatorPages.map((page) => page.slug)).toEqual([
       'welch-t-test',
       'student-t-test',
@@ -16,12 +16,26 @@ describe('SEO calculator pages', () => {
       'wilcoxon-signed-rank',
       'kruskal-wallis',
       'rank-biserial-correlation',
+      'friedman-test',
+      'dunn-test',
+      'kolmogorov-smirnov-test',
       'one-way-anova',
       'welch-anova',
       'two-way-anova',
       'rm-anova',
+      'ancova-calculator',
       'tukey-hsd',
       'eta-squared-calculator',
+      'bayesian-ab-test',
+      'bayesian-t-test',
+      'kaplan-meier-survival',
+      'weibull-reliability',
+      'log-rank-test',
+      'shapiro-wilk-test',
+      'levene-test',
+      'confusion-matrix-precision-recall',
+      'roc-auc-calculator',
+      'cohens-kappa-calculator',
       'ab-test-significance',
       'latency-percentile-significance',
       'llm-eval-significance',
@@ -31,7 +45,7 @@ describe('SEO calculator pages', () => {
       'sample-size-power',
       'random-effects-meta-analysis',
     ]);
-    expect(calculatorPages.length).toBe(23);
+    expect(calculatorPages.length).toBe(37);
   });
 
   it('renders static HTML with canonical metadata, math formulas, code snippets, JSON-LD, and VoxelPulse/VoxelAssurance CTAs', () => {
@@ -47,20 +61,18 @@ describe('SEO calculator pages', () => {
     expect(html).toContain('VoxelAssurance Release Readiness');
   });
 
-  it('renders developer performance benchmarking pages (A/B testing, latency percentiles, LLM evals)', () => {
-    const abPage = calculatorPages.find((c) => c.slug === 'ab-test-significance');
-    const abHtml = renderCalculatorPage(abPage);
-    expect(abHtml).toContain('A/B testing statistical significance calculator');
-    expect(abHtml).toContain('VoxelPulse');
+  it('renders advanced statistical categories (Bayesian, Survival, AI ML Metrics, Diagnostics)', () => {
+    const bayesPage = calculatorPages.find((c) => c.slug === 'bayesian-ab-test');
+    expect(renderCalculatorPage(bayesPage)).toContain('Bayesian A/B testing calculator');
 
-    const latencyPage = calculatorPages.find((c) => c.slug === 'latency-percentile-significance');
-    const latencyHtml = renderCalculatorPage(latencyPage);
-    expect(latencyHtml).toContain('Latency percentile (p95 / p99) significance calculator');
-    expect(latencyHtml).toContain('VoxelAssurance');
+    const survivalPage = calculatorPages.find((c) => c.slug === 'kaplan-meier-survival');
+    expect(renderCalculatorPage(survivalPage)).toContain('Kaplan-Meier survival analysis calculator');
 
-    const llmPage = calculatorPages.find((c) => c.slug === 'llm-eval-significance');
-    const llmHtml = renderCalculatorPage(llmPage);
-    expect(llmHtml).toContain('LLM evaluation benchmark significance calculator');
+    const mlPage = calculatorPages.find((c) => c.slug === 'confusion-matrix-precision-recall');
+    expect(renderCalculatorPage(mlPage)).toContain('Confusion matrix, Precision, Recall, and F1 calculator');
+
+    const diagPage = calculatorPages.find((c) => c.slug === 'shapiro-wilk-test');
+    expect(renderCalculatorPage(diagPage)).toContain('Shapiro-Wilk normality test calculator');
   });
 
   it('writes calculator routes plus sitemap and robots files', () => {
@@ -68,14 +80,13 @@ describe('SEO calculator pages', () => {
     generateSeoCalculatorPages(root);
     expect(existsSync(join(root, 'calculators', 'index.html'))).toBe(true);
     expect(existsSync(join(root, 'calculators', 'welch-t-test', 'index.html'))).toBe(true);
-    expect(existsSync(join(root, 'calculators', 'mann-whitney-u', 'index.html'))).toBe(true);
-    expect(existsSync(join(root, 'calculators', 'ab-test-significance', 'index.html'))).toBe(true);
-    expect(existsSync(join(root, 'calculators', 'latency-percentile-significance', 'index.html'))).toBe(true);
-    expect(existsSync(join(root, 'calculators', 'llm-eval-significance', 'index.html'))).toBe(true);
+    expect(existsSync(join(root, 'calculators', 'bayesian-ab-test', 'index.html'))).toBe(true);
+    expect(existsSync(join(root, 'calculators', 'kaplan-meier-survival', 'index.html'))).toBe(true);
+    expect(existsSync(join(root, 'calculators', 'confusion-matrix-precision-recall', 'index.html'))).toBe(true);
 
     const sitemap = readFileSync(join(root, 'sitemap.xml'), 'utf8');
     expect(sitemap.match(/<loc>/g)).toHaveLength(calculatorPages.length + 2);
-    expect(sitemap).toContain('https://statlab-3z6.pages.dev/calculators/llm-eval-significance/');
+    expect(sitemap).toContain('https://statlab-3z6.pages.dev/calculators/kaplan-meier-survival/');
     expect(readFileSync(join(root, 'robots.txt'), 'utf8')).toContain('Sitemap: https://statlab-3z6.pages.dev/sitemap.xml');
   });
 
