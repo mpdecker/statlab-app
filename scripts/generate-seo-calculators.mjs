@@ -618,6 +618,31 @@ export const calculatorPages = [
     ],
     workbenchId: 'log_rank',
   },
+  {
+    slug: 'hazard-ratio-calculator',
+    title: 'Hazard Ratio and Cox regression calculator',
+    family: 'Survival & Reliability',
+    description: 'Estimate Hazard Ratios (HR), 95% confidence intervals, and Cox proportional hazards regression parameters for survival time analysis.',
+    keywords: ['hazard ratio calculator', 'Cox regression', 'proportional hazards', 'hazard ratio CI'],
+    inputs: ['Survival times', 'Censoring status', 'Covariate groups (Treatment vs Control)'],
+    example: { a: ['Control vs Candidate Patch', 'HR = 0.42 (95% CI: [.21, .84])'], result: 'Candidate patch reduces failure rate by 58% (p = .014).' },
+    formula: 'h(t|X) = h₀(t) exp(βᵀX), HR = exp(β)',
+    code: {
+      python: `from lifelines import CoxPHFitter\ncph = CoxPHFitter()\ncph.fit(df, duration_col='time', event_col='status')\nprint(cph.summary)`,
+      r: `library(survival)\ncoxph(Surv(time, status) ~ group, data = df)`,
+      ts: `import { coxRegression } from '@statlab/core';\nconst res = coxRegression(df);`,
+    },
+    useCases: [
+      'Quantifying relative crash risk reduction between deployment versions in VoxelAssurance.',
+      'Modeling component failure hazards under load.'
+    ],
+    when: 'Use when comparing relative event rates over time while controlling for covariates.',
+    cautions: [
+      'Check proportional hazards assumption (Schoenfeld residuals).',
+      'HR < 1 indicates reduced hazard; HR > 1 indicates increased hazard.'
+    ],
+    workbenchId: 'cox_hr',
+  },
 
   // --- STATISTICAL DIAGNOSTICS FAMILY ---
   {
@@ -669,6 +694,83 @@ export const calculatorPages = [
       'Significant Levene result indicates variance inequality.'
     ],
     workbenchId: 'levene',
+  },
+  {
+    slug: 'vif-multicollinearity',
+    title: 'Variance Inflation Factor (VIF) calculator',
+    family: 'Statistical Diagnostics',
+    description: 'Calculate Variance Inflation Factor (VIF) and Tolerance to detect multicollinearity among predictors in multiple linear regression models.',
+    keywords: ['VIF calculator', 'variance inflation factor', 'multicollinearity test', 'regression tolerance'],
+    inputs: ['Predictor matrix X', 'Target variable Y'],
+    example: { a: ['Predictor X1 (VIF=1.2)', 'Predictor X2 (VIF=2.4)', 'Predictor X3 (VIF=11.5)'], result: 'X3 exhibits high multicollinearity (VIF > 10). Consider feature removal or PCA.' },
+    formula: 'VIF_j = 1 / (1 - R_j²)',
+    code: {
+      python: `from statsmodels.stats.outliers_influence import variance_inflation_factor\nvif = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]\nprint(vif)`,
+      r: `library(car)\nvif(lm_model)`,
+      ts: `import { calcVif } from '@statlab/core';\nconst vifArr = calcVif(xMatrix);`,
+    },
+    useCases: [
+      'Diagnosing feature correlation redundancies in predictive ML models.',
+      'Validating independence of telemetry metrics in VoxelPulse regression modules.'
+    ],
+    when: 'Use when evaluating multiple regression models with correlated predictors.',
+    cautions: [
+      'VIF > 5 indicates moderate multicollinearity; VIF > 10 indicates severe multicollinearity.',
+      'Multicollinearity inflates standard error estimates of regression coefficients.'
+    ],
+    workbenchId: 'vif',
+  },
+  {
+    slug: 'durbin-watson-test',
+    title: 'Durbin-Watson autocorrelation test calculator',
+    family: 'Statistical Diagnostics',
+    description: 'Evaluate first-order autocorrelation in regression residuals using the Durbin-Watson d statistic.',
+    keywords: ['Durbin Watson test', 'autocorrelation test', 'residual autocorrelation', 'time series regression'],
+    inputs: ['Regression residuals vector e_t'],
+    example: { a: ['Residuals e_t (N=100)'], result: 'd = 1.98 (close to 2.0). No evidence of first-order autocorrelation (p > .05).' },
+    formula: 'd = Σ (e_t - e_{t-1})² / Σ e_t²',
+    code: {
+      python: `from statsmodels.stats.stattools import durbin_watson\nd = durbin_watson(model.resid)\nprint(f"d={d:.4f}")`,
+      r: `library(lmtest)\ndwtest(lm_model)`,
+      ts: `import { durbinWatson } from '@statlab/core';\nconst d = durbinWatson(residuals);`,
+    },
+    useCases: [
+      'Checking for serial autocorrelation in time-series server latency regressions.',
+      'Ensuring error independence in sequential benchmark runs.'
+    ],
+    when: 'Use when fitting regression models to time-ordered telemetry data.',
+    cautions: [
+      'd ranges from 0 to 4; d ≈ 2 indicates no autocorrelation; d < 1.5 indicates positive autocorrelation.',
+      'Only tests for first-order (lag-1) autocorrelation.'
+    ],
+    workbenchId: 'durbin_watson',
+  },
+
+  // --- TIME SERIES & TELEMETRY FAMILY ---
+  {
+    slug: 'augmented-dickey-fuller',
+    title: 'Augmented Dickey-Fuller (ADF) stationarity test calculator',
+    family: 'Time Series & Telemetry',
+    description: 'Test whether a time series possesses a unit root and is non-stationary using the Augmented Dickey-Fuller (ADF) test.',
+    keywords: ['ADF test calculator', 'Augmented Dickey Fuller', 'stationarity test', 'unit root test'],
+    inputs: ['Time series data vector Y_t', 'Lag order choice', 'Trend component (constant / linear trend / none)'],
+    example: { a: ['Telemetry metric (N=500)'], result: 'ADF statistic = -4.12, p = .0009. Time series is stationary at 1% significance level.' },
+    formula: 'Δy_t = α + βt + γ y_{t-1} + δ_1 Δy_{t-1} + ... + ε_t',
+    code: {
+      python: `from statsmodels.tsa.stattools import adfuller\nres = adfuller(time_series)\nprint(f"ADF={res[0]:.4f}, p={res[1]:.4f}")`,
+      r: `library(tseries)\nadf.test(time_series)`,
+      ts: `import { adfTest } from '@statlab/core';\nconst res = adfTest(timeSeries);`,
+    },
+    useCases: [
+      'Verifying stationarity of CPU/memory metrics before applying ARIMA/telemetry models in VoxelPulse.',
+      'Testing whether performance metric trends represent genuine drift vs stationary noise.'
+    ],
+    when: 'Use prior to modeling or forecasting time-series telemetry data.',
+    cautions: [
+      'Rejection of null hypothesis (p < .05) implies the series IS stationary.',
+      'Selecting an incorrect lag length can distort test size and power.'
+    ],
+    workbenchId: 'adf',
   },
 
   // --- AI & MACHINE LEARNING FAMILY ---
@@ -746,6 +848,385 @@ export const calculatorPages = [
       'Use Weighted Kappa for ordinal rating scales.'
     ],
     workbenchId: 'cohens_kappa',
+  },
+  {
+    slug: 'fleiss-kappa-calculator',
+    title: "Fleiss' Kappa calculator for 3+ raters",
+    family: 'AI & Machine Learning',
+    description: "Calculate Fleiss' Kappa (κ) to measure inter-rater reliability across 3 or more fixed raters or LLM evaluators classifying items into categorical ratings.",
+    keywords: ['Fleiss Kappa calculator', 'multi rater agreement', 'inter judge agreement 3+ raters', 'LLM multi judge consensus'],
+    inputs: ['Rating count matrix (N items x K categories)', 'Category names'],
+    example: { a: ['10 items evaluated by 5 LLM judges across 3 categories'], result: 'Fleiss κ = 0.72 (Substantial agreement among LLM judges).' },
+    formula: 'κ = (P̄ - P̄_e) / (1 - P̄_e)',
+    code: {
+      python: `from statsmodels.stats.inter_rater import fleiss_kappa\nkappa = fleiss_kappa(counts_matrix)\nprint(f"kappa={kappa:.4f}")`,
+      r: `library(irr)\nkappam.fleiss(matrix)`,
+      ts: `import { fleissKappa } from '@statlab/core';\nconst k = fleissKappa(matrix);`,
+    },
+    useCases: [
+      'Measuring consensus agreement across multi-prompt LLM judge ensembles in VoxelAssurance.',
+      'Validating multi-annotator dataset quality.'
+    ],
+    when: 'Use when 3 or more raters assign items into mutually exclusive categories.',
+    cautions: [
+      'Assumes raters are fixed and randomly sampled from a pool of equivalent judges.',
+      'Sensitive to overall category frequency distributions.'
+    ],
+    workbenchId: 'fleiss_kappa',
+  },
+  {
+    slug: 'icc-intraclass-correlation',
+    title: 'Intraclass Correlation Coefficient (ICC) calculator',
+    family: 'AI & Machine Learning',
+    description: 'Calculate Intraclass Correlation Coefficient (ICC(1,1), ICC(2,1), ICC(3,1)) to assess inter-rater reliability for continuous numerical ratings.',
+    keywords: ['ICC calculator', 'intraclass correlation coefficient', 'reliability continuous ratings', 'ICC(2,1) calculator'],
+    inputs: ['Ratings matrix (N items x K raters)', 'Model type (One-way / Two-way random / Two-way mixed)', 'Unit choice (Single / Average)'],
+    example: { a: ['20 code snippets rated 1-100 by 4 judges', 'ICC(2,1) two-way random single rater'], result: 'ICC = 0.85 (95% CI: [.72, .93]). Excellent rating reliability.' },
+    formula: 'ICC = (MS_between - MS_error) / [ MS_between + (k-1)MS_error + (k/n)(MS_rater - MS_error) ]',
+    code: {
+      python: `import pingouin as pg\nicc = pg.intraclass_corr(data=df, targets='item', raters='judge', ratings='score')\nprint(icc)`,
+      r: `library(psych)\nICC(matrix)`,
+      ts: `import { iccCalc } from '@statlab/core';\nconst icc = iccCalc(matrix);`,
+    },
+    useCases: [
+      'Assessing agreement on continuous score metrics between human evaluators and AI judges in VoxelAssurance.',
+      'Validating continuous quality rating consistency.'
+    ],
+    when: 'Use for assessing rating agreement when measurements are continuous numerical scores.',
+    cautions: [
+      'Choose ICC(2,1) for generalization to a population of raters; use ICC(3,1) when raters are fixed.',
+      'Average-measure ICCs are higher than single-measure ICCs.'
+    ],
+    workbenchId: 'icc',
+  },
+  {
+    slug: 'brier-score-calculator',
+    title: 'Brier score and probability calibration calculator',
+    family: 'AI & Machine Learning',
+    description: 'Calculate Brier score, Reliability, Resolution, and Uncertainty components to measure the accuracy of probabilistic forecasts and LLM confidence calibration.',
+    keywords: ['Brier score calculator', 'probability calibration', 'forecast accuracy', 'LLM confidence calibration'],
+    inputs: ['Predicted probabilities (0.0 to 1.0)', 'Actual binary outcomes (0 or 1)'],
+    example: { a: ['Predicted probs: [0.90, 0.80, 0.20, 0.10, 0.70]', 'Actual outcomes: [1, 1, 0, 0, 1]'], result: 'Brier Score = 0.038 (well calibrated). Lower Brier score indicates superior calibration.' },
+    formula: 'BS = (1/N) Σ (f_i - o_i)²',
+    code: {
+      python: `from sklearn.metrics import brier_score_loss\nbs = brier_score_loss(y_true, y_probs)\nprint(f"Brier Score = {bs:.4f}")`,
+      r: `library(scoringUtils)\nbrier_score(y_true, y_probs)`,
+      ts: `import { brierScore } from '@statlab/core';\nconst bs = brierScore(yProbs, yTrue);`,
+    },
+    useCases: [
+      'Evaluating confidence score calibration of LLM responses in VoxelAssurance quality audits.',
+      'Measuring risk prediction accuracy in production classifier models.'
+    ],
+    when: 'Use to evaluate the accuracy and calibration of probabilistic predictions.',
+    cautions: [
+      'Brier score ranges from 0.0 (perfect prediction) to 1.0 (worst prediction).',
+      'Decompose into Reliability and Resolution for deeper diagnostic insight.'
+    ],
+    workbenchId: 'brier_score',
+  },
+  {
+    slug: 'standardized-root-mean-residual',
+    title: 'SRMR and RMSEA fit calculator',
+    family: 'AI & Machine Learning',
+    description: 'Compute Standardized Root Mean Square Residual (SRMR) and Root Mean Square Error of Approximation (RMSEA) model fit indices.',
+    keywords: ['SRMR calculator', 'RMSEA calculator', 'SEM model fit', 'residual fit index'],
+    inputs: ['Observed correlation matrix', 'Model-implied correlation matrix', 'Degrees of freedom'],
+    example: { a: ['Observed vs Model covariance', 'df = 15'], result: 'SRMR = 0.032, RMSEA = 0.041 (90% CI: [.01, .06]). Good model fit.' },
+    formula: 'SRMR = √[ (2 / (p(p+1))) Σ Σ (r_ij - σ̂_ij)² ]',
+    code: {
+      python: `import semopy\n# Compute SRMR and RMSEA model fit metrics`,
+      r: `library(lavaan)\nfitMeasures(fit_obj, c("srmr", "rmsea"))`,
+      ts: `import { semFit } from '@statlab/core';\nconst res = semFit(obs, exp, df);`,
+    },
+    useCases: [
+      'Evaluating structural model fit quality for complex telemetry graph relationships.',
+      'Validating factor structure fit in VoxelPulse analytics.'
+    ],
+    when: 'Use for evaluating overall fit of structural equation models or covariance structures.',
+    cautions: [
+      'SRMR < 0.08 and RMSEA < 0.06 indicate good model fit.',
+      'Sensitive to sample size and model complexity.'
+    ],
+    workbenchId: 'sem_fit',
+  },
+
+  // --- CATEGORICAL & FREQUENCY FAMILY ---
+  {
+    slug: 'chi-square-test',
+    title: 'Chi-square test calculator',
+    family: 'Categorical',
+    description: 'Run chi-square tests for independence or goodness-of-fit with observed vs expected counts, χ² statistic, degrees of freedom, p-value, and Cramér’s V effect size.',
+    keywords: ['chi-square test', 'contingency table', 'Cramér V', 'goodness of fit', 'chi-square p-value'],
+    inputs: ['Observed count contingency matrix', 'Expected proportions or secondary variable', 'Alpha significance level'],
+    example: { a: ['Row 1 (Variant A): 120 success, 880 fail', 'Row 2 (Variant B): 160 success, 840 fail'], result: 'χ² = 6.22, df = 1, p = .0126, Cramér’s V = 0.056' },
+    formula: 'χ² = Σ [ (O - E)² / E ], Cramér’s V = √(χ² / (N * min(r-1, c-1)))',
+    code: {
+      python: `from scipy import stats\nobs = [[120, 880], [160, 840]]\nchi2, p, df, expected = stats.chi2_contingency(obs)\nprint(f"chi2={chi2:.4f}, p={p:.4f}")`,
+      r: `chisq.test(matrix(c(120, 160, 880, 840), nrow=2))`,
+      ts: `import { chiSquareInd } from '@statlab/core';\nconst result = chiSquareInd([[120, 880], [160, 840]]);`,
+    },
+    useCases: [
+      'Testing independence between user operating systems and conversion event types in VoxelPulse.',
+      'Comparing error status code distributions across backend server clusters.'
+    ],
+    when: 'Use for categorical frequency count data organized in contingency tables.',
+    cautions: [
+      'If any expected cell count is less than 5, use Fisher’s Exact Test instead of Chi-Square.',
+      'Requires independent observations.'
+    ],
+    workbenchId: 'chi_ind',
+  },
+  {
+    slug: 'cramers-v-calculator',
+    title: "Cramér's V and Phi coefficient calculator",
+    family: 'Categorical',
+    description: "Calculate Cramér's V and Phi (φ) effect size coefficients for categorical contingency tables.",
+    keywords: ['Cramers V calculator', 'Phi coefficient', 'contingency table effect size', 'categorical association'],
+    inputs: ['Contingency matrix or Chi-square statistic', 'Number of rows & columns', 'Total N'],
+    example: { a: ['Chi-square = 18.5', 'Matrix: 3x4, Total N = 500'], result: 'Cramér’s V = 0.136 (Moderate categorical association).' },
+    formula: 'V = √( χ² / (N * min(r-1, c-1)) )',
+    code: {
+      python: `import scipy.stats as stats\ndef cramers_v(chi2, n, r, c):\n    return np.sqrt(chi2 / (n * min(r-1, c-1)))`,
+      r: `library(rcompanion)\ncramerV(matrix)`,
+      ts: `import { cramersV } from '@statlab/core';\nconst v = cramersV(chi2, n, r, c);`,
+    },
+    useCases: [
+      'Measuring categorical association strength between telemetry event types.',
+      'Quantifying effect magnitude for chi-square tests in VoxelPulse.'
+    ],
+    when: 'Use alongside Chi-square tests to report nominal association strength.',
+    cautions: [
+      'V ranges from 0.0 (no association) to 1.0 (perfect association).',
+      'For 2x2 tables, Cramér’s V equals the absolute value of the Phi coefficient.'
+    ],
+    workbenchId: 'cramers_v',
+  },
+  {
+    slug: 'fishers-exact-test',
+    title: "Fisher's exact test calculator",
+    family: 'Categorical',
+    description: "Calculate exact hyper-geometric p-values and odds ratios for 2x2 contingency tables using Fisher's exact test.",
+    keywords: ['Fishers exact test', '2x2 contingency test', 'exact hypergeometric test', 'odds ratio 2x2'],
+    inputs: ['2x2 Contingency Matrix counts [[a, b], [c, d]]', 'Alternative hypothesis (two-sided, greater, less)'],
+    example: { a: ['Row 1 (Group A): 4 success, 1 fail', 'Row 2 (Group B): 0 success, 5 fail'], result: 'Exact p = .0238, Odds Ratio = ∞ (95% CI: [1.2, ∞])' },
+    formula: 'p = [ (a+b)! (c+d)! (a+c)! (b+d)! ] / [ a! b! c! d! n! ]',
+    code: {
+      python: `from scipy import stats\noddsratio, pvalue = stats.fisher_exact([[4, 1], [0, 5]])\nprint(f"OR={oddsratio:.4f}, p={pvalue:.4f}")`,
+      r: `fisher.test(matrix(c(4, 0, 1, 5), nrow=2))`,
+      ts: `import { fisherExact } from '@statlab/core';\nconst res = fisherExact([[4, 1], [0, 5]]);`,
+    },
+    useCases: [
+      'Testing small-sample rare event frequencies in security audit logs.',
+      'Comparing low-occurrence failure rates across microservices.'
+    ],
+    when: 'Use for 2x2 tables when sample sizes are small or expected cell counts are < 5.',
+    cautions: [
+      'Valid for 2x2 tables; computationally intensive for larger tables.',
+      'Provides exact p-values without relying on asymptotic normal approximations.'
+    ],
+    workbenchId: 'fisher_exact',
+  },
+  {
+    slug: 'mcnemar-test',
+    title: "McNemar's test calculator for paired proportions",
+    family: 'Categorical',
+    description: "Evaluate paired or matched binary classification shifts using McNemar's test with continuity correction.",
+    keywords: ['McNemar test', 'paired proportions test', 'matched pairs chi square', 'pre post binary test'],
+    inputs: ['Paired 2x2 table [[Both Yes, A Yes / B No], [A No / B Yes, Both No]]'],
+    example: { a: ['Model A Yes / Model B No = 35', 'Model A No / Model B Yes = 90'], result: 'McNemar χ² = 23.04, p < .0001. Statistically significant difference in performance.' },
+    formula: 'χ² = (|b - c| - 1)² / (b + c)',
+    code: {
+      python: `from statsmodels.stats.contingency_tables import mcnemar\nres = mcnemar([[745, 35], [90, 130]], exact=False, correction=True)\nprint(f"p={res.pvalue:.5f}")`,
+      r: `mcnemar.test(matrix(c(745, 90, 35, 130), nrow=2))`,
+      ts: `import { mcnemarTest } from '@statlab/core';\nconst res = mcnemarTest([[745, 35], [90, 130]]);`,
+    },
+    useCases: [
+      'Evaluating pass/fail prompt test suite outcomes before and after prompt updates in VoxelAssurance.',
+      'Testing paired pre/post binary user conversion events.'
+    ],
+    when: 'Use when comparing paired binary outcomes on the exact same subjects or prompts.',
+    cautions: [
+      'Tests discordant pairs (b and c); concordant pairs do not contribute to test statistic.',
+      'Use exact binomial test if b + c < 25.'
+    ],
+    workbenchId: 'mcnemar',
+  },
+  {
+    slug: 'z-test-two-proportions',
+    title: 'Two-proportion z-test calculator',
+    family: 'Categorical',
+    description: 'Compare two independent sample conversion rates or proportions using the two-proportion z-test with pooled variance, p-values, and confidence intervals.',
+    keywords: ['two proportion z test', 'compare proportions', 'conversion rate z test', 'pooled z test proportions'],
+    inputs: ['Group A successes & N', 'Group B successes & N', 'Confidence level', 'Alternative hypothesis'],
+    example: { a: ['Group A: 120 / 1000 (12.0%)', 'Group B: 160 / 1000 (16.0%)'], result: 'z = 2.68, p = .0074. Relative uplift = +33.3%, 95% CI for difference: [+1.08%, +6.92%]' },
+    formula: 'z = (p̂_1 - p̂_2) / √[ p̂(1 - p̂)(1/n_1 + 1/n_2) ]',
+    code: {
+      python: `from statsmodels.stats.proportion import proportions_ztest\nz, p = proportions_ztest([160, 120], [1000, 1000])\nprint(f"z={z:.4f}, p={p:.4f}")`,
+      r: `prop.test(c(160, 120), c(1000, 1000))`,
+      ts: `import { zTestTwoProps } from '@statlab/core';\nconst res = zTestTwoProps(120, 1000, 160, 1000);`,
+    },
+    useCases: [
+      'Comparing baseline vs variant conversion proportions in VoxelPulse telemetry.',
+      'Evaluating build pass rates across server fleets.'
+    ],
+    when: 'Use when comparing success rates between two independent large sample groups.',
+    cautions: [
+      'Requires n*p >= 5 and n*(1-p) >= 5 in both sample groups.',
+      'Use Fisher’s Exact Test for small sample sizes.'
+    ],
+    workbenchId: 'z_2prop',
+  },
+
+  // --- CORRELATION & REGRESSION FAMILY ---
+  {
+    slug: 'pearson-correlation',
+    title: 'Pearson correlation calculator',
+    family: 'Correlation',
+    description: 'Estimate Pearson correlation coefficient r, t-statistic, p-value, 95% Fisher z-transformed confidence interval, and coefficient of determination (R²).',
+    keywords: ['Pearson correlation', 'r', 'correlation p value', 'confidence interval correlation', 'R squared'],
+    inputs: ['X continuous variable array', 'Y continuous variable array', 'Confidence level'],
+    example: { a: ['X: 12, 15, 18, 22, 28', 'Y: 45, 52, 60, 74, 90'], result: 'r = 0.997, t = 22.3, df = 3, p = .0002, 95% CI: [.965, .999], R² = 0.994' },
+    formula: 'r = Σ((x - X̄)(y - Ȳ)) / √[ Σ(x - X̄)² Σ(y - Ȳ)² ], t = r * √(n-2) / √(1-r²)',
+    code: {
+      python: `from scipy import stats\nr, p = stats.pearsonr(x_vals, y_vals)\nprint(f"r={r:.4f}, p={p:.4f}")`,
+      r: `cor.test(x_vals, y_vals, method = "pearson")`,
+      ts: `import { pearsonR } from '@statlab/core';\nconst result = pearsonR(xVals, yVals);`,
+    },
+    useCases: [
+      'Evaluating correlation between system CPU utilization and request latency in VoxelPulse.',
+      'Testing correlation between automated test suite size and release bug counts in VoxelAssurance.'
+    ],
+    when: 'Use to measure strength and direction of linear relationship between two continuous variables.',
+    cautions: [
+      'Check scatter plots for non-linear relationships or influential outliers.',
+      'Correlation does not imply causal relationship.'
+    ],
+    workbenchId: 'pearson',
+  },
+  {
+    slug: 'spearman-rank-correlation',
+    title: "Spearman's rank correlation calculator",
+    family: 'Correlation',
+    description: "Calculate Spearman's rank correlation coefficient ρ (rho), t-statistic, and p-value for monotonic relationships between continuous or ordinal variables.",
+    keywords: ['Spearman rank correlation', 'rho calculator', 'monotonic correlation', 'rank correlation test'],
+    inputs: ['X numeric/ordinal array', 'Y numeric/ordinal array'],
+    example: { a: ['X ranks: 1, 2, 3, 4, 5', 'Y ranks: 1, 3, 2, 5, 4'], result: 'ρ = 0.900, t = 3.58, df = 3, p = .037' },
+    formula: 'ρ = 1 - [ 6 Σ d_i² / (n(n² - 1)) ]',
+    code: {
+      python: `from scipy import stats\nrho, p = stats.spearmanr(x_vals, y_vals)\nprint(f"rho={rho:.4f}, p={p:.4f}")`,
+      r: `cor.test(x_vals, y_vals, method = "spearman")`,
+      ts: `import { spearmanRho } from '@statlab/core';\nconst res = spearmanRho(xVals, yVals);`,
+    },
+    useCases: [
+      'Measuring monotonic correlation between system queue depth and p99 latency.',
+      'Evaluating monotonic alignment between model size and eval benchmarks.'
+    ],
+    when: 'Use when variables have monotonic relationships or non-normal ordinal distributions.',
+    cautions: [
+      'Measures monotonic trends, not strictly linear relationships.',
+      'Tied ranks require tie-corrected correlation formula.'
+    ],
+    workbenchId: 'spearman',
+  },
+  {
+    slug: 'kendall-tau-correlation',
+    title: "Kendall's tau rank correlation calculator",
+    family: 'Correlation',
+    description: "Compute Kendall's τ-b (tau-b) rank correlation coefficient, z-score, and p-value based on concordant and discordant pair counts.",
+    keywords: ['Kendall tau calculator', 'tau b correlation', 'concordant discordant pairs', 'nonparametric correlation'],
+    inputs: ['X numeric/ordinal array', 'Y numeric/ordinal array'],
+    example: { a: ['X: 1, 2, 3, 4, 5', 'Y: 2, 1, 4, 3, 5'], result: 'τ = 0.60, Concordant = 8, Discordant = 2, p = .142' },
+    formula: 'τ = (C - D) / [ ½ n(n-1) ]',
+    code: {
+      python: `from scipy import stats\ntau, p = stats.kendalltau(x_vals, y_vals)\nprint(f"tau={tau:.4f}, p={p:.4f}")`,
+      r: `cor.test(x_vals, y_vals, method = "kendall")`,
+      ts: `import { kendallTau } from '@statlab/core';\nconst res = kendallTau(xVals, yVals);`,
+    },
+    useCases: [
+      'Assessing rank correlation stability in small telemetry sample sizes.',
+      'Comparing ordinal benchmark ranking preferences across evaluators.'
+    ],
+    when: 'Use for rank correlation in small sample sizes or data with many ties.',
+    cautions: [
+      'Kendall’s tau value is generally smaller than Spearman’s rho on identical data.',
+      'Tau-b adjusts for ties in both X and Y.'
+    ],
+    workbenchId: 'kendall_tau',
+  },
+  {
+    slug: 'linear-regression',
+    title: 'Linear regression calculator',
+    family: 'Regression',
+    description: 'Fit simple and multiple Ordinary Least Squares (OLS) linear regression models with coefficients β, standard errors, t-tests, R², adjusted R², F-test, and residual diagnostics.',
+    keywords: ['linear regression', 'OLS regression', 'regression coefficients', 'R squared', 'residual analysis'],
+    inputs: ['Dependent outcome variable Y', 'Independent predictor matrix X', 'Confidence level'],
+    example: { a: ['Y (Latency ms): 110, 125, 140, 180, 220', 'X (Payload KB): 10, 20, 30, 50, 80'], result: 'Y = 94.2 + 1.57 * X, R² = 0.988, F(1,3) = 252.1, p = .0005' },
+    formula: 'Ŷ = β₀ + β₁X₁ + ... + βₖXₖ, β = (XᵀX)⁻¹XᵀY',
+    code: {
+      python: `import statsmodels.api as sm\nX = sm.add_constant(x_matrix)\nmodel = sm.OLS(y_vals, X).fit()\nprint(model.summary())`,
+      r: `model <- lm(y ~ x1 + x2, data = df)\nsummary(model)`,
+      ts: `import { olsRegression } from '@statlab/core';\nconst model = olsRegression(yVals, xMatrix);`,
+    },
+    useCases: [
+      'Modeling request latency scaling as a function of payload size and concurrency level.',
+      'Predicting release testing runtime based on pull request code diff volume in VoxelAssurance.'
+    ],
+    when: 'Use to model continuous outcome variable as a function of one or more predictor variables.',
+    cautions: [
+      'Verify linear regression assumptions: linearity, independence, homoscedasticity, normality of residuals.',
+      'Check variance inflation factors (VIF) for multicollinearity in multiple regression.'
+    ],
+    workbenchId: 'ols_simple',
+  },
+  {
+    slug: 'logistic-regression',
+    title: 'Logistic regression calculator',
+    family: 'Regression',
+    description: 'Fit binary logistic regression models with Odds Ratios (OR), log-odds coefficients β, Wald z-tests, McFadden Pseudo-R², and likelihood ratio tests.',
+    keywords: ['logistic regression calculator', 'odds ratio regression', 'binary logit', 'McFadden pseudo R2'],
+    inputs: ['Binary outcome vector Y (0/1)', 'Predictor matrix X', 'Confidence level'],
+    example: { a: ['Y (Conversion 0/1)', 'X (Session duration, Page views)'], result: 'Logit(P) = -2.4 + 0.15*Duration, Odds Ratio = 1.16 per min (p = .002), McFadden R² = 0.24' },
+    formula: 'P(Y=1) = 1 / (1 + exp(-(β₀ + β₁X₁ + ...))), OR = exp(β_i)',
+    code: {
+      python: `import statsmodels.api as sm\nX = sm.add_constant(x_matrix)\nmodel = sm.Logit(y_vals, X).fit()\nprint(model.summary())`,
+      r: `model <- glm(y ~ x1 + x2, data = df, family = "binomial")\nsummary(model)`,
+      ts: `import { logisticRegression } from '@statlab/core';\nconst res = logisticRegression(yVals, xMatrix);`,
+    },
+    useCases: [
+      'Modeling binary user conversion probabilities based on telemetry feature signals in VoxelPulse.',
+      'Predicting software build failure probability based on pull request metrics.'
+    ],
+    when: 'Use when modeling a binary categorical outcome (0/1, Success/Failure).',
+    cautions: [
+      'Requires sufficient sample size (at least 10-15 events per predictor variable).',
+      'Check for complete separation where a predictor perfectly splits the binary outcome.'
+    ],
+    workbenchId: 'logistic',
+  },
+  {
+    slug: 'poisson-regression',
+    title: 'Poisson regression calculator',
+    family: 'Regression',
+    description: 'Fit Poisson count regression models with Incidence Rate Ratios (IRR), log coefficients β, deviance goodness-of-fit, and overdispersion checks.',
+    keywords: ['Poisson regression calculator', 'incidence rate ratio IRR', 'count data regression', 'overdispersion test'],
+    inputs: ['Count outcome vector Y (0, 1, 2...)', 'Predictor matrix X', 'Exposure / Offset vector (optional)'],
+    example: { a: ['Y (API Error Count)', 'X (Request volume)'], result: 'log(λ) = -1.2 + 0.04*Volume, IRR = 1.041 (p = .001), Deviance/df = 1.05' },
+    formula: 'log(λ) = β₀ + β₁X₁ + ... + log(Exposure), IRR = exp(β_i)',
+    code: {
+      python: `import statsmodels.api as sm\nX = sm.add_constant(x_matrix)\nmodel = sm.GLM(y_vals, X, family=sm.families.Poisson()).fit()\nprint(model.summary())`,
+      r: `model <- glm(y ~ x1, data = df, family = "poisson")\nsummary(model)`,
+      ts: `import { poissonRegression } from '@statlab/core';\nconst res = poissonRegression(yVals, xMatrix);`,
+    },
+    useCases: [
+      'Modeling event counts (e.g. API error rate spikes, bug counts per sprint) in VoxelPulse and VoxelAssurance.',
+      'Modeling customer click counts per session.'
+    ],
+    when: 'Use for modeling non-negative integer count outcome data.',
+    cautions: [
+      'Assumes mean equals variance (E(Y) = Var(Y)); use Negative Binomial regression if data is overdispersed.',
+      'Include exposure offsets when observation time windows vary.'
+    ],
+    workbenchId: 'poisson',
   },
 
   // --- TECH / DEVELOPER PERFORMANCE & TELEMETRY CALCULATORS ---
@@ -825,85 +1306,6 @@ export const calculatorPages = [
       'Account for LLM output non-determinism by running multiple temperature seeds per prompt.'
     ],
     workbenchId: 'llm_eval',
-  },
-
-  // --- CATEGORICAL & FREQUENCY FAMILY ---
-  {
-    slug: 'chi-square-test',
-    title: 'Chi-square test calculator',
-    family: 'Categorical',
-    description: 'Run chi-square tests for independence or goodness-of-fit with observed vs expected counts, χ² statistic, degrees of freedom, p-value, and Cramér’s V effect size.',
-    keywords: ['chi-square test', 'contingency table', 'Cramér V', 'goodness of fit', 'chi-square p-value'],
-    inputs: ['Observed count contingency matrix', 'Expected proportions or secondary variable', 'Alpha significance level'],
-    example: { a: ['Row 1 (Variant A): 120 success, 880 fail', 'Row 2 (Variant B): 160 success, 840 fail'], result: 'χ² = 6.22, df = 1, p = .0126, Cramér’s V = 0.056' },
-    formula: 'χ² = Σ [ (O - E)² / E ], Cramér’s V = √(χ² / (N * min(r-1, c-1)))',
-    code: {
-      python: `from scipy import stats\nobs = [[120, 880], [160, 840]]\nchi2, p, df, expected = stats.chi2_contingency(obs)\nprint(f"chi2={chi2:.4f}, p={p:.4f}")`,
-      r: `chisq.test(matrix(c(120, 160, 880, 840), nrow=2))`,
-      ts: `import { chiSquareInd } from '@statlab/core';\nconst result = chiSquareInd([[120, 880], [160, 840]]);`,
-    },
-    useCases: [
-      'Testing independence between user operating systems and conversion event types in VoxelPulse.',
-      'Comparing error status code distributions across backend server clusters.'
-    ],
-    when: 'Use for categorical frequency count data organized in contingency tables.',
-    cautions: [
-      'If any expected cell count is less than 5, use Fisher’s Exact Test instead of Chi-Square.',
-      'Requires independent observations.'
-    ],
-    workbenchId: 'chi_ind',
-  },
-
-  // --- CORRELATION & REGRESSION FAMILY ---
-  {
-    slug: 'pearson-correlation',
-    title: 'Pearson correlation calculator',
-    family: 'Correlation',
-    description: 'Estimate Pearson correlation coefficient r, t-statistic, p-value, 95% Fisher z-transformed confidence interval, and coefficient of determination (R²).',
-    keywords: ['Pearson correlation', 'r', 'correlation p value', 'confidence interval correlation', 'R squared'],
-    inputs: ['X continuous variable array', 'Y continuous variable array', 'Confidence level'],
-    example: { a: ['X: 12, 15, 18, 22, 28', 'Y: 45, 52, 60, 74, 90'], result: 'r = 0.997, t = 22.3, df = 3, p = .0002, 95% CI: [.965, .999], R² = 0.994' },
-    formula: 'r = Σ((x - X̄)(y - Ȳ)) / √[ Σ(x - X̄)² Σ(y - Ȳ)² ], t = r * √(n-2) / √(1-r²)',
-    code: {
-      python: `from scipy import stats\nr, p = stats.pearsonr(x_vals, y_vals)\nprint(f"r={r:.4f}, p={p:.4f}")`,
-      r: `cor.test(x_vals, y_vals, method = "pearson")`,
-      ts: `import { pearsonR } from '@statlab/core';\nconst result = pearsonR(xVals, yVals);`,
-    },
-    useCases: [
-      'Evaluating correlation between system CPU utilization and request latency in VoxelPulse.',
-      'Testing correlation between automated test suite size and release bug counts in VoxelAssurance.'
-    ],
-    when: 'Use to measure strength and direction of linear relationship between two continuous variables.',
-    cautions: [
-      'Check scatter plots for non-linear relationships or influential outliers.',
-      'Correlation does not imply causal relationship.'
-    ],
-    workbenchId: 'pearson',
-  },
-  {
-    slug: 'linear-regression',
-    title: 'Linear regression calculator',
-    family: 'Regression',
-    description: 'Fit simple and multiple Ordinary Least Squares (OLS) linear regression models with coefficients β, standard errors, t-tests, R², adjusted R², F-test, and residual diagnostics.',
-    keywords: ['linear regression', 'OLS regression', 'regression coefficients', 'R squared', 'residual analysis'],
-    inputs: ['Dependent outcome variable Y', 'Independent predictor matrix X', 'Confidence level'],
-    example: { a: ['Y (Latency ms): 110, 125, 140, 180, 220', 'X (Payload KB): 10, 20, 30, 50, 80'], result: 'Y = 94.2 + 1.57 * X, R² = 0.988, F(1,3) = 252.1, p = .0005' },
-    formula: 'Ŷ = β₀ + β₁X₁ + ... + βₖXₖ, β = (XᵀX)⁻¹XᵀY',
-    code: {
-      python: `import statsmodels.api as sm\nX = sm.add_constant(x_matrix)\nmodel = sm.OLS(y_vals, X).fit()\nprint(model.summary())`,
-      r: `model <- lm(y ~ x1 + x2, data = df)\nsummary(model)`,
-      ts: `import { olsRegression } from '@statlab/core';\nconst model = olsRegression(yVals, xMatrix);`,
-    },
-    useCases: [
-      'Modeling request latency scaling as a function of payload size and concurrency level.',
-      'Predicting release testing runtime based on pull request code diff volume in VoxelAssurance.'
-    ],
-    when: 'Use to model continuous outcome variable as a function of one or more predictor variables.',
-    cautions: [
-      'Verify linear regression assumptions: linearity, independence, homoscedasticity, normality of residuals.',
-      'Check variance inflation factors (VIF) for multicollinearity in multiple regression.'
-    ],
-    workbenchId: 'ols_simple',
   },
 
   // --- POWER ANALYSIS & META-ANALYSIS FAMILY ---
@@ -1134,7 +1536,7 @@ export function renderCalculatorIndex() {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>StatLab Statistical Test Calculators | pSEO Directory</title>
-  <meta name="description" content="Free static, shareable statistical test calculators: Mann-Whitney U, Welch t-test, ANOVA variants, non-parametric tests, Bayesian statistics, survival reliability analysis, AI ML metrics, power analysis, and release readiness benchmarking.">
+  <meta name="description" content="Free static, shareable statistical test calculators: Mann-Whitney U, Welch t-test, ANOVA variants, non-parametric tests, Bayesian statistics, survival reliability analysis, AI ML metrics, power analysis, time series stationarity, and release readiness benchmarking.">
   <link rel="canonical" href="${ORIGIN}/calculators/">
   <style>
     body{margin:0;background:#080b10;color:#edf4ff;font-family:Inter,ui-sans-serif,system-ui,sans-serif;line-height:1.5}.wrap{max-width:1120px;margin:auto;padding:40px 20px}a{color:#5df2b6}.brand{font-weight:900;letter-spacing:.08em;text-decoration:none;color:#edf4ff;font-size:20px}.brand span{color:#5df2b6}h1{font-size:clamp(36px,6vw,72px);line-height:.95;margin:16px 0 12px;letter-spacing:-.04em}.eyebrow{color:#5df2b6;font-size:12px;text-transform:uppercase;letter-spacing:.14em;font-weight:800}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:28px}.card{display:block;text-decoration:none;color:#edf4ff;background:#111722;border:1px solid #243246;border-radius:18px;padding:20px;transition:border-color .15s ease}.card:hover{border-color:#5df2b6}.banner{background:linear-gradient(135deg,#111722 0%,#0d1420 100%);border:1px solid #243246;border-radius:20px;padding:24px;margin-top:36px;display:grid;grid-template-columns:1fr 1fr;gap:20px}@media(max-width:760px){.grid,.banner{grid-template-columns:1fr}}
