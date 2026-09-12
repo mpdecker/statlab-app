@@ -317,6 +317,11 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
   const xStats = useMemo(() => computeStats(data.map(r => +r[vizX]).filter(Number.isFinite)), [data, vizX]);
   const yStats = useMemo(() => computeStats(data.map(r => +r[vizY]).filter(Number.isFinite)), [data, vizY]);
   const pearsonR = useMemo(() => {
+    // A group-comparison test (t-test, ANOVA, ...) resolves both "vars" to
+    // the same target variable — there's one numeric variable, not two to
+    // correlate. Correlating it with itself is always r=1.000, which reads
+    // as a real result next to the actual test statistics below it.
+    if (vizX === vizY) return null;
     if (!xStats || !yStats) return null;
     const xs = data.map(r => +r[vizX]).filter(Number.isFinite);
     const ys = data.map(r => +r[vizY]).filter(Number.isFinite);
@@ -353,7 +358,7 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '5px 8px', borderBottom: `1px solid ${C.border}`, fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em' }}>
-        {vizX} {'\u00D7'} {vizY}
+        {vizX === vizY ? vizX : `${vizX} ${'\u00D7'} ${vizY}`}
         {resolved.usingInference && (
           <span style={{ marginLeft: 6, color: C.warn, fontSize: 6 }}>{'\u25B6 inference vars'}</span>
         )}
@@ -378,7 +383,7 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
             <span style={{ color: C.dim }}> SD={xStats.sd} n={xStats.n}</span>
           </div>
         )}
-        {yStats && (
+        {yStats && vizY !== vizX && (
           <div style={{ marginBottom: 2 }}>
             <span style={{ color: C.dim }}>{vizY}: </span>
             <span style={{ color: C.accent }}>M={yStats.mean}</span>
