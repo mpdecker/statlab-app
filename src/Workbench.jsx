@@ -281,12 +281,26 @@ function Header({ dsKey, customDef, switchDs, fileRef, handleCSV, uploadMsg, dat
       <input ref={fileRef} type="file" accept=".csv" onChange={handleCSV} style={{ display: 'none' }} />
       {uploadMsg && <span style={{ fontSize: 9, color: C.accent, ...mono }}>{uploadMsg}</span>}
 
+      <a
+        href="https://ko-fi.com/matthieudecker"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Support StatLab on Ko-fi"
+        style={{
+          marginLeft: 'auto', color: C.dim, ...mono, fontSize: 9,
+          padding: '3px 8px', border: `1px solid ${C.border}`, borderRadius: 3,
+          textDecoration: 'none',
+        }}
+      >
+        {'☕'} ko-fi
+      </a>
+
       <button
         onClick={onOpenTutorial}
         title="Replay tutorial"
         aria-label="Replay tutorial"
         style={{
-          marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.border}`, color: C.dim,
+          background: 'transparent', border: `1px solid ${C.border}`, color: C.dim,
           ...mono, fontSize: 11, width: 22, height: 22, borderRadius: '50%', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
         }}
