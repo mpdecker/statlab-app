@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <defs>
+    <radialGradient id="sl-glow" cx="30%" cy="20%" r="80%">
+      <stop offset="0%" stop-color="#141b16"/>
+      <stop offset="100%" stop-color="#0a0e13"/>
+    </radialGradient>
+  </defs>
+  <rect width="240" height="240" fill="url(#sl-glow)"/>
+  <path d="M62,58 L178,58 L104,120 L178,182 L62,182"
+        fill="none" stroke="#c4ff00" stroke-width="20"
+        stroke-linecap="square" stroke-linejoin="miter"/>
+</svg>
