@@ -963,13 +963,14 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'icc')       return icc(scaleMatrix);
       if (a === 'kappa')     return cohensKappa(data.map(r => r[cat1]), data.map(r => r[cat2]));
       if (a === 'wmean') {
-        const m = weightedMean(xyz.xs, xyz.zs);
+        const rows = data.filter(r => rowFinite(r, [xVar, zVar]));
+        const m = weightedMean(rows.map(r => +r[xVar]), rows.map(r => +r[zVar]));
         if (!m) return null;
-        const v = weightedVar(xyz.xs, xyz.zs);
+        const v = weightedVar(rows.map(r => +r[xVar]), rows.map(r => +r[zVar]));
         return { test: 'Weighted Descriptives', mean: m.mean, sd: v?.sd ?? null, se: v?.se ?? null, n: m.n, sumWeights: m.sumWeights, apa: v ? `Weighted M = ${m.mean}, SD = ${v.sd}, n = ${m.n}` : m.apa };
       }
       if (a === 'wcorr')  return weightedCorrelation(xyz.xs, xyz.ys, xyz.zs);
-      if (a === 'deff')   return designEffect(xyz.zs);
+      if (a === 'deff')   { const rows = data.filter(r => rowFinite(r, [zVar])); return designEffect(rows.map(r => +r[zVar])); }
       if (a === 'taylor') return taylorLinearization(data, xVar, [], cat1, cat2);
       if (a === 'meta')      { const studies = metaInput.trim().split('\n').map(line => { const p = line.split(','); const d = parseFloat(p[1]), se = parseFloat(p[2]); return { label: p[0]?.trim(), d, se }; }).filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0); return metaAnalysis(studies); }
       if (a === 'did')       return differencesInDifferences(parseNumList(didPCStr), parseNumList(didPOStr), parseNumList(didPTStr), parseNumList(didPTtStr));

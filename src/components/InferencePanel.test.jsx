@@ -161,4 +161,32 @@ describe('InferencePanel', () => {
     const categoryContainer = privacyHeader.closest('div').parentElement;
     expect(within(categoryContainer).getByText('Differential Privacy')).toBeTruthy();
   });
+
+  describe('wmean/deff row inclusion (regression: unrelated yVar must not drop rows)', () => {
+    // Column 'a' -> xVar (Value), 'b' -> yVar (irrelevant to wmean/deff, not part
+    // of either test's config or computation), 'c' -> zVar (Weight). Every row
+    // has finite a & c; b is non-finite (undefined, so +b === NaN) for the first
+    // 3 rows. Before the fix, both branches read from the shared `xyz` memo,
+    // which requires ALL THREE of xVar/yVar/zVar finite per row -- so those 3
+    // rows were silently dropped even though b is irrelevant to either test,
+    // shrinking n from 8 to 5.
+    const rows = Array.from({ length: 8 }, (_, i) => ({
+      a: i + 1,
+      b: i < 3 ? undefined : i + 2,
+      c: i + 5,
+    }));
+    const ds = { numeric: ['a', 'b', 'c'], categorical: [] };
+
+    it('wmean (Weighted Descriptives) reports n for all rows with finite Value+Weight, not fewer', () => {
+      render(<InferencePanel data={rows} ds={ds} active="wmean" setActive={vi.fn()} />);
+      expect(screen.getByText(/Weighted Descriptives · n=8/)).toBeTruthy();
+      expect(screen.queryByText(/Weighted Descriptives · n=5/)).toBeNull();
+    });
+
+    it('deff (Design Effect) reports n for all rows with a finite Weight, not fewer', () => {
+      render(<InferencePanel data={rows} ds={ds} active="deff" setActive={vi.fn()} />);
+      expect(screen.getByText(/Design Effect · n=8/)).toBeTruthy();
+      expect(screen.queryByText(/Design Effect · n=5/)).toBeNull();
+    });
+  });
 });
