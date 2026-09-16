@@ -186,4 +186,6 @@ export const CHART_FOR_TEST = {
   gam_backfit: 'scatterfit', gam_interact: 'scatterfit',
   gmm_cluster: 'scatter', lpa: 'histogram',
   dist_corr: 'scatterfit', dist_cov: 'scatterfit',
+  // ── SURVEY METHODOLOGY ──────────────────────────────────────────────
+  wmean: 'histogram', wcorr: 'scatterfit', deff: 'histogram', taylor: 'histogram',
 };

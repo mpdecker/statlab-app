@@ -725,6 +725,40 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         </div>
       </>}
 
+      {r.test === 'Weighted Descriptives' && <>
+        <SectionHead label={`Weighted Descriptives · n=${r.n}`} />
+        <Row>
+          <Chip label="weighted M" value={r.mean} color={C.pos} />
+          {r.sd != null && <Chip label="weighted SD" value={r.sd} color={C.dim} />}
+          {r.se != null && <Chip label="SE" value={r.se} color={C.dim} />}
+          <Chip label="Σ weights" value={r.sumWeights} color={C.dim} />
+        </Row>
+      </>}
+
+      {r.test === 'Weighted Correlation' && <>
+        <SectionHead label={`Weighted Correlation · n=${r.n}`} />
+        <Row>
+          <Chip label="r (weighted)" value={r.r} color={r.r > 0 ? C.pos : C.neg} />
+        </Row>
+      </>}
+
+      {r.test === 'Design Effect' && <>
+        <SectionHead label={`Design Effect · n=${r.n}`} />
+        <Row>
+          <Chip label="DEFF" value={r.deff} color={r.deff > 1 ? C.warn : C.ok} />
+          <Chip label="n_eff" value={r.nEff} color={C.dim} />
+          <Chip label="weight CV" value={r.cv} color={C.dim} />
+        </Row>
+      </>}
+
+      {r.test === 'Taylor Linearization' && <>
+        <SectionHead label={`Taylor Linearization · ${r.nStrata} strata · n=${r.n}`} />
+        <Row>
+          <Chip label="total" value={r.total} color={C.pos} />
+          <Chip label="SE" value={r.se} color={C.dim} />
+        </Row>
+      </>}
+
       {r.test === "McDonald's ω" && (
         <Row>
           <Chip label="ω total" value={r.omegaTotal} color={r.omegaTotal >= .8 ? C.ok : C.warn} sub={r.label} />

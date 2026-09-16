@@ -379,4 +379,12 @@ export const TREE = [
       { id: "dist_cov",  label: "Distance Covariance",   tag: "nonlinear dependence" },
     ],
   },
+  { cat: "SURVEY METHODOLOGY", color: '#fb7185',
+    tests: [
+      { id: "wmean",  label: "Weighted Descriptives",   tag: "weighted mean · SD · SE" },
+      { id: "wcorr",  label: "Weighted Correlation",    tag: "weighted Pearson r" },
+      { id: "deff",   label: "Design Effect",           tag: "DEFF · effective n · weight CV" },
+      { id: "taylor", label: "Taylor Linearization",    tag: "stratified/clustered total · SE" },
+    ],
+  },
 ];

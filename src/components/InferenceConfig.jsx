@@ -257,6 +257,21 @@ export function InferenceConfig({ active, ds, data, state, set, width = '100%', 
       <Sel label="Rater 1" value={cat1} onChange={setCat1} options={categorical} width={130} />
       <Sel label="Rater 2" value={cat2} onChange={setCat2} options={categorical} width={130} />
     </>,
+    wmean: <>
+      <Sel label="Value" value={xVar} onChange={setXVar} options={numeric} width={130} />
+      <Sel label="Weight" value={zVar} onChange={setZVar} options={numeric} width={130} />
+    </>,
+    wcorr: <>
+      <Sel label="X" value={xVar} onChange={setXVar} options={numeric} width={110} />
+      <Sel label="Y" value={yVar} onChange={setYVar} options={numeric} width={110} />
+      <Sel label="Weight" value={zVar} onChange={setZVar} options={numeric} width={110} />
+    </>,
+    deff: <Sel label="Weight" value={zVar} onChange={setZVar} options={numeric} width={130} />,
+    taylor: <>
+      <Sel label="Value" value={xVar} onChange={setXVar} options={numeric} width={110} />
+      <Sel label="Strata" value={cat1} onChange={setCat1} options={categorical} width={110} />
+      <Sel label="PSU / cluster" value={cat2} onChange={setCat2} options={categorical} width={110} />
+    </>,
     meta: <TA
       label="Studies  (label, d, se — one per line)"
       value={state.metaInput} onChange={state.setMetaInput} rows={7}

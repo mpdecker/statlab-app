@@ -23,6 +23,7 @@ import {
   bonferroni, holm, bh, sensitivityLOO,
 } from '@statlab/core/methods/categorical';
 import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from '@statlab/core/methods/multivariate';
+import { weightedMean, weightedVar, weightedCorrelation, designEffect, taylorLinearization } from '@statlab/core/methods/survey';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
 import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
@@ -961,6 +962,15 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'splithalf') return splitHalf(scaleMatrix);
       if (a === 'icc')       return icc(scaleMatrix);
       if (a === 'kappa')     return cohensKappa(data.map(r => r[cat1]), data.map(r => r[cat2]));
+      if (a === 'wmean') {
+        const m = weightedMean(xyz.xs, xyz.zs);
+        if (!m) return null;
+        const v = weightedVar(xyz.xs, xyz.zs);
+        return { test: 'Weighted Descriptives', mean: m.mean, sd: v?.sd ?? null, se: v?.se ?? null, n: m.n, sumWeights: m.sumWeights, apa: v ? `Weighted M = ${m.mean}, SD = ${v.sd}, n = ${m.n}` : m.apa };
+      }
+      if (a === 'wcorr')  return weightedCorrelation(xyz.xs, xyz.ys, xyz.zs);
+      if (a === 'deff')   return designEffect(xyz.zs);
+      if (a === 'taylor') return taylorLinearization(data, xVar, [], cat1, cat2);
       if (a === 'meta')      { const studies = metaInput.trim().split('\n').map(line => { const p = line.split(','); const d = parseFloat(p[1]), se = parseFloat(p[2]); return { label: p[0]?.trim(), d, se }; }).filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0); return metaAnalysis(studies); }
       if (a === 'did')       return differencesInDifferences(parseNumList(didPCStr), parseNumList(didPOStr), parseNumList(didPTStr), parseNumList(didPTtStr));
       if (a === 'grubbs')    return grubbsTest(allTgt);

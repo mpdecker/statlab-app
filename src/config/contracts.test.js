@@ -21,7 +21,7 @@ describe('TREE integration contracts', () => {
   });
 
   it('runner count matches TREE size', () => {
-    expect(TREE_IDS.length).toBe(221);
+    expect(TREE_IDS.length).toBe(225);
   });
 
   TREE_IDS.forEach(id => {

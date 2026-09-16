@@ -1398,6 +1398,30 @@ export const METHOD_NOTES = {
     assumptions: ["Finite variances", "Independent observations"],
     cite: "Székely, G. J., Rizzo, M. L., & Bakirov, N. K. (2007). Measuring and testing dependence by correlation of distances. Annals of Statistics, 35(6), 2769–2794.",
   },
+  wmean: {
+    description: "Weighted descriptive statistics adjust the mean, SD, and SE to account for unequal selection probabilities or post-survey adjustment weights.",
+    usage: "Use for any survey with sampling weights (probability-proportional-to-size designs, post-stratification, nonresponse adjustment) — an unweighted mean can be badly biased if weights vary.",
+    assumptions: ["Weights are non-negative and correctly reflect the design (or adjustment) used", "Value and weight columns have no missing pairs"],
+    cite: "Kish, L. (1965). Survey Sampling. Wiley.",
+  },
+  wcorr: {
+    description: "Weighted Pearson correlation applies survey weights to both variables before computing the correlation coefficient.",
+    usage: "Use when correlating two variables from a weighted survey sample — an unweighted correlation can misrepresent the population relationship.",
+    assumptions: ["Weights correctly reflect the design", "Linear relationship (same assumption as ordinary Pearson r)"],
+    cite: "Kish, L. (1965). Survey Sampling. Wiley.",
+  },
+  deff: {
+    description: "The design effect (DEFF) measures how much sampling variance inflates (or deflates) due to unequal weights, compared to simple random sampling; effective sample size (n_eff) is the SRS-equivalent n.",
+    usage: "Use to diagnose how much precision a weighted design costs (or gains) versus SRS, and to sanity-check whether a weighting scheme has extreme, variance-inflating weights.",
+    assumptions: ["Weights correctly reflect the design"],
+    cite: "Kish, L. (1965). Survey Sampling. Wiley.",
+  },
+  taylor: {
+    description: "Taylor linearization estimates the standard error of a total for a stratified, clustered (multi-stage) sample design, using between-PSU variance within each stratum.",
+    usage: "Use for the standard error of a total (e.g. population total of a survey item) collected under a stratified-cluster design — the standard 'complex survey' SE method used by most national statistical agencies.",
+    assumptions: ["At least 2 primary sampling units (PSUs) per stratum", "PSUs are independently selected within each stratum"],
+    cite: "Wolter, K. M. (2007). Introduction to Variance Estimation (2nd ed.). Springer.",
+  },
 };
 
 /** Simplified implementation notes used as fallback when an educational note doesn't exist. */
