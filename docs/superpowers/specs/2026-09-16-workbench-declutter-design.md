@@ -115,11 +115,11 @@ every button (`"Violin"`, `"Correlogram heatmap"`, `"Time series"`...) —
 today only used as the HTML `title` hover attribute. The button's visible
 text switches from the abbreviated `label` field to that same `title`
 field; `label` stays in the data (unused) rather than being deleted, to
-keep the diff to the render line only. The button row's container gains
-`flexWrap: 'wrap'` so longer labels wrap to a second line on a narrower
-panel instead of overflowing or forcing horizontal scroll — the row
-already sits in a flex container, so this is a one-property addition,
-not a layout rewrite.
+keep the diff to the render line only. The button row's container
+(`QuickView`'s `chartIcons`) already has `flexWrap: 'wrap'` set, so longer
+labels already wrap to a second line on a narrower panel instead of
+overflowing or forcing horizontal scroll — no layout change needed there,
+confirmed by reading the current source rather than assumed.
 
 ## Testing
 
