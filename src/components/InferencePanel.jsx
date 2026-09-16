@@ -172,7 +172,7 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
   }, []);
 
   const expandAll = () => {
-    setExpandedCats(new Set(TREE.map(cat => cat.cat)));
+    setExpandedCats(new Set([...TREE.map(cat => cat.cat), '__core__', '__more__']));
   };
 
   const collapseAll = () => {

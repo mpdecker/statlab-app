@@ -100,4 +100,35 @@ describe('InferencePanel', () => {
     expect(screen.queryByText('84 modules')).toBeNull();
     expect(screen.getByText(/^\d{3} modules$/)).toBeTruthy();
   });
+
+  it('"EXPAND ALL" reveals tests in both the core and more-categories sections, and "COLLAPSE" hides them again', () => {
+    render(
+      <InferencePanel
+        data={mockRows}
+        ds={mockDs}
+        active="t_welch"
+        setActive={vi.fn()}
+      />,
+    );
+
+    // Use test labels distinct from the active test ("Welch t-test"), since
+    // the active test is also mirrored in the "RECENT" section, which is
+    // unaffected by the Navigator's expand/collapse state and would make
+    // these assertions pass regardless of the bug being fixed.
+    fireEvent.click(screen.getByText('COLLAPSE'));
+    expect(screen.queryByText('One-sample t-test')).toBeNull();
+    expect(screen.queryByText(/^PRIVACY/i)).toBeNull();
+
+    fireEvent.click(screen.getByText('EXPAND ALL'));
+    // A core category's test (under COMPARE MEANS) is visible: proves the
+    // CORE section wrapper itself, not just the category name, is expanded.
+    expect(screen.getByText('One-sample t-test')).toBeTruthy();
+    // A long-tail category's test (under PRIVACY, in "More categories") is
+    // visible: proves the MORE CATEGORIES section wrapper is expanded too.
+    expect(screen.getByText('Differential Privacy')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('COLLAPSE'));
+    expect(screen.queryByText('One-sample t-test')).toBeNull();
+    expect(screen.queryByText(/^PRIVACY/i)).toBeNull();
+  });
 });
