@@ -32,16 +32,14 @@ const ExplorePanel = lazy(() => import('./components/ExplorePanel.jsx'));
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const vLabel = { writingMode: 'vertical-rl', fontSize: 9, color: C.dim, ...mono, letterSpacing: '.1em', textTransform: 'uppercase' };
 
-const CHART_ICONS = [
-  { id: 'violin', label: 'VLN', title: 'Violin' },
-  { id: 'box', label: 'BOX', title: 'Box plot' },
-  { id: 'scatter', label: 'SCT', title: 'Scatter' },
-  { id: 'histogram', label: 'HST', title: 'Histogram' },
-  { id: 'barci', label: 'BCI', title: 'Bar + CI' },
-  { id: 'heatmap', label: 'HM', title: 'Correlogram heatmap' },
-  { id: 'mosaic', label: 'MOS', title: 'Mosaic plot' },
-  { id: 'timeseries', label: 'TS', title: 'Time series' },
-  { id: 'boot', label: 'BST', title: 'Bootstrap' },
+// Chart modes with a dedicated AUTO-toolbar button. Each button's visible
+// text comes from CHART_MODE_LABELS (vizHelpers.js) — the app's one
+// existing source of truth for chart-mode names, also used by the EXPLORE
+// tab and QuickChart's own mode-render tests — rather than a second,
+// independently-worded copy that can silently disagree with it.
+const CHART_ICON_IDS = [
+  'violin', 'box', 'scatter', 'histogram', 'barci',
+  'heatmap', 'mosaic', 'timeseries', 'boot',
 ];
 
 const defaultPanelLayout = {
@@ -196,12 +194,18 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
       {isAuto && (
         <span style={{ fontSize: 7, color: C.accent, ...mono, padding: '2px 5px', border: `1px solid ${C.accent}`, borderRadius: 2, letterSpacing: '.08em' }} title={`Auto: ${modeLabel}`}>AUTO</span>
       )}
-      <span style={{ fontSize: 7, color: C.dim, ...mono }}>{modeLabel}</span>
-      {CHART_ICONS.map(({ id, label, title }) => (
+      {/* Only shown when the active mode has no toolbar button of its own
+          (most modes don't — the toolbar covers 9 of CHART_MODE_LABELS'
+          25) — otherwise this would repeat the same word the highlighted
+          button already shows right next to it. */}
+      {!CHART_ICON_IDS.includes(effectiveMode) && (
+        <span style={{ fontSize: 7, color: C.dim, ...mono }}>{modeLabel}</span>
+      )}
+      {CHART_ICON_IDS.map(id => (
         <button
           key={id}
           type="button"
-          title={title}
+          title={CHART_MODE_LABELS[id]}
           onClick={() => setChartMode(id === chartMode ? null : id)}
           style={{
             background: effectiveMode === id ? 'rgba(196,255,0,.15)' : 'transparent',
@@ -211,7 +215,7 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
             fontFamily: "'IBM Plex Mono', monospace",
           }}
         >
-          {title}
+          {CHART_MODE_LABELS[id]}
         </button>
       ))}
     </div>

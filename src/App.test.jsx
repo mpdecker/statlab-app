@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import React from 'react';
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { render, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { render, fireEvent, cleanup, waitFor, screen } from '@testing-library/react';
 import App from './App.jsx';
 
 // happy-dom's localStorage is unusable in this Node version (Node's own
@@ -38,7 +38,17 @@ describe('App', () => {
     expect(container.querySelector('[data-tutorial-target="calc"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="advanced"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="dataset"]')).toBeTruthy();
-    expect(getByText('Correlogram heatmap')).toBeTruthy();
+    // Toolbar button text now matches CHART_MODE_LABELS (the app's one
+    // existing source of truth for chart-mode names) exactly, not a
+    // second, independently-worded copy that can disagree with it.
+    expect(getByText('Correlogram')).toBeTruthy();
+    expect(getByText('Mosaic')).toBeTruthy();
+    expect(getByText('Time Series')).toBeTruthy();
+    // The default test (Welch t-test) auto-selects the "violin" mode,
+    // which has its own toolbar button — its name must appear exactly
+    // once in the toolbar row (the button), not twice (button + a
+    // separate "current mode" label repeating the same word next to it).
+    expect(screen.getAllByText('Violin').length).toBe(1);
   });
 
   test('survives a pre-Task-6 (navigator/config/quickView) localStorage panel layout blob', async () => {
