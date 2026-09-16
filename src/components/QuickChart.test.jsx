@@ -60,3 +60,29 @@ describe('QuickChart', () => {
     });
   }
 });
+
+describe('QuickChart sizing', () => {
+  test('box mode passes the measured canvasSize into BoxPlotGrid, not the old 210x160 literal', () => {
+    const data = [
+      { g: 'a', y: 1 }, { g: 'a', y: 2 }, { g: 'b', y: 3 }, { g: 'b', y: 4 },
+    ];
+    const { container } = render(
+      <QuickChart mode="box" data={data} colorVar="g" yVar="y" canvasSize={{ w: 900, h: 500 }} />
+    );
+    // BoxPlotGrid divides its width prop across groups into individual
+    // BoxPlot <svg> elements; with 2 groups and w=900 each should be far
+    // wider than the old fixed-210-total layout could ever produce.
+    const svgs = container.querySelectorAll('svg');
+    expect(svgs.length).toBe(2);
+    for (const svg of svgs) {
+      expect(Number(svg.getAttribute('width'))).toBeGreaterThan(210);
+    }
+  });
+
+  test('scree mode passes canvasSize.h into ScreePlot’s height prop', () => {
+    const { container } = render(
+      <QuickChart mode="scree" inferenceResult={{ eigenvalues: [2, 1, 0.5] }} data={[]} canvasSize={{ w: 900, h: 500 }} />
+    );
+    expect(container.firstChild.style.height).toBe('500px');
+  });
+});
