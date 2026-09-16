@@ -5,6 +5,9 @@ import {
   ITSPlot, RDPlot, SociogramPlot, TimeSeriesChart,
 } from './charts.jsx';
 import { C } from '../palette.js';
+import {
+  seriesFromResult, barGroupsFromResult, loadingFromResult, computeCorrMatrix,
+} from '../utils/vizHelpers.js';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, groups, inferenceResult, activeTest }) {

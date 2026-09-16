@@ -381,6 +381,17 @@ export function loadingFromResult(result, activeTest, varLabels) {
   return null;
 }
 
+export function computeCorrMatrix(data, vars) {
+  return vars.map(v1 => vars.map(v2 => {
+    if (v1 === v2) return 1;
+    const xs = data.map(r => +r[v1]).filter(Number.isFinite);
+    const ys = data.map(r => +r[v2]).filter(Number.isFinite);
+    const n = Math.min(xs.length, ys.length);
+    if (n < 2) return 0;
+    return corr(xs.slice(0, n), ys.slice(0, n));
+  }));
+}
+
 const fmt3 = v => Number.isFinite(v) ? (+v).toFixed(3) : v;
 
 export function formatInferenceSummary(result, activeTest) {

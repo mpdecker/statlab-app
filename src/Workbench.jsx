@@ -43,17 +43,6 @@ const CHART_ICONS = [
   { id: 'boot', label: 'BST', title: 'Bootstrap' },
 ];
 
-function computeCorrMatrix(data, vars) {
-  return vars.map(v1 => vars.map(v2 => {
-    if (v1 === v2) return 1;
-    const xs = data.map(r => +r[v1]).filter(Number.isFinite);
-    const ys = data.map(r => +r[v2]).filter(Number.isFinite);
-    const n = Math.min(xs.length, ys.length);
-    if (n < 2) return 0;
-    return corr(xs.slice(0, n), ys.slice(0, n));
-  }));
-}
-
 const defaultPanelLayout = {
   navigator: { width: 240, visible: true },
   advanced: { width: 280, visible: false },
