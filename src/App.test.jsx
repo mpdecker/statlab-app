@@ -38,6 +38,7 @@ describe('App', () => {
     expect(container.querySelector('[data-tutorial-target="calc"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="advanced"]')).toBeTruthy();
     expect(container.querySelector('[data-tutorial-target="dataset"]')).toBeTruthy();
+    expect(getByText('Correlogram heatmap')).toBeTruthy();
   });
 
   test('survives a pre-Task-6 (navigator/config/quickView) localStorage panel layout blob', async () => {
