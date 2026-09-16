@@ -1437,7 +1437,7 @@ export const METHOD_NOTES = {
   mds_nonmetric: {
     description: "Non-metric MDS (Kruskal's method) preserves only the rank order of dissimilarities, not their exact magnitudes, minimizing a stress function over monotonic transformations of distance.",
     usage: "Use when your dissimilarity measure is ordinal or you only trust its rank order (e.g. subjective similarity ratings) rather than its exact numeric scale.",
-    assumptions: ["Dissimilarities are at least ordinally meaningful", "At least 5 observations, 2+ numeric variables"],
+    assumptions: ["Dissimilarities are at least ordinally meaningful", "At least 6 observations, 2+ numeric variables"],
     cite: "Kruskal, J. B. (1964). Nonmetric multidimensional scaling: A numerical method. Psychometrika, 29(2), 115–129.",
   },
 };
