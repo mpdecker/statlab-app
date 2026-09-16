@@ -1,7 +1,36 @@
 # StatLab Survey Methodology + MDS Tests — Design
 
 **Date:** 2026-09-16
-**Status:** Approved
+**Status:** Verification complete (2026-09-16). All 7 tests manually verified
+end-to-end in a production preview build: full `pnpm test` (738/738) and
+`pnpm build` pass; all 4 survey tests and all 3 MDS tests are reachable via
+Navigator search, compute correctly, and render results with no console
+errors. Two real bugs were found and handled during verification:
+
+1. **`sammonMapping` (in `@statlab/core@0.1.1` itself, not this webapp's
+   code) numerically diverges to all-`NaN` output on some real datasets**
+   (e.g. the bundled "Salaries" dataset, n=397) regardless of input
+   scaling — confirmed in isolation against the package, not a webapp
+   wiring bug. `classicalMDS`/`nonMetricMDS` are unaffected on the same
+   data. Worked around defensively at the webapp layer: `QuickChart.jsx`
+   now checks that an MDS result has at least one finite point before
+   rendering `MDSPlot`, falling back to an explanatory hint ("MDS
+   embedding did not converge for these variables — try different Scale
+   items") instead of silently rendering a blank chart. The underlying
+   package-level instability itself is out of this plan's scope (fixing
+   an already-published npm dependency) and has been filed as a separate
+   follow-up.
+2. **Pre-existing, systemic bug found (not introduced by this plan):**
+   switching datasets does not reset the app's generic per-test config
+   state (`xVar`/`cat1`/`cat2`/`scaleVars`/etc. in `InferencePanel.jsx`),
+   so a stale column name from the previously-loaded dataset can silently
+   drive a computation on the new dataset, producing wrong results with
+   no error shown. Reproduced with Taylor Linearization (this plan's own
+   Strata/PSU config reuses `cat1`/`cat2`), but the same one-time
+   `useState(list[0] || '')` initialization pattern is used by ~15
+   generic state slots shared with several already-shipped tests (e.g.
+   Cohen's κ, partial correlation) — out of this plan's scope to fix and
+   filed as a separate follow-up.
 **Phase:** 1 of 2 of the "bring the `@statlab/core` package to the webapp"
 initiative (SEM — structural equation modeling — is a deliberately separate
 follow-up: its `sem`/`pathAnalysis` functions take lavaan-style model-syntax
