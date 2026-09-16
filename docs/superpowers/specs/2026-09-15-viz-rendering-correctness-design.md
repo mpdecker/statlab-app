@@ -40,7 +40,7 @@ exist), which is how this shipped undetected.
 
 ### 2. Confirmed but secondary: fixed, tiny render size on surviving modes
 
-In `QuickChart.jsx`, ~10 more chart modes (violin, box, histogram, mosaic,
+In `QuickChart.jsx`, 15 more chart modes (violin, box, histogram, mosaic,
 scree, qq, residual, power, bootstrap, IRT, LCA, spaghetti, ITS, RDD,
 slopes) are invoked with hardcoded pixel props/defaults (`width={210}
 height={160}`-style) independent of the actual viz panel's size, or wrap
