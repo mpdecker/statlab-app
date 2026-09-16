@@ -25,6 +25,8 @@ const HEADLINE_CATS = [
   { cat: "META-ANALYSIS & CAUSAL", label: "META & CAUSAL", color: '#fbbf24' },
 ];
 
+export const CORE_CATEGORY_NAMES = new Set(HEADLINE_CATS.map(h => h.cat));
+
 export const TEST_CATEGORIES = (() => {
   const headlineNames = new Set(HEADLINE_CATS.map(h => h.cat));
   const rows = HEADLINE_CATS.map(h => ({

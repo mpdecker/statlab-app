@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { C } from '../palette.js';
+import { TOTAL_TEST_COUNT } from '../config/testCategories.js';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
@@ -15,7 +16,7 @@ export function markTutorialSeen() {
 
 const STEPS = [
   { id: 'welcome', target: null, title: 'Welcome to StatLab', body: 'A quick tour of the workbench, using the built-in Iris dataset and a Welch t-test as an example.' },
-  { id: 'navigator', target: 'navigator', title: 'Pick a test', body: 'Browse or search 84+ statistical tests here. Selecting one drives the chart, parameters, and results.' },
+  { id: 'navigator', target: 'navigator', title: 'Pick a test', body: `Browse or search ${TOTAL_TEST_COUNT}+ statistical tests here. Selecting one drives the chart, parameters, and results.` },
   { id: 'viz', target: 'viz', title: 'See your data', body: 'The chart updates automatically for the active test. Switch to EXPLORE for free-form charting of the whole dataset.' },
   { id: 'calc', target: 'calc', title: 'Configure and read results', body: 'Set test parameters on the left and read APA-ready results, tables, and diagnostics on the right.' },
   { id: 'advanced', target: 'advanced', title: 'Advanced settings', body: 'Map X/Y/Color variables and set the significance level here. Collapse this panel when you don\'t need it.' },

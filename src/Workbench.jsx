@@ -211,7 +211,7 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
             fontFamily: "'IBM Plex Mono', monospace",
           }}
         >
-          {label}
+          {title}
         </button>
       ))}
     </div>

@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { C } from '../palette.js';
 import { TREE } from '../config/tree.js';
+import { CORE_CATEGORY_NAMES, TOTAL_TEST_COUNT } from '../config/testCategories.js';
 import { METHOD_NOTES } from '../config/methodNotes.js';
 import { InferenceConfig } from './InferenceConfig.jsx';
 import { InferenceResults } from './InferenceResults.jsx';
@@ -90,6 +91,13 @@ function dichotomizeMatrix(matrix) {
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
+// Maps a category name to the CORE/MORE CATEGORIES section sentinel that
+// gates whether its whole section renders in expandedCats. Any writer that
+// adds a category name to expandedCats must also add this, or the category
+// can end up "expanded" while its section wrapper stays collapsed and hides
+// it entirely (see commit bf31d63).
+const sectionKeyFor = (catName) => (CORE_CATEGORY_NAMES.has(catName) ? '__core__' : '__more__');
+
 // ── Left navigator ────────────────────────────────────────────────────────────
 export function Navigator({ active, setActive, width = '100%', borderRight = false }) {
   const [expandedNote, setExpandedNote] = useState(null);
@@ -105,8 +113,11 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
   }, [active]);
 
   const [expandedCats, setExpandedCats] = useState(() => {
-    const initial = new Set();
-    if (activeCat) initial.add(activeCat);
+    const initial = new Set(['__core__']);
+    if (activeCat) {
+      initial.add(activeCat);
+      initial.add(sectionKeyFor(activeCat));
+    }
     return initial;
   });
 
@@ -150,9 +161,11 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
   useEffect(() => {
     if (activeCat) {
       setExpandedCats(prev => {
-        if (prev.has(activeCat)) return prev;
+        const key = sectionKeyFor(activeCat);
+        if (prev.has(activeCat) && prev.has(key)) return prev;
         const next = new Set(prev);
         next.add(activeCat);
+        next.add(key);
         return next;
       });
     }
@@ -170,48 +183,8 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
     });
   }, []);
 
-  // Keys must match tree.js's `cat` strings exactly \u2014 this drifted out of sync
-  // with several category renames/additions (META & CAUSAL, ROBUST STATS,
-  // AGENT-BASED, BANDITS, PRO, RISK-ADJUSTED, SCED, SENSITIVITY were all stale,
-  // and the 4 newest categories had no entry at all), silently dropping the
-  // icon for 12 of 32 categories.
-  const CAT_ICON = {
-    "COMPARE MEANS": 't',
-    "ANALYSIS OF VARIANCE": 'F',
-    "NONPARAMETRIC": '\u03C1',
-    "CORRELATION": 'r',
-    "REGRESSION": '\u03B2',
-    "CATEGORICAL": '\u03C7\u00B2',
-    "EQUIVALENCE & BAYES": 'B',
-    "MULTIVARIATE": '\u03A3',
-    "PSYCHOMETRICS": '\u03C8',
-    "MULTILEVEL MODELS": '\u2282',
-    "CLUSTERING": '\u2295',
-    "NETWORK": '\u2B21',
-    "META-ANALYSIS & CAUSAL": '\u2192',
-    "DIAGNOSTICS": '\u2611',
-    "ROBUST STATISTICS": 'R',
-    "BAYESIAN MODELING": '\u03B2',
-    "MISSING DATA": '\u2205',
-    "POWER ANALYSIS": '\u26A1',
-    "POWER & SAMPLE SIZE (EXTENDED)": '\u26A1',
-    "AGENT-BASED MODELS": '\u25C9',
-    "MULTI-ARMED BANDITS": 'Bd',
-    "RECORD LINKAGE": '\u2A3F',
-    "PRIVACY": 'Lk',
-    "PATIENT-REPORTED OUTCOMES": 'Po',
-    "RISK-ADJUSTED MONITORING": '\u2316',
-    "RECOMMENDATION": '\u2605',
-    "SINGLE-CASE DESIGNS": '\u21F5',
-    "SENSITIVITY ANALYSIS": '\u0394',
-    "BOOTSTRAP": '\u21BB',
-    "SURVIVAL ANALYSIS": '\u03BB',
-    "TIME SERIES": '\u223F',
-    "OUTLIER DETECTION": '\u2298',
-  };
-
   const expandAll = () => {
-    setExpandedCats(new Set(TREE.map(cat => cat.cat)));
+    setExpandedCats(new Set([...TREE.map(cat => cat.cat), '__core__', '__more__']));
   };
 
   const collapseAll = () => {
@@ -242,6 +215,116 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
     return expandedCats.has(catName);
   };
 
+  const coreCats = filteredTree.filter(cat => CORE_CATEGORY_NAMES.has(cat.cat));
+  const moreCats = filteredTree.filter(cat => !CORE_CATEGORY_NAMES.has(cat.cat));
+
+  const renderCategory = (cat) => {
+    const expanded = isExpanded(cat.cat);
+    return (
+      <div key={cat.cat} style={{ borderBottom: `1px solid ${C.border}` }}>
+        {/* Category Header */}
+        <div
+          onClick={() => toggleCategory(cat.cat)}
+          style={{
+            position: 'sticky', top: 0, zIndex: 1,
+            fontSize: 9, ...mono,
+            color: cat.color,
+            textTransform: 'uppercase',
+            letterSpacing: '.12em',
+            padding: '6px 10px',
+            fontWeight: 700,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer',
+            background: C.bg,
+            userSelect: 'none',
+          }}
+        >
+          <span>{cat.cat} <span style={{ fontSize: 8, color: C.dim }}>({cat.tests.length})</span></span>
+          <span style={{ fontSize: 8, color: C.dim }}>
+            {expanded ? '▼' : '▶'}
+          </span>
+        </div>
+
+        {/* Tests list */}
+        {expanded && (
+          <div style={{ background: 'rgba(0,0,0,0.1)' }}>
+            {cat.tests.map(t => {
+              const isFav = favorites.includes(t.id);
+              return (
+              <div key={t.id} style={{ borderTop: `1px dashed ${C.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                  <button
+                    onClick={() => setActive(t.id)}
+                    style={{
+                      flex: 1, display: 'block', textAlign: 'left',
+                      background: active === t.id ? 'rgba(255,255,255,.04)' : 'transparent',
+                      color: active === t.id ? cat.color : C.text,
+                      border: 'none',
+                      borderLeft: active === t.id ? `3px solid ${cat.color}` : '3px solid transparent',
+                      fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13,
+                      padding: '6px 8px', cursor: 'pointer', lineHeight: 1.15, transition: 'all .1s',
+                    }}
+                  >
+                    <span style={{ color: active === t.id ? cat.color : C.text }}>{t.label}</span>
+                    <div style={{ fontSize: 8, ...mono, color: C.dim, fontWeight: 400, marginTop: 2 }}>{t.tag}</div>
+                  </button>
+                  <button
+                    onClick={(e) => toggleFavorite(e, t.id)}
+                    title={isFav ? 'Remove favorite' : 'Add favorite'}
+                    style={{
+                      background: 'transparent', border: 'none', color: isFav ? C.accent : C.dim,
+                      cursor: 'pointer', fontSize: 11, padding: '6px 4px 6px 0', ...mono,
+                    }}
+                  >
+                    {isFav ? '★' : '☆'}
+                  </button>
+                  {METHOD_NOTES[t.id] && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setExpandedNote(expandedNote === t.id ? null : t.id); }}
+                      title="Method info"
+                      style={{
+                        background: 'transparent', border: 'none', color: expandedNote === t.id ? C.accent : C.dim,
+                        cursor: 'pointer', fontSize: 11, padding: '6px 8px 6px 0', ...mono,
+                      }}
+                    >
+                      ?
+                    </button>
+                  )}
+                </div>
+                {expandedNote === t.id && METHOD_NOTES[t.id] && (
+                  <div style={{
+                    margin: '0 8px 6px 10px', padding: '6px 8px', background: C.panel, borderRadius: 3,
+                    border: `1px solid ${C.border}`, fontSize: 9, color: C.text, lineHeight: 1.5,
+                  }}>
+                    {typeof METHOD_NOTES[t.id] === 'string'
+                      ? METHOD_NOTES[t.id]
+                      : (
+                        <>
+                          <div style={{ color: cat.color, fontWeight: 600, marginBottom: 3 }}>{METHOD_NOTES[t.id].description}</div>
+                          {METHOD_NOTES[t.id].usage && <div style={{ color: C.dim, marginBottom: 4 }}><b style={{ color: C.text }}>Use:</b> {METHOD_NOTES[t.id].usage}</div>}
+                          {METHOD_NOTES[t.id].assumptions && (
+                            <div style={{ marginBottom: 4 }}>
+                              <b style={{ color: C.text }}>Assumptions:</b>
+                              <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
+                                {METHOD_NOTES[t.id].assumptions.map((a, i) => <li key={i} style={{ color: C.dim, marginBottom: 1 }}>{a}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          {METHOD_NOTES[t.id].cite && <div style={{ color: C.dim, fontSize: 8, fontStyle: 'italic' }}>{METHOD_NOTES[t.id].cite}</div>}
+                        </>
+                      )}
+                  </div>
+                )}
+              </div>
+            );})}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div style={{ width, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: borderRight ? `1px solid ${C.border}` : 'none' }}>
       {/* Search Header */}
@@ -249,7 +332,7 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <input
             type="text"
-            placeholder="Search 84 tests..."
+            placeholder={`Search ${TOTAL_TEST_COUNT} tests...`}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             style={{
@@ -284,7 +367,7 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 8, color: C.dim, ...mono }}>
-            {searchQuery ? `${filteredTree.reduce((acc, cat) => acc + cat.tests.length, 0)} found` : '84 modules'}
+            {searchQuery ? `${filteredTree.reduce((acc, cat) => acc + cat.tests.length, 0)} found` : `${TOTAL_TEST_COUNT} modules`}
           </span>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={expandAll} style={{ background: 'transparent', border: 'none', color: C.accent, fontSize: 8, ...mono, cursor: 'pointer', padding: 0 }}>EXPAND ALL</button>
@@ -416,112 +499,47 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
           </div>
         )}
 
-        {filteredTree.map(cat => {
-          const expanded = isExpanded(cat.cat);
-          return (
-            <div key={cat.cat} style={{ borderBottom: `1px solid ${C.border}` }}>
-              {/* Category Header */}
-              <div
-                onClick={() => toggleCategory(cat.cat)}
-                style={{
-                  position: 'sticky', top: 0, zIndex: 1,
-                  fontSize: 9, ...mono,
-                  color: cat.color,
-                  textTransform: 'uppercase',
-                  letterSpacing: '.12em',
-                  padding: '6px 10px',
-                  fontWeight: 700,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  background: C.bg,
-                  userSelect: 'none',
-                }}
-              >
-                <span>{CAT_ICON[cat.cat] ? CAT_ICON[cat.cat] + ' ' : ''}{cat.cat} <span style={{ fontSize: 8, color: C.dim }}>({cat.tests.length})</span></span>
-                <span style={{ fontSize: 8, color: C.dim }}>
-                  {expanded ? '\u25BC' : '\u25B6'}
-                </span>
-              </div>
-
-              {/* Tests list */}
-              {expanded && (
-                <div style={{ background: 'rgba(0,0,0,0.1)' }}>
-                  {cat.tests.map(t => {
-                    const isFav = favorites.includes(t.id);
-                    return (
-                    <div key={t.id} style={{ borderTop: `1px dashed ${C.border}` }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                        <button
-                          onClick={() => setActive(t.id)}
-                          style={{
-                            flex: 1, display: 'block', textAlign: 'left',
-                            background: active === t.id ? 'rgba(255,255,255,.04)' : 'transparent',
-                            color: active === t.id ? cat.color : C.text,
-                            border: 'none',
-                            borderLeft: active === t.id ? `3px solid ${cat.color}` : '3px solid transparent',
-                            fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13,
-                            padding: '6px 8px', cursor: 'pointer', lineHeight: 1.15, transition: 'all .1s',
-                          }}
-                        >
-                          <span style={{ color: active === t.id ? cat.color : C.text }}>{t.label}</span>
-                          <div style={{ fontSize: 8, ...mono, color: C.dim, fontWeight: 400, marginTop: 2 }}>{t.tag}</div>
-                        </button>
-                        <button
-                          onClick={(e) => toggleFavorite(e, t.id)}
-                          title={isFav ? 'Remove favorite' : 'Add favorite'}
-                          style={{
-                            background: 'transparent', border: 'none', color: isFav ? C.accent : C.dim,
-                            cursor: 'pointer', fontSize: 11, padding: '6px 4px 6px 0', ...mono,
-                          }}
-                        >
-                          {isFav ? '\u2605' : '\u2606'}
-                        </button>
-                        {METHOD_NOTES[t.id] && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setExpandedNote(expandedNote === t.id ? null : t.id); }}
-                            title="Method info"
-                            style={{
-                              background: 'transparent', border: 'none', color: expandedNote === t.id ? C.accent : C.dim,
-                              cursor: 'pointer', fontSize: 11, padding: '6px 8px 6px 0', ...mono,
-                            }}
-                          >
-                            ?
-                          </button>
-                        )}
-                      </div>
-                      {expandedNote === t.id && METHOD_NOTES[t.id] && (
-                        <div style={{
-                          margin: '0 8px 6px 10px', padding: '6px 8px', background: C.panel, borderRadius: 3,
-                          border: `1px solid ${C.border}`, fontSize: 9, color: C.text, lineHeight: 1.5,
-                        }}>
-                          {typeof METHOD_NOTES[t.id] === 'string'
-                            ? METHOD_NOTES[t.id]
-                            : (
-                              <>
-                                <div style={{ color: cat.color, fontWeight: 600, marginBottom: 3 }}>{METHOD_NOTES[t.id].description}</div>
-                                {METHOD_NOTES[t.id].usage && <div style={{ color: C.dim, marginBottom: 4 }}><b style={{ color: C.text }}>Use:</b> {METHOD_NOTES[t.id].usage}</div>}
-                                {METHOD_NOTES[t.id].assumptions && (
-                                  <div style={{ marginBottom: 4 }}>
-                                    <b style={{ color: C.text }}>Assumptions:</b>
-                                    <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
-                                      {METHOD_NOTES[t.id].assumptions.map((a, i) => <li key={i} style={{ color: C.dim, marginBottom: 1 }}>{a}</li>)}
-                                    </ul>
-                                  </div>
-                                )}
-                                {METHOD_NOTES[t.id].cite && <div style={{ color: C.dim, fontSize: 8, fontStyle: 'italic' }}>{METHOD_NOTES[t.id].cite}</div>}
-                              </>
-                            )}
-                        </div>
-                      )}
-                    </div>
-                  );})}
-                </div>
-              )}
+        {/* Core categories */}
+        {coreCats.length > 0 && (
+          <div style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div
+              onClick={() => toggleCategory('__core__')}
+              style={{
+                position: 'sticky', top: 0, zIndex: 1,
+                fontSize: 9, ...mono, fontWeight: 700, color: C.accent,
+                textTransform: 'uppercase', letterSpacing: '.12em',
+                padding: '6px 10px', display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', cursor: 'pointer', background: C.bg,
+                userSelect: 'none', borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <span>CORE ({coreCats.reduce((acc, cat) => acc + cat.tests.length, 0)})</span>
+              <span style={{ fontSize: 8, color: C.dim }}>{isExpanded('__core__') ? '\u25BC' : '\u25B6'}</span>
             </div>
-          );
-        })}
+            {isExpanded('__core__') && coreCats.map(renderCategory)}
+          </div>
+        )}
+
+        {/* Long-tail categories */}
+        {moreCats.length > 0 && (
+          <div style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div
+              onClick={() => toggleCategory('__more__')}
+              style={{
+                position: 'sticky', top: 0, zIndex: 1,
+                fontSize: 9, ...mono, fontWeight: 700, color: C.dim,
+                textTransform: 'uppercase', letterSpacing: '.12em',
+                padding: '6px 10px', display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', cursor: 'pointer', background: C.bg,
+                userSelect: 'none', borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <span>MORE CATEGORIES ({moreCats.length})</span>
+              <span style={{ fontSize: 8, color: C.dim }}>{isExpanded('__more__') ? '\u25BC' : '\u25B6'}</span>
+            </div>
+            {isExpanded('__more__') && moreCats.map(renderCategory)}
+          </div>
+        )}
       </div>
     </div>
   );
