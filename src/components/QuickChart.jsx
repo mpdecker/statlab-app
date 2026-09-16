@@ -5,9 +5,12 @@ import {
   ITSPlot, RDPlot, SociogramPlot, TimeSeriesChart,
 } from './charts.jsx';
 import { C } from '../palette.js';
+import {
+  seriesFromResult, barGroupsFromResult, loadingFromResult, computeCorrMatrix,
+} from '../utils/vizHelpers.js';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
-export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, groups, inferenceResult, activeTest }) {
+export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, groups, inferenceResult, activeTest, canvasSize = { w: 210, h: 160 } }) {
   const numVals = (col) => data.map(r => +r[col]).filter(Number.isFinite);
   const gVar = colorVar && colorVar !== '(none)' ? colorVar : null;
   const emptyHint = (msg) => (
@@ -17,6 +20,7 @@ export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, color
     case 'violin': {
       const gVar = colorVar && colorVar !== '(none)' ? colorVar : null;
       const gList = gVar ? [...new Set(data.map(r => r[gVar]))].slice(0, 4) : ['all'];
+      const violinW = Math.max(60, Math.floor(canvasSize.w / gList.length) - 8);
       return (
         <div style={{ display: 'flex', gap: 4, height: '100%', alignItems: 'center', justifyContent: 'center' }}>
           {gList.map(g => (
@@ -24,7 +28,7 @@ export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, color
               <div style={{ fontSize: 8, color: C.dim }}>{g}</div>
               <ViolinPlot
                 data={(gVar ? data.filter(r => r[gVar] === g) : data).map(r => +r[yVar]).filter(Number.isFinite)}
-                  width={90} height={130}
+                width={violinW} height={canvasSize.h}
               />
             </div>
           ))}
@@ -56,43 +60,44 @@ export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, color
         ? <ForestPlot items={inferenceResult.studies.map(s => ({ label: s.label, est: s.d, lo: s.d - 1.96 * s.se, hi: s.d + 1.96 * s.se, p: s.p }))} />
         : emptyHint('Enter study effects in Meta-analysis, then run.');
     case 'qq':
-      return <QQPlot vals={numVals(yVar || xVar)} label={yVar || xVar} />;
+      return <QQPlot vals={numVals(yVar || xVar)} label={yVar || xVar} height={canvasSize.h} />;
     case 'scree':
       return inferenceResult?.eigenvalues?.length
-        ? <ScreePlot eigenvalues={inferenceResult.eigenvalues} />
+        ? <ScreePlot eigenvalues={inferenceResult.eigenvalues} height={canvasSize.h} />
         : emptyHint('Run PCA with scale variables selected.');
     case 'residual':
       return inferenceResult?.fitted && inferenceResult?.residuals
-        ? <ResidualPlot fitted={inferenceResult.fitted} residuals={inferenceResult.residuals} />
+        ? <ResidualPlot fitted={inferenceResult.fitted} residuals={inferenceResult.residuals} height={canvasSize.h} />
         : emptyHint('Run Simple OLS to view residuals vs fitted.');
     case 'boot':
       return inferenceResult?.dist
-        ? <BootstrapHist dist={inferenceResult.dist} lo={inferenceResult.lo} hi={inferenceResult.hi} />
-        : <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
+        ? <BootstrapHist dist={inferenceResult.dist} lo={inferenceResult.lo} hi={inferenceResult.hi} height={canvasSize.h} />
+        : <HistogramDensity values={numVals(yVar || xVar)} width={canvasSize.w} height={canvasSize.h} />;
     case 'timeseries': {
       const tsSeries = seriesFromResult(inferenceResult, activeTest);
-      if (tsSeries?.length) return <TimeSeriesChart series={tsSeries} width={210} height={140} />;
-      return <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
+      if (tsSeries?.length) return <TimeSeriesChart series={tsSeries} width={canvasSize.w} height={canvasSize.h} />;
+      return <HistogramDensity values={numVals(yVar || xVar)} width={canvasSize.w} height={canvasSize.h} />;
     }
     case 'histogram':
-      return <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
+      return <HistogramDensity values={numVals(yVar || xVar)} width={canvasSize.w} height={canvasSize.h} />;
     case 'barci':
-      return <BarCI groups={barGroupsFromResult(inferenceResult, activeTest, data, gVar, yVar)} width={210} height={160} />;
+      return <BarCI groups={barGroupsFromResult(inferenceResult, activeTest, data, gVar, yVar)} width={canvasSize.w} height={canvasSize.h} />;
     case 'box':
       return gVar
-        ? <BoxPlotGrid data={data} groupVar={gVar} yVar={yVar} width={210} height={160} />
+        ? <BoxPlotGrid data={data} groupVar={gVar} yVar={yVar} width={canvasSize.w} height={canvasSize.h} />
         : emptyHint('Select a Color / group variable for box plots.');
     case 'slopes':
       return inferenceResult?.simpleSlopes?.length
-        ? <QuickSlopes slopes={inferenceResult.simpleSlopes} />
+        ? <QuickSlopes slopes={inferenceResult.simpleSlopes} width={canvasSize.w} height={canvasSize.h} />
         : emptyHint('Run Moderation in Inference to see simple slopes at \u00B11 SD.');
     case 'loading': {
       const load = loadingFromResult(inferenceResult, activeTest, ds?.numeric);
       if (load) {
+        const side = Math.min(canvasSize.w, canvasSize.h);
         return (
           <HeatmapCorr
             matrix={load.matrix} labels={load.colLabels} rowLabels={load.rowLabels}
-            width={210} height={210}
+            width={side} height={side}
           />
         );
       }
@@ -100,23 +105,24 @@ export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, color
     }
     case 'heatmap': {
       const vars = (ds?.numeric || []).slice(0, 6);
-      return <HeatmapCorr matrix={computeCorrMatrix(data, vars)} labels={vars} width={210} height={210} />;
+      const side = Math.min(canvasSize.w, canvasSize.h);
+      return <HeatmapCorr matrix={computeCorrMatrix(data, vars)} labels={vars} width={side} height={side} />;
     }
     case 'mosaic':
-      return <MosaicPlot data={data} xVar={gVar || xVar} yVar={yVar} width={210} height={160} />;
+      return <MosaicPlot data={data} xVar={gVar || xVar} yVar={yVar} width={canvasSize.w} height={canvasSize.h} />;
     case 'power':
-      return <PowerCurve d={0.5} currentN={Math.floor(data.length / 2)} />;
+      return <PowerCurve d={0.5} currentN={Math.floor(data.length / 2)} height={canvasSize.h} />;
     case 'irtplot':
       return inferenceResult?.icc?.length
-        ? <IRTCurves icc={inferenceResult.icc} itemCount={inferenceResult.k} />
+        ? <IRTCurves icc={inferenceResult.icc} itemCount={inferenceResult.k} height={canvasSize.h} />
         : emptyHint('Run IRT 1PL or 2PL with scale items selected.');
     case 'lca':
       return inferenceResult?.profiles?.length
-        ? <LCAProfiles profiles={inferenceResult.profiles} />
+        ? <LCAProfiles profiles={inferenceResult.profiles} height={canvasSize.h} />
         : emptyHint('Run Latent Class Analysis with two categorical indicators.');
     case 'spaghetti':
       return gVar && yVar
-        ? <SpaghettiPlot data={data} xVar={xVar || ds?.numeric?.[0]} yVar={yVar} groupVar={gVar} />
+        ? <SpaghettiPlot data={data} xVar={xVar || ds?.numeric?.[0]} yVar={yVar} groupVar={gVar} height={canvasSize.h} />
         : emptyHint('Select cluster ID and outcome for spaghetti plot.');
     case 'caterpillar':
       return inferenceResult?.groupMeans?.length
@@ -124,11 +130,11 @@ export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, color
         : emptyHint('Run HLM random intercept to see caterpillar plot.');
     case 'its':
       return inferenceResult?.series?.length
-        ? <ITSPlot series={inferenceResult.series} />
+        ? <ITSPlot series={inferenceResult.series} height={canvasSize.h} />
         : emptyHint('Run Interrupted Time Series with time and outcome vectors.');
     case 'rddplot':
       return inferenceResult?.points?.length
-        ? <RDPlot points={inferenceResult.points} cutoff={inferenceResult.cutoff} />
+        ? <RDPlot points={inferenceResult.points} cutoff={inferenceResult.cutoff} height={canvasSize.h} />
         : emptyHint('Run Regression Discontinuity with X and Y variables.');
     case 'sociogram':
       return inferenceResult?.nodes?.length

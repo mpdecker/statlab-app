@@ -5,7 +5,7 @@ import {
   loadingFromResult, formatInferenceSummary, exploreChartLabel, CHART_MODE_LABELS,
   explorePanelChartFromMode, normalizeExplorePanelChart, resolveExplorePanelChart,
   EXPLORE_PANEL_DEFAULT_CHART, EXPLORE_PANEL_CHART_FOR_MODE,
-  exportSvgFromCanvas, exportCanvasAsPng,
+  exportSvgFromCanvas, exportCanvasAsPng, clampCanvasSize,
 } from './vizHelpers.js';
 
 describe('vizHelpers', () => {
@@ -261,5 +261,34 @@ describe('vizHelpers', () => {
     const div = document.createElement('div');
     const result = await exportCanvasAsPng(div, 'test.png');
     expect(result).toBe(false);
+  });
+
+  test('clampCanvasSize subtracts padding when the result stays above both floors', () => {
+    const size = clampCanvasSize(1000, 600, { minW: 320, minH: 240, padW: 24, padH: 80 });
+    expect(size).toEqual({ w: 976, h: 520 });
+  });
+
+  test('clampCanvasSize clamps to the width floor when padded width would fall below it', () => {
+    const size = clampCanvasSize(300, 600, { minW: 320, minH: 240, padW: 24, padH: 80 });
+    // 300 - 24 = 276, below minW 320, so w is clamped to the floor
+    expect(size.w).toBe(320);
+    expect(size.h).toBe(520);
+  });
+
+  test('clampCanvasSize clamps to the height floor when padded height would fall below it', () => {
+    const size = clampCanvasSize(1000, 280, { minW: 320, minH: 240, padW: 24, padH: 80 });
+    // 280 - 80 = 200, below minH 240, so h is clamped to the floor
+    expect(size.w).toBe(976);
+    expect(size.h).toBe(240);
+  });
+
+  test('clampCanvasSize floors fractional pixel measurements after subtracting padding', () => {
+    const size = clampCanvasSize(1000.7, 600.9, { minW: 320, minH: 240, padW: 24.2, padH: 80.4 });
+    expect(size).toEqual({ w: Math.floor(1000.7 - 24.2), h: Math.floor(600.9 - 80.4) });
+  });
+
+  test('clampCanvasSize clamps both dimensions at once when both fall below their floors', () => {
+    const size = clampCanvasSize(100, 100, { minW: 320, minH: 240, padW: 24, padH: 80 });
+    expect(size).toEqual({ w: 320, h: 240 });
   });
 });
