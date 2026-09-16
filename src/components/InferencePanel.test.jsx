@@ -1,8 +1,10 @@
 // @vitest-environment happy-dom
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { InferencePanel } from './InferencePanel.jsx';
+
+afterEach(cleanup);
 
 const mockRows = Array.from({ length: 40 }, (_, i) => ({
   group: i % 2 === 0 ? 'A' : 'B',
@@ -47,5 +49,55 @@ describe('InferencePanel', () => {
       () => expect(screen.getByText(/indirect a×b/i)).toBeTruthy(),
       { timeout: 15_000 },
     );
+  });
+
+  it('shows a core category without interaction, and hides a long-tail one until "More categories" is expanded', () => {
+    render(
+      <InferencePanel
+        data={mockRows}
+        ds={mockDs}
+        active="t_welch"
+        setActive={vi.fn()}
+      />,
+    );
+    // Core category header text is visible immediately.
+    expect(screen.getByText(/COMPARE MEANS/i)).toBeTruthy();
+    // A long-tail category's header is not rendered at all until the
+    // "More categories" section is expanded (it starts collapsed).
+    expect(screen.queryByText(/^PRIVACY/i)).toBeNull();
+
+    const moreToggle = screen.getByText(/MORE CATEGORIES/i);
+    fireEvent.click(moreToggle);
+
+    expect(screen.getByText(/^PRIVACY/i)).toBeTruthy();
+  });
+
+  it('search still surfaces a match from the collapsed "More categories" section immediately', () => {
+    render(
+      <InferencePanel
+        data={mockRows}
+        ds={mockDs}
+        active="t_welch"
+        setActive={vi.fn()}
+      />,
+    );
+    const search = screen.getByPlaceholderText(/Search \d+ tests\.\.\./i);
+    fireEvent.change(search, { target: { value: 'Privacy' } });
+    expect(screen.getByText(/^PRIVACY/i)).toBeTruthy();
+  });
+
+  it('the search placeholder and idle count reflect the real test total, not a hardcoded 84', () => {
+    render(
+      <InferencePanel
+        data={mockRows}
+        ds={mockDs}
+        active="t_welch"
+        setActive={vi.fn()}
+      />,
+    );
+    expect(screen.queryByPlaceholderText('Search 84 tests...')).toBeNull();
+    expect(screen.getByPlaceholderText(/Search \d{3} tests\.\.\./i)).toBeTruthy();
+    expect(screen.queryByText('84 modules')).toBeNull();
+    expect(screen.getByText(/^\d{3} modules$/)).toBeTruthy();
   });
 });
