@@ -189,4 +189,66 @@ describe('InferencePanel', () => {
       expect(screen.queryByText(/Design Effect · n=5/)).toBeNull();
     });
   });
+
+  describe('MDS / Taylor bad-cell and degenerate-input guards (regression: final whole-branch review findings)', () => {
+    // v1..v3 are clean numeric scale variables for MDS; one row (index 5)
+    // has a non-numeric cell in v1. Before the fix, classicalMDS/sammonMapping/
+    // nonMetricMDS return null on ANY non-finite cell across the whole
+    // selected-column matrix, so this single bad row killed the entire
+    // result ("Configure parameters to the left.") even though 11 of 12
+    // rows were perfectly usable.
+    const mdsRows = Array.from({ length: 12 }, (_, i) => ({
+      v1: i === 5 ? undefined : i + 1,
+      v2: (i + 1) * 2 + (i % 3),
+      v3: (i + 1) * 1.5 - (i % 2),
+    }));
+    const mdsDs = { numeric: ['v1', 'v2', 'v3'], categorical: [] };
+
+    it('Classical MDS computes from the rows with finite cells instead of returning nothing for one bad row', () => {
+      render(<InferencePanel data={mdsRows} ds={mdsDs} active="mds_classical" setActive={vi.fn()} />);
+      expect(screen.queryByText(/Configure parameters to the left\./)).toBeNull();
+      expect(screen.getByText(/Classical MDS · 2D · n=11/)).toBeTruthy();
+    });
+
+    // Value column 'a' has a non-numeric cell for the first 3 of 25 rows.
+    // taylorLinearization requires >=20 rows AFTER this component's own
+    // rowFinite(xVar) pre-filter (not just >=20 raw rows), so 25 total
+    // leaves 22 post-filter -- comfortably above that floor. cat1
+    // (Strata, 4 groups) and cat2 (PSU, 3 groups, decoupled via a
+    // different modulus) are chosen so every stratum has multiple PSUs --
+    // this isolates the bad-cell path from the separate
+    // single-PSU-per-stratum path tested below.
+    const taylorRows = Array.from({ length: 25 }, (_, i) => ({
+      a: i < 3 ? undefined : i + 1,
+      cat1: `g${i % 4}`,
+      cat2: `p${i % 3}`,
+    }));
+    const taylorDs = { numeric: ['a'], categorical: ['cat1', 'cat2'] };
+
+    it('Taylor Linearization computes a real total/SE from the finite rows instead of NaN when the Value column has a bad cell', () => {
+      render(<InferencePanel data={taylorRows} ds={taylorDs} active="taylor" setActive={vi.fn()} />);
+      expect(screen.queryByText(/NaN/)).toBeNull();
+      // 25 rows minus 3 with a non-finite Value cell = 22.
+      expect(screen.getByText(/Taylor Linearization · 4 strata · n=22/)).toBeTruthy();
+    });
+
+    // Only one categorical column exists, so Strata and PSU both bind to
+    // it (cat2 defaults to cat1 when there's no second categorical
+    // column) -- every stratum has exactly 1 distinct PSU, and
+    // taylorLinearization's own between-PSU variance (nH-1 in the
+    // denominator) is genuinely undefined here, a real algorithmic
+    // property of the method, not a data-quality bug. This must surface
+    // as the explicit error message, not raw NaN. >=20 rows required.
+    const degenerateRows = Array.from({ length: 21 }, (_, i) => ({
+      a: i + 1,
+      cat1: `s${i % 3}`,
+    }));
+    const degenerateDs = { numeric: ['a'], categorical: ['cat1'] };
+
+    it('Taylor Linearization reports an explicit error, not raw NaN, when every stratum has only 1 PSU', () => {
+      render(<InferencePanel data={degenerateRows} ds={degenerateDs} active="taylor" setActive={vi.fn()} />);
+      expect(screen.queryByText(/NaN/)).toBeNull();
+      expect(screen.getByText(/at least 2 distinct PSU\/cluster values/i)).toBeTruthy();
+    });
+  });
 });
