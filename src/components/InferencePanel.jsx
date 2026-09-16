@@ -91,6 +91,13 @@ function dichotomizeMatrix(matrix) {
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
+// Maps a category name to the CORE/MORE CATEGORIES section sentinel that
+// gates whether its whole section renders in expandedCats. Any writer that
+// adds a category name to expandedCats must also add this, or the category
+// can end up "expanded" while its section wrapper stays collapsed and hides
+// it entirely (see commit bf31d63).
+const sectionKeyFor = (catName) => (CORE_CATEGORY_NAMES.has(catName) ? '__core__' : '__more__');
+
 // ── Left navigator ────────────────────────────────────────────────────────────
 export function Navigator({ active, setActive, width = '100%', borderRight = false }) {
   const [expandedNote, setExpandedNote] = useState(null);
@@ -107,7 +114,10 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
 
   const [expandedCats, setExpandedCats] = useState(() => {
     const initial = new Set(['__core__']);
-    if (activeCat) initial.add(activeCat);
+    if (activeCat) {
+      initial.add(activeCat);
+      initial.add(sectionKeyFor(activeCat));
+    }
     return initial;
   });
 
@@ -151,9 +161,11 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
   useEffect(() => {
     if (activeCat) {
       setExpandedCats(prev => {
-        if (prev.has(activeCat)) return prev;
+        const key = sectionKeyFor(activeCat);
+        if (prev.has(activeCat) && prev.has(key)) return prev;
         const next = new Set(prev);
         next.add(activeCat);
+        next.add(key);
         return next;
       });
     }

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, within, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { InferencePanel } from './InferencePanel.jsx';
 
 afterEach(cleanup);
@@ -130,5 +130,35 @@ describe('InferencePanel', () => {
     fireEvent.click(screen.getByText('COLLAPSE'));
     expect(screen.queryByText('One-sample t-test')).toBeNull();
     expect(screen.queryByText(/^PRIVACY/i)).toBeNull();
+  });
+
+  it('auto-reveals the "More categories" section when the active test lives in a long-tail category', () => {
+    render(
+      <InferencePanel
+        data={mockRows}
+        ds={mockDs}
+        active="priv_diff"
+        setActive={vi.fn()}
+      />,
+    );
+
+    // PRIVACY is not a CORE category, so "More categories" starts collapsed.
+    // With no interaction at all, the active test's category header AND its
+    // test row must already be visible — proving the '__more__' section
+    // sentinel, not just the category name, got added to expandedCats.
+    // A plain /^PRIVACY/i text match is ambiguous here: the active test's
+    // own method-note assumptions (e.g. "Privacy budget ε is finite") are
+    // shown unconditionally elsewhere on the page and also match it. Match
+    // the category header's exact "PRIVACY (n)" span by full textContent
+    // (including its nested count span) instead.
+    const privacyHeader = screen.getByText(
+      (_content, el) => el?.tagName === 'SPAN' && /^PRIVACY\s*\(\d+\)$/.test(el.textContent || ''),
+    );
+    expect(privacyHeader).toBeTruthy();
+    // The active test also gets mirrored into the "RECENT" section (which
+    // is unaffected by expandedCats), so scope this assertion to the
+    // PRIVACY category's own container to prove its test list rendered too.
+    const categoryContainer = privacyHeader.closest('div').parentElement;
+    expect(within(categoryContainer).getByText('Differential Privacy')).toBeTruthy();
   });
 });
