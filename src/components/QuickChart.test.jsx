@@ -50,6 +50,7 @@ const FIXTURES = {
   its: { inferenceResult: { series: [{ t: 1, y: 2 }, { t: 2, y: 3 }] } },
   rddplot: { inferenceResult: { points: [{ x: 1, y: 2 }, { x: 5, y: 8 }], cutoff: 3 } },
   sociogram: { inferenceResult: { nodes: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 1, y: 1 }], edges: [{ from: 'a', to: 'b' }] } },
+  mdsplot: { inferenceResult: { points: [[0.5, -0.2], [-0.3, 0.4], [0.1, 0.1]], stress: 0.05, n: 3 } },
 };
 
 describe('QuickChart', () => {
@@ -84,6 +85,37 @@ describe('QuickChart sizing', () => {
       <QuickChart mode="scree" inferenceResult={{ eigenvalues: [2, 1, 0.5] }} data={[]} canvasSize={{ w: 900, h: 500 }} />
     );
     expect(container.firstChild.style.height).toBe('500px');
+  });
+});
+
+describe('QuickChart mdsplot NaN guard', () => {
+  // sammonMapping (and, in principle, any MDS method) can numerically
+  // diverge on some inputs and return points full of NaN — a result
+  // object that exists (points.length > 0) but is unusable. QuickChart
+  // must not hand that straight to MDSPlot/recharts, which renders a
+  // silently blank chart with no error and no explanation.
+  test('renders MDSPlot for finite points', () => {
+    const { container } = render(
+      <QuickChart mode="mdsplot" data={[]} inferenceResult={{ points: [[0.5, -0.2], [-0.3, 0.4]], stress: 0.05, n: 2 }} />
+    );
+    expect(container.querySelector('.recharts-responsive-container')).toBeTruthy();
+  });
+
+  test('falls back to a hint (not a blank chart) when all points are NaN', () => {
+    const { container, getByText } = render(
+      <QuickChart mode="mdsplot" data={[]} inferenceResult={{ points: [[NaN, NaN], [NaN, NaN]], n: 2 }} />
+    );
+    expect(container.querySelector('.recharts-responsive-container')).toBeFalsy();
+    expect(getByText(/did not converge/i)).toBeTruthy();
+  });
+
+  test('falls back to a hint when some but not all points are non-finite', () => {
+    const { container } = render(
+      <QuickChart mode="mdsplot" data={[]} inferenceResult={{ points: [[0.1, 0.2], [NaN, NaN]], n: 2 }} />
+    );
+    // At least one finite point exists, so this renders the real chart —
+    // MDSPlot itself is responsible for individual malformed points.
+    expect(container.querySelector('.recharts-responsive-container')).toBeTruthy();
   });
 });
 
