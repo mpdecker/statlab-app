@@ -10,7 +10,7 @@ import {
 import { CHART_FOR_TEST } from './config/chartMap.js';
 import { TREE } from './config/tree.js';
 import { TOTAL_TEST_COUNT } from './config/testCategories.js';
-import { computeStats, corr, avg, sampleSD } from 'statlab/math/core';
+import { computeStats, corr, avg, sampleSD } from '@statlab/core/math/core';
 import { barHeightPct } from './utils/parse.js';
 import { useInference, Navigator } from './components/InferencePanel.jsx';
 import { SponsorSlot } from './components/SponsorSlot.jsx';

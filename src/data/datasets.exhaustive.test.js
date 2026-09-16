@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { makeIris, makeDiamonds, makeGapminder, makeLifeSat, makeVocabTest, detectCols, DATASET_DEFAULTS, BUILTIN } from './datasets.js';
-import { corr } from 'statlab/math/core';
+import { corr } from '@statlab/core/math/core';
 
 describe('datasets exhaustive', () => {
   test('makeIris has expected schema', () => {

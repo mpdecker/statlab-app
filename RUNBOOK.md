@@ -50,7 +50,7 @@ statlab-app/
         └── InferencePanel.jsx   Orchestrator: Navigator + Config + Results
 ```
 
-All statistical computation comes from the [`statlab`](https://www.npmjs.com/package/statlab)
+All statistical computation comes from the [`@statlab/core`](https://www.npmjs.com/package/@statlab/core)
 npm package — see [`github.com/mpdecker/statlab`](https://github.com/mpdecker/statlab) for its
 own project structure and module list.
 

@@ -7,60 +7,60 @@ import { InferenceConfig } from './InferenceConfig.jsx';
 import { InferenceResults } from './InferenceResults.jsx';
 
 // ── test runners ──────────────────────────────────────────────────────────────
-import { tWelch, tOne, tPaired, yuentTest, zTestKnownSD, signTest } from 'statlab/methods/means';
-import { oneWayANOVA, welchANOVA, twoWayANOVA, ancova, rmANOVA, friedman, kruskalWallis, cochranQ } from 'statlab/methods/anova';
+import { tWelch, tOne, tPaired, yuentTest, zTestKnownSD, signTest } from '@statlab/core/methods/means';
+import { oneWayANOVA, welchANOVA, twoWayANOVA, ancova, rmANOVA, friedman, kruskalWallis, cochranQ } from '@statlab/core/methods/anova';
 import {
   pearsonTest, spearman, kendallTau, partialCorr, pointBiserial,
   simpleOLS, multipleOLS, polynomialOLS, hierarchicalOLS,
   logisticReg, ordinalLogisticRegression, poissonRegression, negativeBinomialRegression,
   mediation, moderation,
-} from 'statlab/methods/regression';
-import { mannWhitney, wilcoxonSR } from 'statlab/methods/nonparametric';
+} from '@statlab/core/methods/regression';
+import { mannWhitney, wilcoxonSR } from '@statlab/core/methods/nonparametric';
 import {
   chiSquare, chiGoF, fisherExact, mcnemar, binomialTest, onePropZ, twoPropZ,
   tost, bayesFactorT, bayesFactorCorr,
   grubbsTest, leveneTest, bartlettTest,
   bonferroni, holm, bh, sensitivityLOO,
-} from 'statlab/methods/categorical';
-import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from 'statlab/methods/multivariate';
-import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from 'statlab/methods/psychometrics';
-import { kmeans, hierarchicalCluster, latentClassAnalysis } from 'statlab/methods/clustering';
-import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from 'statlab/methods/multilevel';
-import { propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity } from 'statlab/methods/causal';
-import { centralityMeasures, communityDetection, sociogramLayout, networkFromEdgeList } from 'statlab/methods/network';
-import { normalityDP, shapiroWilk, computePowerT, requiredN, requiredNCorr } from 'statlab/math/distributions';
-import { avg, sampleSD, median } from 'statlab/math/core';
+} from '@statlab/core/methods/categorical';
+import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from '@statlab/core/methods/multivariate';
+import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
+import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
+import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
+import { propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity } from '@statlab/core/methods/causal';
+import { centralityMeasures, communityDetection, sociogramLayout, networkFromEdgeList } from '@statlab/core/methods/network';
+import { normalityDP, shapiroWilk, computePowerT, requiredN, requiredNCorr } from '@statlab/core/math/distributions';
+import { avg, sampleSD, median } from '@statlab/core/math/core';
 import { parseFinite, barHeightPct, finiteNums, rowFinite, parseNumList } from '../utils/parse.js';
 import {
   runBootstrapCI, runBootstrapMediation,
   runPowerANOVA, runPowerChi, runPowerLogistic, runPowerMixed, runPowerMediation,
 } from '../utils/resampleAsync.js';
-import { moranIMulti, simulationConvergence, sobolSensitivity, agentSummaryStats, scenarioComparison, thresholdModel, networkDiffusion, segregationIndex } from 'statlab/methods/abm';
-import { epsilonGreedy, ucb, thompsonSampling, contextualBandit, policyGradient, softmaxBandit, qLearning, sarsa, deepQNetwork } from 'statlab/methods/bandit';
-import { jaroWinkler, levenshteinDistance, fellegiSunter, recordBlocking, matchThreshold, probabilisticRecordLinkage, deduplication } from 'statlab/methods/linkage';
-import { laplaceMechanism, bootstrapSynthetic, kAnonymityCheck, differentialPrivacy, dataMasking, lDiversity, tCloseness } from 'statlab/methods/privacy';
-import { reliableChangeIndex, minimalImportantDifference, responderAnalysis, eq5dIndex, standardizedResponseMean, clinicalTrialsGov, consortChecklist } from 'statlab/methods/pro';
-import { raCusum, vlad, raSprt, funnelPlot, cChartRiskAdjusted, safetySignal, prrAnalysis } from 'statlab/methods/raMonitor';
-import { collaborativeFilter, matrixFactorize, topNRecommend } from 'statlab/methods/recommendation';
-import { tauU, pnd, pem, nap, randomizationTest, baselineCorrectedTau, betweenCaseSMD } from 'statlab/methods/sced';
-import { morrisMethod, fastSensitivity, modelComparison, forecastCombination, sobolFirstOrder, sobolTotalIndex, deltaMethod, andrewsPlot } from 'statlab/methods/sensitivity';
-import { bootstrapCI, bootstrapSE, bootstrapTest, jackknife, bootstrapT_CI, empiricalInfluence, bootstrapMediation as bsMediation, moderatedMediation, splitConformal, conformalPvalues, jackknifePlus } from 'statlab/methods/bootstrap';
-import { powerCoxPH, powerMetaAnalysis, powerEquivalence, powerInteractionANOVA, powerANOVA, powerChiSq, powerLogisticReg, powerMultilevel, powerCorrelation, powerMediationTest, requiredNT, requiredNCorrelation, requiredNOneProp, requiredNTwoProp, requiredNWilcoxon, requiredNLogRank, requiredNOLS, requiredNANOVA, powerTTestWrapper, powerProportionOne, powerProportionTwo, powerWilcoxonTest, powerLogRankTest, powerRMANOVA, powerOLS_apa, powerSpearmanTest } from 'statlab/methods/power';
-import { theilSenSlope, mmEstimator, madScale, hampelM, mcdCovariance, sEstimator, ltsRegression, qqConfidence } from 'statlab/methods/robust';
+import { moranIMulti, simulationConvergence, sobolSensitivity, agentSummaryStats, scenarioComparison, thresholdModel, networkDiffusion, segregationIndex } from '@statlab/core/methods/abm';
+import { epsilonGreedy, ucb, thompsonSampling, contextualBandit, policyGradient, softmaxBandit, qLearning, sarsa, deepQNetwork } from '@statlab/core/methods/bandit';
+import { jaroWinkler, levenshteinDistance, fellegiSunter, recordBlocking, matchThreshold, probabilisticRecordLinkage, deduplication } from '@statlab/core/methods/linkage';
+import { laplaceMechanism, bootstrapSynthetic, kAnonymityCheck, differentialPrivacy, dataMasking, lDiversity, tCloseness } from '@statlab/core/methods/privacy';
+import { reliableChangeIndex, minimalImportantDifference, responderAnalysis, eq5dIndex, standardizedResponseMean, clinicalTrialsGov, consortChecklist } from '@statlab/core/methods/pro';
+import { raCusum, vlad, raSprt, funnelPlot, cChartRiskAdjusted, safetySignal, prrAnalysis } from '@statlab/core/methods/raMonitor';
+import { collaborativeFilter, matrixFactorize, topNRecommend } from '@statlab/core/methods/recommendation';
+import { tauU, pnd, pem, nap, randomizationTest, baselineCorrectedTau, betweenCaseSMD } from '@statlab/core/methods/sced';
+import { morrisMethod, fastSensitivity, modelComparison, forecastCombination, sobolFirstOrder, sobolTotalIndex, deltaMethod, andrewsPlot } from '@statlab/core/methods/sensitivity';
+import { bootstrapCI, bootstrapSE, bootstrapTest, jackknife, bootstrapT_CI, empiricalInfluence, bootstrapMediation as bsMediation, moderatedMediation, splitConformal, conformalPvalues, jackknifePlus } from '@statlab/core/methods/bootstrap';
+import { powerCoxPH, powerMetaAnalysis, powerEquivalence, powerInteractionANOVA, powerANOVA, powerChiSq, powerLogisticReg, powerMultilevel, powerCorrelation, powerMediationTest, requiredNT, requiredNCorrelation, requiredNOneProp, requiredNTwoProp, requiredNWilcoxon, requiredNLogRank, requiredNOLS, requiredNANOVA, powerTTestWrapper, powerProportionOne, powerProportionTwo, powerWilcoxonTest, powerLogRankTest, powerRMANOVA, powerOLS_apa, powerSpearmanTest } from '@statlab/core/methods/power';
+import { theilSenSlope, mmEstimator, madScale, hampelM, mcdCovariance, sEstimator, ltsRegression, qqConfidence } from '@statlab/core/methods/robust';
 import {
   bicBayesFactor, betaBinomialPosterior, gammaPoissonPosterior, normalNormalPosterior,
   normalInverseGammaPosterior, bayesianLinearRegression, bayesianLogisticRegression,
   bayesianPoissonRegression, bayesianDIC, bmaRegression,
-} from 'statlab/methods/bayesian';
-import { littlesMCAR, mice, rubinPool, fmi as fractionMissingInfo, emImpute, missingnessPattern, completeCases } from 'statlab/methods/missing';
-import { kmEstimate, logRankTest, coxPH } from 'statlab/methods/survival';
-import { adfTest, acf, pacf } from 'statlab/methods/timeseries';
-import { localOutlierFactor, isolationForest } from 'statlab/methods/outlier';
-import { panelFixedEffects, panelRandomEffects, hausmanTest } from 'statlab/methods/econometric';
-import { gamBackfitting, gamInteraction } from 'statlab/methods/gam';
-import { gaussianMixtureModel, latentProfileAnalysis } from 'statlab/methods/mixture';
-import { distanceCorrelation, distanceCovariance } from 'statlab/methods/distance';
-import { mulberry32 } from 'statlab/math/rng';
+} from '@statlab/core/methods/bayesian';
+import { littlesMCAR, mice, rubinPool, fmi as fractionMissingInfo, emImpute, missingnessPattern, completeCases } from '@statlab/core/methods/missing';
+import { kmEstimate, logRankTest, coxPH } from '@statlab/core/methods/survival';
+import { adfTest, acf, pacf } from '@statlab/core/methods/timeseries';
+import { localOutlierFactor, isolationForest } from '@statlab/core/methods/outlier';
+import { panelFixedEffects, panelRandomEffects, hausmanTest } from '@statlab/core/methods/econometric';
+import { gamBackfitting, gamInteraction } from '@statlab/core/methods/gam';
+import { gaussianMixtureModel, latentProfileAnalysis } from '@statlab/core/methods/mixture';
+import { distanceCorrelation, distanceCovariance } from '@statlab/core/methods/distance';
+import { mulberry32 } from '@statlab/core/math/rng';
 
 function injectMissing(data, vars, pct, seed) {
   if (!data?.length || !vars?.length) return data;

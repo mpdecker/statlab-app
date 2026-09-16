@@ -1,7 +1,7 @@
 # StatLab App
 
 A modular statistical analysis application built in React, powered by the
-[`statlab`](https://www.npmjs.com/package/statlab) statistics engine.
+[`@statlab/core`](https://www.npmjs.com/package/@statlab/core) statistics engine.
 
 ---
 
@@ -11,7 +11,7 @@ A modular statistical analysis application built in React, powered by the
 | --- | --- |
 | Default branch | `main` |
 | Remote | `mpdecker/statlab-app` |
-| Stack | React, powered by the [`statlab`](https://www.npmjs.com/package/statlab) engine |
+| Stack | React, powered by the [`@statlab/core`](https://www.npmjs.com/package/@statlab/core) engine |
 | Deploy | Cloudflare Pages (CI-driven) |
 
 > **Duplicate checkout:** `statlab-app` is a second, older working copy of this
@@ -67,9 +67,9 @@ statlab-app/
         └── Tutorial.jsx         First-run guided onboarding overlay
 ```
 
-All statistical computation comes from the [`statlab`](https://www.npmjs.com/package/statlab)
+All statistical computation comes from the [`@statlab/core`](https://www.npmjs.com/package/@statlab/core)
 npm package ([source](https://github.com/mpdecker/statlab)) — 84+ method modules, 1,000+
-functions, imported by namespaced subpath (e.g. `import { tWelch } from 'statlab/methods/means'`).
+functions, imported by namespaced subpath (e.g. `import { tWelch } from '@statlab/core/methods/means'`).
 This app has zero statistical code of its own; it's a UI over the published library.
 
 ---
@@ -286,14 +286,14 @@ d_RE = 0.523, 95% CI [0.341, 0.705], z = 5.62, p < .001, I² = 43.2%, τ = 0.187
     "react": "^18",
     "recharts": "^2.12.7",
     "papaparse": "^5.5.3",
-    "statlab": "^0.1.0"
+    "@statlab/core": "^0.1.1"
   }
 }
 ```
 
 All statistical mathematics (distributions, matrix algebra, eigen-decomposition,
 bootstrap, normality tests, power functions) lives in the
-[`statlab`](https://www.npmjs.com/package/statlab) npm package, which itself has
+[`@statlab/core`](https://www.npmjs.com/package/@statlab/core) npm package, which itself has
 zero runtime dependencies. This app's own deps are React for rendering, Recharts
 for charts, and PapaParse for CSV parsing.
 
@@ -323,8 +323,8 @@ expose an existing `statlab` function in this app's UI:
    `result` `useMemo` inside `InferencePanel.jsx`.
 3. Add config controls to the `configMap` object in `InferenceConfig.jsx`.
 4. Add result rendering to `InferenceResults.jsx` (chips, tables, plots).
-5. Bump the `statlab` dependency in `package.json` if the function shipped
-   in a newer library version.
+5. Bump the `@statlab/core` dependency in `package.json` if the function
+   shipped in a newer library version.
 
 ---
 

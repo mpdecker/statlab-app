@@ -2,8 +2,8 @@
 
 // Single source of truth for the seeded PRNG — re-exported so existing fixture
 // consumers keep importing `mulberry32` from here.
-export { mulberry32 } from 'statlab/math/rng';
-import { mulberry32 } from 'statlab/math/rng';
+export { mulberry32 } from '@statlab/core/math/rng';
+import { mulberry32 } from '@statlab/core/math/rng';
 
 export function itemMatrix(n = 40, k = 5, seed = 42) {
   const rnd = mulberry32(seed);
