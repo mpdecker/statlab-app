@@ -1,10 +1,10 @@
 /**
  * Off-main-thread bootstrap and Monte Carlo power jobs.
  */
-import { bootstrapCI } from 'statlab/math/distributions';
-import { avg, median, sampleSD } from 'statlab/math/core';
-import { bootstrapMediation } from 'statlab/methods/regression';
-import { powerANOVA, powerChi, powerLogistic, powerMixed, powerMediation } from 'statlab/math/power';
+import { bootstrapCI } from '@statlab/core/math/distributions';
+import { avg, median, sampleSD } from '@statlab/core/math/core';
+import { bootstrapMediation } from '@statlab/core/methods/regression';
+import { powerANOVA, powerChi, powerLogistic, powerMixed, powerMediation } from '@statlab/core/math/power';
 
 const STAT_FN = { mean: avg, median, sd: sampleSD };
 

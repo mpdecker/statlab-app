@@ -2,8 +2,8 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, ResponsiveContainer, LineChart,
   Scatter, ScatterChart, BarChart, ReferenceLine, ErrorBar, CartesianGrid, Tooltip,
 } from 'recharts';
-import { normalINV } from 'statlab/math/distributions';
-import { avg, sampleSD } from 'statlab/math/core';
+import { normalINV } from '@statlab/core/math/distributions';
+import { avg, sampleSD } from '@statlab/core/math/core';
 import { ViolinPlot, BoxPlot, HeatmapCorr, MosaicPlot } from './charts.jsx';
 import { fitOLS } from '../utils/vizHelpers.js';
 import { C, PAL } from '../palette.js';

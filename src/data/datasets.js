@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import { clamp } from 'statlab/math/core';
+import { clamp } from '@statlab/core/math/core';
 
 const _cache = {};
 export { _cache };

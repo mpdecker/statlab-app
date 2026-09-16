@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@statlab/core':
+        specifier: ^0.1.1
+        version: 0.1.1
       papaparse:
         specifier: ^5.5.3
         version: 5.5.4
@@ -20,9 +23,6 @@ importers:
       recharts:
         specifier: ^2.12.7
         version: 2.15.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      statlab:
-        specifier: ^0.1.0
-        version: 0.1.0
     devDependencies:
       '@testing-library/react':
         specifier: ^14.3.1
@@ -445,6 +445,9 @@ packages:
     resolution: {integrity: sha512-BfzEnDJOt9T8M989/lA37EcJgat01wLRnoi5dQf3QzOH7jzpqTAzdDbVfRljVr5r+jzKqpbHeyOfAaXxAd0PAA==}
     cpu: [x64]
     os: [win32]
+
+  '@statlab/core@0.1.1':
+    resolution: {integrity: sha512-zIz30XzGO3+PuSoC2rp7T60CfGn+rqlt5MB3pXQnwfDdUXMDrRVxoMEpyaZT8QniAGfBmKem3rXLzfQim1PdwA==}
 
   '@testing-library/dom@9.3.4':
     resolution: {integrity: sha512-FlS4ZWlp97iiNWig0Muq8p+3rVDjRiYE+YKGbAqXOu9nwJFFOdL00kFpz42M+4huzYi86vAK1sOOfyOG45muIQ==}
@@ -1233,9 +1236,6 @@ packages:
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
 
-  statlab@0.1.0:
-    resolution: {integrity: sha512-BNMxVHDpLoy/jnsGTQiH5CpbWqfhugTY4GIseCCp+24rVIxpxT18uZw+/m8aH42bRpa3IKqh4OK67E+EutRDhg==}
-
   std-env@3.10.0:
     resolution: {integrity: sha512-5GS12FdOZNliM5mAOxFRg7Ir0pWz8MdpYm6AY6VPkGpbA7ZzmbzNcBJQ0GPvvyWgcY7QAhCgf9Uy89I03faLkg==}
 
@@ -1711,6 +1711,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
+
+  '@statlab/core@0.1.1': {}
 
   '@testing-library/dom@9.3.4':
     dependencies:
@@ -2602,8 +2604,6 @@ snapshots:
   source-map-js@1.2.1: {}
 
   stackback@0.0.2: {}
-
-  statlab@0.1.0: {}
 
   std-env@3.10.0: {}
 

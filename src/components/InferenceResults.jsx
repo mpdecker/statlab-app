@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { C, PAL } from '../palette.js';
-import { fmtP, sig, effD, effR, effEta, effV } from 'statlab/math/core';
-import { computePowerT, requiredN } from 'statlab/math/distributions';
+import { fmtP, sig, effD, effR, effEta, effV } from '@statlab/core/math/core';
+import { computePowerT, requiredN } from '@statlab/core/math/distributions';
 import {
   Chip, APABlock, SigBadge, SectionHead, LinkBtn, NormBadge,
 } from './ui.jsx';

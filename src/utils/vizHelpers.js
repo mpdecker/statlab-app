@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { corr, sampleSD, fmtP } from 'statlab/math/core';
+import { corr, sampleSD, fmtP } from '@statlab/core/math/core';
 
 /** Tests whose QuickView should follow Inference variable selectors */
 export const TESTS_USE_INFERENCE_GROUPS = new Set([
