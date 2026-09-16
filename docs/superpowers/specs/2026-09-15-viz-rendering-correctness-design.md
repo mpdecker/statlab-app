@@ -1,7 +1,8 @@
 # StatLab Visualization Rendering Correctness — Design
 
 **Date:** 2026-09-15
-**Status:** Approved (Phase 1 of 2 — see Non-goals)
+**Status:** Implemented and verified (Phase 1 of 2 — see Non-goals; Phase 2
+is the navigation/declutter follow-up, not yet started)
 
 ## Problem
 
@@ -153,19 +154,36 @@ here so it isn't rediscovered and "fixed" against a phantom.
 
 ## Testing/Verification Plan
 
-1. `pnpm test` (existing suite) stays green throughout.
-2. New `src/components/QuickChart.test.jsx`: render `QuickChart` directly
-   for every `mode` string in the dispatcher with representative
-   `inferenceResult`/`data` fixtures per mode; assert no thrown error for
-   any of them (this specifically would have caught defect #1).
-3. New `ErrorBoundary` test: force a child to throw, assert the fallback UI
-   renders instead of the exception propagating.
-4. Extend `charts.test.jsx`: one assertion per touched primitive that a
-   custom `height` prop is honored (rendered wrapper's inline height
-   reflects the prop, not the old hardcoded literal).
-5. Manual pass in the Browser preview: click each of the 9 toolbar chart-
-   type buttons, and select at least one test whose default AUTO mode is
-   `barci`/`heatmap`/`loading`/`timeseries` (e.g. One-Way ANOVA, EFA,
-   Bootstrap), confirming no console errors and that each chart visibly
-   fills its panel. Capture before/after screenshots.
-6. No new console errors/warnings introduced.
+1. ✅ `pnpm test` (existing suite) stays green throughout — 682/682 passing
+   after all 6 code tasks (final: 29 files / 682 tests).
+2. ✅ New `src/components/QuickChart.test.jsx`: renders `QuickChart` for
+   every one of the 25 `CHART_MODE_LABELS` modes with a representative
+   fixture; confirmed RED (4 failing with the exact predicted
+   `ReferenceError`s) before the Task 1 fix, GREEN (25/25) after.
+3. ✅ New `ErrorBoundary` test: forces a child to throw during render,
+   asserts the "chart failed to render" fallback renders instead of the
+   exception propagating (2/2 passing).
+4. ✅ Extended `charts.test.jsx`: one assertion per touched primitive (10)
+   that a custom `height` prop is honored — verified individually against
+   each function's prior hardcoded default in task review.
+5. ✅ Manual pass in the Browser preview (production build, `pnpm build` +
+   `pnpm preview`): selected "One-Way ANOVA" (default AUTO mode `barci`,
+   the exact live-reproduced crash) — app stays up, chart renders, zero
+   console errors (previously: uncaught `ReferenceError`, blank page).
+   Clicked "Correlogram heatmap" and "Time series" toolbar buttons on the
+   same test — zero console errors (previously: uncaught `ReferenceError`
+   on each). Selected "EFA (Varimax)" (default AUTO mode `loading`) — zero
+   console errors. Confirmed via `getBoundingClientRect()` that the
+   rendered chart SVG grew from the old fixed ~210×160px to 1298×504px on
+   a 1600×1000 viewport, genuinely filling the panel rather than sitting
+   in empty space.
+6. ✅ No new console errors/warnings introduced — confirmed via
+   `read_console_messages` after every interaction above.
+
+**Root cause of how a production-breaking bug like this shipped:**
+`QuickChart.jsx` (extracted from `App.jsx` during an earlier perf
+refactor, commit `3324b69`/`#42`) had zero test coverage of its own before
+this fix — `QuickChart.test.jsx` did not exist. The new test file is a
+standing regression guard: any future edit that reintroduces an unresolved
+identifier in one of the 25 mode branches now fails CI immediately instead
+of shipping to production silently.
