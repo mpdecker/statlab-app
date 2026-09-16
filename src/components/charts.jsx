@@ -46,7 +46,7 @@ export function TDistViz({ t, df, alpha = .05, t2 = null }) {
 }
 
 // ── Q-Q plot ──────────────────────────────────────────────────────────────────
-export function QQPlot({ vals, label }) {
+export function QQPlot({ vals, label, height = 110 }) {
   if (!vals || vals.length < 4) return null;
   const s = [...vals].sort((a, b) => a - b), n = s.length;
   const m = avg(vals), sd_ = sampleSD(vals);
@@ -58,7 +58,7 @@ export function QQPlot({ vals, label }) {
   ];
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   return (
-    <div style={{ height: 110 }}>
+    <div style={{ height }}>
       <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 1 }}>Q-Q: {label}</div>
       <ResponsiveContainer width="100%" height="90%">
         <ComposedChart margin={{ top: 2, right: 6, bottom: 14, left: 6 }}>
@@ -75,12 +75,12 @@ export function QQPlot({ vals, label }) {
 }
 
 // ── Residuals vs Fitted ───────────────────────────────────────────────────────
-export function ResidualPlot({ fitted, residuals }) {
+export function ResidualPlot({ fitted, residuals, height = 100 }) {
   if (!fitted || !residuals) return null;
   const pts = fitted.map((f, i) => ({ fitted: +f.toFixed(4), residual: +residuals[i].toFixed(4) }));
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   return (
-    <div style={{ height: 100 }}>
+    <div style={{ height }}>
       <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 1 }}>Residuals vs Fitted</div>
       <ResponsiveContainer width="100%" height="90%">
         <ComposedChart margin={{ top: 2, right: 6, bottom: 14, left: 6 }}>
@@ -98,14 +98,14 @@ export function ResidualPlot({ fitted, residuals }) {
 
 // ── Power curve ───────────────────────────────────────────────────────────────
 import { computePowerT } from 'statlab/math/distributions';
-export function PowerCurve({ d, alpha = .05, currentN }) {
+export function PowerCurve({ d, alpha = .05, currentN, height = 110 }) {
   const pts = Array.from({ length: 40 }, (_, i) => ({
     n: (i + 1) * 5,
     power: +computePowerT((i + 1) * 5, (i + 1) * 5, Math.abs(d) || .5, alpha).toFixed(4),
   }));
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   return (
-    <div style={{ height: 110 }}>
+    <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={pts} margin={{ top: 2, right: 8, bottom: 16, left: 8 }}>
           <CartesianGrid stroke={C.border} strokeOpacity={.4} />
@@ -122,11 +122,11 @@ export function PowerCurve({ d, alpha = .05, currentN }) {
 }
 
 // ── PCA scree plot ─────────────────────────────────────────────────────────────
-export function ScreePlot({ eigenvalues }) {
+export function ScreePlot({ eigenvalues, height = 95 }) {
   const data = eigenvalues.map((e, i) => ({ pc: `PC${i + 1}`, v: +e.toFixed(3) }));
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   return (
-    <div style={{ height: 95 }}>
+    <div style={{ height }}>
       <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 1 }}>Scree Plot</div>
       <ResponsiveContainer width="100%" height="90%">
         <ComposedChart data={data} margin={{ top: 2, right: 8, bottom: 14, left: 8 }}>
@@ -213,7 +213,7 @@ export function PathDiagram({ r }) {
 }
 
 // ── Bootstrap distribution histogram ──────────────────────────────────────────
-export function BootstrapHist({ dist, lo, hi, color = PAL[0] }) {
+export function BootstrapHist({ dist, lo, hi, color = PAL[0], height = 70 }) {
   if (!dist?.length) return null;
   const min_ = Math.min(...dist), max_ = Math.max(...dist), w = (max_ - min_) / 28 || 1;
   const bins = Array(28).fill(0);
@@ -221,7 +221,7 @@ export function BootstrapHist({ dist, lo, hi, color = PAL[0] }) {
   const data = bins.map((count, i) => ({ label: (min_ + i * w).toFixed(3), count }));
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   return (
-    <div style={{ height: 70 }}>
+    <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 2, right: 8, bottom: 14, left: 8 }}>
           <CartesianGrid stroke={C.border} strokeOpacity={.35} vertical={false} />
@@ -547,7 +547,7 @@ export function QuickScatterFit({ data, xVar, yVar, colorVar, colorMap, groups }
 }
 
 /** IRT item characteristic curves */
-export function IRTCurves({ icc, itemCount = 3 }) {
+export function IRTCurves({ icc, itemCount = 3, height = 100 }) {
   if (!icc?.length) return null;
   const cols = PAL.slice(0, Math.min(itemCount, icc[0]?.curves?.length || 0));
   const data = icc.map(pt => {
@@ -557,7 +557,7 @@ export function IRTCurves({ icc, itemCount = 3 }) {
   });
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   return (
-    <div style={{ height: 100 }}>
+    <div style={{ height }}>
       <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 1 }}>ICC (θ vs P)</div>
       <ResponsiveContainer width="100%" height="90%">
         <LineChart data={data} margin={{ top: 2, right: 8, bottom: 14, left: 8 }}>
@@ -575,13 +575,13 @@ export function IRTCurves({ icc, itemCount = 3 }) {
 }
 
 /** LCA class profile bar chart */
-export function LCAProfiles({ profiles }) {
+export function LCAProfiles({ profiles, height = 95 }) {
   if (!profiles?.length) return null;
   const data = profiles.flatMap(p =>
     (p.items || []).map(it => ({ class: `C${p.class}`, var: it.var, prop: p.proportion })));
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   return (
-    <div style={{ height: 95 }}>
+    <div style={{ height }}>
       <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 1 }}>Class proportions</div>
       <ResponsiveContainer width="100%" height="90%">
         <BarChart data={profiles.map(p => ({ name: `C${p.class}`, pct: +(100 * p.proportion).toFixed(1) }))} margin={{ top: 2, right: 8, bottom: 14, left: 8 }}>
@@ -597,12 +597,12 @@ export function LCAProfiles({ profiles }) {
 }
 
 /** Spaghetti plot for multilevel / longitudinal */
-export function SpaghettiPlot({ data, xVar, yVar, groupVar }) {
+export function SpaghettiPlot({ data, xVar, yVar, groupVar, height = 110 }) {
   if (!data?.length || !xVar || !yVar || !groupVar) return null;
   const groups = [...new Set(data.map(r => r[groupVar]))].slice(0, 12);
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   return (
-    <div style={{ height: 110 }}>
+    <div style={{ height }}>
       <div style={{ fontSize: 8, color: C.dim, ...mono, marginBottom: 1 }}>Spaghetti · {groupVar}</div>
       <ResponsiveContainer width="100%" height="90%">
         <ComposedChart margin={{ top: 2, right: 6, bottom: 14, left: 6 }}>
@@ -644,11 +644,11 @@ export function CaterpillarPlot({ groups }) {
 }
 
 /** ITS segmented means */
-export function ITSPlot({ series }) {
+export function ITSPlot({ series, height = 95 }) {
   if (!series?.length) return null;
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   return (
-    <div style={{ height: 95 }}>
+    <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={series} margin={{ top: 2, right: 8, bottom: 14, left: 8 }}>
           <CartesianGrid stroke={C.border} strokeOpacity={.35} />
@@ -703,13 +703,13 @@ export function TimeSeriesChart({ series, width = 210, height = 140 }) {
 }
 
 /** RDD local scatter */
-export function RDPlot({ points, cutoff }) {
+export function RDPlot({ points, cutoff, height = 100 }) {
   if (!points?.length) return null;
   const axTick = { fontSize: 7, fill: C.dim, ...mono };
   const left = points.filter(p => p.x < cutoff);
   const right = points.filter(p => p.x >= cutoff);
   return (
-    <div style={{ height: 100 }}>
+    <div style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart margin={{ top: 2, right: 6, bottom: 14, left: 6 }}>
           <CartesianGrid stroke={C.border} strokeOpacity={.35} />
