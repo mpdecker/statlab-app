@@ -16,6 +16,7 @@ import { useInference, Navigator } from './components/InferencePanel.jsx';
 import { SponsorSlot } from './components/SponsorSlot.jsx';
 import { InferenceConfig } from './components/InferenceConfig.jsx';
 import { InferenceResults } from './components/InferenceResults.jsx';
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { ResizablePanel } from './components/ResizablePanel.jsx';
 import { ResizableBand } from './components/ResizableBand.jsx';
 import { DatasetPicker } from './components/DatasetPicker.jsx';
@@ -230,7 +231,9 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
           <div style={{ position: 'absolute', inset: 0, opacity: .15, backgroundImage: `linear-gradient(${C.border} 1px,transparent 1px),linear-gradient(90deg,${C.border} 1px,transparent 1px)`, backgroundSize: '30px 30px', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>
             <Suspense fallback={<div role="status">Loading chart…</div>}>
-              <QuickChart mode={effectiveMode} data={data} xVar={vizX} yVar={vizY} colorVar={vizGroup} ds={ds} colorMap={colorMap} groups={groups} inferenceResult={inferenceResult} activeTest={activeTest} />
+              <ErrorBoundary>
+                <QuickChart mode={effectiveMode} data={data} xVar={vizX} yVar={vizY} colorVar={vizGroup} ds={ds} colorMap={colorMap} groups={groups} inferenceResult={inferenceResult} activeTest={activeTest} />
+              </ErrorBoundary>
             </Suspense>
           </div>
         </div>
