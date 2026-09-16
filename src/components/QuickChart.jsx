@@ -93,10 +93,11 @@ export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, color
     case 'loading': {
       const load = loadingFromResult(inferenceResult, activeTest, ds?.numeric);
       if (load) {
+        const side = Math.min(canvasSize.w, canvasSize.h);
         return (
           <HeatmapCorr
             matrix={load.matrix} labels={load.colLabels} rowLabels={load.rowLabels}
-            width={canvasSize.w} height={canvasSize.h}
+            width={side} height={side}
           />
         );
       }
@@ -104,7 +105,8 @@ export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, color
     }
     case 'heatmap': {
       const vars = (ds?.numeric || []).slice(0, 6);
-      return <HeatmapCorr matrix={computeCorrMatrix(data, vars)} labels={vars} width={canvasSize.w} height={canvasSize.h} />;
+      const side = Math.min(canvasSize.w, canvasSize.h);
+      return <HeatmapCorr matrix={computeCorrMatrix(data, vars)} labels={vars} width={side} height={side} />;
     }
     case 'mosaic':
       return <MosaicPlot data={data} xVar={gVar || xVar} yVar={yVar} width={canvasSize.w} height={canvasSize.h} />;

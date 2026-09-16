@@ -86,3 +86,37 @@ describe('QuickChart sizing', () => {
     expect(container.firstChild.style.height).toBe('500px');
   });
 });
+
+// Modes that QuickChart never forwards canvasSize into at all — they use
+// ResponsiveContainer / 100%-viewBox sizing (or take no size props from
+// QuickChart in the first place), so their raw markup is identical
+// regardless of the measured panel size at this fixture scale. Excluded
+// from the blanket canvasSize-wiring check below; genuinely covering their
+// responsiveness would need a layout-aware test, not a markup diff.
+const RESPONSIVE_MODES_EXCLUDED_FROM_SIZE_DIFF_CHECK = new Set([
+  'scatter', 'scatterfit', 'path', 'forest', 'caterpillar', 'sociogram',
+]);
+
+describe('QuickChart canvasSize wiring (regression guard)', () => {
+  // Task 1's mode-render loop above never passes canvasSize, so it only
+  // ever exercises QuickChart's own { w: 210, h: 160 } default — deleting
+  // `canvasSize.w`/`canvasSize.h` from a rewired case (replacing it with a
+  // literal) would not fail any existing test. This guards that: for every
+  // size-sensitive mode, rendering with a distinctive canvasSize must
+  // produce different markup than rendering with the 210x160 default.
+  for (const mode of Object.keys(CHART_MODE_LABELS)) {
+    if (RESPONSIVE_MODES_EXCLUDED_FROM_SIZE_DIFF_CHECK.has(mode)) continue;
+    test(`mode "${mode}" renders different markup at canvasSize 900x500 vs the 210x160 default`, () => {
+      const props = { mode, data: [], ...FIXTURES[mode] };
+      const defaultRender = render(<QuickChart {...props} />);
+      const defaultHTML = defaultRender.container.innerHTML;
+      defaultRender.unmount();
+
+      const sizedRender = render(<QuickChart {...props} canvasSize={{ w: 900, h: 500 }} />);
+      const sizedHTML = sizedRender.container.innerHTML;
+      sizedRender.unmount();
+
+      expect(sizedHTML).not.toBe(defaultHTML);
+    });
+  }
+});

@@ -304,6 +304,7 @@ export function QuickSlopes({ slopes, width = 210, height = 120 }) {
   const maxS = Math.max(...vals, 0);
   const range = maxS - minS || 1;
   const zeroY = pad.t + h - ((0 - minS) / range) * h;
+  const barW = Math.min(60, Math.max(24, (w / slopes.length) * 0.5));
   return (
     <svg width={width} height={height}>
       <line x1={pad.l} y1={zeroY} x2={width - pad.r} y2={zeroY} stroke={C.border} strokeDasharray="2,2" />
@@ -313,7 +314,7 @@ export function QuickSlopes({ slopes, width = 210, height = 120 }) {
         const y = s.slope >= 0 ? zeroY - barH : zeroY;
         return (
           <g key={s.z}>
-            <rect x={cx - 18} y={y} width={36} height={Math.max(barH, 2)} fill={C.accent} fillOpacity={0.55} rx={2} />
+            <rect x={cx - barW / 2} y={y} width={barW} height={Math.max(barH, 2)} fill={C.accent} fillOpacity={0.55} rx={2} />
             <text x={cx} y={height - 5} textAnchor="middle" fontSize={8} fill={C.dim} {...mono}>{s.z}</text>
             <text x={cx} y={y - 3} textAnchor="middle" fontSize={8} fill={C.accent} {...mono}>{s.slope.toFixed(3)}</text>
           </g>

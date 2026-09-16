@@ -17,8 +17,12 @@ describe('useCanvasSize', () => {
     render(<Probe onSize={s => { seen = s; }} />);
     // happy-dom does not implement ResizeObserver callbacks synchronously
     // (or at all, depending on version), so the only behavior this
-    // environment can assert is the pre-resize default — the real resize
-    // path is covered by ExplorePanel.test.jsx and manual verification.
+    // environment can assert is the pre-resize default. The clamp/padding
+    // arithmetic that actually runs inside the ResizeObserver callback is
+    // extracted as the pure function `clampCanvasSize` and covered directly
+    // by unit tests in vizHelpers.test.js — it is NOT exercised by
+    // ExplorePanel.test.jsx (which only renders and does a text match, with
+    // no resize) or by any other test.
     expect(seen).toEqual({ w: 320, h: 240 });
   });
 
