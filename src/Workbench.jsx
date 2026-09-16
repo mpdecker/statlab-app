@@ -5,7 +5,7 @@ import { BUILTIN, detectCols, loadDataset, _cache, DATASET_DEFAULTS } from './da
 import {
   resolveQuickViewVars, barGroupsFromResult, loadingFromResult,
   formatInferenceSummary, CHART_MODE_LABELS, exploreChartLabel, explorePanelChartFromMode,
-  seriesFromResult,
+  seriesFromResult, useCanvasSize,
 } from './utils/vizHelpers.js';
 import { CHART_FOR_TEST } from './config/chartMap.js';
 import { TREE } from './config/tree.js';
@@ -160,6 +160,8 @@ function Header({ dsKey, customDef, switchDs, fileRef, handleCSV, uploadMsg, dat
 // ── Quick-view content ────────────────────────────────────────────────────────
 
 function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setChartMode, inferenceResult, inferenceContext }) {
+  const chartPanelRef = useRef(null);
+  const canvasSize = useCanvasSize(chartPanelRef, { minW: 160, minH: 120, padW: 16, padH: 16, initialW: 210, initialH: 160 });
   const resolved = useMemo(
     () => resolveQuickViewVars(activeTest, { xVar, yVar, groupVar: colorVar }, inferenceContext),
     [activeTest, xVar, yVar, colorVar, inferenceContext],
@@ -227,12 +229,12 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
       {chartIcons}
 
       <div style={{ flex: 1, padding: '6px 3px 3px', minHeight: 0 }}>
-        <div style={{ height: '100%', background: C.chartBg, borderRadius: 3, padding: '10px 2px 2px', position: 'relative', overflow: 'hidden' }}>
+        <div ref={chartPanelRef} style={{ height: '100%', background: C.chartBg, borderRadius: 3, padding: '10px 2px 2px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, opacity: .15, backgroundImage: `linear-gradient(${C.border} 1px,transparent 1px),linear-gradient(90deg,${C.border} 1px,transparent 1px)`, backgroundSize: '30px 30px', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>
             <Suspense fallback={<div role="status">Loading chart…</div>}>
               <ErrorBoundary>
-                <QuickChart mode={effectiveMode} data={data} xVar={vizX} yVar={vizY} colorVar={vizGroup} ds={ds} colorMap={colorMap} groups={groups} inferenceResult={inferenceResult} activeTest={activeTest} />
+                <QuickChart mode={effectiveMode} data={data} xVar={vizX} yVar={vizY} colorVar={vizGroup} ds={ds} colorMap={colorMap} groups={groups} inferenceResult={inferenceResult} activeTest={activeTest} canvasSize={canvasSize} />
               </ErrorBoundary>
             </Suspense>
           </div>
