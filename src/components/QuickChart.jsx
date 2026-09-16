@@ -145,8 +145,8 @@ export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, color
         && inferenceResult.points.some(p => Number.isFinite(p?.[0]) && Number.isFinite(p?.[1]));
       if (validPoints) return <MDSPlot points={inferenceResult.points} stress={inferenceResult.stress} n={inferenceResult.n} />;
       return inferenceResult?.points?.length
-        ? emptyHint('MDS embedding did not converge for these variables — try different Scale items.')
-        : emptyHint('Run Classical MDS, Sammon Mapping, or Non-Metric MDS with 2+ scale items selected.');
+        ? emptyHint('MDS embedding did not converge for these variables — try different Variables.')
+        : emptyHint('Run Classical MDS, Sammon Mapping, or Non-Metric MDS with 2+ Variables selected.');
     }
     default:
       return (

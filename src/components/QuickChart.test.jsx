@@ -113,8 +113,12 @@ describe('QuickChart mdsplot NaN guard', () => {
     const { container } = render(
       <QuickChart mode="mdsplot" data={[]} inferenceResult={{ points: [[0.1, 0.2], [NaN, NaN]], n: 2 }} />
     );
-    // At least one finite point exists, so this renders the real chart —
-    // MDSPlot itself is responsible for individual malformed points.
+    // At least one finite point exists, so QuickChart renders the real
+    // chart. MDSPlot does NOT filter individual bad points (p[0] ?? 0
+    // only neutralizes null/undefined, not NaN) — this scenario should
+    // no longer be reachable from real InferencePanel output after the
+    // mdsResultOrError guard, but this test still exercises QuickChart's
+    // own threshold logic directly via a hand-built fixture.
     expect(container.querySelector('.recharts-responsive-container')).toBeTruthy();
   });
 });
