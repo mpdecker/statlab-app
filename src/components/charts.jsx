@@ -500,6 +500,25 @@ export function MosaicPlot({ data, xVar, yVar, width = 300, height = 200 }) {
   );
 }
 
+// ── MDS scatter ───────────────────────────────────────────────────────────
+export function MDSPlot({ points, stress, n }) {
+  if (!points?.length) return null;
+  const axTick = { fontSize: 9, fill: C.dim, ...mono };
+  const pts = points.map((p, i) => ({ x: p[0] ?? 0, y: p[1] ?? 0, id: i }));
+  const name = stress != null ? `stress = ${stress}` : (n != null ? `n = ${n}` : 'points');
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart margin={{ top: 4, right: 4, bottom: 18, left: 4 }}>
+        <CartesianGrid stroke={C.border} strokeOpacity={.4} />
+        <XAxis dataKey="x" type="number" tick={axTick} stroke={C.border} label={{ value: 'Dim 1', position: "insideBottom", offset: -5, fill: C.dim, fontSize: 8 }} />
+        <YAxis dataKey="y" type="number" tick={axTick} stroke={C.border} label={{ value: 'Dim 2', angle: -90, position: "insideLeft", offset: 8, fill: C.dim, fontSize: 8 }} />
+        <Tooltip content={<CTip />} />
+        <Scatter data={pts} fill={C.accent} opacity={.7} r={3} name={name} />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
+
 // ── Scatter quick-view ────────────────────────────────────────────────────────
 export function QuickScatter({ data, xVar, yVar, colorVar, colorMap, groups }) {
   if (!xVar || !yVar) return null;

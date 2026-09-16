@@ -94,7 +94,7 @@ describe('QuickChart sizing', () => {
 // from the blanket canvasSize-wiring check below; genuinely covering their
 // responsiveness would need a layout-aware test, not a markup diff.
 const RESPONSIVE_MODES_EXCLUDED_FROM_SIZE_DIFF_CHECK = new Set([
-  'scatter', 'scatterfit', 'path', 'forest', 'caterpillar', 'sociogram',
+  'scatter', 'scatterfit', 'path', 'forest', 'caterpillar', 'sociogram', 'mdsplot',
 ]);
 
 describe('QuickChart canvasSize wiring (regression guard)', () => {

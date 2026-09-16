@@ -2,7 +2,7 @@ import {
   QuickScatter, QuickScatterFit, ViolinPlot, BarCI, HistogramDensity, HeatmapCorr, MosaicPlot,
   PowerCurve, PathDiagram, ForestPlot, QQPlot, ScreePlot, ResidualPlot, BootstrapHist,
   QuickSlopes, BoxPlotGrid, IRTCurves, LCAProfiles, SpaghettiPlot, CaterpillarPlot,
-  ITSPlot, RDPlot, SociogramPlot, TimeSeriesChart,
+  ITSPlot, RDPlot, SociogramPlot, TimeSeriesChart, MDSPlot,
 } from './charts.jsx';
 import { C } from '../palette.js';
 import {
@@ -140,6 +140,10 @@ export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, color
       return inferenceResult?.nodes?.length
         ? <SociogramPlot nodes={inferenceResult.nodes} edges={inferenceResult.edges} />
         : emptyHint('Run Sociogram / enter edge list (A-B,B-C).');
+    case 'mdsplot':
+      return inferenceResult?.points?.length
+        ? <MDSPlot points={inferenceResult.points} stress={inferenceResult.stress} n={inferenceResult.n} />
+        : emptyHint('Run Classical MDS, Sammon Mapping, or Non-Metric MDS with 2+ scale items selected.');
     default:
       return (
         <QuickScatter

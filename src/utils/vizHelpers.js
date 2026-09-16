@@ -45,6 +45,7 @@ export const CHART_MODE_LABELS = {
   its: 'ITS',
   rddplot: 'RDD',
   sociogram: 'Sociogram',
+  mdsplot: 'MDS',
   timeseries: 'Time Series',
 };
 
@@ -81,6 +82,7 @@ export const EXPLORE_PANEL_CHART_FOR_MODE = {
   its: 'Time series',
   rddplot: 'RDD',
   sociogram: 'Dendrogram',
+  mdsplot: 'PCA biplot',
   survival: 'Survival',
   correlogram: 'Bar+CI',
   timeseries: 'Time series',
