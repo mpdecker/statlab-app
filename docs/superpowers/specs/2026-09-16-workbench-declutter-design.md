@@ -1,8 +1,22 @@
 # StatLab Navigator + Toolbar Decluttering — Design
 
 **Date:** 2026-09-16
-**Status:** Approved
+**Status:** Implemented and verified
 **Phase:** 2 of 2 (follows [2026-09-15-viz-rendering-correctness-design.md](./2026-09-15-viz-rendering-correctness-design.md), which fixed the crash/sizing bugs this phase's layout work builds on top of)
+
+**Verification (2026-09-16):** `pnpm test` 714/714 passing, `pnpm build`
+clean. Manually confirmed in a production preview build: Navigator shows
+`"221 modules"` / `"Search 221 tests..."` (not `"84"`), a `"CORE (71)"`
+section expanded by default with no per-category glyphs, a `"MORE
+CATEGORIES (23)"` section collapsed by default; searching "privacy"
+force-expands straight to the PRIVACY category with zero extra clicks;
+"EXPAND ALL"/"COLLAPSE" both correctly expand/collapse the two new
+sections along with every individual category (a real regression in
+this exact control was caught and fixed during task review — see the
+implementation plan's Task 2 history); the toolbar reads "Violin", "Box
+plot", "Correlogram heatmap", etc. instead of abbreviations, and wraps
+cleanly to a second row at a 900px viewport with no overflow. Zero
+console errors throughout.
 
 ## Problem
 

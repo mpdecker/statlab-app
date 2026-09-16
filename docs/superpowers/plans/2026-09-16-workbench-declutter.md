@@ -820,17 +820,20 @@ EOF
   finds a problem, fix it in the relevant file from Tasks 1-3 and re-run
   this task's checks before continuing).
 
-- [ ] **Step 1: Run the full automated suite one more time**
+- [x] **Step 1: Run the full automated suite one more time**
 
 Run: `pnpm test`
 Expected: PASS, zero failures.
+**Result:** PASS — 30 files / 714 tests, zero failures.
 
-- [ ] **Step 2: Build the app**
+- [x] **Step 2: Build the app**
 
 Run: `pnpm build`
 Expected: succeeds with no errors.
+**Result:** PASS — `vite build` succeeded (same pre-existing chunk-size
+warning on `Workbench`/`recharts` as Phase 1, unrelated to this change).
 
-- [ ] **Step 3: Preview the production build and manually verify**
+- [x] **Step 3: Preview the production build and manually verify**
 
 Start a preview server (e.g. via the Browser pane's `preview_start` with
 a `.claude/launch.json` entry pointing `--prefix` at this worktree, on a
@@ -861,7 +864,24 @@ assuming a name/port is free) and, in the Browser pane:
    causing horizontal scroll.
 6. Check `read_console_messages` for errors after each step above.
 
-- [ ] **Step 4: Update the spec's status**
+**Result:** Added a `statlab-declutter-preview` entry to the global
+`C:\Development\.claude\launch.json` (port 4175, distinct from Phase 1's
+4174 and the pre-existing `statlab-preview` at 4173 — none touched).
+All 6 manual checks passed: "CORE (71)" expanded by default with no
+glyphs, "MORE CATEGORIES (23)" collapsed by default; expanding it
+revealed PRIVACY/other long-tail categories; searching "privacy"
+force-expanded straight to the PRIVACY category with zero extra clicks
+and showed "221" in the placeholder/count, not "84"; toolbar read full
+words ("Violin", "Correlogram heatmap", etc.) and switching modes still
+worked; at 900px width the toolbar wrapped cleanly to two rows with no
+overflow. Also exercised "EXPAND ALL"/"COLLAPSE" directly (beyond what
+this step listed) since that control's interaction with the new
+`'__core__'`/`'__more__'` sentinel keys was the one real regression task
+review caught and fixed (see Task 2's history above) — confirmed both
+buttons now correctly expand/collapse the two new sections together with
+every individual category. Zero console errors throughout.
+
+- [x] **Step 4: Update the spec's status**
 
 In
 `docs/superpowers/specs/2026-09-16-workbench-declutter-design.md`,
@@ -869,6 +889,7 @@ update the `**Status:**` line to note verification is complete, and add
 a short note of what was actually checked (mirroring how Phase 1's spec
 recorded its own verification results), or note any deviation found and
 fixed.
+**Result:** Done — status updated with a verification summary.
 
 - [ ] **Step 5: Commit the spec update**
 
