@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { corr, sampleSD, fmtP } from 'statlab/math/core';
 
 /** Tests whose QuickView should follow Inference variable selectors */
@@ -241,6 +242,24 @@ export function resolveQuickViewVars(activeTest, header, inference) {
     catY: h.yVar,
     usingInference: false,
   };
+}
+
+export function useCanvasSize(ref, { minW = 320, minH = 240, padW = 24, padH = 80, initialW = minW, initialH = minH } = {}) {
+  const [size, setSize] = useState({ w: initialW, h: initialH });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setSize({
+        w: Math.max(minW, Math.floor(width - padW)),
+        h: Math.max(minH, Math.floor(height - padH)),
+      });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [minW, minH, padW, padH]);
+  return size;
 }
 
 export function seriesFromResult(result, activeTest) {
