@@ -188,4 +188,6 @@ export const CHART_FOR_TEST = {
   dist_corr: 'scatterfit', dist_cov: 'scatterfit',
   // ── SURVEY METHODOLOGY ──────────────────────────────────────────────
   wmean: 'histogram', wcorr: 'scatterfit', deff: 'histogram', taylor: 'histogram',
+  // ── MDS ──────────────────────────────────────────────────────────────
+  mds_classical: 'mdsplot', mds_sammon: 'mdsplot', mds_nonmetric: 'mdsplot',
 };

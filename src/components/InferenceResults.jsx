@@ -759,6 +759,14 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         </Row>
       </>}
 
+      {(r.test === 'Classical MDS' || r.test === 'Sammon Mapping' || r.test === 'Non-Metric MDS') && <>
+        <SectionHead label={`${r.test} · ${r.nDimensions}D · n=${r.n}`} />
+        <Row>
+          {r.stress != null && <Chip label="stress" value={r.stress} color={r.stress < .1 ? C.ok : r.stress < .2 ? C.warn : C.neg} />}
+          <Chip label="dimensions" value={r.nDimensions} color={C.dim} />
+        </Row>
+      </>}
+
       {r.test === "McDonald's ω" && (
         <Row>
           <Chip label="ω total" value={r.omegaTotal} color={r.omegaTotal >= .8 ? C.ok : C.warn} sub={r.label} />

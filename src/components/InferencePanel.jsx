@@ -24,6 +24,7 @@ import {
 } from '@statlab/core/methods/categorical';
 import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from '@statlab/core/methods/multivariate';
 import { weightedMean, weightedVar, weightedCorrelation, designEffect, taylorLinearization } from '@statlab/core/methods/survey';
+import { classicalMDS, sammonMapping, nonMetricMDS } from '@statlab/core/methods/mds';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
 import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
@@ -939,6 +940,9 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'bayes_t')   { const tw = tWelch(g1vals, g2vals); if (!tw) return null; return { ...tw, ...bayesFactorT(tw.t, tw.na, tw.nb, parseFinite(bfPrior, 0.707)), test: 'Bayesian t-test (JZS)' }; }
       if (a === 'bayes_r')   { const pr = pearsonTest(xy.xs, xy.ys); if (!pr) return null; return { ...pr, ...bayesFactorCorr(pr.r, pr.n), test: 'Bayesian Correlation' }; }
       if (a === 'pca')       return pca(data, scaleVars.filter(c => numeric.includes(c)));
+      if (a === 'mds_classical') return classicalMDS(data, scaleVars.filter(c => numeric.includes(c)), { nDimensions: 2 });
+      if (a === 'mds_sammon')    return sammonMapping(data, scaleVars.filter(c => numeric.includes(c)), { nDimensions: 2 });
+      if (a === 'mds_nonmetric') return nonMetricMDS(data, scaleVars.filter(c => numeric.includes(c)), { nDimensions: 2 });
       if (a === 'efa')       return efa(data, scaleVars.filter(c => numeric.includes(c)), parseInt(nFactors) || 2);
       if (a === 'manova') {
         const ys = scaleVars.filter(c => numeric.includes(c));

@@ -246,6 +246,9 @@ export function InferenceConfig({ active, ds, data, state, set, width = '100%', 
       <CheckList label="Predictors X" items={numeric} selected={preds} onChange={setPreds} />
     </>,
     pca:       <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />,
+    mds_classical: <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />,
+    mds_sammon:    <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />,
+    mds_nonmetric: <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />,
     efa: <>
       <CheckList label="Variables" items={numeric} selected={scaleVars} onChange={setScaleVars} />
       <Sel label="# Factors" value={nFactors} onChange={setNFactors} options={['1', '2', '3', '4']} width={80} />

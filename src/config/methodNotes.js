@@ -1422,6 +1422,24 @@ export const METHOD_NOTES = {
     assumptions: ["At least 2 primary sampling units (PSUs) per stratum", "PSUs are independently selected within each stratum"],
     cite: "Wolter, K. M. (2007). Introduction to Variance Estimation (2nd ed.). Springer.",
   },
+  mds_classical: {
+    description: "Classical (metric) MDS finds a low-dimensional coordinate embedding that best preserves pairwise Euclidean distances between observations, via eigendecomposition of a double-centered distance matrix.",
+    usage: "Use to visualize the overall structure of multivariate data in 2D when you care about preserving actual distances (not just rank order) — the fastest and most interpretable MDS variant.",
+    assumptions: ["Distances are (approximately) Euclidean", "At least 5 observations, 2+ numeric variables"],
+    cite: "Torgerson, W. S. (1952). Multidimensional scaling: I. Theory and method. Psychometrika, 17(4), 401–419.",
+  },
+  mds_sammon: {
+    description: "Sammon mapping is a nonlinear MDS variant that weights the stress function to preserve small (local) distances more accurately than large ones, via iterative gradient descent.",
+    usage: "Use when local structure (which points are near each other) matters more than exact global distances — often reveals cluster structure classical MDS smooths over.",
+    assumptions: ["Distances are meaningfully Euclidean", "At least 5 observations, 2+ numeric variables"],
+    cite: "Sammon, J. W. (1969). A nonlinear mapping for data structure analysis. IEEE Transactions on Computers, 18(5), 401–409.",
+  },
+  mds_nonmetric: {
+    description: "Non-metric MDS (Kruskal's method) preserves only the rank order of dissimilarities, not their exact magnitudes, minimizing a stress function over monotonic transformations of distance.",
+    usage: "Use when your dissimilarity measure is ordinal or you only trust its rank order (e.g. subjective similarity ratings) rather than its exact numeric scale.",
+    assumptions: ["Dissimilarities are at least ordinally meaningful", "At least 5 observations, 2+ numeric variables"],
+    cite: "Kruskal, J. B. (1964). Nonmetric multidimensional scaling: A numerical method. Psychometrika, 29(2), 115–129.",
+  },
 };
 
 /** Simplified implementation notes used as fallback when an educational note doesn't exist. */
