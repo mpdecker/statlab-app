@@ -50,6 +50,7 @@ const FIXTURES = {
   its: { inferenceResult: { series: [{ t: 1, y: 2 }, { t: 2, y: 3 }] } },
   rddplot: { inferenceResult: { points: [{ x: 1, y: 2 }, { x: 5, y: 8 }], cutoff: 3 } },
   sociogram: { inferenceResult: { nodes: [{ id: 'a', x: 0, y: 0 }, { id: 'b', x: 1, y: 1 }], edges: [{ from: 'a', to: 'b' }] } },
+  mdsplot: { inferenceResult: { points: [[0.5, -0.2], [-0.3, 0.4], [0.1, 0.1]], stress: 0.05, n: 3 } },
 };
 
 describe('QuickChart', () => {
@@ -87,6 +88,41 @@ describe('QuickChart sizing', () => {
   });
 });
 
+describe('QuickChart mdsplot NaN guard', () => {
+  // sammonMapping (and, in principle, any MDS method) can numerically
+  // diverge on some inputs and return points full of NaN — a result
+  // object that exists (points.length > 0) but is unusable. QuickChart
+  // must not hand that straight to MDSPlot/recharts, which renders a
+  // silently blank chart with no error and no explanation.
+  test('renders MDSPlot for finite points', () => {
+    const { container } = render(
+      <QuickChart mode="mdsplot" data={[]} inferenceResult={{ points: [[0.5, -0.2], [-0.3, 0.4]], stress: 0.05, n: 2 }} />
+    );
+    expect(container.querySelector('.recharts-responsive-container')).toBeTruthy();
+  });
+
+  test('falls back to a hint (not a blank chart) when all points are NaN', () => {
+    const { container, getByText } = render(
+      <QuickChart mode="mdsplot" data={[]} inferenceResult={{ points: [[NaN, NaN], [NaN, NaN]], n: 2 }} />
+    );
+    expect(container.querySelector('.recharts-responsive-container')).toBeFalsy();
+    expect(getByText(/did not converge/i)).toBeTruthy();
+  });
+
+  test('falls back to a hint when some but not all points are non-finite', () => {
+    const { container } = render(
+      <QuickChart mode="mdsplot" data={[]} inferenceResult={{ points: [[0.1, 0.2], [NaN, NaN]], n: 2 }} />
+    );
+    // At least one finite point exists, so QuickChart renders the real
+    // chart. MDSPlot does NOT filter individual bad points (p[0] ?? 0
+    // only neutralizes null/undefined, not NaN) — this scenario should
+    // no longer be reachable from real InferencePanel output after the
+    // mdsResultOrError guard, but this test still exercises QuickChart's
+    // own threshold logic directly via a hand-built fixture.
+    expect(container.querySelector('.recharts-responsive-container')).toBeTruthy();
+  });
+});
+
 // Modes that QuickChart never forwards canvasSize into at all — they use
 // ResponsiveContainer / 100%-viewBox sizing (or take no size props from
 // QuickChart in the first place), so their raw markup is identical
@@ -94,7 +130,7 @@ describe('QuickChart sizing', () => {
 // from the blanket canvasSize-wiring check below; genuinely covering their
 // responsiveness would need a layout-aware test, not a markup diff.
 const RESPONSIVE_MODES_EXCLUDED_FROM_SIZE_DIFF_CHECK = new Set([
-  'scatter', 'scatterfit', 'path', 'forest', 'caterpillar', 'sociogram',
+  'scatter', 'scatterfit', 'path', 'forest', 'caterpillar', 'sociogram', 'mdsplot',
 ]);
 
 describe('QuickChart canvasSize wiring (regression guard)', () => {

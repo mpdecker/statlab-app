@@ -5,7 +5,7 @@ import { render } from '@testing-library/react';
 import {
   ViolinPlot, BoxPlot, BarCI, HeatmapCorr, QuickSlopes, IRTCurves,
   QQPlot, ResidualPlot, PowerCurve, ScreePlot, LCAProfiles, SpaghettiPlot,
-  ITSPlot, RDPlot, BootstrapHist,
+  ITSPlot, RDPlot, BootstrapHist, MDSPlot,
 } from './charts.jsx';
 
 describe('charts', () => {
@@ -100,5 +100,16 @@ describe('charts', () => {
   test('BootstrapHist honors a custom height prop', () => {
     const { container } = render(<BootstrapHist dist={[1, 2, 3, 4, 5, 6, 7, 8]} lo={2} hi={7} height={300} />);
     expect(container.firstChild.style.height).toBe('300px');
+  });
+
+  test('MDSPlot renders a scatter of 2D points', () => {
+    const points = [[0.5, -0.2], [-0.3, 0.4], [0.1, 0.1], [-0.6, -0.5]];
+    const { container } = render(<MDSPlot points={points} stress={0.05} n={4} />);
+    expect(container.querySelector('.recharts-responsive-container')).toBeTruthy();
+  });
+
+  test('MDSPlot returns null for empty points', () => {
+    const { container } = render(<MDSPlot points={[]} />);
+    expect(container.firstChild).toBeNull();
   });
 });

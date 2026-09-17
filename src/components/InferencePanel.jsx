@@ -23,6 +23,8 @@ import {
   bonferroni, holm, bh, sensitivityLOO,
 } from '@statlab/core/methods/categorical';
 import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from '@statlab/core/methods/multivariate';
+import { weightedMean, weightedVar, weightedCorrelation, designEffect, taylorLinearization } from '@statlab/core/methods/survey';
+import { classicalMDS, sammonMapping, nonMetricMDS } from '@statlab/core/methods/mds';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
 import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
@@ -938,6 +940,14 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'bayes_t')   { const tw = tWelch(g1vals, g2vals); if (!tw) return null; return { ...tw, ...bayesFactorT(tw.t, tw.na, tw.nb, parseFinite(bfPrior, 0.707)), test: 'Bayesian t-test (JZS)' }; }
       if (a === 'bayes_r')   { const pr = pearsonTest(xy.xs, xy.ys); if (!pr) return null; return { ...pr, ...bayesFactorCorr(pr.r, pr.n), test: 'Bayesian Correlation' }; }
       if (a === 'pca')       return pca(data, scaleVars.filter(c => numeric.includes(c)));
+      function mdsResultOrError(r) {
+        if (!r) return r;
+        const ok = r.points?.every(p => Number.isFinite(p?.[0]) && Number.isFinite(p?.[1]));
+        return ok ? r : { error: 'MDS embedding did not converge for these variables — try different Variables.' };
+      }
+      if (a === 'mds_classical') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(classicalMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
+      if (a === 'mds_sammon')    { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(sammonMapping(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
+      if (a === 'mds_nonmetric') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(nonMetricMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
       if (a === 'efa')       return efa(data, scaleVars.filter(c => numeric.includes(c)), parseInt(nFactors) || 2);
       if (a === 'manova') {
         const ys = scaleVars.filter(c => numeric.includes(c));
@@ -961,6 +971,23 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'splithalf') return splitHalf(scaleMatrix);
       if (a === 'icc')       return icc(scaleMatrix);
       if (a === 'kappa')     return cohensKappa(data.map(r => r[cat1]), data.map(r => r[cat2]));
+      if (a === 'wmean') {
+        const rows = data.filter(r => rowFinite(r, [xVar, zVar]));
+        const m = weightedMean(rows.map(r => +r[xVar]), rows.map(r => +r[zVar]));
+        if (!m) return null;
+        const v = weightedVar(rows.map(r => +r[xVar]), rows.map(r => +r[zVar]));
+        return { test: 'Weighted Descriptives', mean: m.mean, sd: v?.sd ?? null, se: v?.se ?? null, n: m.n, sumWeights: m.sumWeights, apa: v ? `Weighted M = ${m.mean}, SD = ${v.sd}, n = ${m.n}` : m.apa };
+      }
+      if (a === 'wcorr')  return weightedCorrelation(xyz.xs, xyz.ys, xyz.zs);
+      if (a === 'deff')   { const rows = data.filter(r => rowFinite(r, [zVar])); return designEffect(rows.map(r => +r[zVar])); }
+      if (a === 'taylor') {
+        const rows = data.filter(r => rowFinite(r, [xVar]));
+        const t = taylorLinearization(rows, xVar, [], cat1, cat2);
+        if (!t) return null;
+        return Number.isFinite(t.se)
+          ? t
+          : { error: 'Taylor linearization could not compute a standard error — every stratum needs at least 2 distinct PSU/cluster values.' };
+      }
       if (a === 'meta')      { const studies = metaInput.trim().split('\n').map(line => { const p = line.split(','); const d = parseFloat(p[1]), se = parseFloat(p[2]); return { label: p[0]?.trim(), d, se }; }).filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0); return metaAnalysis(studies); }
       if (a === 'did')       return differencesInDifferences(parseNumList(didPCStr), parseNumList(didPOStr), parseNumList(didPTStr), parseNumList(didPTtStr));
       if (a === 'grubbs')    return grubbsTest(allTgt);

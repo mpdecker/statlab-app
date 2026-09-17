@@ -27,6 +27,7 @@ import {
   metaAnalysis, differencesInDifferences, convertEffectSize,
   manova, canonicalCorr, linearDiscriminant,
 } from '@statlab/core/methods/multivariate';
+import { classicalMDS, sammonMapping, nonMetricMDS } from '@statlab/core/methods/mds';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
 import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
@@ -66,6 +67,7 @@ import { panelFixedEffects, panelRandomEffects, hausmanTest } from '@statlab/cor
 import { gamBackfitting, gamInteraction } from '@statlab/core/methods/gam';
 import { gaussianMixtureModel, latentProfileAnalysis } from '@statlab/core/methods/mixture';
 import { distanceCorrelation, distanceCovariance } from '@statlab/core/methods/distance';
+import { weightedMean, weightedCorrelation, designEffect, taylorLinearization } from '@statlab/core/methods/survey';
 
 const ROWS = mkTabular();
 const GROUPS = mkGroups();
@@ -143,6 +145,9 @@ const RUNNERS = {
 
   pca: () => pca(ROWS, VARS),
   efa: () => efa(ROWS, VARS, 2),
+  mds_classical: () => classicalMDS(ROWS, VARS, { nDimensions: 2 }),
+  mds_sammon: () => sammonMapping(ROWS, VARS, { nDimensions: 2 }),
+  mds_nonmetric: () => nonMetricMDS(ROWS, VARS, { nDimensions: 2 }),
   manova: () => manova(ROWS, ['item1', 'item2'], 'group'),
   cancorr: () => canonicalCorr(ROWS, ['item1', 'item2'], ['x', 'y']),
   lda: () => linearDiscriminant(ROWS, 'group', ['x', 'y']),
@@ -749,6 +754,11 @@ const RUNNERS = {
   // ── DISTANCE & DEPENDENCE ──────────────────────────────────────────
   dist_corr: () => distanceCorrelation(XS, YS),
   dist_cov: () => distanceCovariance(XS, YS),
+  // ── SURVEY METHODOLOGY ──────────────────────────────────────────────
+  wmean: () => weightedMean(XS, ZS),
+  wcorr: () => weightedCorrelation(XS, YS, ZS),
+  deff: () => designEffect(ZS),
+  taylor: () => taylorLinearization(ROWS, 'x', [], 'cat2', 'school'),
 };
 
 function avg(a) {
