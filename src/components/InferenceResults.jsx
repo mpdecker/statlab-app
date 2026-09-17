@@ -76,6 +76,31 @@ function SemCoeffTable({ coeffs }) {
   );
 }
 
+function PathCoeffTable({ coeffs }) {
+  if (!coeffs?.length) return null;
+  const headers = ['from', 'to', 'direct', 'indirect', 'total'];
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', ...mono, fontSize: 9, width: '100%' }}>
+        <thead>
+          <tr>{headers.map(h => <th key={h} style={{ padding: '2px 6px', textAlign: 'left', color: C.dim, borderBottom: `1px solid ${C.border}`, fontSize: 7, textTransform: 'uppercase' }}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {coeffs.map((c, i) => (
+            <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : C.panel }}>
+              <td style={{ padding: '2px 6px', color: PAL[i % PAL.length] }}>{c.from}</td>
+              <td style={{ padding: '2px 6px', color: C.text }}>{c.to}</td>
+              <td style={{ padding: '2px 6px', color: C.pos }}>{c.direct}</td>
+              <td style={{ padding: '2px 6px', color: C.dim }}>{c.indirect}</td>
+              <td style={{ padding: '2px 6px', color: C.accent }}>{c.total}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, normG1, normG2, levene, scaleVars, ds }) {
   const [showQQ, setShowQQ] = useState(false);
   const [showPow, setShowPow] = useState(false);
@@ -812,6 +837,14 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
           <div style={{ fontSize: 8, color: C.dim, ...mono, textTransform: 'uppercase', margin: '6px 0 2px' }}>Paths</div>
           <SemCoeffTable coeffs={r.paths} />
         </>}
+      </>}
+
+      {r.test === 'Path Analysis' && <>
+        <SectionHead label={`Path Analysis · n=${r.n}`} />
+        <Row>
+          {Object.entries(r.rSquared ?? {}).map(([k, v]) => <Chip key={k} label={`R² ${k}`} value={v} color={C.pos} />)}
+        </Row>
+        <PathCoeffTable coeffs={r.coefficients} />
       </>}
 
       {r.test === "McDonald's ω" && (
