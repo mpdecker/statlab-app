@@ -279,10 +279,6 @@ export function InferenceConfig({ active, ds, data, state, set, width = '100%', 
       label="Studies  (label, d, se — one per line)"
       value={state.metaInput} onChange={state.setMetaInput} rows={7}
     />,
-    sem: <TA
-      label="Model syntax (one equation per line: f =~ x1 + x2 for a latent factor, y ~ x for a regression)"
-      value={state.semEquations} onChange={state.setSemEquations} rows={7}
-    />,
     path_analysis: <TA
       label="Equations (one per line: y ~ x1 + x2)"
       value={state.pathEquations} onChange={state.setPathEquations} rows={5}
