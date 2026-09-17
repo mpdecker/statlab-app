@@ -1,5 +1,15 @@
 # SEM Phase A (`sem` + `pathAnalysis`) Implementation Plan
 
+> **DEVIATION (2026-09-17):** Task 1 (`sem`) was implemented, reviewed
+> clean, then **fully reverted post-verification** after Task 3's manual
+> testing found `@statlab/core@0.1.1`'s factor-loading optimizer does not
+> converge (see the design spec's Status section for the full writeup
+> and `.superpowers/sdd/progress.md` for the commit-by-commit narrative).
+> Only Task 2 (`path_analysis`) shipped. Do not execute Task 1 against
+> this plan's literal text (its count-literal bumps, e.g. 228→229→230,
+> reflect both tests together and no longer match shipped state) without
+> first checking whether the upstream bug has been fixed.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add `sem` (Structural Equation Model) and `path_analysis` (Path

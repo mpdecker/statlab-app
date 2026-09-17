@@ -21,9 +21,9 @@ around. `sem`'s TREE entry, state, computation branch, config UI,
 result rendering, method note, and regression tests were all reverted;
 the `SEM` Navigator category and every `pathAnalysis` addition remain.
 An upstream bug report for `sem()`'s loading optimizer has been filed
-as a separate follow-up task — `sem` is a candidate to re-add to this
-phase once that's resolved and re-verified, not a permanently
-abandoned goal.
+as a separate follow-up task (`task_697f8e46`) — `sem` is a candidate
+to re-add to this phase once that's resolved and re-verified, not a
+permanently abandoned goal.
 
 **Status (original, before the above):** Approved
 **Phase:** A of 3 of the "bring `@statlab/core`'s `sem.js` module to the webapp"
@@ -235,8 +235,9 @@ reused `ROWS` for its own new runners.
 - `src/config/contracts.test.js` covers both new ids automatically once
   their runners exist, per the app's existing convention.
 - `chartMap.test.js`'s hardcoded mapping-count literal needs bumping by
-  2 (the same stale-count bug class flagged and fixed twice in Phase 1
-  and again in the Survey/MDS phase).
+  2 as originally designed for both tests (the same stale-count bug
+  class flagged and fixed twice in Phase 1 and again in the Survey/MDS
+  phase) — actually shipped as +1, since `sem` was reverted; see Status.
 - A focused test in `InferencePanel.test.jsx` for the new `sem`
   non-convergence guard, following the exact break/restore pattern the
   Survey/MDS phase's `wmean`/`deff` regression tests already established
