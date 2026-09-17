@@ -1,7 +1,31 @@
 # StatLab SEM (Phase A: `sem` + `pathAnalysis`) — Design
 
 **Date:** 2026-09-16
-**Status:** Approved
+**Status:** Verification complete with a significant deviation (2026-09-17).
+`pathAnalysis` shipped as designed — manually verified end-to-end,
+reliable across every tested dataset. **`sem` was dropped from this PR**
+after manual verification found `@statlab/core@0.1.1`'s factor-loading
+ML optimizer does not actually converge: across every tested
+dataset/equation (Salaries, Iris, and a synthetic dataset deliberately
+built with a strong, well-identified factor structure), loadings never
+moved meaningfully from their 0.3 Newton-Raphson starting value,
+producing either `SE=0` (falsely precise) or `SE=Infinity` (falsely
+failed), alongside internally inconsistent fit indices (e.g. `CFI =
+1.000` alongside `RMSEA = 1.27` on the same run — a combination that
+cannot both be true of a genuine fit). Two guards were added during
+verification (fit-stat non-finite check, per-coefficient Infinite-SE
+check) and are real improvements, but neither is sufficient: the core
+loading estimation itself appears fundamentally broken in this package
+version, not a narrow edge case a webapp-layer guard can safely patch
+around. `sem`'s TREE entry, state, computation branch, config UI,
+result rendering, method note, and regression tests were all reverted;
+the `SEM` Navigator category and every `pathAnalysis` addition remain.
+An upstream bug report for `sem()`'s loading optimizer has been filed
+as a separate follow-up task — `sem` is a candidate to re-add to this
+phase once that's resolved and re-verified, not a permanently
+abandoned goal.
+
+**Status (original, before the above):** Approved
 **Phase:** A of 3 of the "bring `@statlab/core`'s `sem.js` module to the webapp"
 initiative, itself the deferred SEM follow-up named in the prior
 Survey/MDS phase's own spec. `sem.js` exports 8 functions spanning at
@@ -46,6 +70,12 @@ specification, not column pickers — confirmed by reading
 `parseEquations()`, which every SEM function in the module shares.
 
 ## Goals
+
+**Note:** goal 1 below was achieved only for `pathAnalysis` — `sem`
+itself was reverted post-verification (see Status above). Goals 2-4
+were achieved as designed by `pathAnalysis` alone; the equations-
+textarea and coefficients-table patterns remain established and
+reusable by a future re-attempt at `sem` or by Phase B.
 
 1. Add both tests to a new **SEM** Navigator category, following the
    app's existing "one TREE entry = one method" pattern exactly.
