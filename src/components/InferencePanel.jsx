@@ -25,6 +25,7 @@ import {
 import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from '@statlab/core/methods/multivariate';
 import { weightedMean, weightedVar, weightedCorrelation, designEffect, taylorLinearization } from '@statlab/core/methods/survey';
 import { classicalMDS, sammonMapping, nonMetricMDS } from '@statlab/core/methods/mds';
+import { sem } from '@statlab/core/methods/sem';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
 import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
@@ -593,6 +594,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [p2x, setP2x] = useState('30'); const [p2n, setP2n] = useState('100');
   const [binoK, setBinoK] = useState('15'); const [binoN, setBinoN] = useState('30'); const [binoP, setBinoP] = useState('0.5');
   const [metaInput, setMetaInput] = useState('Study1,0.5,0.20\nStudy2,0.3,0.25\nStudy3,0.8,0.18\nStudy4,0.4,0.22\nStudy5,0.6,0.19');
+  const [semEquations, setSemEquations] = useState(numeric.length >= 3 ? `f1 =~ ${numeric.slice(0, 3).join(' + ')}` : '');
   const [didPCStr, setDidPCStr]   = useState('40,42,39,41');
   const [didPOStr, setDidPOStr]   = useState('41,43,40,42');
   const [didPTStr, setDidPTStr]   = useState('38,40,37,39');
@@ -948,6 +950,12 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'mds_classical') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(classicalMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
       if (a === 'mds_sammon')    { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(sammonMapping(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
       if (a === 'mds_nonmetric') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(nonMetricMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
+      function semResultOrError(r) {
+        if (!r) return r;
+        const finite = [r.fit?.chi2, r.fit?.cfi, r.fit?.tli, r.fit?.rmsea, r.fit?.srmr].every(Number.isFinite);
+        return finite ? r : { error: 'SEM model did not converge — try a simpler model or check for near-collinear variables.' };
+      }
+      if (a === 'sem') return semResultOrError(sem({ equations: semEquations.trim().split('\n').map(l => l.trim()).filter(Boolean), data, method: 'ML' }));
       if (a === 'efa')       return efa(data, scaleVars.filter(c => numeric.includes(c)), parseInt(nFactors) || 2);
       if (a === 'manova') {
         const ys = scaleVars.filter(c => numeric.includes(c));
@@ -1318,7 +1326,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     active, g1vals, g2vals, allTgt, mu0, sigma, groups, getVals, data,
     cat1, cat2, xy, xyz, medXMY, modXZY, preds, yVar, xVar, mVar, zVar,
     grpVar, tgtVar, tostL, tostH, bfPrior, aval, scaleVars, scaleMatrix,
-    rmMatrix, rmCols, polDeg, metaInput, didPCStr, didPOStr, didPTStr, didPTtStr,
+    rmMatrix, rmCols, polDeg, metaInput, semEquations, didPCStr, didPOStr, didPTStr, didPTtStr,
     fx_a, fx_b, fx_c, fx_d, p1x, p1n, p2x, p2n, binoK, binoN, binoP,
     nFactors, ssType, ssPow, ssD, ssR, effFrom, effVal, pairsInput, corrMeth,
     numeric, groups, leveneTest, bartlettTest,
@@ -1373,6 +1381,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     didPCStr, setDidPCStr, didPOStr, setDidPOStr,
     didPTStr, setDidPTStr, didPTtStr, setDidPTtStr,
     metaInput, setMetaInput,
+    semEquations, setSemEquations,
     onRunBs, bsRunning, onRunMedBs, medBsRunning,
     powAnovaF, setPowAnovaF, powKgroups, setPowKgroups, powNperGrp, setPowNperGrp,
     powChiW, setPowChiW, powChiDf, setPowChiDf, powChiN, setPowChiN,

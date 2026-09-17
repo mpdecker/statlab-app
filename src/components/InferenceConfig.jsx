@@ -279,6 +279,10 @@ export function InferenceConfig({ active, ds, data, state, set, width = '100%', 
       label="Studies  (label, d, se — one per line)"
       value={state.metaInput} onChange={state.setMetaInput} rows={7}
     />,
+    sem: <TA
+      label="Model syntax (one equation per line: f =~ x1 + x2 for a latent factor, y ~ x for a regression)"
+      value={state.semEquations} onChange={state.setSemEquations} rows={7}
+    />,
     did: <>
       <div style={{ fontSize: 8, color: C.dim, ...mono, textTransform: 'uppercase', marginBottom: 4 }}>Comma-separated values per cell</div>
       <Inp label="Pre-control"    value={didPCStr}  onChange={setDidPCStr}  width={160} placeholder="40,42,39" />

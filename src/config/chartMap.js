@@ -190,4 +190,6 @@ export const CHART_FOR_TEST = {
   wmean: 'histogram', wcorr: 'scatterfit', deff: 'histogram', taylor: 'histogram',
   // ── MDS ──────────────────────────────────────────────────────────────
   mds_classical: 'mdsplot', mds_sammon: 'mdsplot', mds_nonmetric: 'mdsplot',
+  // ── SEM ──────────────────────────────────────────────────────────────
+  sem: 'histogram',
 };
