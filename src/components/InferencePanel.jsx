@@ -718,6 +718,29 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [powerResult, setPowerResult] = useState(null);
   const [powerRunning, setPowerRunning] = useState(false);
 
+  // ── revalidate generic column-selecting state on dataset switch ────────────
+  // These slots are initialized once from the dataset present at mount; a stale
+  // column name left in them after switching datasets is invisible to the user
+  // (native <select> falls back to displaying its first <option>) but silently
+  // computes against a nonexistent column, so it must never survive a switch.
+  useEffect(() => {
+    setGrpVar(prev => (categorical.includes(prev) ? prev : (categorical[0] || '')));
+    setTgtVar(prev => (numeric.includes(prev) ? prev : (numeric[0] || '')));
+    setXVar(prev => (numeric.includes(prev) ? prev : (numeric[0] || '')));
+    setYVar(prev => (numeric.includes(prev) ? prev : (numeric[1] || numeric[0] || '')));
+    setZVar(prev => (numeric.includes(prev) ? prev : (numeric[2] || numeric[0] || '')));
+    setMVar(prev => (numeric.includes(prev) ? prev : (numeric[1] || numeric[0] || '')));
+    setCat1(prev => (categorical.includes(prev) ? prev : (categorical[0] || '')));
+    setCat2(prev => (categorical.includes(prev) ? prev : (categorical[1] || categorical[0] || '')));
+    setLevel2Var(prev => (categorical.includes(prev) ? prev : (categorical[0] || '')));
+    setTreatVar(prev => (categorical.includes(prev) ? prev : (categorical[0] || '')));
+    setIvInstrument(prev => (numeric.includes(prev) ? prev : (numeric[2] || numeric[0] || '')));
+    setAbmValueField(prev => (numeric.includes(prev) ? prev : (numeric[0] || '')));
+    setPreds(prev => { const kept = prev.filter(c => numeric.includes(c)); return kept.length === prev.length ? prev : (kept.length ? kept : numeric.slice(0, 2)); });
+    setScaleVars(prev => { const kept = prev.filter(c => numeric.includes(c)); return kept.length === prev.length ? prev : (kept.length ? kept : numeric.slice(0, 4)); });
+    setRmCols(prev => { const kept = prev.filter(c => numeric.includes(c)); return kept.length === prev.length ? prev : (kept.length ? kept : numeric.slice(0, 3)); });
+  }, [numeric, categorical]);
+
   const aval = parseFinite(alpha, 0.05);
 
   // ── derived data vectors ───────────────────────────────────────────────────
