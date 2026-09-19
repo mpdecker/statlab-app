@@ -134,7 +134,342 @@ export const calculatorPages = [
     workbenchId: 'effect_size_t',
   },
 
-  // --- MANN-WHITNEY U & NONPARAMETRIC FAMILY ---
+  // --- PROBABILITY DISTRIBUTIONS FAMILY ---
+  {
+    slug: 'z-score-calculator',
+    title: 'Z-score and normal distribution calculator',
+    family: 'Probability Distributions',
+    description: 'Calculate standard Z-scores, percentile ranks, p-values, and area under the standard normal curve N(0,1).',
+    keywords: ['Z score calculator', 'standard normal distribution', 'percentile rank Z', 'Z to p value'],
+    inputs: ['Raw score X', 'Population mean μ', 'Population standard deviation σ'],
+    example: { a: ['X = 115', 'μ = 100', 'σ = 15'], result: 'Z = +1.00, Cumulative Probability = 84.13%, Two-tailed p = .3173' },
+    formula: 'Z = (X - μ) / σ',
+    code: {
+      python: `from scipy import stats\nz = (115 - 100) / 15\np = stats.norm.sf(abs(z))*2\nprint(f"Z={z:.2f}, p={p:.4f}")`,
+      r: `z <- (115 - 100) / 15\np <- 2 * pnorm(-abs(z))`,
+      ts: `import { zScore } from '@statlab/core';\nconst z = zScore(115, 100, 15);`,
+    },
+    useCases: [
+      'Standardizing infrastructure metric metrics across scaling tiers in VoxelPulse.',
+      'Calculating percentile ranks for system latency observations.'
+    ],
+    when: 'Use to standardize individual values relative to a known population mean and standard deviation.',
+    cautions: [
+      'Requires data to be approximately normally distributed for percentile interpretations.',
+      'Do not confuse sample standard deviation s with population σ.'
+    ],
+    workbenchId: 'z_score',
+  },
+  {
+    slug: 't-score-calculator',
+    title: 't-score and t-distribution calculator',
+    family: 'Probability Distributions',
+    description: 'Convert t-statistics to p-values, calculate t-distribution critical values t_α, and compute confidence bounds for sample means.',
+    keywords: ['t score calculator', 't distribution p value', 'critical value t', 't to p converter'],
+    inputs: ['t-statistic', 'Degrees of freedom df', 'Tail type (Two-tailed, One-tailed)'],
+    example: { a: ['t = 2.45', 'df = 18', 'Two-tailed'], result: 'p-value = .0248 (Statistically significant at α = .05).' },
+    formula: 'p = 2 * ∫_t^∞ f(x; df) dx',
+    code: {
+      python: `from scipy import stats\np = stats.t.sf(abs(2.45), df=18)*2\nprint(f"p={p:.4f}")`,
+      r: `2 * pt(-abs(2.45), df = 18)`,
+      ts: `import { tToP } from '@statlab/core';\nconst p = tToP(2.45, 18);`,
+    },
+    useCases: [
+      'Converting microbenchmark t-statistics into exact p-values in VoxelAssurance.',
+      'Calculating exact critical boundaries for custom hypothesis tests.'
+    ],
+    when: 'Use when working with sample mean statistics where population variance is estimated.',
+    cautions: [
+      't-distribution approaches normal distribution as df → ∞.',
+      'Degrees of freedom depend on sample size and specific test design.'
+    ],
+    workbenchId: 't_dist',
+  },
+  {
+    slug: 'f-distribution-calculator',
+    title: 'F-distribution critical value and p-value calculator',
+    family: 'Probability Distributions',
+    description: 'Calculate F-distribution critical values F_α and upper-tail p-values given numerator (df1) and denominator (df2) degrees of freedom.',
+    keywords: ['F distribution calculator', 'F statistic p value', 'F critical value', 'ANOVA F lookup'],
+    inputs: ['F statistic value', 'Numerator df1 (between groups)', 'Denominator df2 (within groups)'],
+    example: { a: ['F = 4.35', 'df1 = 3', 'df2 = 36'], result: 'Upper-tail p-value = .0102.' },
+    formula: 'p = P(F(df1, df2) ≥ F_stat)',
+    code: {
+      python: `from scipy import stats\np = stats.f.sf(4.35, dfn=3, dfd=36)\nprint(f"p={p:.4f}")`,
+      r: `pf(4.35, df1 = 3, df2 = 36, lower.tail = FALSE)`,
+      ts: `import { fToP } from '@statlab/core';\nconst p = fToP(4.35, 3, 36);`,
+    },
+    useCases: [
+      'Verifying ANOVA and linear regression model F-test significance values.',
+      'Checking variance ratio tests across hardware benchmark runs.'
+    ],
+    when: 'Use for ANOVA F-tests, regression model significance tests, and variance ratio tests.',
+    cautions: [
+      'F-distribution is asymmetric and bounded below by zero.',
+      'F-tests in ANOVA are inherently one-tailed (upper tail).'
+    ],
+    workbenchId: 'f_dist',
+  },
+  {
+    slug: 'chi-square-distribution-calculator',
+    title: 'Chi-square distribution calculator',
+    family: 'Probability Distributions',
+    description: 'Compute Chi-square (χ²) upper-tail p-values and critical values χ²_α for contingency table and goodness-of-fit tests.',
+    keywords: ['Chi square distribution', 'chi square p value lookup', 'chi square critical value', 'df chi square'],
+    inputs: ['Chi-square statistic (χ²)', 'Degrees of freedom (df)'],
+    example: { a: ['χ² = 9.49', 'df = 4'], result: 'Upper-tail p-value = .0499.' },
+    formula: 'p = ∫_χ²^∞ f(x; df) dx',
+    code: {
+      python: `from scipy import stats\np = stats.chi2.sf(9.49, df=4)\nprint(f"p={p:.4f}")`,
+      r: `pchisq(9.49, df = 4, lower.tail = FALSE)`,
+      ts: `import { chi2ToP } from '@statlab/core';\nconst p = chi2ToP(9.49, 4);`,
+    },
+    useCases: [
+      'Looking up exact p-values for custom chi-square test matrices in VoxelPulse.',
+      'Evaluating goodness-of-fit model tests.'
+    ],
+    when: 'Use for categorical independence, goodness-of-fit, and log-likelihood ratio tests.',
+    cautions: [
+      'Degrees of freedom depend on table dimensions (r-1)(c-1) or number of fitted parameters.',
+      'Chi-square distribution is skewed right for small df.'
+    ],
+    workbenchId: 'chi2_dist',
+  },
+
+  // --- MULTIVARIATE & DIMENSIONALITY REDUCTION FAMILY ---
+  {
+    slug: 'pca-variance-explained',
+    title: 'PCA variance explained and scree plot calculator',
+    family: 'Multivariate & Dimensionality Reduction',
+    description: 'Calculate principal component eigenvalues, proportion of variance explained, cumulative variance ratios, and Kaiser-Guttman retention thresholds.',
+    keywords: ['PCA variance explained', 'scree plot calculator', 'eigenvalue retention', 'principal component analysis'],
+    inputs: ['Covariance or Correlation Matrix (or Feature Matrix)', 'Number of components'],
+    example: { a: ['Feature matrix (5 features)', 'Eigenvalues: [2.8, 1.2, 0.6, 0.3, 0.1]'], result: 'PC1 = 56.0% variance, PC2 = 24.0% variance. First 2 components explain 80.0% cumulative variance.' },
+    formula: 'VarRatio_k = λ_k / Σ λ_j, CumVar_K = Σ_{k=1}^K λ_k / Σ λ_j',
+    code: {
+      python: `from sklearn.decomposition import PCA\npca = PCA().fit(X)\nprint(pca.explained_variance_ratio_)`,
+      r: `prcomp(df, scale. = TRUE)`,
+      ts: `import { pcaVariance } from '@statlab/core';\nconst res = pcaVariance(matrix);`,
+    },
+    useCases: [
+      'Dimensionality reduction for telemetry metric feature vectors in VoxelPulse.',
+      'Evaluating latent feature representation quality in AI model embeddings.'
+    ],
+    when: 'Use when reducing continuous multi-feature datasets into uncorrelated principal components.',
+    cautions: [
+      'Standardize features (z-score scaling) prior to PCA if variables have different units.',
+      'PCA assumes linear relationships among features.'
+    ],
+    workbenchId: 'pca',
+  },
+  {
+    slug: 'manova-calculator',
+    title: 'MANOVA (Multivariate ANOVA) calculator',
+    family: 'Multivariate & Dimensionality Reduction',
+    description: 'Evaluate treatment group differences across multiple correlated continuous outcome variables simultaneously using Wilks’ Lambda, Pillai’s Trace, and Hotelling’s Trace.',
+    keywords: ['MANOVA calculator', 'multivariate ANOVA', 'Wilks Lambda', 'Pillais Trace', 'multiple outcome test'],
+    inputs: ['Categorical Group factor', 'Multivariate outcome matrix Y (2+ outcomes)', 'Test statistic choice'],
+    example: { a: ['Group (Canary vs Prod)', 'Outcomes: [Latency ms, CPU %, Memory MB]'], result: 'Wilks’ Lambda = 0.62, Approx F(3, 46) = 9.4, p < .0001. Significant multivariate difference.' },
+    formula: 'Λ = |E| / |H + E|, where E = Error SSCP matrix, H = Hypothesis SSCP matrix',
+    code: {
+      python: `from statsmodels.multivariate.manova import MANOVA\nma = MANOVA.from_formula('y1 + y2 ~ group', data=df)\nprint(ma.mv_test())`,
+      r: `res <- manova(cbind(y1, y2) ~ group, data = df)\nsummary(res, test = "Wilks")`,
+      ts: `import { manova } from '@statlab/core';\nconst res = manova(df, ['y1', 'y2'], 'group');`,
+    },
+    useCases: [
+      'Evaluating system optimization across multiple dependent telemetry metrics simultaneously in VoxelPulse.',
+      'Testing model build performance across speed, accuracy, and memory concurrently.'
+    ],
+    when: 'Use when evaluating group differences on two or more correlated continuous outcomes.',
+    cautions: [
+      'Requires multivariate normality and homogeneity of covariance matrices (Box’s M test).',
+      'Pillai’s Trace is most robust to assumption violations.'
+    ],
+    workbenchId: 'manova',
+  },
+
+  // --- BIOSTATISTICS & RISK FAMILY ---
+  {
+    slug: 'odds-ratio-relative-risk',
+    title: 'Odds Ratio and Relative Risk calculator',
+    family: 'Biostatistics & Risk',
+    description: 'Calculate Odds Ratio (OR), Relative Risk (RR / Risk Ratio), Absolute Risk Reduction (ARR), and Number Needed to Treat (NNT) with 95% confidence intervals.',
+    keywords: ['Odds Ratio calculator', 'Relative Risk calculator', 'RR OR calculator', 'Number Needed to Treat NNT'],
+    inputs: ['Exposed / Treatment Event & Non-event counts', 'Unexposed / Control Event & Non-event counts', 'Confidence level'],
+    example: { a: ['Treatment: 15 error / 500 total (3.0%)', 'Control: 45 error / 500 total (9.0%)'], result: 'Relative Risk = 0.333 (95% CI: [.19, .59]), Odds Ratio = 0.312, ARR = 6.0%, NNT = 16.7' },
+    formula: 'RR = (a/(a+b)) / (c/(c+d)), OR = (a*d) / (b*c), NNT = 1 / ARR',
+    code: {
+      python: `import scipy.stats as stats\ndef relative_risk(a, b, c, d):\n    p1, p2 = a/(a+b), c/(c+d)\n    return p1 / p2`,
+      r: `library(epitools)\nriskratio(matrix(c(a, c, b, d), nrow=2))`,
+      ts: `import { riskMetrics } from '@statlab/core';\nconst res = riskMetrics(15, 485, 45, 455);`,
+    },
+    useCases: [
+      'Calculating relative error rate risk reduction in VoxelAssurance release readiness audits.',
+      'Evaluating conversion risk and churn odds in product analytics.'
+    ],
+    when: 'Use when evaluating risk or odds of binary outcome events between exposed and unexposed groups.',
+    cautions: [
+      'Odds Ratio overstates Relative Risk when outcome event incidence is high (> 10%).',
+      'NNT is only meaningful when Absolute Risk Reduction is statistically significant.'
+    ],
+    workbenchId: 'or_rr',
+  },
+  {
+    slug: 'mantel-haenszel-test',
+    title: 'Mantel-Haenszel stratified odds ratio calculator',
+    family: 'Biostatistics & Risk',
+    description: 'Calculate pooled odds ratios and chi-square significance across multiple stratified 2x2 contingency tables using the Mantel-Haenszel method.',
+    keywords: ['Mantel Haenszel test', 'stratified odds ratio', 'Cochran Mantel Haenszel', 'stratified AB test'],
+    inputs: ['Stratified 2x2 count tables per stratum / segment', 'Confidence level'],
+    example: { a: ['Stratum 1 (Mobile): OR = 2.1', 'Stratum 2 (Desktop): OR = 1.9'], result: 'Pooled MH Odds Ratio = 2.02 (95% CI: [1.45, 2.81]), MH χ² = 16.4, p < .0001' },
+    formula: 'OR_MH = Σ [ (a_k d_k) / N_k ] / Σ [ (b_k c_k) / N_k ]',
+    code: {
+      python: `from statsmodels.stats.contingency_tables import StratifiedTable\nst = StratifiedTable(tables)\nprint(st.oddsratio_pooled)`,
+      r: `mantelhaen.test(array_3d)`,
+      ts: `import { mantelHaenszel } from '@statlab/core';\nconst res = mantelHaenszel(strataTables);`,
+    },
+    useCases: [
+      'Evaluating A/B experiment significance across stratified user segments without Simpson’s Paradox bias.',
+      'Multi-center or multi-region benchmark synthesis in VoxelPulse.'
+    ],
+    when: 'Use when combining binary outcome tables across distinct strata or confounding subgroups.',
+    cautions: [
+      'Assumes homogeneous odds ratios across strata (check Breslow-Day test for homogeneity).',
+      'Do not pool if odds ratios differ directionally across strata.'
+    ],
+    workbenchId: 'mantel_haenszel',
+  },
+
+  // --- TIME SERIES & TELEMETRY FAMILY ---
+  {
+    slug: 'granger-causality',
+    title: 'Granger causality test calculator',
+    family: 'Time Series & Telemetry',
+    description: 'Evaluate whether past values of one time series predict future values of another time series using vector autoregressive Granger causality F-tests.',
+    keywords: ['Granger causality test', 'lead lag causality', 'time series causality', 'VAR Granger test'],
+    inputs: ['Time Series X (Potential cause)', 'Time Series Y (Target outcome)', 'Max lag order k'],
+    example: { a: ['X (Memory utilization)', 'Y (Request latency ms)', 'Lag = 3'], result: 'F(3, 480) = 8.42, p = .00002. Memory utilization Granger-causes request latency.' },
+    formula: 'Y_t = α + Σ β_i Y_{t-i} + Σ γ_j X_{t-j} + ε_t, test H₀: γ_1 = ... = γ_k = 0',
+    code: {
+      python: `from statsmodels.tsa.stattools import grangercausalitytests\nres = grangercausalitytests(df[['y', 'x']], maxlag=3)`,
+      r: `library(vars)\nVARselect(df); causality(var_model, cause = "x")`,
+      ts: `import { grangerCausality } from '@statlab/core';\nconst res = grangerCausality(ySeries, xSeries, 3);`,
+    },
+    useCases: [
+      'Determining whether upstream microservice queue metrics predict downstream latency spikes in VoxelPulse.',
+      'Root cause analysis in automated infrastructure diagnostic telemetry.'
+    ],
+    when: 'Use to establish predictive lead-lag relationships between two stationary time series.',
+    cautions: [
+      'Granger causality tests *predictive priority*, not physical causation.',
+      'Both time series must be stationary prior to testing.'
+    ],
+    workbenchId: 'granger',
+  },
+  {
+    slug: 'sharpe-ratio-calculator',
+    title: 'Sharpe ratio and Sortino ratio calculator',
+    family: 'Performance & Telemetry',
+    description: 'Calculate annualized Sharpe ratio, Sortino ratio (downside risk), Information ratio, and Jobson-Korkie statistical significance tests.',
+    keywords: ['Sharpe ratio calculator', 'Sortino ratio', 'downside risk ratio', 'performance ratio significance'],
+    inputs: ['Return / Performance time series array', 'Risk-free rate or target threshold', 'Annualization factor (e.g. 252 days)'],
+    example: { a: ['Daily yield returns (N=252)', 'Risk-free rate = 2.0%'], result: 'Annualized Sharpe Ratio = 1.85, Sortino Ratio = 2.42, p = .004 (statistically superior to benchmark).' },
+    formula: 'Sharpe = (R̄ - R_f) / σ_R, Sortino = (R̄ - R_t) / σ_{downside}',
+    code: {
+      python: `import numpy as np\ndef sharpe_ratio(returns, rf=0.02, annualize=252):\n    excess = returns - rf/annualize\n    return np.mean(excess) / np.std(excess) * np.sqrt(annualize)`,
+      r: `library(PerformanceAnalytics)\nSharpeRatio(returns, Rf = 0.02/252)`,
+      ts: `import { sharpeRatio } from '@statlab/core';\nconst s = sharpeRatio(returns, 0.02);`,
+    },
+    useCases: [
+      'Evaluating risk-adjusted yield and throughput efficiency ratios for algorithmic trading or server resource scheduling in VoxelPulse.',
+      'Benchmarking performance stability.'
+    ],
+    when: 'Use when evaluating risk-adjusted performance of continuous yield or throughput time series.',
+    cautions: [
+      'Sharpe ratio assumes normally distributed returns; use Sortino ratio for skewed upside/downside distributions.',
+      'Non-stationary returns distort Sharpe estimation.'
+    ],
+    workbenchId: 'sharpe',
+  },
+  {
+    slug: 'ljung-box-test',
+    title: 'Ljung-Box Q test for autocorrelation calculator',
+    family: 'Time Series & Telemetry',
+    description: 'Test whether time series residuals exhibit overall autocorrelation across multiple lag orders using the Ljung-Box Q statistic.',
+    keywords: ['Ljung Box test', 'autocorrelation Q test', 'time series residual test', 'white noise test'],
+    inputs: ['Time series residuals vector', 'Number of lags k'],
+    example: { a: ['Residuals e_t (N=200)', 'Lags k = 10'], result: 'Q = 8.45, df = 10, p = .585. No significant residual autocorrelation (white noise).' },
+    formula: 'Q = n(n+2) Σ_{k=1}^h (r_k² / (n - k))',
+    code: {
+      python: `from statsmodels.stats.diagnostic import acorr_ljungbox\nres = acorr_ljungbox(residuals, lags=[10])\nprint(res)`,
+      r: `Box.test(residuals, lag = 10, type = "Ljung-Box")`,
+      ts: `import { ljungBox } from '@statlab/core';\nconst res = ljungBox(residuals, 10);`,
+    },
+    useCases: [
+      'Verifying that ARIMA telemetry model residuals resemble independent white noise in VoxelPulse.',
+      'Testing for hidden temporal patterns in benchmark errors.'
+    ],
+    when: 'Use to test for overall residual independence across multiple time lags simultaneously.',
+    cautions: [
+      'Rejection of null (p < .05) indicates remaining autocorrelated structure in residuals.',
+      'Adjust degrees of freedom if testing residuals from estimated ARIMA models.'
+    ],
+    workbenchId: 'ljung_box',
+  },
+
+  // --- REGRESSION EXTENSIONS FAMILY ---
+  {
+    slug: 'negative-binomial-regression',
+    title: 'Negative Binomial regression calculator',
+    family: 'Regression',
+    description: 'Fit Negative Binomial count regression models for overdispersed count data where sample variance exceeds the mean.',
+    keywords: ['Negative Binomial regression', 'overdispersion count model', 'alpha dispersion parameter', 'IRR regression'],
+    inputs: ['Count outcome vector Y', 'Predictor matrix X', 'Dispersion parameter alpha estimation'],
+    example: { a: ['Y (System Error Events)', 'X (Traffic Concurrency)'], result: 'log(λ) = -0.8 + 0.12*Concurrency, Alpha = 0.45 (Significant overdispersion p < .01), IRR = 1.127' },
+    formula: 'Var(Y) = μ + α μ², log(μ) = β₀ + β₁X₁ + ...',
+    code: {
+      python: `import statsmodels.api as sm\nmodel = sm.GLM(y, X, family=sm.families.NegativeBinomial()).fit()\nprint(model.summary())`,
+      r: `library(MASS)\nglm.nb(y ~ x1, data = df)`,
+      ts: `import { negBinomialRegression } from '@statlab/core';\nconst res = negBinomialRegression(y, X);`,
+    },
+    useCases: [
+      'Modeling overdispersed count metrics (e.g., server crash bursts, API error bursts) where Poisson assumptions fail.',
+      'Predicting customer defect event counts in VoxelAssurance.'
+    ],
+    when: 'Use for count data when variance is significantly larger than the mean (overdispersion).',
+    cautions: [
+      'Check whether Poisson regression is adequate before assuming Negative Binomial.',
+      'Dispersion parameter α = 0 reduces to standard Poisson regression.'
+    ],
+    workbenchId: 'neg_binom',
+  },
+  {
+    slug: 'quantile-regression',
+    title: 'Quantile regression calculator',
+    family: 'Regression',
+    description: 'Fit quantile regression models to estimate conditional percentiles (e.g. median p50, p90, p95) as a function of predictor variables.',
+    keywords: ['quantile regression calculator', 'median regression', 'conditional percentile regression', 'p95 regression'],
+    inputs: ['Outcome vector Y', 'Predictor matrix X', 'Target quantile τ (e.g. 0.50, 0.90, 0.95)'],
+    example: { a: ['Y (Latency ms)', 'X (Payload KB)', 'Target Quantile τ = 0.95'], result: 'Q_0.95(Y) = 140.2 + 2.45 * Payload KB (p = .001). Models 95th percentile scaling directly.' },
+    formula: 'min_β Σ ρ_τ (y_i - x_iᵀβ), where ρ_τ(u) = u(τ - I(u < 0))',
+    code: {
+      python: `import statsmodels.formula.api as smf\nmod = smf.quantreg('y ~ x', df)\nres = mod.fit(q=0.95)\nprint(res.summary())`,
+      r: `library(quantreg)\nrq(y ~ x, tau = 0.95, data = df)`,
+      ts: `import { quantileRegression } from '@statlab/core';\nconst res = quantileRegression(y, X, 0.95);`,
+    },
+    useCases: [
+      'Modeling tail latency scaling (p95, p99) directly as a function of system load parameters in VoxelAssurance.',
+      'Estimating non-homoscedastic quantile boundaries in VoxelPulse.'
+    ],
+    when: 'Use when modeling conditional percentiles or when outcome data exhibits heteroscedasticity or severe outliers.',
+    cautions: [
+      'Does not assume normal errors or constant variance.',
+      'Quantile lines may cross at extreme predictor values (quantile crossing problem).'
+    ],
+    workbenchId: 'quantile_reg',
+  },
+
+  // --- MANN-WHITNEY U & NONPARAMETRIC FAMILY CONTINUED ---
   {
     slug: 'mann-whitney-u',
     title: 'Mann-Whitney U calculator',
@@ -1359,6 +1694,406 @@ export const calculatorPages = [
     ],
     workbenchId: 'meta',
   },
+  {
+    slug: 'kl-divergence-calculator',
+    title: 'Kullback-Leibler (KL) divergence calculator',
+    family: 'Information theory & ML',
+    description: 'Calculate Kullback-Leibler (KL) divergence D_KL(P || Q) and symmetric Jensen-Shannon divergence (JSD) between discrete probability distributions.',
+    keywords: ['KL divergence calculator', 'Kullback-Leibler', 'Jensen-Shannon divergence', 'distribution drift', 'information gain', 'relative entropy'],
+    inputs: ['Target probability distribution P(x)', 'Approximate probability distribution Q(x)', 'Log base (e, 2, 10)'],
+    example: { a: ['Distribution P: [0.4, 0.3, 0.2, 0.1]', 'Distribution Q: [0.25, 0.25, 0.25, 0.25]'], result: 'D_KL(P || Q) ≈ 0.1037 nats, JSD(P || Q) ≈ 0.0249' },
+    formula: 'D_KL(P || Q) = Σ P(i) * ln(P(i) / Q(i))',
+    code: {
+      python: `from scipy.special import rel_entr\nimport numpy as np\np = np.array([0.4, 0.3, 0.2, 0.1])\nq = np.array([0.25, 0.25, 0.25, 0.25])\nkl = np.sum(rel_entr(p, q))\nprint(f"KL divergence: {kl:.4f}")`,
+      r: `p <- c(0.4, 0.3, 0.2, 0.1)\nq <- c(0.25, 0.25, 0.25, 0.25)\nkl <- sum(p * log(p / q))\ncat("KL:", kl, "\\n")`,
+      ts: `import { klDivergence } from '@statlab/core';\nconst res = klDivergence(p, q, { base: 'nat' });`,
+    },
+    useCases: [
+      'Detecting feature telemetry distribution drift between training and live inference in VoxelPulse.',
+      'Measuring model probability divergence across release candidates in VoxelAssurance testing.'
+    ],
+    when: 'Use when comparing how much an empirical or candidate distribution Q differs from a baseline distribution P.',
+    cautions: [
+      'Asymmetric: D_KL(P || Q) != D_KL(Q || P). Use Jensen-Shannon for symmetric comparisons.',
+      'Requires Q(i) > 0 wherever P(i) > 0 to prevent division by zero.'
+    ],
+    workbenchId: 'kl_div',
+  },
+  {
+    slug: 'shannon-entropy-calculator',
+    title: 'Shannon entropy calculator',
+    family: 'Information theory & ML',
+    description: 'Compute Shannon information entropy H(X), normalized entropy, and theoretical channel capacity for discrete probability mass functions.',
+    keywords: ['Shannon entropy calculator', 'information entropy', 'bits of information', 'data unpredictability', 'uncertainty metric'],
+    inputs: ['Event probability vector P(X)', 'Log base (Bits: base 2, Nats: base e, Nats/Hartleys: base 10)'],
+    example: { a: ['Probabilities: [0.5, 0.25, 0.125, 0.125]'], result: 'H(X) = 1.750 bits (Normalized entropy H/H_max = 0.875)' },
+    formula: 'H(X) = - Σ P(x_i) * log_2(P(x_i))',
+    code: {
+      python: `from scipy.stats import entropy\np = [0.5, 0.25, 0.125, 0.125]\nh = entropy(p, base=2)\nprint(f"Entropy: {h:.4f} bits")`,
+      r: `p <- c(0.5, 0.25, 0.125, 0.125)\nh <- -sum(p * log2(p))\ncat("Entropy:", h, "bits\\n")`,
+      ts: `import { shannonEntropy } from '@statlab/core';\nconst bits = shannonEntropy([0.5, 0.25, 0.125, 0.125]);`,
+    },
+    useCases: [
+      'Evaluating categorical user session diversity and telemetry payload unpredictability in VoxelPulse.',
+      'Monitoring token distribution entropy in LLM response evaluations within VoxelAssurance.'
+    ],
+    when: 'Use to quantify the average degree of uncertainty or information content inherent in a probability distribution.',
+    cautions: [
+      'Sum of probabilities in vector must equal 1.0.',
+      'Zero probability events (P=0) must be handled by limit 0*log(0) = 0.'
+    ],
+    workbenchId: 'shannon_ent',
+  },
+  {
+    slug: 'cross-entropy-loss-calculator',
+    title: 'Cross-entropy loss (Log Loss) calculator',
+    family: 'Information theory & ML',
+    description: 'Calculate binary and categorical cross-entropy loss (log loss) for machine learning classifiers given true target labels and predicted probabilities.',
+    keywords: ['cross entropy loss calculator', 'log loss calculator', 'categorical cross entropy', 'binary cross entropy', 'classifier loss'],
+    inputs: ['True class labels (one-hot or indices)', 'Predicted probability distribution matrix P', 'Epsilon probability clip'],
+    example: { a: ['True: Class 1, Pred: [0.80, 0.15, 0.05]', 'True: Class 0, Pred: [0.10, 0.85, 0.05]'], result: 'Sample Loss 1 = 0.2231, Sample Loss 2 = 0.1625, Mean Log Loss = 0.1928' },
+    formula: 'L = - (1/N) * Σ Σ y_{i,c} * log(p_{i,c})',
+    code: {
+      python: `from sklearn.metrics import log_loss\ny_true = [1, 0, 2]\ny_pred = [[0.1, 0.8, 0.1], [0.85, 0.1, 0.05], [0.05, 0.1, 0.85]]\nloss = log_loss(y_true, y_pred)\nprint(f"Log Loss: {loss:.4f}")`,
+      r: `log_loss <- function(y, p) -mean(log(p[cbind(1:length(y), y)]))\ncat("Loss:", log_loss(c(2,1,3), pred_matrix))`,
+      ts: `import { crossEntropyLoss } from '@statlab/core';\nconst loss = crossEntropyLoss(yTrue, yPred);`,
+    },
+    useCases: [
+      'Benchmarking classification pipeline quality in VoxelAssurance AI test runs.',
+      'Monitoring real-time multi-class classification confidence in VoxelPulse analytics.'
+    ],
+    when: 'Use when assessing probabilistic classification model performance against discrete ground truth targets.',
+    cautions: [
+      'Always clip predicted probabilities to [1e-15, 1 - 1e-15] to prevent log(0) numeric infinity.',
+      'Sensitive to extreme overconfident misclassifications.'
+    ],
+    workbenchId: 'log_loss',
+  },
+  {
+    slug: 'cpk-process-capability-calculator',
+    title: 'Cpk and Cp process capability index calculator',
+    family: 'Statistical process control',
+    description: 'Compute Cp, Cpk, Cpm, and upper/lower process capability indices against specification limits (USL/LSL) for quality engineering and SLA compliance.',
+    keywords: ['Cpk calculator', 'Cp process capability', 'USL LSL calculator', 'process capability index', 'six sigma quality', 'SLA tolerance'],
+    inputs: ['Sample observations or mean X̄ & std dev s', 'Upper Specification Limit (USL)', 'Lower Specification Limit (LSL)', 'Target (optional)'],
+    example: { a: ['Mean = 100.4 ms, Std dev = 1.2 ms', 'USL = 105.0 ms, LSL = 95.0 ms'], result: 'Cp = 1.389, Cpl = 1.500, Cpu = 1.278, Cpk = 1.278 (Capable process)' },
+    formula: 'Cp = (USL - LSL) / (6 * σ), Cpk = min( (USL - μ)/(3σ), (μ - LSL)/(3σ) )',
+    code: {
+      python: `import numpy as np\ndef cpk(data, usl, lsl):\n    mu, std = np.mean(data), np.std(data, ddof=1)\n    cp = (usl - lsl) / (6 * std)\n    cpk_val = min((usl - mu)/(3*std), (mu - lsl)/(3*std))\n    return cp, cpk_val\nprint(cpk(sample_data, 105.0, 95.0))`,
+      r: `library(qcc)\nprocess.capability(qcc(data, type="xbar.one"), spec.limits=c(95, 105))`,
+      ts: `import { processCapability } from '@statlab/core';\nconst { cp, cpk } = processCapability(data, { usl: 105, lsl: 95 });`,
+    },
+    useCases: [
+      'Evaluating infrastructure latency SLA compliance in VoxelPulse telemetry.',
+      'Validating build artifact execution limits in VoxelAssurance release qualification.'
+    ],
+    when: 'Use to measure how well a continuous process stays within predefined customer/engineering specification tolerances.',
+    cautions: [
+      'Assumes process data is normally distributed; non-normal data distorts standard Cpk calculations.',
+      'Cpk requires a stable, in-control process.'
+    ],
+    workbenchId: 'spc_cpk',
+  },
+  {
+    slug: 'xbar-r-control-chart-calculator',
+    title: 'X-bar and R statistical process control chart calculator',
+    family: 'Statistical process control',
+    description: 'Calculate Upper Control Limits (UCL), Lower Control Limits (LCL), and centerlines for X-bar (subgroup mean) and R (range) SPC control charts.',
+    keywords: ['X-bar R chart calculator', 'SPC control limits', 'subgroup mean chart', 'UCL LCL calculator', 'process variability', 'Shewhart chart'],
+    inputs: ['Subgroup measurements matrix', 'Subgroup size n (2 to 10)', 'Sigma level (e.g. 3-sigma standard)'],
+    example: { a: ['5 subgroups of size n = 4', 'Grand mean X̄̄ = 50.2, Average range R̄ = 2.4'], result: 'X-bar Chart: Centerline = 50.2, LCL = 48.45, UCL = 51.95 (A₂ = 0.729)\\nR Chart: Centerline = 2.4, LCL = 0, UCL = 5.48 (D₄ = 2.282)' },
+    formula: 'X̄ Chart: UCL = X̄̄ + A₂ * R̄, LCL = X̄̄ - A₂ * R̄; R Chart: UCL = D₄ * R̄, LCL = D₃ * R̄',
+    code: {
+      python: `import statsmodels.api as sm\n# Calculate subgroup means and ranges, applying Shewhart constants A2, D3, D4`,
+      r: `library(qcc)\nqcc(subgroup_matrix, type = "xbar")\nqcc(subgroup_matrix, type = "R")`,
+      ts: `import { xbarRChart } from '@statlab/core';\nconst limits = xbarRChart(subgroups);`,
+    },
+    useCases: [
+      'Detecting system performance drift and abnormal spikes in VoxelPulse telemetry streams.',
+      'Continuous monitoring of API build execution times across release iterations.'
+    ],
+    when: 'Use when continuous process data is sampled in small, periodic subgroups of size n=2 to 10.',
+    cautions: [
+      'Check the R-chart for stability first; if the range chart is out of control, X-bar limits become invalid.',
+      'Requires rational subgrouping.'
+    ],
+    workbenchId: 'spc_xbar',
+  },
+  {
+    slug: 'six-sigma-dpmo-calculator',
+    title: 'Six Sigma DPMO and Sigma Level calculator',
+    family: 'Statistical process control',
+    description: 'Calculate Defects Per Million Opportunities (DPMO), Defects Per Unit (DPU), yield percentages, and Process Sigma Level with optional 1.5σ shift.',
+    keywords: ['Six Sigma calculator', 'DPMO calculator', 'sigma level', 'yield percentage', 'defects per million opportunities', 'process yield'],
+    inputs: ['Total units inspected N', 'Opportunities per unit O', 'Total defects found D', 'Apply 1.5σ shift (Yes/No)'],
+    example: { a: ['10,000 requests inspected', '5 opportunity error checks per request', '12 total defect errors found'], result: 'DPMO = 240, Yield = 99.976%, Process Sigma Level = 5.00σ (with 1.5σ shift)' },
+    formula: 'DPMO = (Defects / (Units * Opportunities)) * 1,000,000; Sigma Level = NormInv(1 - DPMO/1e6) + 1.5',
+    code: {
+      python: `from scipy.stats import norm\ndef calculate_sigma(units, opps, defects, shift=1.5):\n    dpmo = (defects / (units * opps)) * 1e6\n    sig = norm.ppf(1 - dpmo/1e6) + shift\n    return dpmo, sig\nprint(calculate_sigma(10000, 5, 12))`,
+      r: `dpmo <- (12 / (10000 * 5)) * 1e6\nsigma_level <- qnorm(1 - dpmo/1e6) + 1.5`,
+      ts: `import { sixSigmaDpmo } from '@statlab/core';\nconst { dpmo, sigmaLevel } = sixSigmaDpmo(10000, 5, 12);`,
+    },
+    useCases: [
+      'Benchmarking multi-step microservice request transaction reliability in VoxelPulse.',
+      'Establishing quality gate thresholds for automated test deployments in VoxelAssurance.'
+    ],
+    when: 'Use when evaluating process defect rates across complex items or transactions with multiple potential failure points.',
+    cautions: [
+      'Be transparent about whether the reported Sigma level includes the standard 1.5σ long-term shift.',
+      'Carefully define what constitutes a single "opportunity".'
+    ],
+    workbenchId: 'spc_sigma',
+  },
+  {
+    slug: 'auto-correlation-acf-pacf',
+    title: 'Autocorrelation (ACF) and Partial Autocorrelation (PACF) calculator',
+    family: 'Time series & econometrics',
+    description: 'Compute sample Autocorrelation Coefficients (ACF) and Partial Autocorrelation Coefficients (PACF) across multiple time lags with Bartlett confidence bounds.',
+    keywords: ['autocorrelation calculator', 'ACF PACF calculator', 'serial correlation', 'time series correlation', 'Yule-Walker', 'ARIMA order identification'],
+    inputs: ['Time series numeric sequence', 'Maximum lag count k', 'Confidence level (95%)'],
+    example: { a: ['Time series: 12, 15, 14, 18, 22, 21, 25, 29, 28, 32', 'Max lags = 4'], result: 'Lag 1 ACF = 0.812 (p < .001), Lag 2 ACF = 0.624, Lag 1 PACF = 0.812, Lag 2 PACF = -0.114' },
+    formula: 'r_k = Σ_{t=k+1}^N (Y_t - Ȳ)(Y_{t-k} - Ȳ) / Σ_{t=1}^N (Y_t - Ȳ)²',
+    code: {
+      python: `from statsmodels.tsa.stattools import acf, pacf\nautocorr = acf(series, nlags=4)\npartial_ac = pacf(series, nlags=4)\nprint("ACF:", autocorr)\nprint("PACF:", partial_ac)`,
+      r: `acf(series, lag.max = 4, plot = FALSE)\npacf(series, lag.max = 4, plot = FALSE)`,
+      ts: `import { acfPacf } from '@statlab/core';\nconst { acf, pacf } = acfPacf(series, { maxLag: 4 });`,
+    },
+    useCases: [
+      'Identifying seasonality and temporal dependence in server metric streams in VoxelPulse.',
+      'Selecting appropriate ARIMA model orders for server workload forecasting in VoxelAssurance.'
+    ],
+    when: 'Use when analyzing time-ordered observations to detect repeating lag patterns or hidden periodicity.',
+    cautions: [
+      'Ensure the time series is stationary before interpreting PACF plots.',
+      'Confounded by strong deterministic trends unless differenced.'
+    ],
+    workbenchId: 'ts_acf',
+  },
+  {
+    slug: 'arch-garch-volatility',
+    title: 'ARCH and GARCH volatility model test calculator',
+    family: 'Time series & econometrics',
+    description: 'Test for autoregressive conditional heteroskedasticity (Engle’s ARCH LM test) and compute baseline GARCH(1,1) volatility parameters.',
+    keywords: ['ARCH test calculator', 'GARCH model calculator', 'Engle ARCH LM test', 'volatility clustering', 'heteroskedasticity time series'],
+    inputs: ['Residuals or stationary return series', 'Lag order p', 'Alpha significance level'],
+    example: { a: ['Residual series: 0.12, -0.45, 0.89, -1.20, 0.05, 0.34, -0.78, 1.15', 'Lag p = 2'], result: 'Engle ARCH LM test statistic TR² = 6.42, df = 2, p = .040 (Significant ARCH effect)' },
+    formula: 'e_t² = α₀ + α₁ e_{t-1}² + ... + α_p e_{t-p}² + u_t, Test Stat = T * R² ~ χ²(p)',
+    code: {
+      python: `from statsmodels.stats.diagnostic import het_arch\nres = het_arch(residuals, maxlag=2)\nprint(f"LM stat={res[0]:.4f}, p-value={res[1]:.4f}")`,
+      r: `library(FinTS)\nArchTest(residuals, lags = 2)`,
+      ts: `import { archTest } from '@statlab/core';\nconst result = archTest(residuals, { lags: 2 });`,
+    },
+    useCases: [
+      'Detecting volatility clustering in API latency or traffic throughput bursts in VoxelPulse.',
+      'Evaluating stress test variance stability across load spikes in VoxelAssurance testing.'
+    ],
+    when: 'Use when time series variance fluctuates dynamically over time rather than remaining constant.',
+    cautions: [
+      'Requires a stationary time series with zero or estimated conditional mean.',
+      'Spurious ARCH results can occur if linear autocorrelation is ignored.'
+    ],
+    workbenchId: 'ts_arch',
+  },
+  {
+    slug: 'cointegration-johansen-eg',
+    title: 'Engle-Granger cointegration test calculator',
+    family: 'Time series & econometrics',
+    description: 'Evaluate long-run stationary equilibrium between non-stationary time series using the Engle-Granger two-step cointegration test.',
+    keywords: ['cointegration test', 'Engle Granger test', 'long run equilibrium', 'spurious regression', 'stationarity of residuals'],
+    inputs: ['Dependent variable time series Y_t', 'Independent variable time series X_t', 'Augmented Dickey-Fuller lag order'],
+    example: { a: ['Series Y (Endpoint Latency)', 'Series X (DB Query Duration)'], result: 'Co-integrating vector β = 1.42, Residual ADF t-stat = -4.18 (p < .01, Cointegrated)' },
+    formula: 'Step 1: Y_t = α + β X_t + e_t; Step 2: Δ e_t = γ e_{t-1} + Σ θ_i Δ e_{t-i} + v_t',
+    code: {
+      python: `from statsmodels.tsa.stattools import coint\nt_stat, p_value, crit_vals = coint(series_y, series_x)\nprint(f"Coint t={t_stat:.4f}, p={p_value:.4f}")`,
+      r: `library(tseries)\npo.test(cbind(series_y, series_x))`,
+      ts: `import { engleGrangerCoint } from '@statlab/core';\nconst result = engleGrangerCoint(seriesY, seriesX);`,
+    },
+    useCases: [
+      'Verifying long-term equilibrium relationship between backend resource usage and frontend throughput in VoxelPulse.',
+      'Ensuring benchmark metrics maintain stable ratios across long test runs in VoxelAssurance.'
+    ],
+    when: 'Use when testing whether two integrated I(1) time series share a true non-spurious statistical relationship.',
+    cautions: [
+      'Both underlying series must individually be non-stationary I(1).',
+      'Engle-Granger is sensitive to which series is designated as dependent; test both directions.'
+    ],
+    workbenchId: 'ts_coint',
+  },
+  {
+    slug: 'number-needed-to-treat',
+    title: 'Number Needed to Treat (NNT) and Harm (NNH) calculator',
+    family: 'Biostatistics & diagnostics',
+    description: 'Compute Absolute Risk Reduction (ARR), Absolute Risk Increase (ARI), Number Needed to Treat (NNT), and Number Needed to Harm (NNH) with 95% confidence intervals.',
+    keywords: ['NNT calculator', 'number needed to treat', 'NNH calculator', 'absolute risk reduction', 'ARR calculator', 'clinical significance'],
+    inputs: ['Control event rate (CER)', 'Experimental event rate (EER)', 'Confidence level (95%)'],
+    example: { a: ['Control Event Rate CER = 0.20 (20%)', 'Treatment Event Rate EER = 0.05 (5%)'], result: 'ARR = 0.150 (15%), NNT = 6.67 ≈ 7 users (95% CI: [4.8, 11.2])' },
+    formula: 'ARR = CER - EER, NNT = 1 / ARR = 1 / (CER - EER)',
+    code: {
+      python: `def calculate_nnt(cer, eer):\n    arr = cer - eer\n    nnt = 1 / arr if arr != 0 else float('inf')\n    return arr, nnt\nprint(calculate_nnt(0.20, 0.05))`,
+      r: `cer <- 0.20; eer <- 0.05\narr <- cer - eer\nnnt <- 1 / arr\ncat("ARR:", arr, "NNT:", nnt, "\\n")`,
+      ts: `import { numberNeededToTreat } from '@statlab/core';\nconst { arr, nnt } = numberNeededToTreat(0.20, 0.05);`,
+    },
+    useCases: [
+      'Quantifying customer intervention impact (e.g. how many churn-risk users must receive a workflow fix to prevent one churn event) in VoxelPulse.',
+      'Evaluating error reduction impact per user deployment in VoxelAssurance.'
+    ],
+    when: 'Use when translating absolute probability risk changes into tangible unit/patient counts required to achieve one positive outcome.',
+    cautions: [
+      'NNT cannot be interpreted without specifying the timeframe of follow-up.',
+      'If EER > CER, compute NNH = 1 / (EER - CER) instead.'
+    ],
+    workbenchId: 'bio_nnt',
+  },
+  {
+    slug: 'diagnostic-likelihood-ratio',
+    title: 'Diagnostic Likelihood Ratios (LR+ / LR-) and Post-Test Probability calculator',
+    family: 'Biostatistics & diagnostics',
+    description: 'Calculate Positive Likelihood Ratio (LR+), Negative Likelihood Ratio (LR-), Diagnostic Odds Ratio, and Post-Test Probabilities using Fagan’s nomogram formula.',
+    keywords: ['likelihood ratio calculator', 'positive likelihood ratio', 'LR+ LR- calculator', 'post test probability', 'Fagan nomogram', 'diagnostic test'],
+    inputs: ['Sensitivity (True Positive Rate)', 'Specificity (True Negative Rate)', 'Pre-test Probability (Prevalence)'],
+    example: { a: ['Sensitivity = 0.90 (90%)', 'Specificity = 0.95 (95%)', 'Pre-test Probability = 0.10 (10%)'], result: 'LR+ = 18.0, LR- = 0.105, Post-Test Probability (Positive) = 66.7%, Post-Test (Negative) = 1.15%' },
+    formula: 'LR+ = Sensitivity / (1 - Specificity), LR- = (1 - Sensitivity) / Specificity; Post-Test Odds = Pre-Test Odds * LR',
+    code: {
+      python: `def diagnostic_lr(sens, spec, pre_prob):\n    lr_pos = sens / (1 - spec)\n    lr_neg = (1 - sens) / spec\n    pre_odds = pre_prob / (1 - pre_prob)\n    post_prob_pos = (pre_odds * lr_pos) / (1 + pre_odds * lr_pos)\n    return lr_pos, lr_neg, post_prob_pos\nprint(diagnostic_lr(0.90, 0.95, 0.10))`,
+      r: `sens <- 0.90; spec <- 0.95; pre <- 0.10\nlr_pos <- sens / (1 - spec)\npost_odds <- (pre / (1 - pre)) * lr_pos\npost_prob <- post_odds / (1 + post_odds)`,
+      ts: `import { diagnosticLikelihoodRatio } from '@statlab/core';\nconst res = diagnosticLikelihoodRatio({ sensitivity: 0.90, specificity: 0.95, preTestProb: 0.10 });`,
+    },
+    useCases: [
+      'Evaluating anomaly detector and security scanner diagnostic power in VoxelPulse telemetry.',
+      'Calculating post-test probability of release defects given automated suite failure rates in VoxelAssurance.'
+    ],
+    when: 'Use when evaluating how much a diagnostic test result shifts the probability of a target condition or defect.',
+    cautions: [
+      'Likelihood ratios are independent of prevalence, but post-test probability depends heavily on pre-test probability.',
+      'LR+ > 10 indicates strong diagnostic power.'
+    ],
+    workbenchId: 'diag_lr',
+  },
+  {
+    slug: 'bland-altman-plot',
+    title: 'Bland-Altman agreement analysis calculator',
+    family: 'Biostatistics & diagnostics',
+    description: 'Evaluate agreement between two measurement methods using mean difference (bias), standard deviation, and 95% Limits of Agreement (LoA).',
+    keywords: ['Bland Altman calculator', 'limits of agreement', 'measurement agreement', 'method comparison', 'bias and LoA', 'clinical agreement'],
+    inputs: ['Method A numerical paired measurements', 'Method B numerical paired measurements', 'Confidence interval level (95%)'],
+    example: { a: ['Method A: 102, 105, 98, 110, 115, 100', 'Method B: 100, 106, 95, 108, 112, 99'], result: 'Mean Difference (Bias) = +1.67, SD of Diff = 1.37, Lower LoA (-1.96s) = -1.01, Upper LoA (+1.96s) = +4.35' },
+    formula: 'Diff_i = A_i - B_i, Bias d̄ = Σ Diff_i / N, LoA = d̄ ± 1.96 * s_d',
+    code: {
+      python: `import numpy as np\ndef bland_altman(m1, m2):\n    diffs = np.array(m1) - np.array(m2)\n    mean_diff = np.mean(diffs)\n    std_diff = np.std(diffs, ddof=1)\n    return mean_diff, mean_diff - 1.96*std_diff, mean_diff + 1.96*std_diff\nprint(bland_altman([102,105,98,110], [100,106,95,108]))`,
+      r: `library(BlandAltmanLeh)\nbland.altman.stats(m1, m2)`,
+      ts: `import { blandAltman } from '@statlab/core';\nconst { bias, lowerLoa, upperLoa } = blandAltman(methodA, methodB);`,
+    },
+    useCases: [
+      'Assessing agreement between synthetic telemetry timers and client-side web vitals in VoxelPulse.',
+      'Comparing legacy performance benchmark metrics vs new VoxelAssurance profiling tools.'
+    ],
+    when: 'Use when comparing two continuous measurement tools or devices to check if they can be used interchangeably.',
+    cautions: [
+      'High correlation r does not imply good agreement; always inspect Bland-Altman mean bias and LoA.',
+      'Check if differences vary proportionally with measurement magnitude.'
+    ],
+    workbenchId: 'bland_altman',
+  },
+  {
+    slug: 'ridge-lasso-elasticnet',
+    title: 'Ridge, Lasso, and ElasticNet regularization calculator',
+    family: 'Regression & ML',
+    description: 'Compute L1 (Lasso) and L2 (Ridge) penalty impacts, shrinkage coefficients, and optimal hyperparameter lambda search bounds.',
+    keywords: ['ridge regression calculator', 'lasso regression calculator', 'elasticnet regularization', 'L1 L2 penalty', 'feature selection', 'shrinkage parameter'],
+    inputs: ['Feature matrix X and target Y', 'Penalty type (Ridge L2, Lasso L1, ElasticNet)', 'Regularization parameter Lambda (λ)', 'L1 ratio alpha (for ElasticNet)'],
+    example: { a: ['5 Predictors, N = 100 observations', 'Penalty: Lasso (L1), λ = 0.10'], result: 'Shrunk coefficients: [1.42, 0.00, -0.85, 0.00, 0.31] (2 predictors zeroed out)' },
+    formula: 'Ridge: min ||Y - Xβ||² + λ||β||₂²; Lasso: min ||Y - Xβ||² + λ||β||₁',
+    code: {
+      python: `from sklearn.linear_model import ElasticNet\nmodel = ElasticNet(alpha=0.1, l1_ratio=0.5)\nmodel.fit(X, y)\nprint("Coefficients:", model.coef_)`,
+      r: `library(glmnet)\nfit <- glmnet(X, y, alpha = 0.5, lambda = 0.1)\ncoef(fit)`,
+      ts: `import { elasticNetRegression } from '@statlab/core';\nconst model = elasticNetRegression(X, y, { lambda: 0.1, l1Ratio: 0.5 });`,
+    },
+    useCases: [
+      'Preventing overfitting in telemetry prediction models with high-dimensional feature spaces in VoxelPulse.',
+      'Performing automated feature selection on system release benchmarks in VoxelAssurance.'
+    ],
+    when: 'Use when fitting regression models on datasets with multicollinear or high-dimensional predictor variables.',
+    cautions: [
+      'Standardize input features (mean=0, variance=1) before applying L1/L2 penalties.',
+      'Lasso arbitrarily selects one feature among highly correlated variables.'
+    ],
+    workbenchId: 'reg_pen',
+  },
+  {
+    slug: 'ndcg-ranking-metrics',
+    title: 'NDCG (Normalized Discounted Cumulative Gain) calculator',
+    family: 'Reliability & forecast accuracy',
+    description: 'Calculate Discounted Cumulative Gain (DCG), Ideal DCG (IDCG), and Normalized DCG (NDCG@K) for search ranking and recommendation evaluation.',
+    keywords: ['NDCG calculator', 'normalized discounted cumulative gain', 'ranking quality metric', 'search relevance NDCG', 'DCG@K calculator'],
+    inputs: ['Predicted item relevance scores array', 'Ground truth ideal relevance scores', 'Rank cutoff K'],
+    example: { a: ['Predicted order relevance: [3, 2, 3, 0, 1, 2]', 'Ideal order relevance: [3, 3, 2, 2, 1, 0]', 'Cutoff K = 5'], result: 'DCG@5 = 6.861, IDCG@5 = 7.141, NDCG@5 = 0.9608 (96.1% optimal ranking)' },
+    formula: 'DCG@K = Σ_{i=1}^K (2^{rel_i} - 1) / log_2(i + 1), NDCG@K = DCG@K / IDCG@K',
+    code: {
+      python: `from sklearn.metrics import ndcg_score\nimport numpy as np\ny_true = np.array([[3, 3, 2, 2, 1, 0]])\ny_score = np.array([[3, 2, 3, 0, 1, 2]])\nscore = ndcg_score(y_true, y_score, k=5)\nprint(f"NDCG@5: {score:.4f}")`,
+      r: `dcg <- function(r) sum((2^r - 1) / log2(2:(length(r)+1)))\nndcg <- dcg(rel_pred) / dcg(rel_ideal)`,
+      ts: `import { ndcgScore } from '@statlab/core';\nconst score = ndcgScore(yTrue, yScore, { k: 5 });`,
+    },
+    useCases: [
+      'Evaluating search, recommendation, and catalog ranking quality in VoxelPulse analytics.',
+      'Benchmarking search and vector retrieval accuracy across release candidates in VoxelAssurance.'
+    ],
+    when: 'Use when evaluating ranked list results where documents or items have graded relevance scores.',
+    cautions: [
+      'Binary relevance scores use simplified DCG = Σ rel_i / log2(i+1); use 2^rel - 1 formulation for graded relevance.',
+      'Requires defining a standard cutoff rank K.'
+    ],
+    workbenchId: 'eval_ndcg',
+  },
+  {
+    slug: 'mean-absolute-percentage-error',
+    title: 'MAPE, WAPE, and SMAPE forecast accuracy calculator',
+    family: 'Reliability & forecast accuracy',
+    description: 'Compute Mean Absolute Percentage Error (MAPE), Weighted Absolute Percentage Error (WAPE), and Symmetric MAPE (SMAPE) for time series predictions.',
+    keywords: ['MAPE calculator', 'mean absolute percentage error', 'SMAPE calculator', 'WAPE calculator', 'forecast accuracy metric', 'error percentage'],
+    inputs: ['Actual values array Y', 'Forecast values array Ŷ'],
+    example: { a: ['Actuals: [100, 150, 200, 250, 300]', 'Forecasts: [110, 140, 210, 240, 315]'], result: 'MAPE = 5.67%, WAPE = 5.00%, SMAPE = 5.56%' },
+    formula: 'MAPE = (100/N) * Σ |(Y_i - Ŷ_i) / Y_i|; SMAPE = (200/N) * Σ |Y_i - Ŷ_i| / (|Y_i| + |Ŷ_i|)',
+    code: {
+      python: `import numpy as np\ndef mape(y_true, y_pred):\n    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100\nprint(f"MAPE: {mape(actuals, forecasts):.2f}%")`,
+      r: `mape <- mean(abs((actuals - forecasts) / actuals)) * 100\ncat("MAPE:", mape, "%\\n")`,
+      ts: `import { forecastErrorMape } from '@statlab/core';\nconst { mape, smape, wape } = forecastErrorMape(actuals, forecasts);`,
+    },
+    useCases: [
+      'Monitoring traffic volume forecast accuracy in VoxelPulse infrastructure auto-scaling.',
+      'Evaluating load prediction models during release benchmarking in VoxelAssurance.'
+    ],
+    when: 'Use when comparing forecast model accuracy across different scales or physical units.',
+    cautions: [
+      'MAPE produces infinite or undefined results if actual values Y_i are zero.',
+      'SMAPE bounds errors between 0% and 200% and handles zero actual values better.'
+    ],
+    workbenchId: 'eval_mape',
+  },
+  {
+    slug: 'mtbf-mttr-reliability',
+    title: 'MTBF, MTTR, and Availability reliability calculator',
+    family: 'Reliability & forecast accuracy',
+    description: 'Calculate Mean Time Between Failures (MTBF), Mean Time To Repair (MTTR), Failure Rate (λ), and theoretical System Availability percentage (uptime SLA).',
+    keywords: ['MTBF calculator', 'MTTR calculator', 'system availability', 'uptime percentage SLA', 'failure rate lambda', 'reliability engineering'],
+    inputs: ['Total operational execution time T', 'Total downtime duration D', 'Number of failure incidents N'],
+    example: { a: ['Total operational time: 720 hours (30 days)', 'Downtime duration: 0.72 hours (43.2 min)', 'Failures: 3 incidents'], result: 'MTBF = 239.76 hrs, MTTR = 0.24 hrs (14.4 min), Failure Rate λ = 0.00417/hr, Availability = 99.90% (Three Nines)' },
+    formula: 'MTBF = (Total Operating Time - Downtime) / N, MTTR = Downtime / N, Availability = MTBF / (MTBF + MTTR)',
+    code: {
+      python: `def system_reliability(total_hours, downtime_hours, failures):\n    uptime = total_hours - downtime_hours\n    mtbf = uptime / failures\n    mttr = downtime_hours / failures\n    avail = (mtbf / (mtbf + mttr)) * 100\n    return mtbf, mttr, avail\nprint(system_reliability(720, 0.72, 3))`,
+      r: `total <- 720; down <- 0.72; n <- 3\nmtbf <- (total - down) / n\nmttr <- down / n\navail <- (mtbf / (mtbf + mttr)) * 100`,
+      ts: `import { mtbfMttrReliability } from '@statlab/core';\nconst res = mtbfMttrReliability(720, 0.72, 3);`,
+    },
+    useCases: [
+      'Tracking microservice uptime and incident recovery performance in VoxelPulse telemetry.',
+      'Establishing reliability metrics and outage SLA thresholds in VoxelAssurance release qualification.'
+    ],
+    when: 'Use when modeling system uptime, hardware/software failure intervals, and repair performance.',
+    cautions: [
+      'Assumes a constant failure rate (exponential distribution of time to failure).',
+      'Does not account for preventive maintenance intervals unless subtracted.'
+    ],
+    workbenchId: 'rel_mtbf',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -1536,7 +2271,7 @@ export function renderCalculatorIndex() {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>StatLab Statistical Test Calculators | pSEO Directory</title>
-  <meta name="description" content="Free static, shareable statistical test calculators: Mann-Whitney U, Welch t-test, ANOVA variants, non-parametric tests, Bayesian statistics, survival reliability analysis, AI ML metrics, power analysis, time series stationarity, and release readiness benchmarking.">
+  <meta name="description" content="Free static, shareable statistical test calculators: Mann-Whitney U, Welch t-test, ANOVA variants, non-parametric tests, Bayesian statistics, survival reliability analysis, AI ML metrics, probability distributions, econometrics, and release readiness benchmarking.">
   <link rel="canonical" href="${ORIGIN}/calculators/">
   <style>
     body{margin:0;background:#080b10;color:#edf4ff;font-family:Inter,ui-sans-serif,system-ui,sans-serif;line-height:1.5}.wrap{max-width:1120px;margin:auto;padding:40px 20px}a{color:#5df2b6}.brand{font-weight:900;letter-spacing:.08em;text-decoration:none;color:#edf4ff;font-size:20px}.brand span{color:#5df2b6}h1{font-size:clamp(36px,6vw,72px);line-height:.95;margin:16px 0 12px;letter-spacing:-.04em}.eyebrow{color:#5df2b6;font-size:12px;text-transform:uppercase;letter-spacing:.14em;font-weight:800}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:28px}.card{display:block;text-decoration:none;color:#edf4ff;background:#111722;border:1px solid #243246;border-radius:18px;padding:20px;transition:border-color .15s ease}.card:hover{border-color:#5df2b6}.banner{background:linear-gradient(135deg,#111722 0%,#0d1420 100%);border:1px solid #243246;border-radius:20px;padding:24px;margin-top:36px;display:grid;grid-template-columns:1fr 1fr;gap:20px}@media(max-width:760px){.grid,.banner{grid-template-columns:1fr}}
