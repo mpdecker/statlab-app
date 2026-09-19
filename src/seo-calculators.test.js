@@ -5,13 +5,26 @@ import { join } from 'node:path';
 import { calculatorPages, generateSeoCalculatorPages, renderCalculatorPage, renderSitemap } from '../scripts/generate-seo-calculators.mjs';
 
 describe('SEO calculator pages', () => {
-  it('declares the milestone 50 statistical calculator suite', () => {
+  it('declares the milestone 82 statistical calculator suite', () => {
     expect(calculatorPages.map((page) => page.slug)).toEqual([
       'welch-t-test',
       'student-t-test',
       'paired-t-test',
       'one-sample-t-test',
       't-test-effect-size-calculator',
+      'z-score-calculator',
+      't-score-calculator',
+      'f-distribution-calculator',
+      'chi-square-distribution-calculator',
+      'pca-variance-explained',
+      'manova-calculator',
+      'odds-ratio-relative-risk',
+      'mantel-haenszel-test',
+      'granger-causality',
+      'sharpe-ratio-calculator',
+      'ljung-box-test',
+      'negative-binomial-regression',
+      'quantile-regression',
       'mann-whitney-u',
       'wilcoxon-signed-rank',
       'kruskal-wallis',
@@ -60,8 +73,24 @@ describe('SEO calculator pages', () => {
       'llm-eval-significance',
       'sample-size-power',
       'random-effects-meta-analysis',
+      'kl-divergence-calculator',
+      'shannon-entropy-calculator',
+      'cross-entropy-loss-calculator',
+      'cpk-process-capability-calculator',
+      'xbar-r-control-chart-calculator',
+      'six-sigma-dpmo-calculator',
+      'auto-correlation-acf-pacf',
+      'arch-garch-volatility',
+      'cointegration-johansen-eg',
+      'number-needed-to-treat',
+      'diagnostic-likelihood-ratio',
+      'bland-altman-plot',
+      'ridge-lasso-elasticnet',
+      'ndcg-ranking-metrics',
+      'mean-absolute-percentage-error',
+      'mtbf-mttr-reliability',
     ]);
-    expect(calculatorPages.length).toBe(53);
+    expect(calculatorPages.length).toBe(82);
   });
 
   it('renders static HTML with canonical metadata, math formulas, code snippets, JSON-LD, and VoxelPulse/VoxelAssurance CTAs', () => {
@@ -77,18 +106,18 @@ describe('SEO calculator pages', () => {
     expect(html).toContain('VoxelAssurance Release Readiness');
   });
 
-  it('renders time series, regression, multi-rater agreement, and exact categorical tests', () => {
-    const adfPage = calculatorPages.find((c) => c.slug === 'augmented-dickey-fuller');
-    expect(renderCalculatorPage(adfPage)).toContain('Augmented Dickey-Fuller (ADF) stationarity test calculator');
+  it('renders new statistical families (Probability distributions, SPC, Information theory, Reliability)', () => {
+    const klPage = calculatorPages.find((c) => c.slug === 'kl-divergence-calculator');
+    expect(renderCalculatorPage(klPage)).toContain('Kullback-Leibler (KL) divergence calculator');
 
-    const logitPage = calculatorPages.find((c) => c.slug === 'logistic-regression');
-    expect(renderCalculatorPage(logitPage)).toContain('Logistic regression calculator');
+    const cpkPage = calculatorPages.find((c) => c.slug === 'cpk-process-capability-calculator');
+    expect(renderCalculatorPage(cpkPage)).toContain('Cpk and Cp process capability index calculator');
 
-    const fleissPage = calculatorPages.find((c) => c.slug === 'fleiss-kappa-calculator');
-    expect(renderCalculatorPage(fleissPage)).toContain("Fleiss' Kappa calculator for 3+ raters");
+    const acfPage = calculatorPages.find((c) => c.slug === 'auto-correlation-acf-pacf');
+    expect(renderCalculatorPage(acfPage)).toContain('Autocorrelation (ACF) and Partial Autocorrelation (PACF) calculator');
 
-    const fisherPage = calculatorPages.find((c) => c.slug === 'fishers-exact-test');
-    expect(renderCalculatorPage(fisherPage)).toContain("Fisher's exact test calculator");
+    const mtbfPage = calculatorPages.find((c) => c.slug === 'mtbf-mttr-reliability');
+    expect(renderCalculatorPage(mtbfPage)).toContain('MTBF, MTTR, and Availability reliability calculator');
   });
 
   it('writes calculator routes plus sitemap and robots files', () => {
@@ -96,13 +125,13 @@ describe('SEO calculator pages', () => {
     generateSeoCalculatorPages(root);
     expect(existsSync(join(root, 'calculators', 'index.html'))).toBe(true);
     expect(existsSync(join(root, 'calculators', 'welch-t-test', 'index.html'))).toBe(true);
-    expect(existsSync(join(root, 'calculators', 'augmented-dickey-fuller', 'index.html'))).toBe(true);
-    expect(existsSync(join(root, 'calculators', 'fleiss-kappa-calculator', 'index.html'))).toBe(true);
-    expect(existsSync(join(root, 'calculators', 'fishers-exact-test', 'index.html'))).toBe(true);
+    expect(existsSync(join(root, 'calculators', 'z-score-calculator', 'index.html'))).toBe(true);
+    expect(existsSync(join(root, 'calculators', 'pca-variance-explained', 'index.html'))).toBe(true);
+    expect(existsSync(join(root, 'calculators', 'granger-causality', 'index.html'))).toBe(true);
 
     const sitemap = readFileSync(join(root, 'sitemap.xml'), 'utf8');
     expect(sitemap.match(/<loc>/g)).toHaveLength(calculatorPages.length + 2);
-    expect(sitemap).toContain('https://statlab-3z6.pages.dev/calculators/augmented-dickey-fuller/');
+    expect(sitemap).toContain('https://statlab-3z6.pages.dev/calculators/granger-causality/');
     expect(readFileSync(join(root, 'robots.txt'), 'utf8')).toContain('Sitemap: https://statlab-3z6.pages.dev/sitemap.xml');
   });
 
