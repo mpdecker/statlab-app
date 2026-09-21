@@ -2094,6 +2094,456 @@ export const calculatorPages = [
     ],
     workbenchId: 'rel_mtbf',
   },
+  {
+    slug: 'bootstrap-confidence-interval',
+    title: 'Bootstrap confidence interval calculator',
+    family: 'Resampling & non-parametric',
+    description: 'Compute empirical percentile and BCa (bias-corrected and accelerated) bootstrap confidence intervals for arbitrary sample statistics.',
+    keywords: ['bootstrap confidence interval', 'percentile bootstrap', 'BCa bootstrap', 'resampling confidence interval', 'non-parametric CI'],
+    inputs: ['Sample observations vector X', 'Statistic function (Mean, Median, Std Dev, Ratio)', 'Bootstrap iterations B (e.g. 2000, 5000)', 'Confidence level (95%)'],
+    example: { a: ['Sample: 12.4, 15.1, 14.8, 18.2, 32.1, 11.9, 14.2', 'Statistic: Median', 'B = 2000 iterations'], result: 'Sample Median = 14.80, 95% Percentile Bootstrap CI: [12.40, 18.20], BCa CI: [12.15, 17.95]' },
+    formula: 'CI_{percentile} = [Q^*_{(α/2)}, Q^*_{(1-α/2)}], BCa adjustment α_1 = Φ(ẑ_0 + (ẑ_0 + z_α)/(1 - a(ẑ_0 + z_α)))',
+    code: {
+      python: `import numpy as np\nfrom scipy.stats import bootstrap\ndata = (np.array([12.4, 15.1, 14.8, 18.2, 32.1, 11.9, 14.2]),)\nres = bootstrap(data, np.median, method='BCa', n_resamples=2000)\nprint(f"95% BCa CI: {res.confidence_interval}")`,
+      r: `library(boot)\nb_out <- boot(data, function(d, i) median(d[i]), R = 2000)\nboot.ci(b_out, type = c("perc", "bca"))`,
+      ts: `import { bootstrapCI } from '@statlab/core';\nconst ci = bootstrapCI(sampleData, { fn: 'median', resamples: 2000, confidence: 0.95 });`,
+    },
+    useCases: [
+      'Estimating non-normal latency percentile confidence intervals (p95/p99) in VoxelPulse telemetry.',
+      'Constructing robust parameter bounds for complex microbenchmarks in VoxelAssurance testing.'
+    ],
+    when: 'Use when data violates parametric normality assumptions or when calculating CIs for non-linear sample statistics.',
+    cautions: [
+      'Requires B >= 2000 resamples for reliable 95% tail bounds.',
+      'Standard percentile bootstrap can suffer coverage errors in skewed small samples; use BCa when possible.'
+    ],
+    workbenchId: 'boot_ci',
+  },
+  {
+    slug: 'permutation-test-two-samples',
+    title: 'Permutation / Randomization test calculator',
+    family: 'Resampling & non-parametric',
+    description: 'Perform a two-sample exact or Monte Carlo permutation test to assess mean, median, or custom metric difference without distributional assumptions.',
+    keywords: ['permutation test calculator', 'randomization test', 'exact test', 'non parametric mean comparison', 'resampling p-value'],
+    inputs: ['Group A numeric values', 'Group B numeric values', 'Test statistic (Mean difference, Median difference)', 'Permutations K (or Exact)'],
+    example: { a: ['Group A: 24, 28, 31, 35, 42', 'Group B: 18, 20, 22, 25, 29'], result: 'Observed Diff = +7.20, Permutation p-value = .0158 (10,000 Monte Carlo draws)' },
+    formula: 'p = (1 / K) * Σ I(|T_k*| >= |T_{obs}|)',
+    code: {
+      python: `from scipy.stats import permutation_test\nimport numpy as np\nres = permutation_test((group_a, group_b), lambda x, y: np.mean(x) - np.mean(y), n_resamples=10000)\nprint(f"p-value: {res.pvalue:.4f}")`,
+      r: `library(coin)\noneway_test(y ~ group, data = df, distribution = approximate(nresample = 10000))`,
+      ts: `import { permutationTest } from '@statlab/core';\nconst result = permutationTest(groupA, groupB, { metric: 'meanDiff', resamples: 10000 });`,
+    },
+    useCases: [
+      'Validating custom SLA metric shifts between production release candidate groups in VoxelPulse.',
+      'Testing latency differences in small sample microbenchmarks in VoxelAssurance.'
+    ],
+    when: 'Use when sample sizes are small or when parametric assumptions (normality, equal variance) are doubtful.',
+    cautions: [
+      'Exact permutation is computationally prohibitive for large total sample sizes N > 30; use Monte Carlo approximation.',
+      'Assumes observations are exchangeable under the null hypothesis.'
+    ],
+    workbenchId: 'perm_test',
+  },
+  {
+    slug: 'response-surface-methodology',
+    title: 'Response Surface Methodology (RSM) optimizer',
+    family: 'Design of experiments (DOE)',
+    description: 'Analyze Central Composite Design (CCD) and Box-Behnken designs to model quadratic response surfaces, identify optimal factor settings, and map stationary points.',
+    keywords: ['RSM calculator', 'response surface methodology', 'central composite design', 'Box Behnken design', 'stationary point optimization', 'DOE response surface'],
+    inputs: ['Factor design matrix (X1, X2, ...)', 'Response variable array Y', 'Design type (Central Composite CCD, Box-Behnken)'],
+    example: { a: ['Factors: Temperature (X1), Pressure (X2)', 'Response Y: Throughput (ops/sec)', 'Design: Box-Behnken (13 runs)'], result: 'Stationary Point: X1* = 145.2°C, X2* = 32.4 PSI, Predicted Max Y = 4,820 ops/sec (R² = 0.962)' },
+    formula: 'Y = β₀ + Σ β_i X_i + Σ β_{ii} X_i² + Σ Σ β_{ij} X_i X_j + ε, X^* = - 0.5 * B⁻¹ b',
+    code: {
+      python: `import statsmodels.api as sm\n# Fit second-order polynomial formula y ~ x1 + x2 + I(x1**2) + I(x2**2) + x1:x2`,
+      r: `library(rsm)\nfit <- rsm(y ~ SO(x1, x2), data = design_df)\nsummary(fit)`,
+      ts: `import { rsmOptimize } from '@statlab/core';\nconst opt = rsmOptimize(designMatrix, responseY);`,
+    },
+    useCases: [
+      'Optimizing database query thread pools and cache sizing in VoxelPulse telemetry tuning.',
+      'Finding optimal hyperparameter configurations for automated build pipelines in VoxelAssurance.'
+    ],
+    when: 'Use when fine-tuning continuous control factors to maximize or minimize a key performance outcome after initial screening.',
+    cautions: [
+      'Ensure stationary point is a true maximum/minimum (inspect eigenvalues of the B matrix).',
+      'Stationary points outside the experimental region require extrapolation caution.'
+    ],
+    workbenchId: 'doe_rsm',
+  },
+  {
+    slug: 'plackett-burman-screening',
+    title: 'Plackett-Burman screening design calculator',
+    family: 'Design of experiments (DOE)',
+    description: 'Evaluate main factor effects across fractional factorial Plackett-Burman screening matrix experiments (N=12, 16, 20, 24 runs) to identify critical variables.',
+    keywords: ['Plackett Burman calculator', 'screening design DOE', 'fractional factorial screening', 'main effects DOE', 'variable screening'],
+    inputs: ['Factor matrix (+1/-1 coded for k factors)', 'Response measurement vector Y', 'Run count N (multiple of 4)'],
+    example: { a: ['7 Factors (A-G), N = 12 runs design', 'Response Y: Execution Time (ms)'], result: 'Significant Factors: Factor A (Effect = -45.2ms, p < .001), Factor D (Effect = +28.1ms, p = .012); Others inactive.' },
+    formula: 'Effect_j = (2 / N) * Σ (x_{ij} * Y_i)',
+    code: {
+      python: `import statsmodels.api as sm\n# Compute main effect estimates for N-run Hadamard design matrix`,
+      r: `library(DoE.base)\npb_design <- pb(nruns = 12, nfactors = 7)\n# Fit linear model Y ~ A + B + C + D + E + F + G`,
+      ts: `import { plackettBurman } from '@statlab/core';\nconst effects = plackettBurman(designMatrix, responseY);`,
+    },
+    useCases: [
+      'Screening 10+ potential microservice configuration parameters down to the top 2-3 impact drivers in VoxelPulse.',
+      'Rapidly isolating root-cause parameters causing performance regression in VoxelAssurance.'
+    ],
+    when: 'Use in early-stage engineering exploration to screen many candidate factors in very few experimental runs.',
+    cautions: [
+      'Plackett-Burman designs alias main effects with two-factor interactions; follow up with full factorials on key variables.',
+      'Assumes 2-way interactions are negligible during initial screening.'
+    ],
+    workbenchId: 'doe_pb',
+  },
+  {
+    slug: 'taguchi-signal-to-noise',
+    title: 'Taguchi Signal-to-Noise (S/N) ratio calculator',
+    family: 'Design of experiments (DOE)',
+    description: 'Compute Taguchi static Signal-to-Noise ratios (S/N) for Nominal-is-Best, Larger-is-Better, and Smaller-is-Better robust quality engineering.',
+    keywords: ['Taguchi SN ratio calculator', 'signal to noise ratio DOE', 'robust design Taguchi', 'nominal is best', 'smaller is better', 'larger is better'],
+    inputs: ['Measurement replicates array Y per trial run', 'Objective (Larger-is-Better, Smaller-is-Better, Nominal-is-Best)'],
+    example: { a: ['Trial 1 Replicates: [102.1, 101.8, 102.4, 101.9]', 'Objective: Nominal-is-Best (Target = 100)'], result: 'Mean = 102.05, Variance = 0.063, S/N Ratio = 32.18 dB' },
+    formula: 'Smaller-is-Better: S/N = -10 log10((1/n) Σ y_i²); Larger-is-Better: S/N = -10 log10((1/n) Σ (1/y_i²)); Nominal: S/N = 10 log10(ȳ² / s²)',
+    code: {
+      python: `import numpy as np\ndef taguchi_sn(y, mode='larger'):\n    y = np.array(y)\n    if mode == 'smaller': return -10 * np.log10(np.mean(y**2))\n    elif mode == 'larger': return -10 * np.log10(np.mean(1 / (y**2)))\n    elif mode == 'nominal': return 10 * np.log10(np.mean(y)**2 / np.var(y, ddof=1))\nprint(taguchi_sn([102.1, 101.8, 102.4, 101.9], mode='nominal'))`,
+      r: `sn_nominal <- function(y) 10 * log10(mean(y)^2 / var(y))`,
+      ts: `import { taguchiSnRatio } from '@statlab/core';\nconst sn = taguchiSnRatio([102.1, 101.8, 102.4, 101.9], { mode: 'nominal' });`,
+    },
+    useCases: [
+      'Optimizing robust backend server configurations against fluctuating background load in VoxelPulse.',
+      'Building fault-tolerant, low-variance deployment profiles in VoxelAssurance testing.'
+    ],
+    when: 'Use when designing robust systems that remain insensitive to external noise and environment variation.',
+    cautions: [
+      'Decide the correct S/N optimization objective (Smaller/Larger/Nominal) before performing ANOVA on S/N values.',
+      'Requires replicated trial measurements.'
+    ],
+    workbenchId: 'taguchi_sn',
+  },
+  {
+    slug: 'cosine-similarity-calculator',
+    title: 'Cosine similarity & angular distance calculator',
+    family: 'Vector distances & ML metrics',
+    description: 'Calculate Cosine similarity, Cosine distance, and Angular distance between dense numerical vector embeddings for LLM RAG and semantic search evaluation.',
+    keywords: ['cosine similarity calculator', 'vector distance', 'cosine distance', 'angular distance', 'embedding similarity', 'LLM RAG metric'],
+    inputs: ['Vector A numerical array', 'Vector B numerical array'],
+    example: { a: ['Vector A (Document Embedding): [0.12, 0.85, -0.42, 0.31]', 'Vector B (Query Embedding): [0.15, 0.78, -0.48, 0.28]'], result: 'Cosine Similarity = 0.9942, Cosine Distance = 0.0058, Angular Distance = 0.0384 rad (2.20°)' },
+    formula: 'Sim(A, B) = (A · B) / (||A|| * ||B||), Cosine Distance = 1 - Sim(A, B), Angular Distance = arccos(Sim(A, B)) / π',
+    code: {
+      python: `import numpy as np\nfrom scipy.spatial.distance import cosine\na, b = np.array([0.12, 0.85, -0.42, 0.31]), np.array([0.15, 0.78, -0.48, 0.28])\nsim = 1 - cosine(a, b)\nprint(f"Cosine Similarity: {sim:.4f}")`,
+      r: `sim <- sum(a * b) / (sqrt(sum(a^2)) * sqrt(sum(b^2)))`,
+      ts: `import { cosineSimilarity } from '@statlab/core';\nconst sim = cosineSimilarity(vectorA, vectorB);`,
+    },
+    useCases: [
+      'Evaluating LLM retrieval embedding accuracy for vector search pipelines in VoxelPulse.',
+      'Benchmarking semantic drift across prompt engineering release iterations in VoxelAssurance.'
+    ],
+    when: 'Use when comparing the orientation and semantic similarity of multi-dimensional vector embeddings regardless of magnitude.',
+    cautions: [
+      'Cosine similarity ignores vector magnitude; if magnitude matters, use Euclidean distance or dot product.',
+      'Normalize vectors ahead of time for optimized high-throughput similarity calculation.'
+    ],
+    workbenchId: 'cos_sim',
+  },
+  {
+    slug: 'wasserstein-distance-earth-movers',
+    title: 'Wasserstein distance (Earth Mover\'s Distance) calculator',
+    family: 'Vector distances & ML metrics',
+    description: 'Calculate 1D Wasserstein distance (W1, Earth Mover\'s Distance - EMD) between empirical continuous distributions or telemetry histograms.',
+    keywords: ['Wasserstein distance calculator', 'Earth Movers Distance', 'EMD calculator', 'distribution shift metric', 'W1 distance', 'optimal transport'],
+    inputs: ['Distribution sample 1 vector', 'Distribution sample 2 vector', 'Order p (Standard p=1)'],
+    example: { a: ['Sample 1 (Baseline Latency): [12, 14, 15, 16, 18]', 'Sample 2 (Canary Latency): [14, 16, 17, 19, 22]'], result: 'Wasserstein-1 Distance (EMD) = 2.400 ms (Work required to transform Sample 1 into Sample 2)' },
+    formula: 'W_1(u, v) = ∫_{-∞}^{∞} |F_u(x) - F_v(x)| dx = (1/N) Σ |u_{(i)} - v_{(i)}|',
+    code: {
+      python: `from scipy.stats import wasserstein_distance\nu = [12, 14, 15, 16, 18]\nv = [14, 16, 17, 19, 22]\nw1 = wasserstein_distance(u, v)\nprint(f"Wasserstein distance: {w1:.4f}")`,
+      r: `library(transport)\nwasserstein1d(u, v)`,
+      ts: `import { wassersteinDistance } from '@statlab/core';\nconst w1 = wassersteinDistance(u, v);`,
+    },
+    useCases: [
+      'Measuring true metric distribution shift between baseline and canary release traffic in VoxelPulse.',
+      'Quantifying histogram drift in telemetry pipelines within VoxelAssurance testing.'
+    ],
+    when: 'Use when measuring physical shift distance between continuous probability distributions without assuming specific parametric shapes.',
+    cautions: [
+      'Unlike KL divergence, Wasserstein distance is a true mathematical metric (symmetric, satisfies triangle inequality).',
+      'Sensitive to scale of underlying units.'
+    ],
+    workbenchId: 'emd_wass',
+  },
+  {
+    slug: 'mahalanobis-distance-calculator',
+    title: 'Mahalanobis distance multivariate outlier calculator',
+    family: 'Vector distances & ML metrics',
+    description: 'Compute Mahalanobis distance D_M between multivariate observations and sample centroid, accounting for feature covariance and correlations.',
+    keywords: ['Mahalanobis distance calculator', 'multivariate outlier detection', 'covariance distance', 'multivariate anomaly detection'],
+    inputs: ['Multivariate observation vector X', 'Sample dataset matrix (for mean μ and covariance matrix Σ)'],
+    example: { a: ['Point X: [CPU = 95%, Memory = 2.1GB, Latency = 450ms]', 'Dataset mean μ: [CPU = 45%, Memory = 1.8GB, Latency = 120ms]'], result: 'Mahalanobis Distance D_M = 4.82, Chi-Square p-value = .0008 (Multivariate anomaly detected)' },
+    formula: 'D_M(X) = √((X - μ)^T Σ⁻¹ (X - μ))',
+    code: {
+      python: `import numpy as np\nfrom scipy.spatial.distance import mahalanobis\ncov_inv = np.linalg.inv(np.cov(matrix, rowvar=False))\nd_m = mahalanobis(x_point, mean_vec, cov_inv)\nprint(f"Mahalanobis distance: {d_m:.4f}")`,
+      r: `mahalanobis(matrix, colMeans(matrix), cov(matrix))`,
+      ts: `import { mahalanobisDistance } from '@statlab/core';\nconst dm = mahalanobisDistance(point, dataset);`,
+    },
+    useCases: [
+      'Detecting multi-metric system anomalies (correlated CPU/RAM/Latency spikes) in VoxelPulse telemetry.',
+      'Identifying multi-dimensional performance outliers in VoxelAssurance benchmark runs.'
+    ],
+    when: 'Use when identifying multivariate outliers where individual metrics may look normal alone but represent extreme anomalies in combination.',
+    cautions: [
+      'Requires non-singular covariance matrix Σ (Number of samples N must exceed number of metrics p).',
+      'Sensitive to extreme outliers in baseline covariance estimation; use robust minimum covariance determinant (MCD) if needed.'
+    ],
+    workbenchId: 'dist_mah',
+  },
+  {
+    slug: 'vector-euclidean-manhattan-distance',
+    title: 'Euclidean (L2) and Manhattan (L1) vector distance calculator',
+    family: 'Vector distances & ML metrics',
+    description: 'Calculate L1 Manhattan, L2 Euclidean, Chebyshev (L_∞), and Minkowski vector distances between numeric feature vectors.',
+    keywords: ['Euclidean distance calculator', 'Manhattan distance calculator', 'L1 L2 distance', 'Chebyshev distance', 'Minkowski distance', 'vector metric'],
+    inputs: ['Vector A numerical array', 'Vector B numerical array', 'Minkowski norm order p (Default p=2 for Euclidean)'],
+    example: { a: ['Vector A: [10, 25, 40]', 'Vector B: [14, 20, 48]'], result: 'L1 Manhattan Distance = 17.00, L2 Euclidean Distance = 10.25, Chebyshev Distance = 8.00' },
+    formula: 'L1 = Σ |A_i - B_i|; L2 = √(Σ (A_i - B_i)²); Minkowski = (Σ |A_i - B_i|^p)^(1/p)',
+    code: {
+      python: `from scipy.spatial.distance import euclidean, cityblock, chebyshev\na, b = [10, 25, 40], [14, 20, 48]\nprint(f"L2: {euclidean(a,b):.2f}, L1: {cityblock(a,b):.2f}, L_inf: {chebyshev(a,b):.2f}")`,
+      r: `dist(rbind(a, b), method = "euclidean")\ndist(rbind(a, b), method = "manhattan")`,
+      ts: `import { vectorDistance } from '@statlab/core';\nconst { l1, l2, chebyshev } = vectorDistance(vectorA, vectorB);`,
+    },
+    useCases: [
+      'Calculating point-to-point metric vector differences in VoxelPulse telemetry streams.',
+      'Measuring feature vector proximity in KNN and clustering modules in VoxelAssurance.'
+    ],
+    when: 'Use when evaluating physical absolute differences between feature arrays across continuous coordinate spaces.',
+    cautions: [
+      'High-dimensional vector spaces (d > 100) experience distance concentration where L2 distance contrasts diminish; prefer cosine or Manhattan in high dimensions.',
+      'Scale variables before computing distance.'
+    ],
+    workbenchId: 'dist_vec',
+  },
+  {
+    slug: 'morans-i-spatial-autocorrelation',
+    title: 'Moran\'s I spatial autocorrelation calculator',
+    family: 'Time series & spatial statistics',
+    description: 'Compute global Moran\'s I statistic, expected value, spatial variance, and z-score to test for spatial spatial clustering or dispersion.',
+    keywords: ['Morans I calculator', 'spatial autocorrelation', 'spatial clustering test', 'spatial weights matrix', 'spatial z score'],
+    inputs: ['Spatial region values vector Y', 'Spatial spatial weights matrix W', 'Normal vs Randomization assumption'],
+    example: { a: ['5 Regions metric Y: [12, 14, 15, 28, 30]', 'Spatial adjacency matrix W (5x5)'], result: 'Moran’s I = +0.642, Expected E[I] = -0.250, z-score = 2.84 (p = .0045, Significant spatial clustering)' },
+    formula: 'I = (N / S₀) * [ Σ Σ w_{ij}(Y_i - Ȳ)(Y_j - Ȳ) / Σ (Y_i - Ȳ)² ]',
+    code: {
+      python: `import esda\nfrom libpysal.weights import W\n# Calculate Moran(y, w) global spatial autocorrelation statistic`,
+      r: `library(spdep)\nmoran.test(y, nb2listw(neighbors))`,
+      ts: `import { moransI } from '@statlab/core';\nconst result = moransI(regionValues, weightMatrix);`,
+    },
+    useCases: [
+      'Detecting geographic edge-node traffic clustering and regional latency degradation in VoxelPulse.',
+      'Evaluating spatial distribution of test failures across multi-region cloud worker clusters in VoxelAssurance.'
+    ],
+    when: 'Use when verifying whether metric values measured across geographical nodes or server topology exhibit spatial dependence.',
+    cautions: [
+      'Requires specifying a row-standardized spatial weights matrix W.',
+      'Confounded if global spatial trends are present; de-trend data if necessary.'
+    ],
+    workbenchId: 'spat_moran',
+  },
+  {
+    slug: 'var-vector-autoregression',
+    title: 'Vector Autoregression (VAR) model calculator',
+    family: 'Time series & spatial statistics',
+    description: 'Fit a Vector Autoregressive VAR(p) system for multivariate time series, compute Granger causality matrices, and calculate Impulse Response Functions (IRF).',
+    keywords: ['VAR model calculator', 'vector autoregression', 'impulse response function', 'multivariate time series VAR', 'forecast error variance decomposition'],
+    inputs: ['Multivariate time series matrix (K series)', 'Lag order p (AIC/BIC selected)', 'Steps forward forecast horizon'],
+    example: { a: ['Series 1: CPU Utilization', 'Series 2: Request Rate', 'Lag p = 2'], result: 'VAR(2) fit: Request Rate -> CPU Utilization (Coeff = 0.42, p = .001). 1-SD Impulse Response peaks at step t+2.' },
+    formula: 'Y_t = c + A_1 Y_{t-1} + ... + A_p Y_{t-p} + e_t',
+    code: {
+      python: `from statsmodels.tsa.api import VAR\nmodel = VAR(df_timeseries)\nresults = model.fit(maxlags=2, ic='aic')\nprint(results.summary())`,
+      r: `library(vars)\nvar_fit <- VAR(ts_data, p = 2, type = "const")\nirf(var_fit)`,
+      ts: `import { varModel } from '@statlab/core';\nconst model = varModel(multivariateSeries, { lags: 2 });`,
+    },
+    useCases: [
+      'Modeling dynamic feedback loops between database IO, request queue length, and API latency in VoxelPulse.',
+      'Simulating cascade performance effects of system load shocks in VoxelAssurance testing.'
+    ],
+    when: 'Use when analyzing multiple interrelated time series variables that mutually influence each other over time.',
+    cautions: [
+      'All time series in the VAR system must be stationary I(0); difference non-stationary series first.',
+      'Parameter count grows quadratically with number of variables K² * p.'
+    ],
+    workbenchId: 'ts_var',
+  },
+  {
+    slug: 'value-at-risk-var',
+    title: 'Value at Risk (VaR) & Expected Shortfall (CVaR) calculator',
+    family: 'Risk & psychometrics',
+    description: 'Calculate parametric, historical, and Monte Carlo Value at Risk (VaR) and Conditional VaR (Expected Shortfall / Tail VaR) at 95% and 99% confidence.',
+    keywords: ['Value at Risk calculator', 'VaR calculator', 'Expected Shortfall CVaR', 'tail risk metric', 'historical VaR', 'parametric VaR'],
+    inputs: ['Return / Latency loss vector', 'Confidence level (95% or 99%)', 'Method (Parametric Gaussian, Historical, Cornish-Fisher)'],
+    example: { a: ['Daily latency loss returns vector (N=250 days)', 'Confidence Level = 99%'], result: 'Historical 99% VaR = 345ms, Parametric VaR = 328ms, Expected Shortfall (CVaR) = 412ms' },
+    formula: 'Parametric VaR_α = μ + z_α * σ; CVaR_α = E[X | X >= VaR_α] = μ + σ * (φ(z_α) / (1 - α))',
+    code: {
+      python: `import numpy as np\ndef var_cvar(returns, alpha=0.95):\n    var = np.percentile(returns, (1 - alpha) * 100)\n    cvar = returns[returns <= var].mean()\n    return var, cvar\nprint(var_cvar(returns_data, 0.95))`,
+      r: `library(PerformanceAnalytics)\nVaR(returns, p = 0.95, method = "historical")\nES(returns, p = 0.95, method = "historical")`,
+      ts: `import { valueAtRisk } from '@statlab/core';\nconst { varValue, cvarValue } = valueAtRisk(returns, { confidence: 0.95 });`,
+    },
+    useCases: [
+      'Quantifying maximum worst-case latency tail risk (p99+ SLA breaches) in VoxelPulse telemetry.',
+      'Assessing tail financial risk and downtime penalty exposures in VoxelAssurance SLA audits.'
+    ],
+    when: 'Use to quantify maximum expected downside loss or extreme latency spike threshold over a specified time horizon.',
+    cautions: [
+      'VaR is not coherent (does not satisfy sub-additivity); Expected Shortfall (CVaR) is a coherent risk measure that captures tail loss severity.',
+      'Parametric VaR understates risk under heavy-tailed distributions.'
+    ],
+    workbenchId: 'risk_var',
+  },
+  {
+    slug: 'cronbach-alpha-reliability',
+    title: 'Cronbach\'s Alpha internal consistency calculator',
+    family: 'Risk & psychometrics',
+    description: 'Compute Cronbach\'s Alpha (α) and item-deleted alpha statistics to evaluate internal consistency and reliability of multi-item survey or eval scales.',
+    keywords: ['Cronbach alpha calculator', 'internal consistency', 'questionnaire reliability', 'scale alpha', 'item deleted alpha', 'eval consistency'],
+    inputs: ['Item scores matrix (N respondents x k items)'],
+    example: { a: ['100 survey responses across 5 evaluation scale items (1-5 Likert scale)'], result: 'Cronbach’s Alpha α = 0.842 (Good internal consistency). Item 4 removal increases α to 0.865.' },
+    formula: 'α = (k / (k - 1)) * [ 1 - (Σ s_i² / s_{total}²) ]',
+    code: {
+      python: `import pingouin as pg\nres = pg.cronbach_alpha(data=items_df)\nprint(f"Alpha: {res[0]:.4f}, 95% CI: {res[1]}")`,
+      r: `library(psych)\nalpha(items_matrix)`,
+      ts: `import { cronbachAlpha } from '@statlab/core';\nconst { alpha, itemDeleted } = cronbachAlpha(itemsMatrix);`,
+    },
+    useCases: [
+      'Evaluating internal consistency of multi-prompt subjective user feedback scores in VoxelPulse.',
+      'Assessing multi-rubric LLM judge evaluation scale reliability in VoxelAssurance.'
+    ],
+    when: 'Use when measuring how reliably a set of survey questions or multi-item rating rubrics measure a single underlying construct.',
+    cautions: [
+      'Cronbach’s alpha increases automatically with number of items k even if item quality is low.',
+      'Assumes tau-equivalence (equal item loadings); use McDonald’s Omega if loadings vary widely.'
+    ],
+    workbenchId: 'psych_alpha',
+  },
+  {
+    slug: 'rasch-item-response-theory',
+    title: 'Rasch Model (1PL IRT) item difficulty & ability calculator',
+    family: 'Risk & psychometrics',
+    description: 'Estimate item difficulty parameters (β_j) and person ability parameters (θ_i) using 1-Parameter Logistic (1PL) Rasch Item Response Theory.',
+    keywords: ['Rasch model calculator', 'IRT 1PL calculator', 'item response theory', 'item difficulty estimation', 'person ability theta', 'benchmark difficulty'],
+    inputs: ['Dichotomous response matrix (1=Correct/Pass, 0=Incorrect/Fail)', 'Estimation method (Joint ML / Marginal ML)'],
+    example: { a: ['50 test takers x 10 benchmark problem items response matrix'], result: 'Item 3 Difficulty β = +1.45 (Hard item), Item 7 Difficulty β = -1.20 (Easy item). Model Infit MSQ = 0.98.' },
+    formula: 'P(Y_{ij} = 1 | θ_i, β_j) = e^{(θ_i - β_j)} / (1 + e^{(θ_i - β_j)})',
+    code: {
+      python: `import mirtcat # or use statsmodels / custom IRT estimator\n# Estimate 1PL Rasch difficulty parameters beta and ability parameters theta`,
+      r: `library(eRm)\nrasch_fit <- RM(response_matrix)\nitempar(rasch_fit)`,
+      ts: `import { raschModel } from '@statlab/core';\nconst { itemDifficulty, personAbility } = raschModel(responseMatrix);`,
+    },
+    useCases: [
+      'Measuring individual test case difficulty levels in automated benchmark suites in VoxelAssurance.',
+      'Evaluating prompt test item difficulty vs AI model capability in VoxelPulse.'
+    ],
+    when: 'Use when analyzing test item difficulty independently of the specific sample of test takers or benchmark models.',
+    cautions: [
+      'Requires unidimensionality (items must measure one construct).',
+      'Requires fit checks (Infit/Outfit MSQ between 0.7 and 1.3).'
+    ],
+    workbenchId: 'irt_rasch',
+  },
+  {
+    slug: 'point-biserial-correlation',
+    title: 'Point-biserial correlation calculator',
+    family: 'Risk & psychometrics',
+    description: 'Compute Point-biserial correlation r_{pb} between a true dichotomous binary variable and a continuous variable, with t-test significance.',
+    keywords: ['point biserial correlation', 'binary continuous correlation', 'item discrimination index', 'r_pb calculator'],
+    inputs: ['Binary variable vector (0 or 1)', 'Continuous numeric variable vector X'],
+    example: { a: ['Binary: Feature flag enabled (0=Off, 1=On)', 'Continuous: Session Duration (seconds)'], result: 'r_pb = +0.418, t = 4.12, df = 88, p < .001 (Significant positive relationship)' },
+    formula: 'r_{pb} = ((M_1 - M_0) / s_n) * √(p * q), where p = N_1/N, q = N_0/N',
+    code: {
+      python: `from scipy.stats import pointbiserialr\nres = pointbiserialr(binary_vec, continuous_vec)\nprint(f"r_pb: {res.statistic:.4f}, p-value: {res.pvalue:.4f}")`,
+      r: `cor.test(binary_vec, continuous_vec)`,
+      ts: `import { pointBiserialCorr } from '@statlab/core';\nconst result = pointBiserialCorr(binaryVec, continuousVec);`,
+    },
+    useCases: [
+      'Correlating feature flag state (0/1) against user session engagement duration in VoxelPulse.',
+      'Evaluating test case pass/fail outcome correlation against system execution latency in VoxelAssurance.'
+    ],
+    when: 'Use when measuring relationship strength between one naturally binary variable (e.g. Pass/Fail, Enabled/Disabled) and one continuous metric.',
+    cautions: [
+      'Binary variable must be a true natural dichotomy, not an artificially discretized continuous metric.',
+      'Mathematically equivalent to Pearson r applied to a binary variable.'
+    ],
+    workbenchId: 'corr_pbs',
+  },
+  {
+    slug: 'matthews-correlation-coefficient',
+    title: 'Matthews Correlation Coefficient (MCC) calculator',
+    family: 'Vector distances & ML metrics',
+    description: 'Calculate Matthews Correlation Coefficient (MCC) for binary classification, providing a balanced metric robust against class imbalance.',
+    keywords: ['MCC calculator', 'Matthews correlation coefficient', 'binary classification metric', 'class imbalance metric', 'phi coefficient confusion matrix'],
+    inputs: ['True Positives (TP)', 'False Positives (FP)', 'True Negatives (TN)', 'False Negatives (FN)'],
+    example: { a: ['TP = 45, FP = 5', 'TN = 900, FN = 50 (Imbalanced 1:10 dataset)'], result: 'MCC = +0.638 (Strong prediction agreement despite extreme class imbalance)' },
+    formula: 'MCC = (TP * TN - FP * FN) / √((TP+FP)(TP+FN)(TN+FP)(TN+FN))',
+    code: {
+      python: `from sklearn.metrics import matthews_corrcoef\nmcc = matthews_corrcoef(y_true, y_pred)\nprint(f"MCC: {mcc:.4f}")`,
+      r: `library(mltools)\nmcc(preds = y_pred, actuals = y_true)`,
+      ts: `import { matthewsCorrCoef } from '@statlab/core';\nconst mcc = matthewsCorrCoef({ tp: 45, fp: 5, tn: 900, fn: 50 });`,
+    },
+    useCases: [
+      'Evaluating anomaly detection classifiers on heavily imbalanced telemetry data in VoxelPulse.',
+      'Benchmarking security defect detection accuracy in VoxelAssurance release testing.'
+    ],
+    when: 'Use when evaluating binary classification model quality on datasets with severe class imbalance.',
+    cautions: [
+      'Returns a value between -1 and +1 (+1 = perfect prediction, 0 = random chance, -1 = inverse prediction).',
+      'Undefined if any of the four confusion matrix sums is zero.'
+    ],
+    workbenchId: 'mcc_calc',
+  },
+  {
+    slug: 'concordance-correlation-coefficient',
+    title: 'Lin\'s Concordance Correlation Coefficient (CCC) calculator',
+    family: 'Vector distances & ML metrics',
+    description: 'Calculate Lin\'s Concordance Correlation Coefficient (ρ_c), precision (ρ), and accuracy bias (C_b) to evaluate agreement between two measurement methods.',
+    keywords: ['concordance correlation coefficient', 'Lin CCC calculator', 'method agreement CCC', 'reproducibility metric', 'accuracy bias C_b'],
+    inputs: ['Method / Observer 1 numeric vector X', 'Method / Observer 2 numeric vector Y', 'Confidence level (95%)'],
+    example: { a: ['Observer 1: [12.1, 14.5, 18.2, 22.0, 25.1]', 'Observer 2: [12.4, 14.8, 18.0, 21.7, 24.8]'], result: 'Lin’s CCC ρ_c = 0.994 (95% CI: [.982, .998]), Precision ρ = 0.995, Accuracy Bias C_b = 0.999' },
+    formula: 'ρ_c = (2 * s_{xy}) / (s_x² + s_y² + (X̄ - Ȳ)²)',
+    code: {
+      python: `import pingouin as pg\nres = pg.concordance(x, y)\nprint(f"Lin CCC: {res[0]:.4f}")`,
+      r: `library(epiR)\nepi.ccc(x, y)`,
+      ts: `import { linsCCC } from '@statlab/core';\nconst { ccc, precision, bias } = linsCCC(vecX, vecY);`,
+    },
+    useCases: [
+      'Evaluating reproducibility between local development benchmarks and production telemetry in VoxelPulse.',
+      'Verifying agreement between automated LLM judge scores and human expert raters in VoxelAssurance.'
+    ],
+    when: 'Use when testing whether two continuous measurement methods produce identical values (evaluating agreement relative to 45° line of equality).',
+    cautions: [
+      'Combines precision (correlation r) and accuracy bias (distance from 45° line); inspect both components.',
+      'Superior to Pearson r for assessing true equivalence.'
+    ],
+    workbenchId: 'ccc_lin',
+  },
+  {
+    slug: 'cusum-control-chart',
+    title: 'CUSUM (Cumulative Sum) quality control chart calculator',
+    family: 'Time series & spatial statistics',
+    description: 'Calculate Tabular / Decision Interval CUSUM control limits (C⁺, C⁻) and Average Run Length (ARL) for detecting small process mean shifts.',
+    keywords: ['CUSUM calculator', 'cumulative sum chart', 'small shift detection', 'decision interval CUSUM', 'ARL calculator', 'process shift SPC'],
+    inputs: ['Sequential metric observations X', 'Target mean μ₀', 'Standard deviation σ', 'Reference value k (usually 0.5σ)', 'Decision limit h (usually 4σ or 5σ)'],
+    example: { a: ['Observations X (Latency in ms)', 'Target μ₀ = 100ms, σ = 5ms', 'k = 0.5 (2.5ms), h = 4.0 (20ms)'], result: 'CUSUM Out of Control at observation #18 (Upper CUSUM C⁺ = 22.4ms > h limit = 20ms). Estimated shift magnitude = +0.85σ.' },
+    formula: 'C_i^+ = max(0, X_i - (μ₀ + K) + C_{i-1}^+), C_i^- = max(0, (μ₀ - K) - X_i + C_{i-1}^-)',
+    code: {
+      python: `import statsmodels.api as sm\n# Compute upper C+ and lower C- decision interval cumulative sums`,
+      r: `library(qcc)\nqcc(data, type = "cusum", target = 100, std.dev = 5)`,
+      ts: `import { cusumChart } from '@statlab/core';\nconst cusum = cusumChart(observations, { target: 100, sd: 5, k: 0.5, h: 4.0 });`,
+    },
+    useCases: [
+      'Detecting subtle, persistent memory leak micro-creeps in VoxelPulse telemetry.',
+      'Early detection of gradual performance degradation in VoxelAssurance build iterations.'
+    ],
+    when: 'Use when detecting small, persistent process mean shifts (0.5σ to 1.5σ) faster than standard Shewhart X-bar charts.',
+    cautions: [
+      'Requires accurate estimation of baseline target mean μ₀ and standard deviation σ.',
+      'Fast Initial Response (FIR) feature can be added to detect initial out-of-control states rapidly.'
+    ],
+    workbenchId: 'spc_cusum',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
