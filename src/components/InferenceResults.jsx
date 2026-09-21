@@ -76,6 +76,30 @@ function PathCoeffTable({ coeffs }) {
   );
 }
 
+function BifactorTable({ loadings }) {
+  if (!loadings?.length) return null;
+  const headers = ['item', 'general', 'group', 'communality'];
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', ...mono, fontSize: 9, width: '100%' }}>
+        <thead>
+          <tr>{headers.map(h => <th key={h} style={{ padding: '2px 6px', textAlign: 'left', color: C.dim, borderBottom: `1px solid ${C.border}`, fontSize: 7, textTransform: 'uppercase' }}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {loadings.map((l, i) => (
+            <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : C.panel }}>
+              <td style={{ padding: '2px 6px', color: PAL[i % PAL.length] }}>{l.item}</td>
+              <td style={{ padding: '2px 6px', color: C.text }}>{l.general}</td>
+              <td style={{ padding: '2px 6px', color: C.text }}>{l.group}</td>
+              <td style={{ padding: '2px 6px', color: C.dim }}>{l.communality}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, normG1, normG2, levene, scaleVars, ds }) {
   const [showQQ, setShowQQ] = useState(false);
   const [showPow, setShowPow] = useState(false);
@@ -805,6 +829,15 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         <Row>
           {r.coefficients.map((c, i) => <Chip key={i} label={c.parameter} value={c.estimate} color={C.accent} />)}
         </Row>
+      </>}
+
+      {r.test === 'Bifactor Model' && <>
+        <SectionHead label={`Bifactor Model · n=${r.n}`} />
+        <Row>
+          <Chip label="ω hierarchical" value={r.omegaHierarchical} color={r.omegaHierarchical >= .5 ? C.ok : C.warn} />
+          <Chip label="ω total" value={r.omegaTotal} color={C.dim} />
+        </Row>
+        <BifactorTable loadings={r.loadings} />
       </>}
 
       {r.test === "McDonald's ω" && (

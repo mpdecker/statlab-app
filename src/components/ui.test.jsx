@@ -1,8 +1,16 @@
 // @vitest-environment happy-dom
 import React from 'react';
-import { describe, test, expect } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
-import { Chip, Sel, Inp, TA, CheckList, Toggle, NormBadge, APABlock, SigBadge, SectionHead, CTip, ActionBtn, LinkBtn } from './ui.jsx';
+import { describe, test, expect, afterEach } from 'vitest';
+import { render, fireEvent, cleanup } from '@testing-library/react';
+import { Chip, Sel, Inp, TA, CheckList, GroupEditor, Toggle, NormBadge, APABlock, SigBadge, SectionHead, CTip, ActionBtn, LinkBtn } from './ui.jsx';
+
+// GroupEditor's tests render several instances with overlapping text
+// ("+ Add group", "×") in the same file; without explicit cleanup, RTL's
+// queries (which search document.body, not just the latest container)
+// pick up stale nodes from earlier tests since this project doesn't set
+// vitest's `globals: true` (which is what enables RTL's implicit
+// auto-cleanup registration).
+afterEach(cleanup);
 
 describe('ui components', () => {
   test('Chip renders label and value', () => {
@@ -127,5 +135,51 @@ describe('ui components', () => {
     const { getByText } = render(<LinkBtn label="Open" onClick={() => clicked = true} />);
     fireEvent.click(getByText('Open'));
     expect(clicked).toBe(true);
+  });
+
+  test('GroupEditor renders each group with its own checklist of items', () => {
+    const groups = [{ items: ['a'] }, { items: ['b', 'c'] }];
+    const { getByText, getAllByRole } = render(
+      <GroupEditor label="Groups" items={['a', 'b', 'c']} groups={groups} onChange={() => {}} />
+    );
+    expect(getByText('Group 1')).toBeTruthy();
+    expect(getByText('Group 2')).toBeTruthy();
+    // 2 groups x 3 items each = 6 checkboxes total.
+    expect(getAllByRole('checkbox').length).toBe(6);
+  });
+
+  test('GroupEditor: adding a group appends an empty group via onChange', () => {
+    let newGroups = null;
+    const onChange = (g) => { newGroups = g; };
+    const { getByText } = render(
+      <GroupEditor label="Groups" items={['a', 'b']} groups={[{ items: ['a'] }]} onChange={onChange} />
+    );
+    fireEvent.click(getByText(/\+ Add group/i));
+    expect(newGroups).toEqual([{ items: ['a'] }, { items: [] }]);
+  });
+
+  test('GroupEditor: removing a group drops it via onChange, keeping others intact', () => {
+    let newGroups = null;
+    const onChange = (g) => { newGroups = g; };
+    const groups = [{ items: ['a'] }, { items: ['b'] }];
+    const { getAllByText } = render(
+      <GroupEditor label="Groups" items={['a', 'b']} groups={groups} onChange={onChange} />
+    );
+    fireEvent.click(getAllByText('×')[0]);
+    expect(newGroups).toEqual([{ items: ['b'] }]);
+  });
+
+  test('GroupEditor: checking an item in one group only updates that group, preserving item order as checked', () => {
+    let newGroups = null;
+    const onChange = (g) => { newGroups = g; };
+    const groups = [{ items: [] }, { items: ['b'] }];
+    const { getAllByRole } = render(
+      <GroupEditor label="Groups" items={['a', 'b']} groups={groups} onChange={onChange} />
+    );
+    // Group 1's checklist renders 'a' then 'b' (matching `items` order);
+    // the first unchecked checkbox belongs to Group 1's 'a'.
+    const checkboxes = getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]);
+    expect(newGroups).toEqual([{ items: ['a'] }, { items: ['b'] }]);
   });
 });

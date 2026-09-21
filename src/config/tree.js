@@ -394,6 +394,7 @@ export const TREE = [
     tests: [
       { id: "path_analysis", label: "Path Analysis", tag: "direct · indirect · total effects" },
       { id: "latent_growth", label: "Latent Growth Model", tag: "intercept · slope · growth factors" },
+      { id: "bifactor", label: "Bifactor Model", tag: "general + group factors · ω hierarchical" },
     ],
   },
 ];

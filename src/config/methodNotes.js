@@ -1452,6 +1452,12 @@ export const METHOD_NOTES = {
     assumptions: ["Measures are ordered consistently in time across all cases", "At least 10 observations, 2+ repeated measures", "Linear growth (a straight-line trajectory) between timepoints"],
     cite: "Meredith, W., & Tisak, J. (1990). Latent curve analysis. Psychometrika, 55(1), 107–122.",
   },
+  bifactor: {
+    description: "A bifactor model decomposes each item's variance into a general factor (loading on every item) and a specific group factor (loading only on its own item subset), extracted via eigendecomposition with a target (Procrustes) rotation toward that general-plus-groups pattern.",
+    usage: "Use when you suspect items measure both one broad overall construct AND their own narrower sub-domain simultaneously (e.g. a wellbeing scale with a general wellbeing factor plus separate physical/emotional/social sub-factors) — omega hierarchical tells you how much of the total reliable variance is attributable to the general factor alone.",
+    assumptions: ["Each item belongs to exactly one specified group", "At least 20 observations", "2+ groups with 2+ items each recommended for a meaningful general/group split"],
+    cite: "Reise, S. P. (2012). The rediscovery of bifactor measurement models. Multivariate Behavioral Research, 47(5), 667–696.",
+  },
 };
 
 /** Simplified implementation notes used as fallback when an educational note doesn't exist. */

@@ -25,7 +25,7 @@ import {
 import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from '@statlab/core/methods/multivariate';
 import { weightedMean, weightedVar, weightedCorrelation, designEffect, taylorLinearization } from '@statlab/core/methods/survey';
 import { classicalMDS, sammonMapping, nonMetricMDS } from '@statlab/core/methods/mds';
-import { pathAnalysis, latentGrowthModel } from '@statlab/core/methods/sem';
+import { pathAnalysis, latentGrowthModel, bifactorModel } from '@statlab/core/methods/sem';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
 import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
@@ -596,6 +596,11 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [metaInput, setMetaInput] = useState('Study1,0.5,0.20\nStudy2,0.3,0.25\nStudy3,0.8,0.18\nStudy4,0.4,0.22\nStudy5,0.6,0.19');
   const [pathEquations, setPathEquations] = useState(numeric.length >= 2 ? `${numeric[1]} ~ ${numeric[0]}` : '');
   const [semTimes, setSemTimes] = useState('');
+  const [bifactorGroups, setBifactorGroups] = useState(() => {
+    const cols = numeric.slice(0, 4);
+    const half = Math.ceil(cols.length / 2);
+    return cols.length >= 2 ? [{ items: cols.slice(0, half) }, { items: cols.slice(half) }] : [];
+  });
   const [didPCStr, setDidPCStr]   = useState('40,42,39,41');
   const [didPOStr, setDidPOStr]   = useState('41,43,40,42');
   const [didPTStr, setDidPTStr]   = useState('38,40,37,39');
@@ -976,6 +981,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'mds_nonmetric') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(nonMetricMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
       if (a === 'path_analysis') return pathAnalysis(data, pathEquations.trim().split('\n').map(l => l.trim()).filter(Boolean));
       if (a === 'latent_growth') { const vars = scaleVars.filter(c => numeric.includes(c)); const times = semTimes.trim() ? parseNumList(semTimes) : null; return latentGrowthModel(data, vars, times && times.length === vars.length ? times : null); }
+      if (a === 'bifactor') return bifactorModel(data, [], bifactorGroups.filter(g => g.items.length));
       if (a === 'efa')       return efa(data, scaleVars.filter(c => numeric.includes(c)), parseInt(nFactors) || 2);
       if (a === 'manova') {
         const ys = scaleVars.filter(c => numeric.includes(c));
@@ -1346,7 +1352,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     active, g1vals, g2vals, allTgt, mu0, sigma, groups, getVals, data,
     cat1, cat2, xy, xyz, medXMY, modXZY, preds, yVar, xVar, mVar, zVar,
     grpVar, tgtVar, tostL, tostH, bfPrior, aval, scaleVars, scaleMatrix,
-    rmMatrix, rmCols, polDeg, metaInput, pathEquations, semTimes, didPCStr, didPOStr, didPTStr, didPTtStr,
+    rmMatrix, rmCols, polDeg, metaInput, pathEquations, semTimes, bifactorGroups, didPCStr, didPOStr, didPTStr, didPTtStr,
     fx_a, fx_b, fx_c, fx_d, p1x, p1n, p2x, p2n, binoK, binoN, binoP,
     nFactors, ssType, ssPow, ssD, ssR, effFrom, effVal, pairsInput, corrMeth,
     numeric, groups, leveneTest, bartlettTest,
@@ -1403,6 +1409,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     metaInput, setMetaInput,
     pathEquations, setPathEquations,
     semTimes, setSemTimes,
+    bifactorGroups, setBifactorGroups,
     onRunBs, bsRunning, onRunMedBs, medBsRunning,
     powAnovaF, setPowAnovaF, powKgroups, setPowKgroups, powNperGrp, setPowNperGrp,
     powChiW, setPowChiW, powChiDf, setPowChiDf, powChiN, setPowChiN,
