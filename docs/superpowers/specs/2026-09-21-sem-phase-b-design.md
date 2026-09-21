@@ -138,8 +138,8 @@ them now would risk repeating Phase A's exact failure.
 
 | TREE id | Label | Category | Call |
 |---|---|---|---|
-| `bifactor` | Bifactor Model | SEM | `bifactorModel(data, [], bifactorGroups.filter(g => g.items.length))` |
-| `latent_growth` | Latent Growth Model | SEM | `latentGrowthModel(data, scaleVars.filter(c => numeric.includes(c)), semTimes.trim() ? parseNumList(semTimes) : null)` |
+| `bifactor` | Bifactor Model | SEM | `bifactorModel(data, [], bifactorGroups.filter(g => g.items.length))` — **as shipped**, wrapped to also rebuild `apa` and add `warning`, see Status |
+| `latent_growth` | Latent Growth Model | SEM | `latentGrowthModel(data, vars, times && times.length === vars.length ? times : null)` where `vars = scaleVars.filter(c => numeric.includes(c))` and `times = semTimes.trim() ? parseNumList(semTimes) : null` — the length-match guard was added during implementation (the plan step for this call already specified it; this table just hadn't been updated to match) |
 
 `bifactorModel` internally requires `data.length >= 20` and at least 1
 non-empty group (`groupFactors.length` — confirmed by reading its source,
@@ -213,7 +213,15 @@ the way `general` is, so both routinely exceed the `[0,1]` range
 they're defined to stay within. A `r.warning` banner (an existing,
 already-supported convention this app's `InferenceResults.jsx` already
 renders generically, just not previously used by any wired-in test)
-explains the omission inline.
+explains the omission inline, and `r.apa` is rebuilt server-side (in
+`InferencePanel.jsx`, matching the `{ ...r, apa: ... }` pattern this
+file already uses elsewhere) to drop `omega_t` too, since the package's
+own `apa` string embeds it and every export/copy surface reuses that
+string verbatim. With `ωt` gone, the sole remaining chip is `ωh` —
+shown with a `>= .5` color threshold (a defensible cutoff on its own
+merits, not literally copied from McDonald's ω block's own `ω total`
+threshold the way this paragraph originally planned, since that
+specific chip no longer exists to copy from).
 
 ### Chart
 
