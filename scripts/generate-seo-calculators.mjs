@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const ORIGIN = process.env.STATLAB_SITE_ORIGIN || 'https://statlab-3z6.pages.dev';
+export const ORIGIN = process.env.STATLAB_SITE_ORIGIN || 'https://statlab.fyi';
 
 export const calculatorPages = [
   // --- WELCH & T-TEST FAMILY ---

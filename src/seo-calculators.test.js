@@ -115,7 +115,7 @@ describe('SEO calculator pages', () => {
     const page = calculatorPages.find((candidate) => candidate.slug === 'mann-whitney-u');
     const html = renderCalculatorPage(page);
     expect(html).toContain('<title>Mann-Whitney U calculator | StatLab</title>');
-    expect(html).toContain('<link rel="canonical" href="https://statlab-3z6.pages.dev/calculators/mann-whitney-u/">');
+    expect(html).toContain('<link rel="canonical" href="https://statlab.fyi/calculators/mann-whitney-u/">');
     expect(html).toContain('application/ld+json');
     expect(html).toContain('Run this test live in StatLab');
     expect(html).toContain('Python (SciPy / Statsmodels)');
@@ -149,14 +149,14 @@ describe('SEO calculator pages', () => {
 
     const sitemap = readFileSync(join(root, 'sitemap.xml'), 'utf8');
     expect(sitemap.match(/<loc>/g)).toHaveLength(calculatorPages.length + 2);
-    expect(sitemap).toContain('https://statlab-3z6.pages.dev/calculators/granger-causality/');
-    expect(readFileSync(join(root, 'robots.txt'), 'utf8')).toContain('Sitemap: https://statlab-3z6.pages.dev/sitemap.xml');
+    expect(sitemap).toContain('https://statlab.fyi/calculators/granger-causality/');
+    expect(readFileSync(join(root, 'robots.txt'), 'utf8')).toContain('Sitemap: https://statlab.fyi/sitemap.xml');
   });
 
   it('keeps sitemap URLs aligned with calculator pages', () => {
     const sitemap = renderSitemap();
     for (const page of calculatorPages) {
-      expect(sitemap).toContain(`https://statlab-3z6.pages.dev/calculators/${page.slug}/`);
+      expect(sitemap).toContain(`https://statlab.fyi/calculators/${page.slug}/`);
     }
   });
 });
