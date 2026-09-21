@@ -2544,6 +2544,506 @@ export const calculatorPages = [
     ],
     workbenchId: 'spc_cusum',
   },
+  {
+    slug: 'bray-curtis-dissimilarity',
+    title: 'Bray-Curtis dissimilarity & Jaccard index calculator',
+    family: 'Vector distances & ML metrics',
+    description: 'Calculate Bray-Curtis dissimilarity B_ij and Jaccard distance for non-negative abundance or categorical telemetry composition vectors.',
+    keywords: ['Bray Curtis dissimilarity', 'Jaccard distance calculator', 'composition dissimilarity', 'abundance distance', 'ecological distance'],
+    inputs: ['Vector sample 1 counts/abundance', 'Vector sample 2 counts/abundance'],
+    example: { a: ['Sample 1: [12, 45, 0, 8, 23]', 'Sample 2: [15, 30, 5, 12, 18]'], result: 'Bray-Curtis Dissimilarity = 0.1736, Jaccard Distance = 0.2000' },
+    formula: 'BC_{ij} = Σ |u_k - v_k| / Σ (u_k + v_k)',
+    code: {
+      python: `from scipy.spatial.distance import braycurtis, jaccard\nu, v = [12, 45, 0, 8, 23], [15, 30, 5, 12, 18]\nprint(f"Bray-Curtis: {braycurtis(u, v):.4f}")`,
+      r: `library(vegan)\nvegdist(rbind(u, v), method = "bray")`,
+      ts: `import { brayCurtisDissimilarity } from '@statlab/core';\nconst bc = brayCurtisDissimilarity(sample1, sample2);`,
+    },
+    useCases: [
+      'Comparing microservice log event distribution similarity across deployment regions in VoxelPulse.',
+      'Measuring payload composition drift in VoxelAssurance testing.'
+    ],
+    when: 'Use when comparing non-negative count data or species abundance vectors where joint absence (0,0) should not imply similarity.',
+    cautions: [
+      'Bounded between 0 (identical) and 1 (completely disjoint).',
+      'Not a strict metric distance (does not satisfy triangle inequality).'
+    ],
+    workbenchId: 'dist_bray',
+  },
+  {
+    slug: 'minkowski-p-norm-distance',
+    title: 'Minkowski p-norm distance calculator',
+    family: 'Vector distances & ML metrics',
+    description: 'Compute generalized Minkowski p-norm distance L_p between numeric vectors for arbitrary parameter p >= 1.',
+    keywords: ['Minkowski distance calculator', 'p-norm distance', 'generalized distance metric', 'L_p norm'],
+    inputs: ['Vector A numerical array', 'Vector B numerical array', 'Order parameter p (p >= 1)'],
+    example: { a: ['Vector A: [3, 8, 12, 18]', 'Vector B: [5, 4, 15, 12]', 'p = 3'], result: 'Minkowski L_3 Distance = 5.241 (Manhattan L_1 = 15, Euclidean L_2 = 7.874)' },
+    formula: 'D(A, B) = ( Σ |A_i - B_i|^p )^(1/p)',
+    code: {
+      python: `from scipy.spatial.distance import minkowski\na, b = [3, 8, 12, 18], [5, 4, 15, 12]\nprint(f"L3 distance: {minkowski(a, b, p=3):.4f}")`,
+      r: `dist(rbind(a, b), method = "minkowski", p = 3)`,
+      ts: `import { minkowskiDistance } from '@statlab/core';\nconst d = minkowskiDistance(vecA, vecB, { p: 3 });`,
+    },
+    useCases: [
+      'Tuning feature distance norms for clustering and anomaly detection models in VoxelPulse.',
+      'Evaluating vector spatial bounds in VoxelAssurance.'
+    ],
+    when: 'Use when exploring generalized distance norms between L_1 (Manhattan) and L_∞ (Chebyshev).',
+    cautions: [
+      'Requires p >= 1 to satisfy the triangle inequality.',
+      'Higher p places progressively larger penalty emphasis on the single largest component coordinate difference.'
+    ],
+    workbenchId: 'dist_mink',
+  },
+  {
+    slug: 'gev-generalized-extreme-value',
+    title: 'Generalized Extreme Value (GEV) distribution calculator',
+    family: 'Extreme value & tail risk',
+    description: 'Fit Generalized Extreme Value (GEV) distribution parameters (Location μ, Scale σ, Shape ξ) for Gumbel (ξ=0), Fréchet (ξ>0), and Weibull (ξ<0) block maxima.',
+    keywords: ['GEV distribution calculator', 'generalized extreme value', 'block maxima', 'Gumbel distribution', 'Frechet distribution', 'extreme tail risk'],
+    inputs: ['Block maxima values vector (e.g. daily/hourly max latency)', 'Return period T (e.g. 100-run extreme event)'],
+    example: { a: ['Monthly max latency spikes (N=36 months)', 'Return Period T = 100 periods'], result: 'GEV fit: μ = 142ms, σ = 38ms, ξ = +0.18 (Heavy-tailed Fréchet). 100-period return level = 485ms.' },
+    formula: 'F(x) = exp( - [ 1 + ξ ((x - μ)/σ) ]^{-1/ξ} )',
+    code: {
+      python: `from scipy.stats import genextreme\nparams = genextreme.fit(block_maxima)\nreturn_level = genextreme.ppf(1 - 1/100, *params)\nprint(f"100-period Return Level: {return_level:.2f}")`,
+      r: `library(extRemes)\nfit <- fevd(block_maxima, type = "GEV")\nreturn.level(fit, return.period = 100)`,
+      ts: `import { gevDistribution } from '@statlab/core';\nconst gev = gevDistribution(blockMaxima, { returnPeriod: 100 });`,
+    },
+    useCases: [
+      'Modeling extreme 99.99th percentile server latency spikes in VoxelPulse telemetry.',
+      'Predicting maximum outage magnitude over multi-year operational horizons in VoxelAssurance.'
+    ],
+    when: 'Use when modeling the probability distribution of extreme maximum values sampled over fixed time blocks.',
+    cautions: [
+      'Requires block maxima data extracted over equal-length time blocks.',
+      'Shape parameter ξ strongly influences tail weight; Fréchet (ξ>0) has heavy power-law tails.'
+    ],
+    workbenchId: 'evt_gev',
+  },
+  {
+    slug: 'pareto-distribution-calculator',
+    title: 'Pareto distribution & 80/20 tail exponent calculator',
+    family: 'Extreme value & tail risk',
+    description: 'Calculate Pareto Type I scale parameter x_m, tail index shape exponent α, Gini coefficient, and probability quantiles for power-law distributed data.',
+    keywords: ['Pareto distribution calculator', 'power law exponent', '80 20 rule calculator', 'tail index alpha', 'Gini coefficient Pareto'],
+    inputs: ['Exceedance observation data X', 'Minimum scale threshold x_m'],
+    example: { a: ['Request bandwidth usage exceeding x_m = 10MB', 'N = 500 requests'], result: 'Tail Exponent α = 1.62 (80/20 power law), Gini Coefficient = 0.68, Expected Value E[X] = 26.13MB' },
+    formula: 'F(x) = 1 - (x_m / x)^α, MLE α̂ = N / Σ ln(x_i / x_m)',
+    code: {
+      python: `from scipy.stats import pareto\nimport numpy as np\nx_m = 10.0\nalpha_hat = len(data) / np.sum(np.log(data / x_m))\nprint(f"Pareto alpha: {alpha_hat:.4f}")`,
+      r: `library(VGAM)\nfit <- vglm(data ~ 1, pareto1(xmin = 10))`,
+      ts: `import { paretoDistribution } from '@statlab/core';\nconst { alpha, gini } = paretoDistribution(data, { xMin: 10 });`,
+    },
+    useCases: [
+      'Modeling heavy-tailed API bandwidth consumption and user resource utilization in VoxelPulse.',
+      'Establishing SLA rate-limiting thresholds based on power-law tail exponents in VoxelAssurance.'
+    ],
+    when: 'Use when data exhibits power-law heavy tails where a small percentage of events cause the vast majority of total impact.',
+    cautions: [
+      'Pareto mean is infinite if α <= 1, and variance is infinite if α <= 2.',
+      'Carefully select lower cutoff threshold x_m.'
+    ],
+    workbenchId: 'evt_pareto',
+  },
+  {
+    slug: 'survival-nelson-aalen',
+    title: 'Nelson-Aalen cumulative hazard estimator calculator',
+    family: 'Survival & event history',
+    description: 'Compute non-parametric Nelson-Aalen cumulative hazard H(t) and Fleming-Harrington survival function S(t) for right-censored time-to-event data.',
+    keywords: ['Nelson Aalen calculator', 'cumulative hazard estimator', 'survival analysis Nelson Aalen', 'censored event data', 'hazard function'],
+    inputs: ['Time to event vector T', 'Event status indicator vector E (1=Event, 0=Censored)'],
+    example: { a: ['Time T: [5, 12, 18, 24, 30, 30, 42]', 'Event Status E: [1, 1, 0, 1, 1, 0, 1]'], result: 'At t=24: Risk Set Y(t)=4, Events d(t)=1, Cumulative Hazard H(t)=0.533, Fleming-Harrington S(t)=0.587' },
+    formula: 'Ĥ(t) = Σ_{t_i ≤ t} (d_i / Y_i), Ŝ_{FH}(t) = exp(-Ĥ(t))',
+    code: {
+      python: `from lifelines import NelsonAalenFitter\nnaf = NelsonAalenFitter()\nnaf.fit(durations, event_observed)\nprint(naf.cumulative_hazard_)`,
+      r: `library(survival)\nfit <- survfit(Surv(durations, event_observed) ~ 1, type = "fh")`,
+      ts: `import { nelsonAalen } from '@statlab/core';\nconst res = nelsonAalen(durations, eventStatus);`,
+    },
+    useCases: [
+      'Estimating cumulative system failure risk over continuous runtime in VoxelPulse telemetry.',
+      'Modeling component degradation and time-to-failure hazards in VoxelAssurance reliability runs.'
+    ],
+    when: 'Use to estimate cumulative hazard rates for right-censored time-to-event data, particularly useful when baseline hazard rates change over time.',
+    cautions: [
+      'Nelson-Aalen Ĥ(t) is step-wise non-decreasing.',
+      'Fleming-Harrington survival curve estimator Ŝ_{FH}(t) is slightly superior to Kaplan-Meier for small sample sizes.'
+    ],
+    workbenchId: 'surv_na',
+  },
+  {
+    slug: 'hazard-ratio-logrank-ci',
+    title: 'Log-rank Hazard Ratio (HR) & confidence interval calculator',
+    family: 'Survival & event history',
+    description: 'Calculate Mantel-Haenszel Log-rank Hazard Ratio (HR), log HR standard error, and 95% Wald confidence intervals comparing two survival groups.',
+    keywords: ['hazard ratio calculator', 'log rank hazard ratio', 'Mantel Haenszel hazard ratio', 'survival curve comparison HR', 'relative risk survival'],
+    inputs: ['Group A times & event status', 'Group B times & event status', 'Confidence level (95%)'],
+    example: { a: ['Group A (Baseline): 50 subjects, 18 events', 'Group B (Optimized): 50 subjects, 8 events'], result: 'Hazard Ratio HR = 0.412 (95% CI: [.182, .933]), Log-rank p = .028 (58.8% risk reduction in Group B)' },
+    formula: 'HR = (O_A / E_A) / (O_B / E_B), Var(ln HR) = 1/E_A + 1/E_B',
+    code: {
+      python: `from lifelines.statistics import logrank_test\nres = logrank_test(durations_a, durations_b, events_a, events_b)\nprint(f"Log-rank p: {res.p_value:.4f}")`,
+      r: `library(survival)\nsurvdiff(Surv(time, status) ~ group)`,
+      ts: `import { logrankHazardRatio } from '@statlab/core';\nconst { hr, ciLower, ciUpper } = logrankHazardRatio(groupA, groupB);`,
+    },
+    useCases: [
+      'Quantifying relative reduction in incident hazards between baseline and canary server deployments in VoxelPulse.',
+      'Evaluating comparative time-to-failure hazard ratios in VoxelAssurance testing.'
+    ],
+    when: 'Use when comparing relative event risks between two independent groups over time under proportional hazards assumptions.',
+    cautions: [
+      'Assumes proportional hazards (HR remains constant over time).',
+      'Inspect crossing survival curves; if curves cross, proportional hazards assumption is violated.'
+    ],
+    workbenchId: 'surv_hr',
+  },
+  {
+    slug: 'cochran-q-test',
+    title: 'Cochran\'s Q test for related binary proportions calculator',
+    family: 'Categorical & ordinal non-parametric',
+    description: 'Perform Cochran\'s Q test to assess differences in binary outcomes (Pass/Fail, Yes/No) across 3 or more matched treatment groups or raters.',
+    keywords: ['Cochran Q test calculator', 'related binary proportions', 'matched binary test', 'repeated measures binary', 'multi rater pass fail'],
+    inputs: ['Binary response matrix (N subjects x k matched treatments/evaluators)'],
+    example: { a: ['20 code modules tested across k=3 static analysis tools (1=Pass, 0=Fail)'], result: 'Cochran’s Q = 8.64, df = 2, p = .0133 (Significant difference in tool pass rates)' },
+    formula: 'Q = (k - 1) * [ k Σ T_j² - (Σ T_j)² ] / [ k Σ R_i - Σ R_i² ]',
+    code: {
+      python: `from statsmodels.stats.contingency_tables import mcnemar\n# Compute Cochran's Q test statistic for N x k binary matrix`,
+      r: `library(RVAideMemoire)\ncochran.qtest(binary_matrix)`,
+      ts: `import { cochranQTest } from '@statlab/core';\nconst result = cochranQTest(binaryMatrix);`,
+    },
+    useCases: [
+      'Comparing multi-judge LLM pass/fail consensus across 3+ prompt models in VoxelPulse.',
+      'Testing multi-tool security scanner detection agreement across benchmark suites in VoxelAssurance.'
+    ],
+    when: 'Use when assessing whether 3 or more matched or repeated binary measurements differ significantly.',
+    cautions: [
+      'Extension of McNemar test to k > 2 groups.',
+      'Follow up significant Q test with pairwise McNemar post-hoc tests with Bonferroni correction.'
+    ],
+    workbenchId: 'cat_cochran_q',
+  },
+  {
+    slug: 'cochran-armitage-trend',
+    title: 'Cochran-Armitage test for trend in proportions calculator',
+    family: 'Categorical & ordinal non-parametric',
+    description: 'Calculate Cochran-Armitage test statistic T and p-value to evaluate linear monotonic trend in binary proportion outcomes across ordered dose/time levels.',
+    keywords: ['Cochran Armitage trend test', 'trend in proportions', 'dose response trend', 'ordinal binary trend', 'linear trend test'],
+    inputs: ['Ordered category levels vector X_i', 'Success counts array r_i', 'Total trial counts array n_i'],
+    example: { a: ['Load Levels: 1 (Light), 2 (Medium), 3 (Heavy)', 'Error Counts: [2/100, 8/100, 22/100]'], result: 'Cochran-Armitage Z = +4.38, p < .0001 (Strong linear increasing trend in error proportions)' },
+    formula: 'T = Σ w_i (p_i - p̄), Z = T / SE(T)',
+    code: {
+      python: `from statsmodels.stats.contingency_tables import Table2xC\n# Perform trend test on ordered 2xC contingency table`,
+      r: `library(DescTools)\nCochranArmitageTest(contingency_table)`,
+      ts: `import { cochranArmitageTrend } from '@statlab/core';\nconst result = cochranArmitageTrend(levels, successes, totals);`,
+    },
+    useCases: [
+      'Evaluating error rate trend shifts across increasing server concurrency tiers in VoxelPulse.',
+      'Testing linear defect rate trends across build version increments in VoxelAssurance.'
+    ],
+    when: 'Use when testing whether binary event proportions follow a monotonic trend across ordered categories.',
+    cautions: [
+      'Category levels must have a natural ordering.',
+      'Evaluates linear trend on proportion scale; non-linear U-shaped trends may yield false non-significant results.'
+    ],
+    workbenchId: 'cat_catrend',
+  },
+  {
+    slug: 'jonckheere-terpstra-test',
+    title: 'Jonckheere-Terpstra test for ordered medians calculator',
+    family: 'Categorical & ordinal non-parametric',
+    description: 'Compute Jonckheere-Terpstra non-parametric test statistic J and z-score for testing monotonic ordered alternatives across k independent groups.',
+    keywords: ['Jonckheere Terpstra test', 'ordered medians test', 'non parametric trend test', 'Kruskal Wallis ordered alternative', 'JT test'],
+    inputs: ['Group sample vectors ordered by hypothesis (Group 1 <= Group 2 <= ... <= Group k)'],
+    example: { a: ['Low Memory: [12, 14, 15]', 'Med Memory: [15, 18, 20]', 'High Memory: [21, 25, 28]'], result: 'JT Statistic J = 27.0, Expected E[J] = 13.5, z = +3.12, p = .0009 (Significant ordered increase)' },
+    formula: 'J = Σ_{i < j} MannWhitneyU(Group_i, Group_j)',
+    code: {
+      python: `from scipy.stats import jonckheere # or custom JT implementation\n# Compute sum of pairwise Mann-Whitney U statistics for ordered groups`,
+      r: `library(clinfun)\njonckheere.test(y, g)`,
+      ts: `import { jonckheereTerpstra } from '@statlab/core';\nconst result = jonckheereTerpstra(orderedGroups);`,
+    },
+    useCases: [
+      'Testing ordered latency increase across progressive database size scaling tiers in VoxelPulse.',
+      'Evaluating ordered response time degradation across complexity tiers in VoxelAssurance.'
+    ],
+    when: 'Use when testing an a-priori ordered hypothesis (μ₁ ≤ μ₂ ≤ ... ≤ μ_k) across k independent groups.',
+    cautions: [
+      'More powerful than Kruskal-Wallis when an a-priori ordering of groups is hypothesized.',
+      'Groups must be specified in the correct expected order.'
+    ],
+    workbenchId: 'nonpar_jt',
+  },
+  {
+    slug: 'kendall-w-concordance',
+    title: 'Kendall\'s W coefficient of concordance calculator',
+    family: 'Categorical & ordinal non-parametric',
+    description: 'Calculate Kendall\'s W coefficient of concordance, chi-square statistic, and p-value to evaluate overall agreement among m judges ranking n items.',
+    keywords: ['Kendalls W calculator', 'coefficient of concordance', 'inter rater agreement ranks', 'multi judge rank agreement'],
+    inputs: ['Ranking matrix (m judges x n items)'],
+    example: { a: ['4 judges ranking 5 candidate algorithms (ranks 1 to 5)'], result: 'Kendall’s W = 0.825, Chi-Square = 13.20, df = 4, p = .0103 (Strong inter-judge ranking agreement)' },
+    formula: 'W = 12 S / [ m² (n³ - n) ], S = Σ (R_j - R̄)²',
+    code: {
+      python: `import pingouin as pg\nres = pg.kendall_w(data=ranks_df)\nprint(f"Kendall W: {res['W'].values[0]:.4f}")`,
+      r: `library(irr)\nkendall(ranks_matrix)`,
+      ts: `import { kendallsW } from '@statlab/core';\nconst { w, chi2, pValue } = kendallsW(rankingMatrix);`,
+    },
+    useCases: [
+      'Evaluating multi-judge LLM ranking consensus across prompt generation outputs in VoxelPulse.',
+      'Assessing multi-rater performance benchmark ranking agreement in VoxelAssurance.'
+    ],
+    when: 'Use when measuring overall agreement among 3 or more judges ranking a set of items.',
+    cautions: [
+      'W ranges from 0 (no agreement) to 1 (complete agreement).',
+      'Does not reflect accuracy against true ground truth, only inter-rater agreement.'
+    ],
+    workbenchId: 'nonpar_kw',
+  },
+  {
+    slug: 'goodman-kruskal-gamma',
+    title: 'Goodman and Kruskal\'s Gamma (γ) calculator',
+    family: 'Categorical & ordinal non-parametric',
+    description: 'Compute Goodman and Kruskal\'s Gamma (γ) rank correlation and asymptotic standard error for ordinal cross-tabulated variables.',
+    keywords: ['Goodman Kruskal Gamma calculator', 'gamma rank correlation', 'concordant discordant pairs', 'ordinal cross tab correlation'],
+    inputs: ['Ordinal cross-tabulation frequency matrix (r x c)'],
+    example: { a: ['3x3 Cross-tabulation table of User Satisfaction vs Feature Usage'], result: 'Concordant Pairs C = 1,420, Discordant Pairs D = 380, Gamma γ = +0.578 (p < .001)' },
+    formula: 'γ = (P - Q) / (P + Q)',
+    code: {
+      python: `from statsmodels.stats.contingency_tables import Table\n# Compute concordant P and discordant Q pair counts from contingency table`,
+      r: `library(DescTools)\nGoodmanKruskalGamma(table)`,
+      ts: `import { goodmanKruskalGamma } from '@statlab/core';\nconst { gamma, pValue } = goodmanKruskalGamma(contingencyTable);`,
+    },
+    useCases: [
+      'Measuring association between ordinal user engagement tiers and retention levels in VoxelPulse.',
+      'Evaluating relationship between severity ratings and response latency in VoxelAssurance.'
+    ],
+    when: 'Use when measuring association between two ordinal variables containing many tied ranks.',
+    cautions: [
+      'Ignores tied pairs (ties on X or Y); can overestimate association relative to Kendall’s Tau-b.',
+      'Symmetric metric: γ(X, Y) = γ(Y, X).'
+    ],
+    workbenchId: 'ordinal_gamma',
+  },
+  {
+    slug: 'somers-d-calculator',
+    title: 'Somers\' D directional rank association calculator',
+    family: 'Categorical & ordinal non-parametric',
+    description: 'Calculate asymmetric Somers\' D(Y|X) and D(X|Y) directional rank association parameters for ordinal contingency tables and ROC AUC equivalence.',
+    keywords: ['Somers D calculator', 'directional rank association', 'Somers D ROC AUC', 'ordinal association Somers D'],
+    inputs: ['Ordinal predictor X array / matrix', 'Ordinal outcome Y array / matrix', 'Direction (Y|X or X|Y)'],
+    example: { a: ['Predictor X (System Stress Level: 1-4)', 'Outcome Y (Failure Severity: 1-4)'], result: 'Somers’ D(Y|X) = +0.524 (95% CI: [.412, .636]). Equivalent ROC AUC = 0.762.' },
+    formula: 'D(Y|X) = (P - Q) / (P + Q + T_Y)',
+    code: {
+      python: `from scipy.stats import somersd\nres = somersd(x, y)\nprint(f"Somers D(Y|X): {res.statistic:.4f}")`,
+      r: `library(DescTools)\nSomersDelta(table, direction = "row")`,
+      ts: `import { somersD } from '@statlab/core';\nconst { d, rocEquivalent } = somersD(x, y, { direction: 'Y|X' });`,
+    },
+    useCases: [
+      'Evaluating directional predictive power of ordinal risk scores on system outage outcomes in VoxelPulse.',
+      'Measuring ordinal predictor performance in VoxelAssurance SLA audits.'
+    ],
+    when: 'Use when evaluating asymmetric ordinal association where X is designated as the predictor and Y as the outcome.',
+    cautions: [
+      'Asymmetric: Somers’ D(Y|X) != Somers’ D(X|Y).',
+      'Directly related to ROC AUC: AUC = (Somers’ D + 1) / 2.'
+    ],
+    workbenchId: 'ordinal_somers',
+  },
+  {
+    slug: 'hoeffding-d-dependence',
+    title: 'Hoeffding\'s D non-parametric independence test calculator',
+    family: 'Categorical & ordinal non-parametric',
+    description: 'Compute Hoeffding\'s D measure of dependence to detect non-linear and non-monotonic relationships between continuous variables.',
+    keywords: ['Hoeffding D calculator', 'non parametric independence test', 'non linear dependence', 'Hoeffdings D measure'],
+    inputs: ['Continuous variable X vector', 'Continuous variable Y vector'],
+    example: { a: ['Variable X (CPU Frequency)', 'Variable Y (Power Consumption - U-shaped non-linear relation)'], result: 'Pearson r = 0.04 (No linear relation), Hoeffding’s D = +0.285 (p < .001, Strong non-linear dependence)' },
+    formula: 'D = 30 [ (N-2)(N-3) Q - 2(N-2) R + S ] / [ N(N-1)(N-2)(N-3)(N-4) ]',
+    code: {
+      python: `import statsmodels.api as sm # or custom Hoeffding D estimator\n# Compute rank-based joint bivariate distribution distance statistic`,
+      r: `library(Hmisc)\nhoeffd(x, y)`,
+      ts: `import { hoeffdingsD } from '@statlab/core';\nconst { d, pValue } = hoeffdingsD(vecX, vecY);`,
+    },
+    useCases: [
+      'Detecting complex non-linear metric dependencies (e.g. non-monotonic U-shaped relationships) in VoxelPulse telemetry.',
+      'Identifying hidden metric couplings in VoxelAssurance testing.'
+    ],
+    when: 'Use when testing for independence between two continuous variables without restricting to linear or monotonic patterns.',
+    cautions: [
+      'Ranges from -0.5 to +1.0 (values near +1 indicate strong dependence).',
+      'Requires sample size N >= 30 for reliable p-value approximation.'
+    ],
+    workbenchId: 'nonpar_hoeff',
+  },
+  {
+    slug: 'mutual-information-score',
+    title: 'Mutual Information (MI) feature selection calculator',
+    family: 'Information theory & ML',
+    description: 'Calculate Mutual Information I(X; Y), Normalized Mutual Information (NMI), and Adjusted Mutual Information (AMI) for feature selection.',
+    keywords: ['mutual information calculator', 'MI score', 'normalized mutual information NMI', 'adjusted mutual information AMI', 'feature selection MI'],
+    inputs: ['Feature array X', 'Target array Y', 'Continuous vs Discrete mode', 'K-nearest neighbors k (for continuous)'],
+    example: { a: ['Continuous Feature X (Network Packet Latency)', 'Target Y (Transaction Timeout Class)'], result: 'Mutual Information I(X; Y) = 0.428 nats, Normalized MI (NMI) = 0.612' },
+    formula: 'I(X; Y) = Σ Σ P(x, y) * log( P(x, y) / (P(x) P(y)) )',
+    code: {
+      python: `from sklearn.feature_selection import mutual_info_classif\nmi = mutual_info_classif(X, y)\nprint(f"MI scores: {mi}")`,
+      r: `library(infotheo)\nmutinformation(x, y)`,
+      ts: `import { mutualInformation } from '@statlab/core';\nconst mi = mutualInformation(vecX, vecY);`,
+    },
+    useCases: [
+      'Ranking non-linear telemetry feature relevance for automated anomaly root-cause detection in VoxelPulse.',
+      'Selecting top predictive benchmark features in VoxelAssurance.'
+    ],
+    when: 'Use for feature selection to measure total shared information between predictors and target variables.',
+    cautions: [
+      'Captures both linear and non-linear relationships.',
+      'Continuous MI estimates depend on nearest-neighbor parameter k.'
+    ],
+    workbenchId: 'mi_score',
+  },
+  {
+    slug: 'huber-loss-robust-regression',
+    title: 'Huber loss & Pseudo-Huber robust regression calculator',
+    family: 'Information theory & ML',
+    description: 'Compute Huber loss, Pseudo-Huber loss, and M-estimator robust regression weights for threshold hyperparameter δ.',
+    keywords: ['Huber loss calculator', 'robust regression', 'M estimator regression', 'Pseudo Huber loss', 'outlier resistant loss'],
+    inputs: ['Residuals vector e = Y - Ŷ', 'Huber threshold delta δ (Default δ = 1.345σ)'],
+    example: { a: ['Residuals: [-0.2, 0.4, -0.1, 15.2 (Outlier), 0.3]', 'Threshold δ = 1.345'], result: 'Standard MSE Loss = 46.22 (Distorted by outlier), Huber Loss = 4.18 (Robust to outlier)' },
+    formula: 'L_δ(e) = (1/2) e² if |e| <= δ else δ(|e| - (1/2) δ)',
+    code: {
+      python: `from sklearn.linear_model import HuberRegressor\nhuber = HuberRegressor(epsilon=1.35).fit(X, y)\nprint(f"Coefficients: {huber.coef_}")`,
+      r: `library(MASS)\nfit <- rlm(y ~ x, psi = psi.huber)`,
+      ts: `import { huberLoss } from '@statlab/core';\nconst loss = huberLoss(residuals, { delta: 1.345 });`,
+    },
+    useCases: [
+      'Fitting robust telemetry trend lines unaffected by intermittent extreme latency spikes in VoxelPulse.',
+      'Constructing outlier-resistant performance trend models in VoxelAssurance.'
+    ],
+    when: 'Use when fitting regression models on datasets containing extreme measurement noise or heavy-tailed outliers.',
+    cautions: [
+      'Behaves quadratically L2 for small errors (|e| <= δ) and linearly L1 for large errors (|e| > δ).',
+      'Select delta δ based on target efficiency (e.g. 95% asymptotic efficiency for normal distribution).'
+    ],
+    workbenchId: 'reg_huber',
+  },
+  {
+    slug: 'quantal-response-probit',
+    title: 'Quantal response Probit regression & ED50 calculator',
+    family: 'Information theory & ML',
+    description: 'Fit binary Probit regression model using standard normal CDF link Φ(z) and compute median effective dose (ED50 / LD50) points.',
+    keywords: ['probit regression calculator', 'ED50 calculator', 'LD50 calculator', 'quantal response', 'normal CDF link', 'dose response probit'],
+    inputs: ['Dose / Exposure level vector X', 'Binary outcome vector Y (1=Response, 0=No Response)'],
+    example: { a: ['Load Level X: [10, 20, 30, 40, 50]', 'Failure Responses Y: [0/50, 5/50, 22/50, 41/50, 49/50]'], result: 'Probit Intercept α = -3.12, Slope β = +0.104. ED50 = 30.0 units, ED95 = 45.8 units.' },
+    formula: 'P(Y = 1 | X) = Φ(α + β X), ED50 = - α / β',
+    code: {
+      python: `import statsmodels.api as sm\nprobit_mod = sm.Probit(y, sm.add_constant(x)).fit()\nprint(probit_mod.summary())`,
+      r: `glm(y ~ x, family = binomial(link = "probit"))`,
+      ts: `import { probitRegression } from '@statlab/core';\nconst { ed50, alpha, beta } = probitRegression(doseVec, responseVec);`,
+    },
+    useCases: [
+      'Estimating median failure load thresholds (ED50) during stress testing in VoxelPulse.',
+      'Calculating 50% probability failure points in VoxelAssurance qualification runs.'
+    ],
+    when: 'Use when modeling binary response probabilities as a function of underlying continuous exposure or stress levels using an inverse normal link.',
+    cautions: [
+      'Very similar results to Logistic regression near the center, but differs in the tails.',
+      'Requires sufficient spread of dose levels to estimate ED50 accurately.'
+    ],
+    workbenchId: 'reg_probit',
+  },
+  {
+    slug: 'tobit-censored-regression',
+    title: 'Tobit regression model for censored data calculator',
+    family: 'Information theory & ML',
+    description: 'Fit Tobit linear regression model for left- or right-censored continuous response variables (e.g. latency floor/ceiling cutoffs).',
+    keywords: ['Tobit regression calculator', 'censored regression', 'left censored model', 'corner solution model', 'Tobit model'],
+    inputs: ['Predictor matrix X', 'Response Y', 'Censoring bound L (Left) or U (Right)'],
+    example: { a: ['Predictor X: Load Threads', 'Response Y: Execution Time (Left-censored at L = 1.0ms timer resolution)'], result: 'Uncensored Latency Slope β = +0.48ms/thread, Residual σ = 0.85ms (Log-likelihood = -142.1)' },
+    formula: 'Y_i* = X_i β + ε_i, Y_i = max(L, Y_i*)',
+    code: {
+      python: `from statsmodels.sandbox.regression.gmm import Tobit # or custom Tobit MLE\n# Estimate Tobit parameters beta and sigma via Maximum Likelihood`,
+      r: `library(AER)\ntobit(y ~ x, left = 1.0)`,
+      ts: `import { tobitRegression } from '@statlab/core';\nconst model = tobitRegression(X, y, { leftBound: 1.0 });`,
+    },
+    useCases: [
+      'Modeling telemetry latency metrics bounded by minimum timer resolution limits in VoxelPulse.',
+      'Analyzing censored cost or duration metrics in VoxelAssurance benchmarks.'
+    ],
+    when: 'Use when fitting linear models on continuous variables that are censored at a known lower or upper threshold limit.',
+    cautions: [
+      'Standard OLS produces biased and inconsistent parameter estimates on censored data.',
+      'Assumes underlying unobserved variable Y* is normally distributed.'
+    ],
+    workbenchId: 'reg_tobit',
+  },
+  {
+    slug: 'grubbs-outlier-test',
+    title: 'Grubbs\' test for univariate outliers calculator',
+    family: 'Outlier detection & system reliability',
+    description: 'Perform Grubbs\' test (Extreme Studentized Deviate) to detect a single outlier in a univariate normally distributed dataset.',
+    keywords: ['Grubbs test calculator', 'univariate outlier test', 'extreme studentized deviate', 'outlier detection Grubbs', 'single outlier test'],
+    inputs: ['Univariate numeric sample X', 'Alpha significance level (0.05)', 'Test side (Two-sided, Minimum, Maximum)'],
+    example: { a: ['Sample: 12.1, 12.4, 12.5, 12.2, 12.3, 45.8 (Spike)'], result: 'Grubbs G statistic = 2.45, Critical G_crit = 1.88, p < .001 (Observation 45.8 confirmed as outlier)' },
+    formula: 'G = max |X_i - X̄| / s',
+    code: {
+      python: `import numpy as np\nfrom scipy.stats import t\ndef grubbs_test(x, alpha=0.05):\n    n = len(x)\n    g = np.max(np.abs(x - np.mean(x))) / np.std(x, ddof=1)\n    return g\nprint(grubbs_test([12.1, 12.4, 12.5, 12.2, 12.3, 45.8]))`,
+      r: `library(outliers)\ngrubbs.test(sample)`,
+      ts: `import { grubbsTest } from '@statlab/core';\nconst { gStat, isOutlier } = grubbsTest(sample, { alpha: 0.05 });`,
+    },
+    useCases: [
+      'Detecting single extreme anomaly spikes in microservice latency samples in VoxelPulse.',
+      'Cleaning outlier noise prior to benchmark baseline calculation in VoxelAssurance.'
+    ],
+    when: 'Use when testing whether the single most extreme value in a dataset is a statistically significant outlier.',
+    cautions: [
+      'Assumes underlying dataset is approximately normally distributed.',
+      'Only tests one outlier at a time; iterate or use Rosner ESD test for multiple outliers.'
+    ],
+    workbenchId: 'out_grubbs',
+  },
+  {
+    slug: 'dixon-q-test',
+    title: 'Dixon\'s Q test for small sample outliers calculator',
+    family: 'Outlier detection & system reliability',
+    description: 'Calculate Dixon\'s Q statistic to test for outliers in small sample datasets (N = 3 to 30).',
+    keywords: ['Dixon Q test calculator', 'small sample outlier test', 'Q test calculator', 'outlier detection small N'],
+    inputs: ['Sorted sample data vector X (N = 3 to 30)', 'Alpha significance level (0.05)'],
+    example: { a: ['Small Sample (N=6): [0.121, 0.124, 0.125, 0.122, 0.123, 0.198]'], result: 'Dixon Q = 0.974, Critical Q_crit = 0.625 (p < .05, Suspect point 0.198 confirmed as outlier)' },
+    formula: 'Q = |X_{suspect} - X_{closest}| / (X_{max} - X_{min})',
+    code: {
+      python: `def dixon_q_test(x):\n    x_sorted = sorted(x)\n    q = (x_sorted[-1] - x_sorted[-2]) / (x_sorted[-1] - x_sorted[0])\n    return q\nprint(dixon_q_test([0.121, 0.124, 0.125, 0.122, 0.123, 0.198]))`,
+      r: `library(outliers)\ndixon.test(sample)`,
+      ts: `import { dixonQTest } from '@statlab/core';\nconst { qStat, isOutlier } = dixonQTest(sample);`,
+    },
+    useCases: [
+      'Identifying outlier trials in small-sample microbenchmarks (N < 10) in VoxelAssurance.',
+      'Cleaning small pilot telemetry runs in VoxelPulse.'
+    ],
+    when: 'Use when evaluating potential outliers in very small sample sizes (N = 3 to 30) where standard deviation estimation is noisy.',
+    cautions: [
+      'Apply only once per dataset to prevent masking effects.',
+      'Requires sorted inputs.'
+    ],
+    workbenchId: 'out_dixon',
+  },
+  {
+    slug: 'reliability-block-diagram',
+    title: 'Reliability Block Diagram (RBD) system reliability calculator',
+    family: 'Outlier detection & system reliability',
+    description: 'Compute overall system reliability R_sys(t), failure rate, and Availability for series, parallel, and k-out-of-n standby system architectures.',
+    keywords: ['RBD calculator', 'reliability block diagram', 'system reliability calculator', 'series parallel reliability', 'k out of n reliability'],
+    inputs: ['Component reliability vector R_i(t)', 'Architecture configuration (Series, Parallel, k-out-of-n voting)'],
+    example: { a: ['3 Parallel redundant microservice instances: R_1 = 0.95, R_2 = 0.95, R_3 = 0.95'], result: 'Overall Parallel System Reliability R_sys = 0.999875 (Four Nines availability)' },
+    formula: 'Series: R_{sys} = ∏ R_i; Parallel: R_{sys} = 1 - ∏ (1 - R_i); k-out-of-n: R_{sys} = Σ_{j=k}^n (n choose j) R^j (1-R)^{n-j}',
+    code: {
+      python: `import numpy as np\ndef parallel_reliability(r_vec):\n    return 1 - np.prod(1 - np.array(r_vec))\nprint(f"Parallel System R: {parallel_reliability([0.95, 0.95, 0.95]):.6f}")`,
+      r: `library(Reliability)\n# Compute series and parallel block diagram system reliability`,
+      ts: `import { rbdReliability } from '@statlab/core';\nconst rSys = rbdReliability([0.95, 0.95, 0.95], { mode: 'parallel' });`,
+    },
+    useCases: [
+      'Calculating end-to-end system availability for complex multi-tier microservice architectures in VoxelPulse.',
+      'Verifying redundant system design reliability targets in VoxelAssurance qualification.'
+    ],
+    when: 'Use when modeling system-level reliability as a logical combination of individual component or service reliabilities.',
+    cautions: [
+      'Assumes component failures are statistically independent unless common-cause failure factors are included.',
+      'Series components represent single points of failure.'
+    ],
+    workbenchId: 'rel_rbd',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
