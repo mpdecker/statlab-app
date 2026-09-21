@@ -4044,6 +4044,506 @@ export const calculatorPages = [
     ],
     workbenchId: 'stat_trimmed_mean',
   },
+  {
+    slug: 'log-rank-test-trend',
+    title: 'Log-rank test for trend in survival analysis calculator',
+    family: 'Survival & reliability analysis',
+    description: 'Calculate Tarone log-rank test statistic and p-value for ordered dose-response trend across 3 or more survival curves.',
+    keywords: ['log-rank test for trend', 'Tarone trend test', 'survival trend calculator', 'dose-response survival curve', 'ordered group survival'],
+    inputs: ['Subgroup survival event times', 'Censoring indicator vector', 'Ordered group weights w_i'],
+    example: { a: ['Groups 1, 2, 3 (Dose 0mg, 10mg, 50mg)', 'Total events = 85', 'Weights w = [0, 1, 5]'], result: 'Tarone Trend χ² = 7.84, df = 1, p = .0051. Significant downward hazard trend.' },
+    formula: 'χ²_{trend} = ( ∑ w_i (O_i - E_i) )² / ( ∑∑ w_i w_j V_{ij} )',
+    code: {
+      python: `from lifelines.statistics import logrank_test\n# Custom Tarone trend test weighted sum`,
+      r: `library(survival)\nsurvdiff(Surv(time, status) ~ group, data = df)`,
+      ts: `import { logRankTrend } from '@statlab/core';\nconst res = logRankTrend(survivalGroups, [0, 1, 5]);`,
+    },
+    useCases: [
+      'Evaluating dose-response survival rates in medical and toxicology trials.',
+      'Testing progressive hardware degradation trends across increasing server temperature stress tiers.'
+    ],
+    when: 'Use when testing for a monotonic ordering trend in survival probabilities across 3 or more ordered groups.',
+    cautions: [
+      'Weights must reflect the ordinal or quantitative spacing between groups.',
+      'Standard multi-group log-rank tests global differences; trend test specifically tests monotonic ordering.'
+    ],
+    workbenchId: 'survival_trend',
+  },
+  {
+    slug: 'cox-snell-residuals',
+    title: 'Cox-Snell & Martingale residuals survival fit calculator',
+    family: 'Survival & reliability analysis',
+    description: 'Calculate Cox-Snell residuals and cumulative hazard transformation for assessing parametric and Cox survival model goodness-of-fit.',
+    keywords: ['Cox-Snell residuals calculator', 'martingale residuals', 'survival goodness of fit', 'cumulative hazard residual', 'survival model diagnostics'],
+    inputs: ['Observed event times t_i', 'Censoring status δ_i', 'Estimated cumulative hazard Ĥ(t_i)'],
+    example: { a: ['Observed times t = [12, 24, 36]', 'Events δ = [1, 1, 0]', 'Cum Hazard Ĥ(t) = [0.25, 0.60, 1.10]'], result: 'Cox-Snell Residuals e_i = [0.25, 0.60, 1.10]. Nelson-Aalen plot of e_i follows 45° line.' },
+    formula: 'e_i = Ĥ_i(t_i; Z_i), Martingale r_i = δ_i - e_i',
+    code: {
+      python: `import lifelines\n# Compute Cox-Snell residuals e_i from fitted Cox model`,
+      r: `library(survival)\nresiduals(fit, type = "coxsnell")`,
+      ts: `import { coxSnellResiduals } from '@statlab/core';\nconst res = coxSnellResiduals(times, status, cumHazard);`,
+    },
+    useCases: [
+      'Diagnosing functional form and overall fit of proportional hazards regression models.',
+      'Detecting non-linear covariate effects in customer subscription retention models.'
+    ],
+    when: 'Use when verifying overall fit of a survival regression model by plotting estimated residual cumulative hazards.',
+    cautions: [
+      'If the model fits well, the Cox-Snell residuals should resemble a unit-exponential distribution.',
+      'Censored data produces censored Cox-Snell residuals.'
+    ],
+    workbenchId: 'survival_cox_snell',
+  },
+  {
+    slug: 'mcnemar-bowker-symmetry',
+    title: 'McNemar-Bowker test for matrix symmetry calculator',
+    family: 'Categorical & proportion tests',
+    description: 'Calculate McNemar-Bowker test statistic, chi-square, degrees of freedom, and p-value for testing symmetry in k × k paired contingency tables.',
+    keywords: ['McNemar-Bowker test calculator', 'matrix symmetry test', 'paired k x k table', 'Bowker test for symmetry', 'matched categorical pairs'],
+    inputs: ['k × k square paired confusion matrix'],
+    example: { a: ['3×3 matrix: [ [20, 5, 2], [1, 30, 8], [0, 2, 15] ]'], result: 'McNemar-Bowker χ² = 5.23, df = 3, p = .1557. Matrix displays marginal symmetry.' },
+    formula: 'χ²_{MB} = ∑_{i < j} (n_{ij} - n_{ji})² / (n_{ij} + n_{ji}), df = k(k-1)/2',
+    code: {
+      python: `from scipy import stats\n# Custom Bowker test implementation for square matrix`,
+      r: `mcnemar.test(matrix)`,
+      ts: `import { mcnemarBowker } from '@statlab/core';\nconst res = mcnemarBowker(squareMatrix);`,
+    },
+    useCases: [
+      'Testing changes in multi-category rating distributions before and after UI redesigns.',
+      'Evaluating inter-rater classification bias across 3 or more categorical classes.'
+    ],
+    when: 'Use when analyzing paired nominal data in square k × k tables (k ≥ 3) to test if off-diagonal cells are symmetric.',
+    cautions: [
+      'Extension of 2×2 McNemar test to k×k matrices.',
+      'Off-diagonal cell counts n_{ij} + n_{ji} should be ≥ 5 for accurate chi-square approximation.'
+    ],
+    workbenchId: 'cat_mcnemar_bowker',
+  },
+  {
+    slug: 'stuart-maxwell-test',
+    title: 'Stuart-Maxwell test of marginal homogeneity calculator',
+    family: 'Categorical & proportion tests',
+    description: 'Calculate Stuart-Maxwell test statistic and p-value for evaluating marginal homogeneity in paired k × k categorical tables.',
+    keywords: ['Stuart-Maxwell test calculator', 'marginal homogeneity test', 'paired multinomial data', 'square contingency table', 'k x k marginal test'],
+    inputs: ['k × k square matched pair table'],
+    example: { a: ['3×3 table: [ [40, 10, 5], [4, 50, 12], [2, 6, 30] ]'], result: 'Stuart-Maxwell χ² = 4.12, df = 2, p = .1275. No significant marginal shift.' },
+    formula: 'χ²_{SM} = d^T V^{-1} d, df = k - 1',
+    code: {
+      python: `import numpy as np\n# Stuart-Maxwell matrix quadratic form d^T V^{-1} d`,
+      r: `library(DescTools)\nStuartMaxwellTest(table)`,
+      ts: `import { stuartMaxwell } from '@statlab/core';\nconst res = stuartMaxwell(table3x3);`,
+    },
+    useCases: [
+      'Testing whether overall category proportion preferences shift between baseline and follow-up surveys.',
+      'Comparing multi-class prediction distributions between baseline and re-trained ML classifiers.'
+    ],
+    when: 'Use when testing whether row marginal proportions equal column marginal proportions in square paired tables.',
+    cautions: [
+      'More powerful than McNemar-Bowker when testing overall marginal shifts rather than individual cell symmetry.',
+      'Requires non-singular covariance matrix V for inversion.'
+    ],
+    workbenchId: 'cat_stuart_maxwell',
+  },
+  {
+    slug: 'biserial-correlation-calculator',
+    title: 'Biserial correlation coefficient calculator',
+    family: 'Regression & correlation',
+    description: 'Calculate biserial correlation r_b estimating underlying continuous-continuous association when one variable is artificially dichotomized.',
+    keywords: ['biserial correlation calculator', 'r_b correlation', 'artificially dichotomized variable', 'biserial vs point-biserial', 'item discrimination biserial'],
+    inputs: ['Group 1 Mean X̄₁', 'Group 0 Mean X̄₀', 'Total Std Dev s_X', 'Proportion p in Group 1', 'Ordinate height y of normal curve'],
+    example: { a: ['X̄₁ = 75.0 (Pass group, p = 0.60)', 'X̄₀ = 62.0 (Fail group, q = 0.40)', 'Std Dev s_X = 12.0', 'Normal ordinate y = 0.3863'], result: 'Point-Biserial r_{pb} = 0.531, Biserial Correlation r_b = (0.531 · √0.24) / 0.3863 = 0.673' },
+    formula: 'r_b = ( (X̄₁ - X̄₀) / s_X ) · (p q / y), where y is normal density at z_p',
+    code: {
+      python: `from scipy import stats\n# Biserial correlation formula`,
+      r: `library(ltm)\nbiserial.cor(x, group)`,
+      ts: `import { biserialCorr } from '@statlab/core';\nconst rb = biserialCorr(group1Mean, group0Mean, totalSd, prop1);`,
+    },
+    useCases: [
+      'Evaluating test item discrimination where continuous ability is split into Pass/Fail categories.',
+      'Estimating true underlying performance correlation when binary thresholding is applied to continuous measurements.'
+    ],
+    when: 'Use when one variable is continuous and the other is binary but assumed to represent an underlying continuous normal trait.',
+    cautions: [
+      'Biserial correlation r_b can exceed 1.0 if normality assumption is violated.',
+      'Do not confuse with Point-Biserial correlation r_{pb}, which measures association with a naturally discrete binary variable.'
+    ],
+    workbenchId: 'corr_biserial',
+  },
+  {
+    slug: 'tetrachoric-correlation-calculator',
+    title: 'Tetrachoric correlation coefficient calculator',
+    family: 'Regression & correlation',
+    description: 'Calculate tetrachoric correlation r_{tet} estimating latent bivariate normal correlation between two artificially dichotomized binary variables.',
+    keywords: ['tetrachoric correlation calculator', 'r_tet correlation', 'bivariate normal binary correlation', '2x2 dichotomized correlation', 'psychometric tetrachoric'],
+    inputs: ['2×2 contingency table frequencies [a, b, c, d]'],
+    example: { a: ['2×2 table: a=40 (1,1), b=10 (1,0), c=10 (0,1), d=40 (0,0)'], result: 'Cosine approximation r_{tet} ≈ cos(π / (1 + √(ad/bc))) = 0.707. Latent correlation r_{tet} = 0.709.' },
+    formula: 'r_{tet} ≈ cos( π / (1 + √( (a · d) / (b · c) )) )',
+    code: {
+      python: `import pingouin as pg # or statsmodels tetrachoric\n# Compute tetrachoric correlation from 2x2 matrix`,
+      r: `library(psych)\ntetrachoric(matrix)$rho`,
+      ts: `import { tetrachoricCorr } from '@statlab/core';\nconst r = tetrachoricCorr([40, 10, 10, 40]);`,
+    },
+    useCases: [
+      'Estimating latent trait correlation between two binary exam questions or survey items.',
+      'Constructing input correlation matrices for Factor Analysis (EFA/CFA) on binary survey data.'
+    ],
+    when: 'Use when two binary variables are assumed to arise from underlying continuous bivariate normal distributions.',
+    cautions: [
+      'Assumes bivariate normal latent distribution.',
+      'Highly sensitive to zero cell counts in 2×2 table; apply 0.5 continuity correction if cells are empty.'
+    ],
+    workbenchId: 'corr_tetrachoric',
+  },
+  {
+    slug: 'polychoric-correlation-calculator',
+    title: 'Polychoric correlation matrix calculator',
+    family: 'Regression & correlation',
+    description: 'Calculate polychoric correlation coefficients and threshold parameters for ordinal Likert item pairs in psychometrics and structural equation modeling.',
+    keywords: ['polychoric correlation calculator', 'ordinal correlation matrix', 'Likert scale correlation', 'polychoric factor analysis', 'threshold estimation'],
+    inputs: ['Ordinal 2D contingency matrix between two Likert items'],
+    example: { a: ['5×5 Likert rating cross-tabulation table', 'N = 300 respondents'], result: 'Polychoric correlation ρ = 0.642 (Std Error = 0.038). Latent bivariate normal fit p = .412.' },
+    formula: 'Maximizes bivariate normal log-likelihood L(ρ, τ_x, τ_y) over threshold cuts τ',
+    code: {
+      python: `from statsmodels.graphics.agreement import mean_diff_plot # or polycor wrapper\n# Compute ML polychoric correlation`,
+      r: `library(polycor)\npolychor(x, y)`,
+      ts: `import { polychoricCorr } from '@statlab/core';\nconst rho = polychoricCorr(contingencyTable);`,
+    },
+    useCases: [
+      'Building input correlation matrices for Exploratory Factor Analysis (EFA) on 5-point Likert survey responses.',
+      'Estimating true latent item associations in psychometric item bank development.'
+    ],
+    when: 'Use when measuring association between two ordinal variables assumed to represent discretized continuous normal traits.',
+    cautions: [
+      'Standard Pearson correlation underestimates association strength when applied to ordinal Likert scales.',
+      'Requires iterative maximum likelihood numerical optimization.'
+    ],
+    workbenchId: 'corr_polychoric',
+  },
+  {
+    slug: 'guttman-scale-reproducibility',
+    title: 'Guttman scale reproducibility & scalability calculator',
+    family: 'Psychometrics & scale analysis',
+    description: 'Calculate Guttman scale Coefficient of Reproducibility (C_R), Minimum Marginal Reproducibility (MMR), and Coefficient of Scalability (C_S).',
+    keywords: ['Guttman scale calculator', 'Coefficient of Reproducibility', 'Coefficient of Scalability', 'Guttman error count', 'cumulative scale analysis'],
+    inputs: ['N subjects × k items binary response matrix'],
+    example: { a: ['100 respondents × 5 cumulative items matrix', 'Total non-Guttman error count e = 25'], result: 'C_R = 1 - 25/(100·5) = 0.950, MMR = 0.680, C_S = (0.950 - 0.680)/(1 - 0.680) = 0.844. Valid unidimensional scale.' },
+    formula: 'C_R = 1 - (e / (N · k)), C_S = (C_R - MMR) / (1 - MMR)',
+    code: {
+      python: `import numpy as np\n# Compute Guttman errors e by sorting rows and columns`,
+      r: `library(mokken)\n# Mokken scale Loevinger H / Guttman analysis`,
+      ts: `import { guttmanScale } from '@statlab/core';\nconst { cr, cs } = guttmanScale(binaryMatrix);`,
+    },
+    useCases: [
+      'Validating cumulative hierarchical survey scales where endorsing a hard item implies endorsing easier items.',
+      'Assessing feature difficulty hierarchy in educational testing and skill assessment.'
+    ],
+    when: 'Use when testing if a set of binary survey items forms a strictly ordered unidimensional cumulative scale.',
+    cautions: [
+      'Scale is considered valid if C_R ≥ 0.90 and C_S ≥ 0.60.',
+      'High C_R can occur artificially if item endorsement rates are extreme (very high or very low); always evaluate C_S.'
+    ],
+    workbenchId: 'scale_guttman',
+  },
+  {
+    slug: 'bhattacharyya-distance-calculator',
+    title: 'Bhattacharyya distance & coefficient calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate Bhattacharyya distance D_B and Bhattacharyya coefficient BC for measuring probability distribution overlap and class separability.',
+    keywords: ['Bhattacharyya distance calculator', 'Bhattacharyya coefficient', 'distribution overlap metric', 'class separability distance', 'multivariate Gaussian distance'],
+    inputs: ['Mean vector μ₁, μ₂', 'Covariance matrices Σ₁, Σ₂'],
+    example: { a: ['μ₁ = 0.0, σ₁² = 1.0', 'μ₂ = 2.0, σ₂² = 1.5'], result: 'Bhattacharyya Coefficient BC = 0.584, Bhattacharyya Distance D_B = -ln(0.584) = 0.538' },
+    formula: 'D_B = (1/8)(μ₂-μ₁)^T Σ^{-1}(μ₂-μ₁) + (1/2)ln(|Σ| / √(|Σ₁||Σ₂|)), where Σ = (Σ₁ + Σ₂)/2',
+    code: {
+      python: `import numpy as np\n# Bhattacharyya distance for Gaussian distributions`,
+      r: `library(fpc)\n# Compute Bhattacharyya distance between multivariate normal clusters`,
+      ts: `import { bhattacharyyaDistance } from '@statlab/core';\nconst db = bhattacharyyaDistance({ mean: 0, sd: 1 }, { mean: 2, sd: 1.22 });`,
+    },
+    useCases: [
+      'Measuring feature separability between target classes in machine learning classification.',
+      'Evaluating signal distribution shift between baseline telemetry and anomalous production streams.'
+    ],
+    when: 'Use when computing similarity or distance between two continuous probability distributions.',
+    cautions: [
+      'Bounds Mahalanobis distance by incorporating covariance scale differences.',
+      'Directly related to the Bayes error rate bound in pattern classification.'
+    ],
+    workbenchId: 'dist_bhattacharyya',
+  },
+  {
+    slug: 'hellinger-distance-calculator',
+    title: 'Hellinger distance probability distribution calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate Hellinger distance H(P,Q) measuring similarity between two discrete or continuous probability distributions.',
+    keywords: ['Hellinger distance calculator', 'Hellinger probability distance', 'distribution similarity metric', 'bounded probability metric', 'Hellinger divergence'],
+    inputs: ['Probability vector P', 'Probability vector Q'],
+    example: { a: ['Distribution P = [0.4, 0.3, 0.3]', 'Distribution Q = [0.1, 0.5, 0.4]'], result: 'Hellinger Distance H(P,Q) = 0.284 (Range 0 to 1). H² = 0.0807.' },
+    formula: 'H(P,Q) = (1/√2) √( ∑ (√p_i - √q_i)² ) = √( 1 - ∑ √(p_i q_i) )',
+    code: {
+      python: `import numpy as np\nhellinger = np.sqrt(0.5 * np.sum((np.sqrt(P) - np.sqrt(Q))**2))`,
+      r: `library(statmatch)\n# Hellinger distance calculation`,
+      ts: `import { hellingerDistance } from '@statlab/core';\nconst h = hellingerDistance(P, Q);`,
+    },
+    useCases: [
+      'Quantifying data drift between training distribution P and inference telemetry Q in MLOps.',
+      'Measuring probability calibration discrepancy in machine learning classifiers.'
+    ],
+    when: 'Use when evaluating probability distribution difference using a metric that obeys triangle inequality and is bounded between 0 and 1.',
+    cautions: [
+      'Hellinger distance is symmetric: H(P,Q) = H(Q,P).',
+      'Unlike KL-divergence, Hellinger distance is bounded: 0 ≤ H ≤ 1.'
+    ],
+    workbenchId: 'dist_hellinger',
+  },
+  {
+    slug: 'interquartile-range-iqr',
+    title: 'Interquartile Range (IQR) & boxplot fence calculator',
+    family: 'Resampling & non-parametric tests',
+    description: 'Calculate Q1 (25th percentile), Q3 (75th percentile), Interquartile Range (IQR), quartile deviation, and inner/outer Tukey boxplot outlier fences.',
+    keywords: ['Interquartile Range calculator', 'IQR calculator', 'Tukey boxplot fence', 'quartile deviation', 'outlier fence calculation'],
+    inputs: ['Numeric data vector X', 'Percentile method (Type 7 default R/Python)'],
+    example: { a: ['Sample X: 5, 12, 15, 18, 20, 22, 25, 28, 30, 85 (Outlier)'], result: 'Q1 = 14.25, Q3 = 28.50, IQR = 14.25. Upper Fence (Q3 + 1.5·IQR) = 49.88. Value 85 is an outlier.' },
+    formula: 'IQR = Q3 - Q1, Lower Fence = Q1 - 1.5 · IQR, Upper Fence = Q3 + 1.5 · IQR',
+    code: {
+      python: `import numpy as np\nq1, q3 = np.percentile(x, [25, 75])\niqr = q3 - q1`,
+      r: `IQR(x)`,
+      ts: `import { iqr } from '@statlab/core';\nconst { q1, q3, iqrValue, fences } = iqr(dataArray);`,
+    },
+    useCases: [
+      'Setting robust automated outlier thresholds for API latency metrics.',
+      'Summarizing skewed continuous distributions in statistical reporting.'
+    ],
+    when: 'Use when measuring middle 50% data spread for non-normally distributed or skewed data.',
+    cautions: [
+      'Different software uses different quantile definitions (Type 6 vs Type 7 vs Hyndman-Fan).',
+      'Values beyond Q3 + 3·IQR are classified as extreme outliers.'
+    ],
+    workbenchId: 'stat_iqr',
+  },
+  {
+    slug: 'bowley-skewness-calculator',
+    title: 'Bowley & Kelly quartile skewness calculator',
+    family: 'Resampling & non-parametric tests',
+    description: 'Calculate Bowley quartile skewness coefficient (Galton skewness) and Kelly percentile skewness for robust distribution asymmetry measurement.',
+    keywords: ['Bowley skewness calculator', 'quartile skewness', 'Galton skewness', 'Kelly percentile skewness', 'robust skewness metric'],
+    inputs: ['Quartiles Q1, Q2 (Median), Q3', 'Percentiles P10, P50, P90 (Optional for Kelly)'],
+    example: { a: ['Q1 = 12.0', 'Q2 (Median) = 15.0', 'Q3 = 24.0'], result: 'Bowley Skewness S_B = ((24 - 15) - (15 - 12)) / (24 - 12) = (9 - 3)/12 = +0.500 (Right-skewed).' },
+    formula: 'S_B = (Q3 + Q1 - 2 Q2) / (Q3 - Q1), Range -1 to +1',
+    code: {
+      python: `from scipy import stats\n# Bowley skewness computed from percentiles`,
+      r: `library(e1071)\n# Quartile skewness implementation`,
+      ts: `import { bowleySkewness } from '@statlab/core';\nconst sb = bowleySkewness(q1, q2, q3);`,
+    },
+    useCases: [
+      'Evaluating skewness in heavy-tailed distribution telemetry where 3rd sample moments are unstable.',
+      'Assessing asymmetry in ordinal survey rating distributions.'
+    ],
+    when: 'Use when measuring distribution skewness in datasets containing extreme outliers that distort traditional moment-based skewness.',
+    cautions: [
+      'Bowley skewness ranges between -1 (extreme left skew) and +1 (extreme right skew).',
+      'Does not depend on extreme tail values beyond Q1 and Q3.'
+    ],
+    workbenchId: 'stat_bowley_skew',
+  },
+  {
+    slug: 'kurtosis-calculator',
+    title: 'Excess kurtosis & 4th moment calculator',
+    family: 'Resampling & non-parametric tests',
+    description: 'Calculate sample kurtosis, excess kurtosis (γ₂), standard error, and Jarque-Bera normality test component.',
+    keywords: ['kurtosis calculator', 'excess kurtosis', 'leptokurtic platykurtic', '4th standardized moment', 'tail heaviness metric'],
+    inputs: ['Numeric data vector X', 'Bias correction flag (Sample vs Population)'],
+    example: { a: ['Sample X: 10, 11, 12, 12, 13, 13, 14, 15, 25, 30'], result: 'Kurtosis = 5.24, Excess Kurtosis = +2.24 (Leptokurtic / Heavy-tailed).' },
+    formula: 'g₂ = (m₄ / s⁴) - 3, G₂ = ((N+1)g₂ + 6) · (N-1) / ((N-2)(N-3))',
+    code: {
+      python: `from scipy import stats\nexcess_k = stats.kurtosis(x, fisher=True)`,
+      r: `library(e1071)\nkurtosis(x, type = 2)`,
+      ts: `import { excessKurtosis } from '@statlab/core';\nconst ek = excessKurtosis(dataArray);`,
+    },
+    useCases: [
+      'Assessing tail latency risk in cloud infrastructure SLA benchmarking.',
+      'Testing asset return distributions for fat-tail risk in financial engineering.'
+    ],
+    when: 'Use when quantifying the heaviness of distribution tails and peak sharpness relative to a normal distribution.',
+    cautions: [
+      'Normal distribution has kurtosis = 3 (excess kurtosis = 0).',
+      'Leptokurtic (>0) indicates fat tails; Platykurtic (<0) indicates thin tails.'
+    ],
+    workbenchId: 'stat_kurtosis',
+  },
+  {
+    slug: 'zero-inflated-poisson-zip',
+    title: 'Zero-Inflated Poisson (ZIP) mixture model calculator',
+    family: 'Probability distributions',
+    description: 'Calculate Zero-Inflated Poisson (ZIP) mixture probabilities P(Y = k), structural zero probability π, and Poisson rate λ.',
+    keywords: ['Zero Inflated Poisson calculator', 'ZIP model probability', 'structural zeros', 'overdispersed count mixture', 'zero inflated regression'],
+    inputs: ['Structural zero probability π (0 to 1)', 'Poisson rate λ', 'Observed count k'],
+    example: { a: ['Structural zero π = 0.30 (30% mandatory zeros)', 'Poisson rate λ = 2.5', 'Observed count k = 0'], result: 'P(Y = 0) = 0.30 + (1 - 0.70)·e^{-2.5} = 0.30 + 0.70(0.0821) = 0.3575. For k=2: P(Y=2) = 0.1804.' },
+    formula: 'P(Y = 0) = π + (1 - π) e^{-λ}, P(Y = k) = (1 - π) (λ^k e^{-λ} / k!) for k > 0',
+    code: {
+      python: `import statsmodels.api as sm\n# ZeroInflatedPoisson model estimation`,
+      r: `library(pscl)\nzeroinfl(count ~ 1, dist = "poisson")`,
+      ts: `import { zipPmf } from '@statlab/core';\nconst p = zipPmf(k, { pi: 0.30, lambda: 2.5 });`,
+    },
+    useCases: [
+      'Modeling customer defect or crash event counts where many users experience zero crashes.',
+      'Analyzing healthcare utilization rates containing structural non-users.'
+    ],
+    when: 'Use when count data contains an excess of zeros beyond what a standard Poisson distribution can account for.',
+    cautions: [
+      'Distinguishes structural zeros (always 0) from sampling zeros (Poisson 0).',
+      'If variance still exceeds mean after accounting for structural zeros, use Zero-Inflated Negative Binomial (ZINB).'
+    ],
+    workbenchId: 'dist_zip',
+  },
+  {
+    slug: 'log-gamma-distribution',
+    title: 'Log-Gamma distribution PDF & CDF calculator',
+    family: 'Probability distributions',
+    description: 'Calculate Log-Gamma distribution PDF, CDF, survival probability, and quantiles for heavy-tailed loss and reliability modeling.',
+    keywords: ['log-gamma distribution calculator', 'log gamma PDF', 'heavy tail loss distribution', 'log gamma CDF', 'extreme value log gamma'],
+    inputs: ['Shape parameter k', 'Scale parameter θ', 'Value x (where y = ln(x))'],
+    example: { a: ['Shape k = 3.0', 'Scale θ = 1.5', 'Value x = 10.0 (y = ln(10) = 2.3026)'], result: 'PDF f(10) = 0.0412, Cumulative P(X ≤ 10) = 0.7981, Survival P(X > 10) = 0.2019' },
+    formula: 'If Y = ln(X) ~ Gamma(k, θ), then f(x) = (x^{(1/θ)-1} (ln x)^{k-1}) / (θ^k Γ(k) x)',
+    code: {
+      python: `from scipy import stats\nprob = stats.loggamma.cdf(np.log(10.0), c=3.0)`,
+      r: `library(actuar)\nplgamma(10.0, shapelog = 3.0, scalelog = 1.5)`,
+      ts: `import { logGammaCdf } from '@statlab/core';\nconst cdf = logGammaCdf(10.0, { shape: 3.0, scale: 1.5 });`,
+    },
+    useCases: [
+      'Modeling extreme financial loss sizes in risk management.',
+      'Evaluating heavy-tailed execution time limits in high-throughput data processing systems.'
+    ],
+    when: 'Use when modeling variables whose logarithm follows a Gamma distribution.',
+    cautions: [
+      'Exhibits extremely heavy right tails.',
+      'Defined strictly for x > 1 when log(x) > 0.'
+    ],
+    workbenchId: 'dist_log_gamma',
+  },
+  {
+    slug: 'maxwell-boltzmann-distribution',
+    title: 'Maxwell-Boltzmann molecular speed distribution calculator',
+    family: 'Probability distributions',
+    description: 'Calculate Maxwell-Boltzmann molecular speed PDF, CDF, most probable speed (v_mp), mean speed (v_avg), and root-mean-square speed (v_rms).',
+    keywords: ['Maxwell Boltzmann distribution calculator', 'most probable speed', 'rms speed calculator', 'thermal speed distribution', 'kinetic theory velocity'],
+    inputs: ['Temperature T (Kelvin)', 'Molar mass M (kg/mol)', 'Particle speed v (m/s)'],
+    example: { a: ['Temperature T = 300 K (N₂ gas, M = 0.028 kg/mol)', 'Speed v = 500 m/s'], result: 'v_mp = 422.1 m/s, v_avg = 476.3 m/s, v_rms = 517.0 m/s. P(V ≤ 500 m/s) = 0.5985.' },
+    formula: 'f(v) = 4π (M / (2π R T))^{3/2} v² e^{-M v² / (2 R T)}, v_{mp} = √(2RT/M), v_{rms} = √(3RT/M)',
+    code: {
+      python: `from scipy import stats\n# Maxwell speed distribution in SciPy\nres = stats.maxwell.cdf(500, scale=np.sqrt(8.314*300/0.028))`,
+      r: `library(statmod)\n# Maxwell distribution CDF`,
+      ts: `import { maxwellSpeed } from '@statlab/core';\nconst stats = maxwellSpeed({ T: 300, M: 0.028, v: 500 });`,
+    },
+    useCases: [
+      'Modeling thermal particle velocity distributions in physics and semiconductor simulations.',
+      'Evaluating packet arrival speed variations in network simulation testbeds.'
+    ],
+    when: 'Use when computing particle speed statistics in ideal gases under thermal equilibrium.',
+    cautions: [
+      'Requires temperature in Kelvin (K) and molar mass in kg/mol.',
+      'Note that v_mp < v_avg < v_rms due to right-skewness.'
+    ],
+    workbenchId: 'dist_maxwell',
+  },
+  {
+    slug: 'welch-power-calculator',
+    title: 'Welch t-test statistical power & sample size ratio calculator',
+    family: 'Power & sample size',
+    description: 'Calculate statistical power (1 - β) and required sample size ratio for Welch t-tests under unequal group sample sizes and variances.',
+    keywords: ['Welch t-test power calculator', 'unequal variance power', 'sample size ratio Welch', 'Welch t-test sample size', 'statistical power heteroscedastic'],
+    inputs: ['Effect size δ (difference in means)', 'Std dev σ₁, σ₂', 'Sample sizes n₁, n₂', 'Significance level α'],
+    example: { a: ['Delta μ₁ - μ₂ = 5.0', 'σ₁ = 8.0, σ₂ = 14.0', 'n₁ = 40, n₂ = 60', 'α = 0.05'], result: 'Welch df ≈ 90.4, Non-centrality δ = 2.45. Statistical Power (1 - β) = 0.686 (68.6%).' },
+    formula: 'df_{welch} = (s₁²/n₁ + s₂²/n₂)² / [ (s₁²/n₁)²/(n₁-1) + (s₂²/n₂)²/(n₂-1) ], Power = 1 - T_{df, nc}(t_{crit})',
+    code: {
+      python: `from statsmodels.stats.power import tt_ind_solve_power\n# Compute power for heteroscedastic two-sample t-test`,
+      r: `library(pwr)\npwr.t2n.test(n1 = 40, n2 = 60, d = 0.44, sig.level = 0.05)`,
+      ts: `import { welchPower } from '@statlab/core';\nconst pwr = welchPower({ delta: 5, sd1: 8, sd2: 14, n1: 40, n2: 60, alpha: 0.05 });`,
+    },
+    useCases: [
+      'Designing A/B experiments where control and treatment groups have different variance profiles.',
+      'Calculating minimum detectable effect sizes for unbalanced microservice performance benchmarks.'
+    ],
+    when: 'Use when planning sample sizes or computing retrospective power for two-sample t-tests with unequal variances.',
+    cautions: [
+      'Standard Student t-test power formulas overestimate power if group 1 has higher variance and smaller sample size.',
+      'Target statistical power of 0.80 (80%) is standard for experimental design.'
+    ],
+    workbenchId: 'power_welch',
+  },
+  {
+    slug: 'cohen-w-chi-square-effect',
+    title: "Cohen's w effect size calculator for chi-square tests",
+    family: 'Categorical & proportion tests',
+    description: "Calculate Cohen's w effect size metric for chi-square goodness-of-fit and independence tests from observed/expected tables or chi-square statistics.",
+    keywords: ["Cohen's w effect size calculator", 'chi-square effect size', 'Cohen w formula', 'contingency table effect size', 'cramer v vs cohen w'],
+    inputs: ['Chi-square statistic χ²', 'Total sample size N (or Observed/Expected frequency matrices)'],
+    example: { a: ['Chi-Square χ² = 12.50', 'Total sample size N = 200'], result: "Cohen's w = √(12.50 / 200) = √0.0625 = 0.250. Medium effect size (0.10 small, 0.30 medium, 0.50 large)." },
+    formula: 'w = √( χ² / N ) = √( ∑ (P_{obs,i} - P_{exp,i})² / P_{exp,i} )',
+    code: {
+      python: `import numpy as np\nw = np.sqrt(chi2 / N)`,
+      r: `library(rstatix)\nchisq_effect_size(table, type = "w")`,
+      ts: `import { cohenW } from '@statlab/core';\nconst w = cohenW(chi2, N);`,
+    },
+    useCases: [
+      'Reporting standardized effect sizes for categorical chi-square tests in APA publications.',
+      'Calculating sample size requirements for contingency table experiments.'
+    ],
+    when: 'Use when measuring standardized magnitude of association or discrepancy in chi-square tests.',
+    cautions: [
+      "Cohen's w thresholds: 0.10 = Small, 0.30 = Medium, 0.50 = Large.",
+      "For k × m tables with k, m > 2, Cramer's V is often preferred as it is bounded between 0 and 1."
+    ],
+    workbenchId: 'cat_cohen_w',
+  },
+  {
+    slug: 'cohen-f2-regression-effect',
+    title: "Cohen's f² effect size calculator for multiple regression",
+    family: 'Regression & correlation',
+    description: "Calculate Cohen's f² effect size metric for overall multiple regression (R²) and hierarchical regression model R² change.",
+    keywords: ["Cohen's f2 effect size calculator", 'regression effect size', 'f2 formula regression', 'R2 change effect size', 'hierarchical regression f2'],
+    inputs: ['Full model R² (or R² change ΔR²)', 'Reduced model R²_A (optional for hierarchical)'],
+    example: { a: ['Full Model R² = 0.35', 'Reduced Model R² = 0.25 (ΔR² = 0.10)'], result: 'Overall f² = 0.35 / (1 - 0.35) = 0.538 (Large). Hierarchical f² = 0.10 / (1 - 0.35) = 0.154 (Medium).' },
+    formula: 'Overall f² = R² / (1 - R²), Hierarchical f² = (R²_{full} - R²_{reduced}) / (1 - R²_{full})',
+    code: {
+      python: `f2_overall = r2 / (1 - r2)\nf2_change = (r2_full - r2_red) / (1 - r2_full)`,
+      r: `f2 <- r2 / (1 - r2)`,
+      ts: `import { cohenF2 } from '@statlab/core';\nconst f2 = cohenF2(r2Full, r2Reduced);`,
+    },
+    useCases: [
+      'Reporting standardized effect size magnitude for linear regression models in empirical papers.',
+      'Determining statistical power and sample size for hierarchical block regression additions.'
+    ],
+    when: 'Use when quantifying local or global effect size in multiple linear regression models.',
+    cautions: [
+      "Cohen's f² benchmarks: 0.02 = Small, 0.15 = Medium, 0.35 = Large.",
+      'Hierarchical f² measures incremental variance explained by a set of predictors over baseline controls.'
+    ],
+    workbenchId: 'reg_cohen_f2',
+  },
+  {
+    slug: 'dunnett-test-control',
+    title: "Dunnett's t-test post-hoc control group calculator",
+    family: 'ANOVA & factorial analysis',
+    description: "Calculate Dunnett's t-statistic, critical values, and adjusted p-values for comparing multiple treatment groups against a single control group.",
+    keywords: ["Dunnett test calculator", 'Dunnett t statistic', 'many-to-one comparison', 'post hoc control test', 'Dunnett critical value'],
+    inputs: ['Control group mean X̄_0, n_0', 'Treatment group mean X̄_i, n_i', 'Pooled Mean Square Error MSE', 'Total error df'],
+    example: { a: ['Control X̄_0 = 50.0 (n_0 = 20)', 'Treatment X̄_1 = 58.5 (n_1 = 20)', 'MSE = 25.0, Error df = 76'], result: 'Dunnett t = (58.5 - 50.0) / √(25.0·(1/20 + 1/20)) = 8.5 / 1.581 = 5.37, p < .0001. Significant vs control.' },
+    formula: 'd = (X̄_i - X̄_0) / √( MSE · (1/n_i + 1/n_0) ), compared against Dunnett multivariate t CDF',
+    code: {
+      python: `from scipy import stats # or statsmodels Dunnett\n# Compute Dunnett many-to-one t-test`,
+      r: `library(multcomp)\nglht(fit, linfct = mcp(group = "Dunnett"))`,
+      ts: `import { dunnettTest } from '@statlab/core';\nconst res = dunnettTest(controlData, [treatment1, treatment2], { mse: 25.0, df: 76 });`,
+    },
+    useCases: [
+      'Comparing multiple new API caching configurations against the baseline production control.',
+      'Evaluating multiple drug treatment dosages against a placebo control group.'
+    ],
+    when: 'Use when performing post-hoc pairwise comparisons of several treatment groups against a single control group after ANOVA.',
+    cautions: [
+      "Dunnett's test maintains lower false positive rates than Tukey HSD because it only tests k-1 comparisons instead of all k(k-1)/2 pairs.",
+      'Control group size n_0 should ideally be larger than individual treatment group sizes.'
+    ],
+    workbenchId: 'anova_dunnett',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
