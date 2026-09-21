@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { C, PAL } from '../palette.js';
-import { fmtP, sig, effD, effR, effEta, effV } from 'statlab/math/core';
-import { computePowerT, requiredN } from 'statlab/math/distributions';
+import { fmtP, sig, effD, effR, effEta, effV } from '@statlab/core/math/core';
+import { computePowerT, requiredN } from '@statlab/core/math/distributions';
 import {
   Chip, APABlock, SigBadge, SectionHead, LinkBtn, NormBadge,
 } from './ui.jsx';
@@ -47,6 +47,31 @@ function CoeffTable({ coeffs }) {
       {coeffs.some(c => c.vif > 5) && (
         <div style={{ fontSize: 8, color: C.neg, ...mono, marginTop: 2 }}>⚠ VIF &gt; 5 — multicollinearity concern</div>
       )}
+    </div>
+  );
+}
+
+function PathCoeffTable({ coeffs }) {
+  if (!coeffs?.length) return null;
+  const headers = ['from', 'to', 'direct', 'indirect', 'total'];
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', ...mono, fontSize: 9, width: '100%' }}>
+        <thead>
+          <tr>{headers.map(h => <th key={h} style={{ padding: '2px 6px', textAlign: 'left', color: C.dim, borderBottom: `1px solid ${C.border}`, fontSize: 7, textTransform: 'uppercase' }}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {coeffs.map((c, i) => (
+            <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : C.panel }}>
+              <td style={{ padding: '2px 6px', color: PAL[i % PAL.length] }}>{c.from}</td>
+              <td style={{ padding: '2px 6px', color: C.text }}>{c.to}</td>
+              <td style={{ padding: '2px 6px', color: C.pos }}>{c.direct}</td>
+              <td style={{ padding: '2px 6px', color: C.dim }}>{c.indirect}</td>
+              <td style={{ padding: '2px 6px', color: C.accent }}>{c.total}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -723,6 +748,56 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         <div style={{ fontSize: 8, ...mono, color: C.dim }}>
           coeffs (standardized direction): {(r.coefficients ?? []).map((c, i) => `${(r.xVars?.[i] ?? `β${i + 1}`)}=${c}`).join(', ')}
         </div>
+      </>}
+
+      {r.test === 'Weighted Descriptives' && <>
+        <SectionHead label={`Weighted Descriptives · n=${r.n}`} />
+        <Row>
+          <Chip label="weighted M" value={r.mean} color={C.pos} />
+          {r.sd != null && <Chip label="weighted SD" value={r.sd} color={C.dim} />}
+          {r.se != null && <Chip label="SE" value={r.se} color={C.dim} />}
+          <Chip label="Σ weights" value={r.sumWeights} color={C.dim} />
+        </Row>
+      </>}
+
+      {r.test === 'Weighted Correlation' && <>
+        <SectionHead label={`Weighted Correlation · n=${r.n}`} />
+        <Row>
+          <Chip label="r (weighted)" value={r.r} color={r.r > 0 ? C.pos : C.neg} />
+        </Row>
+      </>}
+
+      {r.test === 'Design Effect' && <>
+        <SectionHead label={`Design Effect · n=${r.n}`} />
+        <Row>
+          <Chip label="DEFF" value={r.deff} color={r.deff > 1 ? C.warn : C.ok} />
+          <Chip label="n_eff" value={r.nEff} color={C.dim} />
+          <Chip label="weight CV" value={r.cv} color={C.dim} />
+        </Row>
+      </>}
+
+      {r.test === 'Taylor Linearization' && <>
+        <SectionHead label={`Taylor Linearization · ${r.nStrata} strata · n=${r.n}`} />
+        <Row>
+          <Chip label="total" value={r.total} color={C.pos} />
+          <Chip label="SE" value={r.se} color={C.dim} />
+        </Row>
+      </>}
+
+      {(r.test === 'Classical MDS' || r.test === 'Sammon Mapping' || r.test === 'Non-Metric MDS') && <>
+        <SectionHead label={`${r.test} · ${r.nDimensions}D · n=${r.n}`} />
+        <Row>
+          {r.stress != null && <Chip label="stress" value={r.stress} color={r.stress < .1 ? C.ok : r.stress < .2 ? C.warn : C.neg} />}
+          <Chip label="dimensions" value={r.nDimensions} color={C.dim} />
+        </Row>
+      </>}
+
+      {r.test === 'Path Analysis' && <>
+        <SectionHead label={`Path Analysis · n=${r.n}`} />
+        <Row>
+          {Object.entries(r.rSquared ?? {}).map(([k, v]) => <Chip key={k} label={`R² ${k}`} value={v} color={C.pos} />)}
+        </Row>
+        <PathCoeffTable coeffs={r.coefficients} />
       </>}
 
       {r.test === "McDonald's ω" && (

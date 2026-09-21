@@ -86,6 +86,9 @@ export const TREE = [
       { id: "manova",    label: "MANOVA",            tag: "Wilks Λ · Pillai · Roy · Hotelling" },
       { id: "cancorr",   label: "Canonical Correlation", tag: "Rc · loadings · χ²" },
       { id: "lda",       label: "Linear Discriminant", tag: "LDA · accuracy · coefficients" },
+      { id: "mds_classical", label: "Classical MDS",   tag: "metric MDS · stress · 2D embedding" },
+      { id: "mds_sammon",    label: "Sammon Mapping",  tag: "nonlinear MDS · local-distance weighting" },
+      { id: "mds_nonmetric", label: "Non-Metric MDS",  tag: "Kruskal · rank-order MDS" },
       { id: "cronbach",  label: "Cronbach's α",       tag: "internal consistency · α-if-deleted · item-total r" },
       { id: "splithalf", label: "Split-Half",         tag: "Spearman-Brown corrected reliability" },
       { id: "icc",       label: "ICC(2,1)",           tag: "inter-rater reliability · two-way random" },
@@ -377,6 +380,19 @@ export const TREE = [
     tests: [
       { id: "dist_corr", label: "Distance Correlation",  tag: "nonlinear association · Székely" },
       { id: "dist_cov",  label: "Distance Covariance",   tag: "nonlinear dependence" },
+    ],
+  },
+  { cat: "SURVEY METHODOLOGY", color: '#fb7185',
+    tests: [
+      { id: "wmean",  label: "Weighted Descriptives",   tag: "weighted mean · SD · SE" },
+      { id: "wcorr",  label: "Weighted Correlation",    tag: "weighted Pearson r" },
+      { id: "deff",   label: "Design Effect",           tag: "DEFF · effective n · weight CV" },
+      { id: "taylor", label: "Taylor Linearization",    tag: "stratified/clustered total · SE" },
+    ],
+  },
+  { cat: "SEM", color: '#c4b5fd',
+    tests: [
+      { id: "path_analysis", label: "Path Analysis", tag: "direct · indirect · total effects" },
     ],
   },
 ];

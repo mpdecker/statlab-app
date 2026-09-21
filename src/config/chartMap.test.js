@@ -47,8 +47,8 @@ describe('CHART_FOR_TEST', () => {
     expect(missing, `missing: ${missing.join(', ')}`).toHaveLength(0);
   });
 
-  test('has exactly 223 mappings', () => {
-    expect(Object.keys(CHART_FOR_TEST).length).toBe(223);
+  test('has exactly 231 mappings', () => {
+    expect(Object.keys(CHART_FOR_TEST).length).toBe(231);
   });
 
   test('all chart mode strings are non-empty', () => {

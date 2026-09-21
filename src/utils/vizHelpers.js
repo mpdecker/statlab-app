@@ -1,4 +1,5 @@
-import { corr, sampleSD, fmtP } from 'statlab/math/core';
+import { useState, useEffect } from 'react';
+import { corr, sampleSD, fmtP } from '@statlab/core/math/core';
 
 /** Tests whose QuickView should follow Inference variable selectors */
 export const TESTS_USE_INFERENCE_GROUPS = new Set([
@@ -44,6 +45,7 @@ export const CHART_MODE_LABELS = {
   its: 'ITS',
   rddplot: 'RDD',
   sociogram: 'Sociogram',
+  mdsplot: 'MDS',
   timeseries: 'Time Series',
 };
 
@@ -80,6 +82,7 @@ export const EXPLORE_PANEL_CHART_FOR_MODE = {
   its: 'Time series',
   rddplot: 'RDD',
   sociogram: 'Dendrogram',
+  mdsplot: 'PCA biplot',
   survival: 'Survival',
   correlogram: 'Bar+CI',
   timeseries: 'Time series',
@@ -243,6 +246,31 @@ export function resolveQuickViewVars(activeTest, header, inference) {
   };
 }
 
+/** Pure arithmetic behind useCanvasSize's ResizeObserver callback: clamp a
+ *  measured element size down to a usable canvas size, subtracting fixed
+ *  padding and never going below the given floors. */
+export function clampCanvasSize(width, height, { minW, minH, padW, padH }) {
+  return {
+    w: Math.max(minW, Math.floor(width - padW)),
+    h: Math.max(minH, Math.floor(height - padH)),
+  };
+}
+
+export function useCanvasSize(ref, { minW = 320, minH = 240, padW = 24, padH = 80, initialW = minW, initialH = minH } = {}) {
+  const [size, setSize] = useState({ w: initialW, h: initialH });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setSize(clampCanvasSize(width, height, { minW, minH, padW, padH }));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [minW, minH, padW, padH]);
+  return size;
+}
+
 export function seriesFromResult(result, activeTest) {
   if (!result) return null;
   const t = activeTest || '';
@@ -379,6 +407,17 @@ export function loadingFromResult(result, activeTest, varLabels) {
     };
   }
   return null;
+}
+
+export function computeCorrMatrix(data, vars) {
+  return vars.map(v1 => vars.map(v2 => {
+    if (v1 === v2) return 1;
+    const xs = data.map(r => +r[v1]).filter(Number.isFinite);
+    const ys = data.map(r => +r[v2]).filter(Number.isFinite);
+    const n = Math.min(xs.length, ys.length);
+    if (n < 2) return 0;
+    return corr(xs.slice(0, n), ys.slice(0, n));
+  }));
 }
 
 const fmt3 = v => Number.isFinite(v) ? (+v).toFixed(3) : v;

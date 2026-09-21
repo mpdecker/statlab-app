@@ -1398,6 +1398,54 @@ export const METHOD_NOTES = {
     assumptions: ["Finite variances", "Independent observations"],
     cite: "Székely, G. J., Rizzo, M. L., & Bakirov, N. K. (2007). Measuring and testing dependence by correlation of distances. Annals of Statistics, 35(6), 2769–2794.",
   },
+  wmean: {
+    description: "Weighted descriptive statistics adjust the mean, SD, and SE to account for unequal selection probabilities or post-survey adjustment weights.",
+    usage: "Use for any survey with sampling weights (probability-proportional-to-size designs, post-stratification, nonresponse adjustment) — an unweighted mean can be badly biased if weights vary.",
+    assumptions: ["Weights are non-negative and correctly reflect the design (or adjustment) used", "Value and weight columns have no missing pairs"],
+    cite: "Kish, L. (1965). Survey Sampling. Wiley.",
+  },
+  wcorr: {
+    description: "Weighted Pearson correlation applies survey weights to both variables before computing the correlation coefficient.",
+    usage: "Use when correlating two variables from a weighted survey sample — an unweighted correlation can misrepresent the population relationship.",
+    assumptions: ["Weights correctly reflect the design", "Linear relationship (same assumption as ordinary Pearson r)"],
+    cite: "Kish, L. (1965). Survey Sampling. Wiley.",
+  },
+  deff: {
+    description: "The design effect (DEFF) measures how much sampling variance inflates (or deflates) due to unequal weights, compared to simple random sampling; effective sample size (n_eff) is the SRS-equivalent n.",
+    usage: "Use to diagnose how much precision a weighted design costs (or gains) versus SRS, and to sanity-check whether a weighting scheme has extreme, variance-inflating weights.",
+    assumptions: ["Weights correctly reflect the design"],
+    cite: "Kish, L. (1965). Survey Sampling. Wiley.",
+  },
+  taylor: {
+    description: "Taylor linearization estimates the standard error of a total for a stratified, clustered (multi-stage) sample design, using between-PSU variance within each stratum.",
+    usage: "Use for the standard error of a total (e.g. population total of a survey item) collected under a stratified-cluster design — the standard 'complex survey' SE method used by most national statistical agencies.",
+    assumptions: ["At least 2 primary sampling units (PSUs) per stratum", "PSUs are independently selected within each stratum"],
+    cite: "Wolter, K. M. (2007). Introduction to Variance Estimation (2nd ed.). Springer.",
+  },
+  mds_classical: {
+    description: "Classical (metric) MDS finds a low-dimensional coordinate embedding that best preserves pairwise Euclidean distances between observations, via eigendecomposition of a double-centered distance matrix.",
+    usage: "Use to visualize the overall structure of multivariate data in 2D when you care about preserving actual distances (not just rank order) — the fastest and most interpretable MDS variant.",
+    assumptions: ["Distances are (approximately) Euclidean", "At least 5 observations, 2+ numeric variables"],
+    cite: "Torgerson, W. S. (1952). Multidimensional scaling: I. Theory and method. Psychometrika, 17(4), 401–419.",
+  },
+  mds_sammon: {
+    description: "Sammon mapping is a nonlinear MDS variant that weights the stress function to preserve small (local) distances more accurately than large ones, via iterative gradient descent.",
+    usage: "Use when local structure (which points are near each other) matters more than exact global distances — often reveals cluster structure classical MDS smooths over.",
+    assumptions: ["Distances are meaningfully Euclidean", "At least 5 observations, 2+ numeric variables"],
+    cite: "Sammon, J. W. (1969). A nonlinear mapping for data structure analysis. IEEE Transactions on Computers, 18(5), 401–409.",
+  },
+  mds_nonmetric: {
+    description: "Non-metric MDS (Kruskal's method) preserves only the rank order of dissimilarities, not their exact magnitudes, minimizing a stress function over monotonic transformations of distance.",
+    usage: "Use when your dissimilarity measure is ordinal or you only trust its rank order (e.g. subjective similarity ratings) rather than its exact numeric scale.",
+    assumptions: ["Dissimilarities are at least ordinally meaningful", "At least 6 observations, 2+ numeric variables"],
+    cite: "Kruskal, J. B. (1964). Nonmetric multidimensional scaling: A numerical method. Psychometrika, 29(2), 115–129.",
+  },
+  path_analysis: {
+    description: "Path analysis fits a system of recursive OLS regression equations among observed variables (no latent factors), then traces indirect and total effects through chained equations via the reduced-form matrix (I − B)⁻¹ − I, where B holds every direct path coefficient in the system.",
+    usage: "Use to decompose a variable's total effect on an outcome into its direct effect plus any indirect effects mediated through other variables in a multi-equation causal chain — the multi-equation generalization of a single mediation analysis.",
+    assumptions: ["Each equation's residuals are (approximately) normal and homoscedastic", "The system is recursive (no feedback loops among equations)", "At least 10 observations"],
+    cite: "Wright, S. (1934). The method of path coefficients. Annals of Mathematical Statistics, 5(3), 161–215.",
+  },
 };
 
 /** Simplified implementation notes used as fallback when an educational note doesn't exist. */

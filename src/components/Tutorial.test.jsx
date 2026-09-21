@@ -3,6 +3,7 @@ import React from 'react';
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
 import { Tutorial, hasTutorialSeen, markTutorialSeen } from './Tutorial.jsx';
+import { TOTAL_TEST_COUNT } from '../config/testCategories.js';
 
 // Mock localStorage for happy-dom
 const localStorageMock = {
@@ -64,5 +65,13 @@ describe('Tutorial', () => {
     const onStepChange = vi.fn();
     render(<Tutorial open onClose={() => {}} onStepChange={onStepChange} />);
     expect(onStepChange).toHaveBeenCalledWith('welcome');
+  });
+
+  test('the "Pick a test" step reflects the real test total, not a hardcoded 84', () => {
+    const { getByText, queryByText } = render(<Tutorial open onClose={() => {}} />);
+    fireEvent.click(getByText('Next'));
+    expect(getByText('Pick a test')).toBeTruthy();
+    expect(queryByText(/\b84\+/)).toBeNull();
+    expect(getByText(new RegExp(`Browse or search ${TOTAL_TEST_COUNT}\\+ statistical tests here`))).toBeTruthy();
   });
 });

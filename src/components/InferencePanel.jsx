@@ -1,65 +1,69 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { C } from '../palette.js';
 import { TREE } from '../config/tree.js';
+import { CORE_CATEGORY_NAMES, TOTAL_TEST_COUNT } from '../config/testCategories.js';
 import { METHOD_NOTES } from '../config/methodNotes.js';
 import { InferenceConfig } from './InferenceConfig.jsx';
 import { InferenceResults } from './InferenceResults.jsx';
 
 // ── test runners ──────────────────────────────────────────────────────────────
-import { tWelch, tOne, tPaired, yuentTest, zTestKnownSD, signTest } from 'statlab/methods/means';
-import { oneWayANOVA, welchANOVA, twoWayANOVA, ancova, rmANOVA, friedman, kruskalWallis, cochranQ } from 'statlab/methods/anova';
+import { tWelch, tOne, tPaired, yuentTest, zTestKnownSD, signTest } from '@statlab/core/methods/means';
+import { oneWayANOVA, welchANOVA, twoWayANOVA, ancova, rmANOVA, friedman, kruskalWallis, cochranQ } from '@statlab/core/methods/anova';
 import {
   pearsonTest, spearman, kendallTau, partialCorr, pointBiserial,
   simpleOLS, multipleOLS, polynomialOLS, hierarchicalOLS,
   logisticReg, ordinalLogisticRegression, poissonRegression, negativeBinomialRegression,
   mediation, moderation,
-} from 'statlab/methods/regression';
-import { mannWhitney, wilcoxonSR } from 'statlab/methods/nonparametric';
+} from '@statlab/core/methods/regression';
+import { mannWhitney, wilcoxonSR } from '@statlab/core/methods/nonparametric';
 import {
   chiSquare, chiGoF, fisherExact, mcnemar, binomialTest, onePropZ, twoPropZ,
   tost, bayesFactorT, bayesFactorCorr,
   grubbsTest, leveneTest, bartlettTest,
   bonferroni, holm, bh, sensitivityLOO,
-} from 'statlab/methods/categorical';
-import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from 'statlab/methods/multivariate';
-import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from 'statlab/methods/psychometrics';
-import { kmeans, hierarchicalCluster, latentClassAnalysis } from 'statlab/methods/clustering';
-import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from 'statlab/methods/multilevel';
-import { propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity } from 'statlab/methods/causal';
-import { centralityMeasures, communityDetection, sociogramLayout, networkFromEdgeList } from 'statlab/methods/network';
-import { normalityDP, shapiroWilk, computePowerT, requiredN, requiredNCorr } from 'statlab/math/distributions';
-import { avg, sampleSD, median } from 'statlab/math/core';
+} from '@statlab/core/methods/categorical';
+import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from '@statlab/core/methods/multivariate';
+import { weightedMean, weightedVar, weightedCorrelation, designEffect, taylorLinearization } from '@statlab/core/methods/survey';
+import { classicalMDS, sammonMapping, nonMetricMDS } from '@statlab/core/methods/mds';
+import { pathAnalysis } from '@statlab/core/methods/sem';
+import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
+import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
+import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
+import { propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity } from '@statlab/core/methods/causal';
+import { centralityMeasures, communityDetection, sociogramLayout, networkFromEdgeList } from '@statlab/core/methods/network';
+import { normalityDP, shapiroWilk, computePowerT, requiredN, requiredNCorr } from '@statlab/core/math/distributions';
+import { avg, sampleSD, median } from '@statlab/core/math/core';
 import { parseFinite, barHeightPct, finiteNums, rowFinite, parseNumList } from '../utils/parse.js';
 import {
   runBootstrapCI, runBootstrapMediation,
   runPowerANOVA, runPowerChi, runPowerLogistic, runPowerMixed, runPowerMediation,
 } from '../utils/resampleAsync.js';
-import { moranIMulti, simulationConvergence, sobolSensitivity, agentSummaryStats, scenarioComparison, thresholdModel, networkDiffusion, segregationIndex } from 'statlab/methods/abm';
-import { epsilonGreedy, ucb, thompsonSampling, contextualBandit, policyGradient, softmaxBandit, qLearning, sarsa, deepQNetwork } from 'statlab/methods/bandit';
-import { jaroWinkler, levenshteinDistance, fellegiSunter, recordBlocking, matchThreshold, probabilisticRecordLinkage, deduplication } from 'statlab/methods/linkage';
-import { laplaceMechanism, bootstrapSynthetic, kAnonymityCheck, differentialPrivacy, dataMasking, lDiversity, tCloseness } from 'statlab/methods/privacy';
-import { reliableChangeIndex, minimalImportantDifference, responderAnalysis, eq5dIndex, standardizedResponseMean, clinicalTrialsGov, consortChecklist } from 'statlab/methods/pro';
-import { raCusum, vlad, raSprt, funnelPlot, cChartRiskAdjusted, safetySignal, prrAnalysis } from 'statlab/methods/raMonitor';
-import { collaborativeFilter, matrixFactorize, topNRecommend } from 'statlab/methods/recommendation';
-import { tauU, pnd, pem, nap, randomizationTest, baselineCorrectedTau, betweenCaseSMD } from 'statlab/methods/sced';
-import { morrisMethod, fastSensitivity, modelComparison, forecastCombination, sobolFirstOrder, sobolTotalIndex, deltaMethod, andrewsPlot } from 'statlab/methods/sensitivity';
-import { bootstrapCI, bootstrapSE, bootstrapTest, jackknife, bootstrapT_CI, empiricalInfluence, bootstrapMediation as bsMediation, moderatedMediation, splitConformal, conformalPvalues, jackknifePlus } from 'statlab/methods/bootstrap';
-import { powerCoxPH, powerMetaAnalysis, powerEquivalence, powerInteractionANOVA, powerANOVA, powerChiSq, powerLogisticReg, powerMultilevel, powerCorrelation, powerMediationTest, requiredNT, requiredNCorrelation, requiredNOneProp, requiredNTwoProp, requiredNWilcoxon, requiredNLogRank, requiredNOLS, requiredNANOVA, powerTTestWrapper, powerProportionOne, powerProportionTwo, powerWilcoxonTest, powerLogRankTest, powerRMANOVA, powerOLS_apa, powerSpearmanTest } from 'statlab/methods/power';
-import { theilSenSlope, mmEstimator, madScale, hampelM, mcdCovariance, sEstimator, ltsRegression, qqConfidence } from 'statlab/methods/robust';
+import { moranIMulti, simulationConvergence, sobolSensitivity, agentSummaryStats, scenarioComparison, thresholdModel, networkDiffusion, segregationIndex } from '@statlab/core/methods/abm';
+import { epsilonGreedy, ucb, thompsonSampling, contextualBandit, policyGradient, softmaxBandit, qLearning, sarsa, deepQNetwork } from '@statlab/core/methods/bandit';
+import { jaroWinkler, levenshteinDistance, fellegiSunter, recordBlocking, matchThreshold, probabilisticRecordLinkage, deduplication } from '@statlab/core/methods/linkage';
+import { laplaceMechanism, bootstrapSynthetic, kAnonymityCheck, differentialPrivacy, dataMasking, lDiversity, tCloseness } from '@statlab/core/methods/privacy';
+import { reliableChangeIndex, minimalImportantDifference, responderAnalysis, eq5dIndex, standardizedResponseMean, clinicalTrialsGov, consortChecklist } from '@statlab/core/methods/pro';
+import { raCusum, vlad, raSprt, funnelPlot, cChartRiskAdjusted, safetySignal, prrAnalysis } from '@statlab/core/methods/raMonitor';
+import { collaborativeFilter, matrixFactorize, topNRecommend } from '@statlab/core/methods/recommendation';
+import { tauU, pnd, pem, nap, randomizationTest, baselineCorrectedTau, betweenCaseSMD } from '@statlab/core/methods/sced';
+import { morrisMethod, fastSensitivity, modelComparison, forecastCombination, sobolFirstOrder, sobolTotalIndex, deltaMethod, andrewsPlot } from '@statlab/core/methods/sensitivity';
+import { bootstrapCI, bootstrapSE, bootstrapTest, jackknife, bootstrapT_CI, empiricalInfluence, bootstrapMediation as bsMediation, moderatedMediation, splitConformal, conformalPvalues, jackknifePlus } from '@statlab/core/methods/bootstrap';
+import { powerCoxPH, powerMetaAnalysis, powerEquivalence, powerInteractionANOVA, powerANOVA, powerChiSq, powerLogisticReg, powerMultilevel, powerCorrelation, powerMediationTest, requiredNT, requiredNCorrelation, requiredNOneProp, requiredNTwoProp, requiredNWilcoxon, requiredNLogRank, requiredNOLS, requiredNANOVA, powerTTestWrapper, powerProportionOne, powerProportionTwo, powerWilcoxonTest, powerLogRankTest, powerRMANOVA, powerOLS_apa, powerSpearmanTest } from '@statlab/core/methods/power';
+import { theilSenSlope, mmEstimator, madScale, hampelM, mcdCovariance, sEstimator, ltsRegression, qqConfidence } from '@statlab/core/methods/robust';
 import {
   bicBayesFactor, betaBinomialPosterior, gammaPoissonPosterior, normalNormalPosterior,
   normalInverseGammaPosterior, bayesianLinearRegression, bayesianLogisticRegression,
   bayesianPoissonRegression, bayesianDIC, bmaRegression,
-} from 'statlab/methods/bayesian';
-import { littlesMCAR, mice, rubinPool, fmi as fractionMissingInfo, emImpute, missingnessPattern, completeCases } from 'statlab/methods/missing';
-import { kmEstimate, logRankTest, coxPH } from 'statlab/methods/survival';
-import { adfTest, acf, pacf } from 'statlab/methods/timeseries';
-import { localOutlierFactor, isolationForest } from 'statlab/methods/outlier';
-import { panelFixedEffects, panelRandomEffects, hausmanTest } from 'statlab/methods/econometric';
-import { gamBackfitting, gamInteraction } from 'statlab/methods/gam';
-import { gaussianMixtureModel, latentProfileAnalysis } from 'statlab/methods/mixture';
-import { distanceCorrelation, distanceCovariance } from 'statlab/methods/distance';
-import { mulberry32 } from 'statlab/math/rng';
+} from '@statlab/core/methods/bayesian';
+import { littlesMCAR, mice, rubinPool, fmi as fractionMissingInfo, emImpute, missingnessPattern, completeCases } from '@statlab/core/methods/missing';
+import { kmEstimate, logRankTest, coxPH } from '@statlab/core/methods/survival';
+import { adfTest, acf, pacf } from '@statlab/core/methods/timeseries';
+import { localOutlierFactor, isolationForest } from '@statlab/core/methods/outlier';
+import { panelFixedEffects, panelRandomEffects, hausmanTest } from '@statlab/core/methods/econometric';
+import { gamBackfitting, gamInteraction } from '@statlab/core/methods/gam';
+import { gaussianMixtureModel, latentProfileAnalysis } from '@statlab/core/methods/mixture';
+import { distanceCorrelation, distanceCovariance } from '@statlab/core/methods/distance';
+import { mulberry32 } from '@statlab/core/math/rng';
 
 function injectMissing(data, vars, pct, seed) {
   if (!data?.length || !vars?.length) return data;
@@ -90,6 +94,13 @@ function dichotomizeMatrix(matrix) {
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 
+// Maps a category name to the CORE/MORE CATEGORIES section sentinel that
+// gates whether its whole section renders in expandedCats. Any writer that
+// adds a category name to expandedCats must also add this, or the category
+// can end up "expanded" while its section wrapper stays collapsed and hides
+// it entirely (see commit bf31d63).
+const sectionKeyFor = (catName) => (CORE_CATEGORY_NAMES.has(catName) ? '__core__' : '__more__');
+
 // ── Left navigator ────────────────────────────────────────────────────────────
 export function Navigator({ active, setActive, width = '100%', borderRight = false }) {
   const [expandedNote, setExpandedNote] = useState(null);
@@ -105,8 +116,11 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
   }, [active]);
 
   const [expandedCats, setExpandedCats] = useState(() => {
-    const initial = new Set();
-    if (activeCat) initial.add(activeCat);
+    const initial = new Set(['__core__']);
+    if (activeCat) {
+      initial.add(activeCat);
+      initial.add(sectionKeyFor(activeCat));
+    }
     return initial;
   });
 
@@ -150,9 +164,11 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
   useEffect(() => {
     if (activeCat) {
       setExpandedCats(prev => {
-        if (prev.has(activeCat)) return prev;
+        const key = sectionKeyFor(activeCat);
+        if (prev.has(activeCat) && prev.has(key)) return prev;
         const next = new Set(prev);
         next.add(activeCat);
+        next.add(key);
         return next;
       });
     }
@@ -170,48 +186,8 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
     });
   }, []);
 
-  // Keys must match tree.js's `cat` strings exactly \u2014 this drifted out of sync
-  // with several category renames/additions (META & CAUSAL, ROBUST STATS,
-  // AGENT-BASED, BANDITS, PRO, RISK-ADJUSTED, SCED, SENSITIVITY were all stale,
-  // and the 4 newest categories had no entry at all), silently dropping the
-  // icon for 12 of 32 categories.
-  const CAT_ICON = {
-    "COMPARE MEANS": 't',
-    "ANALYSIS OF VARIANCE": 'F',
-    "NONPARAMETRIC": '\u03C1',
-    "CORRELATION": 'r',
-    "REGRESSION": '\u03B2',
-    "CATEGORICAL": '\u03C7\u00B2',
-    "EQUIVALENCE & BAYES": 'B',
-    "MULTIVARIATE": '\u03A3',
-    "PSYCHOMETRICS": '\u03C8',
-    "MULTILEVEL MODELS": '\u2282',
-    "CLUSTERING": '\u2295',
-    "NETWORK": '\u2B21',
-    "META-ANALYSIS & CAUSAL": '\u2192',
-    "DIAGNOSTICS": '\u2611',
-    "ROBUST STATISTICS": 'R',
-    "BAYESIAN MODELING": '\u03B2',
-    "MISSING DATA": '\u2205',
-    "POWER ANALYSIS": '\u26A1',
-    "POWER & SAMPLE SIZE (EXTENDED)": '\u26A1',
-    "AGENT-BASED MODELS": '\u25C9',
-    "MULTI-ARMED BANDITS": 'Bd',
-    "RECORD LINKAGE": '\u2A3F',
-    "PRIVACY": 'Lk',
-    "PATIENT-REPORTED OUTCOMES": 'Po',
-    "RISK-ADJUSTED MONITORING": '\u2316',
-    "RECOMMENDATION": '\u2605',
-    "SINGLE-CASE DESIGNS": '\u21F5',
-    "SENSITIVITY ANALYSIS": '\u0394',
-    "BOOTSTRAP": '\u21BB',
-    "SURVIVAL ANALYSIS": '\u03BB',
-    "TIME SERIES": '\u223F',
-    "OUTLIER DETECTION": '\u2298',
-  };
-
   const expandAll = () => {
-    setExpandedCats(new Set(TREE.map(cat => cat.cat)));
+    setExpandedCats(new Set([...TREE.map(cat => cat.cat), '__core__', '__more__']));
   };
 
   const collapseAll = () => {
@@ -242,6 +218,116 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
     return expandedCats.has(catName);
   };
 
+  const coreCats = filteredTree.filter(cat => CORE_CATEGORY_NAMES.has(cat.cat));
+  const moreCats = filteredTree.filter(cat => !CORE_CATEGORY_NAMES.has(cat.cat));
+
+  const renderCategory = (cat) => {
+    const expanded = isExpanded(cat.cat);
+    return (
+      <div key={cat.cat} style={{ borderBottom: `1px solid ${C.border}` }}>
+        {/* Category Header */}
+        <div
+          onClick={() => toggleCategory(cat.cat)}
+          style={{
+            position: 'sticky', top: 0, zIndex: 1,
+            fontSize: 9, ...mono,
+            color: cat.color,
+            textTransform: 'uppercase',
+            letterSpacing: '.12em',
+            padding: '6px 10px',
+            fontWeight: 700,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer',
+            background: C.bg,
+            userSelect: 'none',
+          }}
+        >
+          <span>{cat.cat} <span style={{ fontSize: 8, color: C.dim }}>({cat.tests.length})</span></span>
+          <span style={{ fontSize: 8, color: C.dim }}>
+            {expanded ? '▼' : '▶'}
+          </span>
+        </div>
+
+        {/* Tests list */}
+        {expanded && (
+          <div style={{ background: 'rgba(0,0,0,0.1)' }}>
+            {cat.tests.map(t => {
+              const isFav = favorites.includes(t.id);
+              return (
+              <div key={t.id} style={{ borderTop: `1px dashed ${C.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                  <button
+                    onClick={() => setActive(t.id)}
+                    style={{
+                      flex: 1, display: 'block', textAlign: 'left',
+                      background: active === t.id ? 'rgba(255,255,255,.04)' : 'transparent',
+                      color: active === t.id ? cat.color : C.text,
+                      border: 'none',
+                      borderLeft: active === t.id ? `3px solid ${cat.color}` : '3px solid transparent',
+                      fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13,
+                      padding: '6px 8px', cursor: 'pointer', lineHeight: 1.15, transition: 'all .1s',
+                    }}
+                  >
+                    <span style={{ color: active === t.id ? cat.color : C.text }}>{t.label}</span>
+                    <div style={{ fontSize: 8, ...mono, color: C.dim, fontWeight: 400, marginTop: 2 }}>{t.tag}</div>
+                  </button>
+                  <button
+                    onClick={(e) => toggleFavorite(e, t.id)}
+                    title={isFav ? 'Remove favorite' : 'Add favorite'}
+                    style={{
+                      background: 'transparent', border: 'none', color: isFav ? C.accent : C.dim,
+                      cursor: 'pointer', fontSize: 11, padding: '6px 4px 6px 0', ...mono,
+                    }}
+                  >
+                    {isFav ? '★' : '☆'}
+                  </button>
+                  {METHOD_NOTES[t.id] && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setExpandedNote(expandedNote === t.id ? null : t.id); }}
+                      title="Method info"
+                      style={{
+                        background: 'transparent', border: 'none', color: expandedNote === t.id ? C.accent : C.dim,
+                        cursor: 'pointer', fontSize: 11, padding: '6px 8px 6px 0', ...mono,
+                      }}
+                    >
+                      ?
+                    </button>
+                  )}
+                </div>
+                {expandedNote === t.id && METHOD_NOTES[t.id] && (
+                  <div style={{
+                    margin: '0 8px 6px 10px', padding: '6px 8px', background: C.panel, borderRadius: 3,
+                    border: `1px solid ${C.border}`, fontSize: 9, color: C.text, lineHeight: 1.5,
+                  }}>
+                    {typeof METHOD_NOTES[t.id] === 'string'
+                      ? METHOD_NOTES[t.id]
+                      : (
+                        <>
+                          <div style={{ color: cat.color, fontWeight: 600, marginBottom: 3 }}>{METHOD_NOTES[t.id].description}</div>
+                          {METHOD_NOTES[t.id].usage && <div style={{ color: C.dim, marginBottom: 4 }}><b style={{ color: C.text }}>Use:</b> {METHOD_NOTES[t.id].usage}</div>}
+                          {METHOD_NOTES[t.id].assumptions && (
+                            <div style={{ marginBottom: 4 }}>
+                              <b style={{ color: C.text }}>Assumptions:</b>
+                              <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
+                                {METHOD_NOTES[t.id].assumptions.map((a, i) => <li key={i} style={{ color: C.dim, marginBottom: 1 }}>{a}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          {METHOD_NOTES[t.id].cite && <div style={{ color: C.dim, fontSize: 8, fontStyle: 'italic' }}>{METHOD_NOTES[t.id].cite}</div>}
+                        </>
+                      )}
+                  </div>
+                )}
+              </div>
+            );})}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div style={{ width, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: borderRight ? `1px solid ${C.border}` : 'none' }}>
       {/* Search Header */}
@@ -249,7 +335,7 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <input
             type="text"
-            placeholder="Search 84 tests..."
+            placeholder={`Search ${TOTAL_TEST_COUNT} tests...`}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             style={{
@@ -284,7 +370,7 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: 8, color: C.dim, ...mono }}>
-            {searchQuery ? `${filteredTree.reduce((acc, cat) => acc + cat.tests.length, 0)} found` : '84 modules'}
+            {searchQuery ? `${filteredTree.reduce((acc, cat) => acc + cat.tests.length, 0)} found` : `${TOTAL_TEST_COUNT} modules`}
           </span>
           <div style={{ display: 'flex', gap: 6 }}>
             <button onClick={expandAll} style={{ background: 'transparent', border: 'none', color: C.accent, fontSize: 8, ...mono, cursor: 'pointer', padding: 0 }}>EXPAND ALL</button>
@@ -416,112 +502,47 @@ export function Navigator({ active, setActive, width = '100%', borderRight = fal
           </div>
         )}
 
-        {filteredTree.map(cat => {
-          const expanded = isExpanded(cat.cat);
-          return (
-            <div key={cat.cat} style={{ borderBottom: `1px solid ${C.border}` }}>
-              {/* Category Header */}
-              <div
-                onClick={() => toggleCategory(cat.cat)}
-                style={{
-                  position: 'sticky', top: 0, zIndex: 1,
-                  fontSize: 9, ...mono,
-                  color: cat.color,
-                  textTransform: 'uppercase',
-                  letterSpacing: '.12em',
-                  padding: '6px 10px',
-                  fontWeight: 700,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                  background: C.bg,
-                  userSelect: 'none',
-                }}
-              >
-                <span>{CAT_ICON[cat.cat] ? CAT_ICON[cat.cat] + ' ' : ''}{cat.cat} <span style={{ fontSize: 8, color: C.dim }}>({cat.tests.length})</span></span>
-                <span style={{ fontSize: 8, color: C.dim }}>
-                  {expanded ? '\u25BC' : '\u25B6'}
-                </span>
-              </div>
-
-              {/* Tests list */}
-              {expanded && (
-                <div style={{ background: 'rgba(0,0,0,0.1)' }}>
-                  {cat.tests.map(t => {
-                    const isFav = favorites.includes(t.id);
-                    return (
-                    <div key={t.id} style={{ borderTop: `1px dashed ${C.border}` }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-                        <button
-                          onClick={() => setActive(t.id)}
-                          style={{
-                            flex: 1, display: 'block', textAlign: 'left',
-                            background: active === t.id ? 'rgba(255,255,255,.04)' : 'transparent',
-                            color: active === t.id ? cat.color : C.text,
-                            border: 'none',
-                            borderLeft: active === t.id ? `3px solid ${cat.color}` : '3px solid transparent',
-                            fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13,
-                            padding: '6px 8px', cursor: 'pointer', lineHeight: 1.15, transition: 'all .1s',
-                          }}
-                        >
-                          <span style={{ color: active === t.id ? cat.color : C.text }}>{t.label}</span>
-                          <div style={{ fontSize: 8, ...mono, color: C.dim, fontWeight: 400, marginTop: 2 }}>{t.tag}</div>
-                        </button>
-                        <button
-                          onClick={(e) => toggleFavorite(e, t.id)}
-                          title={isFav ? 'Remove favorite' : 'Add favorite'}
-                          style={{
-                            background: 'transparent', border: 'none', color: isFav ? C.accent : C.dim,
-                            cursor: 'pointer', fontSize: 11, padding: '6px 4px 6px 0', ...mono,
-                          }}
-                        >
-                          {isFav ? '\u2605' : '\u2606'}
-                        </button>
-                        {METHOD_NOTES[t.id] && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setExpandedNote(expandedNote === t.id ? null : t.id); }}
-                            title="Method info"
-                            style={{
-                              background: 'transparent', border: 'none', color: expandedNote === t.id ? C.accent : C.dim,
-                              cursor: 'pointer', fontSize: 11, padding: '6px 8px 6px 0', ...mono,
-                            }}
-                          >
-                            ?
-                          </button>
-                        )}
-                      </div>
-                      {expandedNote === t.id && METHOD_NOTES[t.id] && (
-                        <div style={{
-                          margin: '0 8px 6px 10px', padding: '6px 8px', background: C.panel, borderRadius: 3,
-                          border: `1px solid ${C.border}`, fontSize: 9, color: C.text, lineHeight: 1.5,
-                        }}>
-                          {typeof METHOD_NOTES[t.id] === 'string'
-                            ? METHOD_NOTES[t.id]
-                            : (
-                              <>
-                                <div style={{ color: cat.color, fontWeight: 600, marginBottom: 3 }}>{METHOD_NOTES[t.id].description}</div>
-                                {METHOD_NOTES[t.id].usage && <div style={{ color: C.dim, marginBottom: 4 }}><b style={{ color: C.text }}>Use:</b> {METHOD_NOTES[t.id].usage}</div>}
-                                {METHOD_NOTES[t.id].assumptions && (
-                                  <div style={{ marginBottom: 4 }}>
-                                    <b style={{ color: C.text }}>Assumptions:</b>
-                                    <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
-                                      {METHOD_NOTES[t.id].assumptions.map((a, i) => <li key={i} style={{ color: C.dim, marginBottom: 1 }}>{a}</li>)}
-                                    </ul>
-                                  </div>
-                                )}
-                                {METHOD_NOTES[t.id].cite && <div style={{ color: C.dim, fontSize: 8, fontStyle: 'italic' }}>{METHOD_NOTES[t.id].cite}</div>}
-                              </>
-                            )}
-                        </div>
-                      )}
-                    </div>
-                  );})}
-                </div>
-              )}
+        {/* Core categories */}
+        {coreCats.length > 0 && (
+          <div style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div
+              onClick={() => toggleCategory('__core__')}
+              style={{
+                position: 'sticky', top: 0, zIndex: 1,
+                fontSize: 9, ...mono, fontWeight: 700, color: C.accent,
+                textTransform: 'uppercase', letterSpacing: '.12em',
+                padding: '6px 10px', display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', cursor: 'pointer', background: C.bg,
+                userSelect: 'none', borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <span>CORE ({coreCats.reduce((acc, cat) => acc + cat.tests.length, 0)})</span>
+              <span style={{ fontSize: 8, color: C.dim }}>{isExpanded('__core__') ? '\u25BC' : '\u25B6'}</span>
             </div>
-          );
-        })}
+            {isExpanded('__core__') && coreCats.map(renderCategory)}
+          </div>
+        )}
+
+        {/* Long-tail categories */}
+        {moreCats.length > 0 && (
+          <div style={{ borderBottom: `1px solid ${C.border}` }}>
+            <div
+              onClick={() => toggleCategory('__more__')}
+              style={{
+                position: 'sticky', top: 0, zIndex: 1,
+                fontSize: 9, ...mono, fontWeight: 700, color: C.dim,
+                textTransform: 'uppercase', letterSpacing: '.12em',
+                padding: '6px 10px', display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', cursor: 'pointer', background: C.bg,
+                userSelect: 'none', borderBottom: `1px solid ${C.border}`,
+              }}
+            >
+              <span>MORE CATEGORIES ({moreCats.length})</span>
+              <span style={{ fontSize: 8, color: C.dim }}>{isExpanded('__more__') ? '\u25BC' : '\u25B6'}</span>
+            </div>
+            {isExpanded('__more__') && moreCats.map(renderCategory)}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -573,6 +594,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [p2x, setP2x] = useState('30'); const [p2n, setP2n] = useState('100');
   const [binoK, setBinoK] = useState('15'); const [binoN, setBinoN] = useState('30'); const [binoP, setBinoP] = useState('0.5');
   const [metaInput, setMetaInput] = useState('Study1,0.5,0.20\nStudy2,0.3,0.25\nStudy3,0.8,0.18\nStudy4,0.4,0.22\nStudy5,0.6,0.19');
+  const [pathEquations, setPathEquations] = useState(numeric.length >= 2 ? `${numeric[1]} ~ ${numeric[0]}` : '');
   const [didPCStr, setDidPCStr]   = useState('40,42,39,41');
   const [didPOStr, setDidPOStr]   = useState('41,43,40,42');
   const [didPTStr, setDidPTStr]   = useState('38,40,37,39');
@@ -697,6 +719,29 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [medBsRunning, setMedBsRunning] = useState(false);
   const [powerResult, setPowerResult] = useState(null);
   const [powerRunning, setPowerRunning] = useState(false);
+
+  // ── revalidate generic column-selecting state on dataset switch ────────────
+  // These slots are initialized once from the dataset present at mount; a stale
+  // column name left in them after switching datasets is invisible to the user
+  // (native <select> falls back to displaying its first <option>) but silently
+  // computes against a nonexistent column, so it must never survive a switch.
+  useEffect(() => {
+    setGrpVar(prev => (categorical.includes(prev) ? prev : (categorical[0] || '')));
+    setTgtVar(prev => (numeric.includes(prev) ? prev : (numeric[0] || '')));
+    setXVar(prev => (numeric.includes(prev) ? prev : (numeric[0] || '')));
+    setYVar(prev => (numeric.includes(prev) ? prev : (numeric[1] || numeric[0] || '')));
+    setZVar(prev => (numeric.includes(prev) ? prev : (numeric[2] || numeric[0] || '')));
+    setMVar(prev => (numeric.includes(prev) ? prev : (numeric[1] || numeric[0] || '')));
+    setCat1(prev => (categorical.includes(prev) ? prev : (categorical[0] || '')));
+    setCat2(prev => (categorical.includes(prev) ? prev : (categorical[1] || categorical[0] || '')));
+    setLevel2Var(prev => (categorical.includes(prev) ? prev : (categorical[0] || '')));
+    setTreatVar(prev => (categorical.includes(prev) ? prev : (categorical[0] || '')));
+    setIvInstrument(prev => (numeric.includes(prev) ? prev : (numeric[2] || numeric[0] || '')));
+    setAbmValueField(prev => (numeric.includes(prev) ? prev : (numeric[0] || '')));
+    setPreds(prev => { const kept = prev.filter(c => numeric.includes(c)); return kept.length === prev.length ? prev : (kept.length ? kept : numeric.slice(0, 2)); });
+    setScaleVars(prev => { const kept = prev.filter(c => numeric.includes(c)); return kept.length === prev.length ? prev : (kept.length ? kept : numeric.slice(0, 4)); });
+    setRmCols(prev => { const kept = prev.filter(c => numeric.includes(c)); return kept.length === prev.length ? prev : (kept.length ? kept : numeric.slice(0, 3)); });
+  }, [numeric, categorical]);
 
   const aval = parseFinite(alpha, 0.05);
 
@@ -920,6 +965,15 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'bayes_t')   { const tw = tWelch(g1vals, g2vals); if (!tw) return null; return { ...tw, ...bayesFactorT(tw.t, tw.na, tw.nb, parseFinite(bfPrior, 0.707)), test: 'Bayesian t-test (JZS)' }; }
       if (a === 'bayes_r')   { const pr = pearsonTest(xy.xs, xy.ys); if (!pr) return null; return { ...pr, ...bayesFactorCorr(pr.r, pr.n), test: 'Bayesian Correlation' }; }
       if (a === 'pca')       return pca(data, scaleVars.filter(c => numeric.includes(c)));
+      function mdsResultOrError(r) {
+        if (!r) return r;
+        const ok = r.points?.every(p => Number.isFinite(p?.[0]) && Number.isFinite(p?.[1]));
+        return ok ? r : { error: 'MDS embedding did not converge for these variables — try different Variables.' };
+      }
+      if (a === 'mds_classical') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(classicalMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
+      if (a === 'mds_sammon')    { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(sammonMapping(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
+      if (a === 'mds_nonmetric') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(nonMetricMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
+      if (a === 'path_analysis') return pathAnalysis(data, pathEquations.trim().split('\n').map(l => l.trim()).filter(Boolean));
       if (a === 'efa')       return efa(data, scaleVars.filter(c => numeric.includes(c)), parseInt(nFactors) || 2);
       if (a === 'manova') {
         const ys = scaleVars.filter(c => numeric.includes(c));
@@ -943,6 +997,23 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'splithalf') return splitHalf(scaleMatrix);
       if (a === 'icc')       return icc(scaleMatrix);
       if (a === 'kappa')     return cohensKappa(data.map(r => r[cat1]), data.map(r => r[cat2]));
+      if (a === 'wmean') {
+        const rows = data.filter(r => rowFinite(r, [xVar, zVar]));
+        const m = weightedMean(rows.map(r => +r[xVar]), rows.map(r => +r[zVar]));
+        if (!m) return null;
+        const v = weightedVar(rows.map(r => +r[xVar]), rows.map(r => +r[zVar]));
+        return { test: 'Weighted Descriptives', mean: m.mean, sd: v?.sd ?? null, se: v?.se ?? null, n: m.n, sumWeights: m.sumWeights, apa: v ? `Weighted M = ${m.mean}, SD = ${v.sd}, n = ${m.n}` : m.apa };
+      }
+      if (a === 'wcorr')  return weightedCorrelation(xyz.xs, xyz.ys, xyz.zs);
+      if (a === 'deff')   { const rows = data.filter(r => rowFinite(r, [zVar])); return designEffect(rows.map(r => +r[zVar])); }
+      if (a === 'taylor') {
+        const rows = data.filter(r => rowFinite(r, [xVar]));
+        const t = taylorLinearization(rows, xVar, [], cat1, cat2);
+        if (!t) return null;
+        return Number.isFinite(t.se)
+          ? t
+          : { error: 'Taylor linearization could not compute a standard error — every stratum needs at least 2 distinct PSU/cluster values.' };
+      }
       if (a === 'meta')      { const studies = metaInput.trim().split('\n').map(line => { const p = line.split(','); const d = parseFloat(p[1]), se = parseFloat(p[2]); return { label: p[0]?.trim(), d, se }; }).filter(s => Number.isFinite(s.d) && Number.isFinite(s.se) && s.se > 0); return metaAnalysis(studies); }
       if (a === 'did')       return differencesInDifferences(parseNumList(didPCStr), parseNumList(didPOStr), parseNumList(didPTStr), parseNumList(didPTtStr));
       if (a === 'grubbs')    return grubbsTest(allTgt);
@@ -1273,7 +1344,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     active, g1vals, g2vals, allTgt, mu0, sigma, groups, getVals, data,
     cat1, cat2, xy, xyz, medXMY, modXZY, preds, yVar, xVar, mVar, zVar,
     grpVar, tgtVar, tostL, tostH, bfPrior, aval, scaleVars, scaleMatrix,
-    rmMatrix, rmCols, polDeg, metaInput, didPCStr, didPOStr, didPTStr, didPTtStr,
+    rmMatrix, rmCols, polDeg, metaInput, pathEquations, didPCStr, didPOStr, didPTStr, didPTtStr,
     fx_a, fx_b, fx_c, fx_d, p1x, p1n, p2x, p2n, binoK, binoN, binoP,
     nFactors, ssType, ssPow, ssD, ssR, effFrom, effVal, pairsInput, corrMeth,
     numeric, groups, leveneTest, bartlettTest,
@@ -1328,6 +1399,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     didPCStr, setDidPCStr, didPOStr, setDidPOStr,
     didPTStr, setDidPTStr, didPTtStr, setDidPTtStr,
     metaInput, setMetaInput,
+    pathEquations, setPathEquations,
     onRunBs, bsRunning, onRunMedBs, medBsRunning,
     powAnovaF, setPowAnovaF, powKgroups, setPowKgroups, powNperGrp, setPowNperGrp,
     powChiW, setPowChiW, powChiDf, setPowChiDf, powChiN, setPowChiN,

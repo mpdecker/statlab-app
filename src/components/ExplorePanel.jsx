@@ -3,6 +3,7 @@ import {
   getChartInsight, exportSvgFromCanvas, exportCanvasAsPng,
   EXPLORE_CHARTS_XY, EXPLORE_CHARTS_SIZE, EXPLORE_CHARTS_CAT_PAIR,
   resolveExplorePanelChart, exploreChartLabel, seriesFromResult,
+  useCanvasSize,
 } from '../utils/vizHelpers.js';
 import {
   ExHistogram, ExViolin, ExBox, ExRainCloud, ExECDF,
@@ -26,24 +27,6 @@ const CHART_SECTIONS = [
   { label: 'Categorical', charts: ['Mosaic', 'Stacked%', 'Diverg. Likert'] },
   { label: 'Multivariate', charts: ['PCA biplot', 'Load. heatmap', 'Parallel', 'Dendrogram', 'Silhouette'] },
 ];
-
-function useCanvasSize(ref) {
-  const [size, setSize] = useState({ w: 560, h: 360 });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect;
-      setSize({
-        w: Math.max(320, Math.floor(width - 24)),
-        h: Math.max(240, Math.floor(height - 80)),
-      });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return size;
-}
 
 function renderChart({ chart, data, includeVars, groupVar, xVar, yVar, sizeVar, catX, catY, canvasSize, onBridgeToInference, inferenceResult, activeTest }) {
   const { w, h } = canvasSize;
@@ -111,7 +94,7 @@ export default function ExplorePanel({ data, ds, seed, inferenceContext, onBridg
   const [inferenceResult, setInferenceResult] = useState(seed?.inferenceResult ?? null);
   const [activeTest, setActiveTest] = useState(seed?.activeTest ?? null);
   const canvasRef = useRef(null);
-  const canvasSize = useCanvasSize(canvasRef);
+  const canvasSize = useCanvasSize(canvasRef, { initialW: 560, initialH: 360 });
 
   useEffect(() => {
     if (!seed) return;

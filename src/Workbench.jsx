@@ -1,208 +1,52 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { lazy, Suspense, useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import Papa from 'papaparse';
 import { FONTS, GLOBAL_CSS, C, PAL } from './palette.js';
 import { BUILTIN, detectCols, loadDataset, _cache, DATASET_DEFAULTS } from './data/datasets.js';
 import {
   resolveQuickViewVars, barGroupsFromResult, loadingFromResult,
   formatInferenceSummary, CHART_MODE_LABELS, exploreChartLabel, explorePanelChartFromMode,
-  seriesFromResult,
+  seriesFromResult, useCanvasSize,
 } from './utils/vizHelpers.js';
 import { CHART_FOR_TEST } from './config/chartMap.js';
 import { TREE } from './config/tree.js';
 import { TOTAL_TEST_COUNT } from './config/testCategories.js';
-import { computeStats, corr, avg, sampleSD } from 'statlab/math/core';
+import { computeStats, corr, avg, sampleSD } from '@statlab/core/math/core';
 import { barHeightPct } from './utils/parse.js';
 import { useInference, Navigator } from './components/InferencePanel.jsx';
 import { SponsorSlot } from './components/SponsorSlot.jsx';
 import { InferenceConfig } from './components/InferenceConfig.jsx';
 import { InferenceResults } from './components/InferenceResults.jsx';
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { ResizablePanel } from './components/ResizablePanel.jsx';
 import { ResizableBand } from './components/ResizableBand.jsx';
 import { DatasetPicker } from './components/DatasetPicker.jsx';
 import { DatasetRecommendations } from './components/DatasetRecommendations.jsx';
 import { Tutorial, hasTutorialSeen } from './components/Tutorial.jsx';
 import { Sel, Inp } from './components/ui.jsx';
-import ExplorePanel from './components/ExplorePanel.jsx';
-import {
-  QuickScatter, QuickScatterFit, ViolinPlot, BarCI, HistogramDensity, HeatmapCorr, MosaicPlot,
-  PowerCurve, PathDiagram, ForestPlot, QQPlot, ScreePlot, ResidualPlot, BootstrapHist,
-  QuickSlopes, BoxPlotGrid, IRTCurves, LCAProfiles, SpaghettiPlot, CaterpillarPlot,
-  ITSPlot, RDPlot, SociogramPlot, TimeSeriesChart,
-} from './components/charts.jsx';
 import { loadSession, saveSession, getInitialState } from './utils/session.js';
+
+const QuickChart = lazy(() => import('./components/QuickChart.jsx'));
+const ExplorePanel = lazy(() => import('./components/ExplorePanel.jsx'));
 
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
 const vLabel = { writingMode: 'vertical-rl', fontSize: 9, color: C.dim, ...mono, letterSpacing: '.1em', textTransform: 'uppercase' };
 
-const CHART_ICONS = [
-  { id: 'violin', label: 'VLN', title: 'Violin' },
-  { id: 'box', label: 'BOX', title: 'Box plot' },
-  { id: 'scatter', label: 'SCT', title: 'Scatter' },
-  { id: 'histogram', label: 'HST', title: 'Histogram' },
-  { id: 'barci', label: 'BCI', title: 'Bar + CI' },
-  { id: 'heatmap', label: 'HM', title: 'Correlogram heatmap' },
-  { id: 'mosaic', label: 'MOS', title: 'Mosaic plot' },
-  { id: 'timeseries', label: 'TS', title: 'Time series' },
-  { id: 'boot', label: 'BST', title: 'Bootstrap' },
+// Chart modes with a dedicated AUTO-toolbar button. Each button's visible
+// text comes from CHART_MODE_LABELS (vizHelpers.js) — the app's one
+// existing source of truth for chart-mode names, also used by the EXPLORE
+// tab and QuickChart's own mode-render tests — rather than a second,
+// independently-worded copy that can silently disagree with it.
+const CHART_ICON_IDS = [
+  'violin', 'box', 'scatter', 'histogram', 'barci',
+  'heatmap', 'mosaic', 'timeseries', 'boot',
 ];
 
-function computeCorrMatrix(data, vars) {
-  return vars.map(v1 => vars.map(v2 => {
-    if (v1 === v2) return 1;
-    const xs = data.map(r => +r[v1]).filter(Number.isFinite);
-    const ys = data.map(r => +r[v2]).filter(Number.isFinite);
-    const n = Math.min(xs.length, ys.length);
-    if (n < 2) return 0;
-    return corr(xs.slice(0, n), ys.slice(0, n));
-  }));
-}
-
-function renderQuickChart({ mode, data, xVar, yVar, colorVar, ds, colorMap, groups, inferenceResult, activeTest }) {
-  const numVals = (col) => data.map(r => +r[col]).filter(Number.isFinite);
-  const gVar = colorVar && colorVar !== '(none)' ? colorVar : null;
-  const emptyHint = (msg) => (
-    <div style={{ padding: 12, fontSize: 9, color: C.dim, ...mono, textAlign: 'center', lineHeight: 1.5 }}>{msg}</div>
-  );
-  switch (mode) {
-    case 'violin': {
-      const gVar = colorVar && colorVar !== '(none)' ? colorVar : null;
-      const gList = gVar ? [...new Set(data.map(r => r[gVar]))].slice(0, 4) : ['all'];
-      return (
-        <div style={{ display: 'flex', gap: 4, height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-          {gList.map(g => (
-            <div key={g} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 8, color: C.dim }}>{g}</div>
-              <ViolinPlot
-                data={(gVar ? data.filter(r => r[gVar] === g) : data).map(r => +r[yVar]).filter(Number.isFinite)}
-                  width={90} height={130}
-              />
-            </div>
-          ))}
-        </div>
-      );
-    }
-    case 'scatter':
-      return (
-        <QuickScatter
-          data={data} xVar={xVar} yVar={yVar}
-          colorVar={colorVar !== '(none)' ? colorVar : null}
-          colorMap={colorMap} groups={groups}
-        />
-      );
-    case 'scatterfit':
-      return (
-        <QuickScatterFit
-          data={data} xVar={xVar} yVar={yVar}
-          colorVar={colorVar !== '(none)' ? colorVar : null}
-          colorMap={colorMap} groups={groups}
-        />
-      );
-    case 'path':
-      return inferenceResult && activeTest === 'mediation'
-        ? <PathDiagram r={inferenceResult} />
-        : emptyHint('Run Mediation in Inference to see the path diagram.');
-    case 'forest':
-      return inferenceResult?.studies?.length
-        ? <ForestPlot items={inferenceResult.studies.map(s => ({ label: s.label, est: s.d, lo: s.d - 1.96 * s.se, hi: s.d + 1.96 * s.se, p: s.p }))} />
-        : emptyHint('Enter study effects in Meta-analysis, then run.');
-    case 'qq':
-      return <QQPlot vals={numVals(yVar || xVar)} label={yVar || xVar} />;
-    case 'scree':
-      return inferenceResult?.eigenvalues?.length
-        ? <ScreePlot eigenvalues={inferenceResult.eigenvalues} />
-        : emptyHint('Run PCA with scale variables selected.');
-    case 'residual':
-      return inferenceResult?.fitted && inferenceResult?.residuals
-        ? <ResidualPlot fitted={inferenceResult.fitted} residuals={inferenceResult.residuals} />
-        : emptyHint('Run Simple OLS to view residuals vs fitted.');
-    case 'boot':
-      return inferenceResult?.dist
-        ? <BootstrapHist dist={inferenceResult.dist} lo={inferenceResult.lo} hi={inferenceResult.hi} />
-        : <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
-    case 'timeseries': {
-      const tsSeries = seriesFromResult(inferenceResult, activeTest);
-      if (tsSeries?.length) return <TimeSeriesChart series={tsSeries} width={210} height={140} />;
-      return <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
-    }
-    case 'histogram':
-      return <HistogramDensity values={numVals(yVar || xVar)} width={210} height={160} />;
-    case 'barci':
-      return <BarCI groups={barGroupsFromResult(inferenceResult, activeTest, data, gVar, yVar)} width={210} height={160} />;
-    case 'box':
-      return gVar
-        ? <BoxPlotGrid data={data} groupVar={gVar} yVar={yVar} width={210} height={160} />
-        : emptyHint('Select a Color / group variable for box plots.');
-    case 'slopes':
-      return inferenceResult?.simpleSlopes?.length
-        ? <QuickSlopes slopes={inferenceResult.simpleSlopes} />
-        : emptyHint('Run Moderation in Inference to see simple slopes at \u00B11 SD.');
-    case 'loading': {
-      const load = loadingFromResult(inferenceResult, activeTest, ds?.numeric);
-      if (load) {
-        return (
-          <HeatmapCorr
-            matrix={load.matrix} labels={load.colLabels} rowLabels={load.rowLabels}
-            width={210} height={210}
-          />
-        );
-      }
-      return emptyHint('Run PCA, EFA, or Cronbach \u03B1 in Inference.');
-    }
-    case 'heatmap': {
-      const vars = (ds?.numeric || []).slice(0, 6);
-      return <HeatmapCorr matrix={computeCorrMatrix(data, vars)} labels={vars} width={210} height={210} />;
-    }
-    case 'mosaic':
-      return <MosaicPlot data={data} xVar={gVar || xVar} yVar={yVar} width={210} height={160} />;
-    case 'power':
-      return <PowerCurve d={0.5} currentN={Math.floor(data.length / 2)} />;
-    case 'irtplot':
-      return inferenceResult?.icc?.length
-        ? <IRTCurves icc={inferenceResult.icc} itemCount={inferenceResult.k} />
-        : emptyHint('Run IRT 1PL or 2PL with scale items selected.');
-    case 'lca':
-      return inferenceResult?.profiles?.length
-        ? <LCAProfiles profiles={inferenceResult.profiles} />
-        : emptyHint('Run Latent Class Analysis with two categorical indicators.');
-    case 'spaghetti':
-      return gVar && yVar
-        ? <SpaghettiPlot data={data} xVar={xVar || ds?.numeric?.[0]} yVar={yVar} groupVar={gVar} />
-        : emptyHint('Select cluster ID and outcome for spaghetti plot.');
-    case 'caterpillar':
-      return inferenceResult?.groupMeans?.length
-        ? <CaterpillarPlot groups={inferenceResult.groupMeans} />
-        : emptyHint('Run HLM random intercept to see caterpillar plot.');
-    case 'its':
-      return inferenceResult?.series?.length
-        ? <ITSPlot series={inferenceResult.series} />
-        : emptyHint('Run Interrupted Time Series with time and outcome vectors.');
-    case 'rddplot':
-      return inferenceResult?.points?.length
-        ? <RDPlot points={inferenceResult.points} cutoff={inferenceResult.cutoff} />
-        : emptyHint('Run Regression Discontinuity with X and Y variables.');
-    case 'sociogram':
-      return inferenceResult?.nodes?.length
-        ? <SociogramPlot nodes={inferenceResult.nodes} edges={inferenceResult.edges} />
-        : emptyHint('Run Sociogram / enter edge list (A-B,B-C).');
-    default:
-      return (
-        <QuickScatter
-          data={data} xVar={xVar} yVar={yVar}
-          colorVar={colorVar !== '(none)' ? colorVar : null}
-          colorMap={colorMap} groups={groups}
-        />
-      );
-  }
-}
-
-// ── Panel layout hook ────────────────────────────────────────────────────────
 const defaultPanelLayout = {
   navigator: { width: 240, visible: true },
   advanced: { width: 280, visible: false },
   calc: { height: 260, visible: true },
 };
-
 
 function getBreakpointLayout() {
   const w = window.innerWidth;
@@ -281,12 +125,26 @@ function Header({ dsKey, customDef, switchDs, fileRef, handleCSV, uploadMsg, dat
       <input ref={fileRef} type="file" accept=".csv" onChange={handleCSV} style={{ display: 'none' }} />
       {uploadMsg && <span style={{ fontSize: 9, color: C.accent, ...mono }}>{uploadMsg}</span>}
 
+      <a
+        href="https://ko-fi.com/matthieudecker"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Support StatLab on Ko-fi"
+        style={{
+          marginLeft: 'auto', color: C.dim, ...mono, fontSize: 9,
+          padding: '3px 8px', border: `1px solid ${C.border}`, borderRadius: 3,
+          textDecoration: 'none',
+        }}
+      >
+        {'☕'} ko-fi
+      </a>
+
       <button
         onClick={onOpenTutorial}
         title="Replay tutorial"
         aria-label="Replay tutorial"
         style={{
-          marginLeft: 'auto', background: 'transparent', border: `1px solid ${C.border}`, color: C.dim,
+          background: 'transparent', border: `1px solid ${C.border}`, color: C.dim,
           ...mono, fontSize: 11, width: 22, height: 22, borderRadius: '50%', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
         }}
@@ -300,6 +158,8 @@ function Header({ dsKey, customDef, switchDs, fileRef, handleCSV, uploadMsg, dat
 // ── Quick-view content ────────────────────────────────────────────────────────
 
 function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setChartMode, inferenceResult, inferenceContext }) {
+  const chartPanelRef = useRef(null);
+  const canvasSize = useCanvasSize(chartPanelRef, { minW: 160, minH: 120, padW: 16, padH: 16, initialW: 210, initialH: 160 });
   const resolved = useMemo(
     () => resolveQuickViewVars(activeTest, { xVar, yVar, groupVar: colorVar }, inferenceContext),
     [activeTest, xVar, yVar, colorVar, inferenceContext],
@@ -317,6 +177,11 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
   const xStats = useMemo(() => computeStats(data.map(r => +r[vizX]).filter(Number.isFinite)), [data, vizX]);
   const yStats = useMemo(() => computeStats(data.map(r => +r[vizY]).filter(Number.isFinite)), [data, vizY]);
   const pearsonR = useMemo(() => {
+    // A group-comparison test (t-test, ANOVA, ...) resolves both "vars" to
+    // the same target variable — there's one numeric variable, not two to
+    // correlate. Correlating it with itself is always r=1.000, which reads
+    // as a real result next to the actual test statistics below it.
+    if (vizX === vizY) return null;
     if (!xStats || !yStats) return null;
     const xs = data.map(r => +r[vizX]).filter(Number.isFinite);
     const ys = data.map(r => +r[vizY]).filter(Number.isFinite);
@@ -329,12 +194,18 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
       {isAuto && (
         <span style={{ fontSize: 7, color: C.accent, ...mono, padding: '2px 5px', border: `1px solid ${C.accent}`, borderRadius: 2, letterSpacing: '.08em' }} title={`Auto: ${modeLabel}`}>AUTO</span>
       )}
-      <span style={{ fontSize: 7, color: C.dim, ...mono }}>{modeLabel}</span>
-      {CHART_ICONS.map(({ id, label, title }) => (
+      {/* Only shown when the active mode has no toolbar button of its own
+          (most modes don't — the toolbar covers 9 of CHART_MODE_LABELS'
+          25) — otherwise this would repeat the same word the highlighted
+          button already shows right next to it. */}
+      {!CHART_ICON_IDS.includes(effectiveMode) && (
+        <span style={{ fontSize: 7, color: C.dim, ...mono }}>{modeLabel}</span>
+      )}
+      {CHART_ICON_IDS.map(id => (
         <button
           key={id}
           type="button"
-          title={title}
+          title={CHART_MODE_LABELS[id]}
           onClick={() => setChartMode(id === chartMode ? null : id)}
           style={{
             background: effectiveMode === id ? 'rgba(196,255,0,.15)' : 'transparent',
@@ -344,7 +215,7 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
             fontFamily: "'IBM Plex Mono', monospace",
           }}
         >
-          {label}
+          {CHART_MODE_LABELS[id]}
         </button>
       ))}
     </div>
@@ -353,7 +224,7 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '5px 8px', borderBottom: `1px solid ${C.border}`, fontSize: 7, color: C.dim, ...mono, textTransform: 'uppercase', letterSpacing: '.1em' }}>
-        {vizX} {'\u00D7'} {vizY}
+        {vizX === vizY ? vizX : `${vizX} ${'\u00D7'} ${vizY}`}
         {resolved.usingInference && (
           <span style={{ marginLeft: 6, color: C.warn, fontSize: 6 }}>{'\u25B6 inference vars'}</span>
         )}
@@ -362,10 +233,14 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
       {chartIcons}
 
       <div style={{ flex: 1, padding: '6px 3px 3px', minHeight: 0 }}>
-        <div style={{ height: '100%', background: C.chartBg, borderRadius: 3, padding: '10px 2px 2px', position: 'relative', overflow: 'hidden' }}>
+        <div ref={chartPanelRef} style={{ height: '100%', background: C.chartBg, borderRadius: 3, padding: '10px 2px 2px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', inset: 0, opacity: .15, backgroundImage: `linear-gradient(${C.border} 1px,transparent 1px),linear-gradient(90deg,${C.border} 1px,transparent 1px)`, backgroundSize: '30px 30px', pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 1, height: '100%' }}>
-            {renderQuickChart({ mode: effectiveMode, data, xVar: vizX, yVar: vizY, colorVar: vizGroup, ds, colorMap, groups, inferenceResult, activeTest })}
+            <Suspense fallback={<div role="status">Loading chart…</div>}>
+              <ErrorBoundary>
+                <QuickChart mode={effectiveMode} data={data} xVar={vizX} yVar={vizY} colorVar={vizGroup} ds={ds} colorMap={colorMap} groups={groups} inferenceResult={inferenceResult} activeTest={activeTest} canvasSize={canvasSize} />
+              </ErrorBoundary>
+            </Suspense>
           </div>
         </div>
       </div>
@@ -378,7 +253,7 @@ function QuickView({ data, xVar, yVar, colorVar, ds, activeTest, chartMode, setC
             <span style={{ color: C.dim }}> SD={xStats.sd} n={xStats.n}</span>
           </div>
         )}
-        {yStats && (
+        {yStats && vizY !== vizX && (
           <div style={{ marginBottom: 2 }}>
             <span style={{ color: C.dim }}>{vizY}: </span>
             <span style={{ color: C.accent }}>M={yStats.mean}</span>
@@ -423,7 +298,7 @@ function VizRegion({ vizMode, setVizMode, data, xVar, yVar, colorVar, ds, active
       </div>
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {vizMode === 'explore'
-          ? <ExplorePanel data={data} ds={ds} seed={exploreSeed} inferenceContext={inferenceContext} onBridgeToInference={onBridgeToInference} />
+          ? <Suspense fallback={<div role="status">Loading explorer…</div>}><ExplorePanel data={data} ds={ds} seed={exploreSeed} inferenceContext={inferenceContext} onBridgeToInference={onBridgeToInference} /></Suspense>
           : (
             <QuickView
               data={data} xVar={xVar} yVar={yVar} colorVar={colorVar} ds={ds}

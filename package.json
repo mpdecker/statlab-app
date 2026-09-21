@@ -13,11 +13,11 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@statlab/core": "^0.1.1",
     "papaparse": "^5.5.3",
     "react": "^18",
     "react-dom": "^18.3.1",
-    "recharts": "^2.12.7",
-    "statlab": "^0.1.0"
+    "recharts": "^2.12.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
