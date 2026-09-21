@@ -279,6 +279,10 @@ export function InferenceConfig({ active, ds, data, state, set, width = '100%', 
       label="Studies  (label, d, se — one per line)"
       value={state.metaInput} onChange={state.setMetaInput} rows={7}
     />,
+    path_analysis: <TA
+      label="Equations (one per line: y ~ x1 + x2)"
+      value={state.pathEquations} onChange={state.setPathEquations} rows={5}
+    />,
     did: <>
       <div style={{ fontSize: 8, color: C.dim, ...mono, textTransform: 'uppercase', marginBottom: 4 }}>Comma-separated values per cell</div>
       <Inp label="Pre-control"    value={didPCStr}  onChange={setDidPCStr}  width={160} placeholder="40,42,39" />
