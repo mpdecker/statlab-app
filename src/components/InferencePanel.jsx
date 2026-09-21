@@ -747,6 +747,16 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     setPreds(prev => { const kept = prev.filter(c => numeric.includes(c)); return kept.length === prev.length ? prev : (kept.length ? kept : numeric.slice(0, 2)); });
     setScaleVars(prev => { const kept = prev.filter(c => numeric.includes(c)); return kept.length === prev.length ? prev : (kept.length ? kept : numeric.slice(0, 4)); });
     setRmCols(prev => { const kept = prev.filter(c => numeric.includes(c)); return kept.length === prev.length ? prev : (kept.length ? kept : numeric.slice(0, 3)); });
+    setBifactorGroups(prev => {
+      const kept = prev.map(g => ({ items: g.items.filter(c => numeric.includes(c)) }));
+      const changed = kept.some((g, i) => g.items.length !== prev[i].items.length);
+      if (!changed) return prev;
+      const nonEmpty = kept.filter(g => g.items.length);
+      if (nonEmpty.length) return nonEmpty;
+      const cols = numeric.slice(0, 4);
+      const half = Math.ceil(cols.length / 2);
+      return cols.length >= 2 ? [{ items: cols.slice(0, half) }, { items: cols.slice(half) }] : [];
+    });
   }, [numeric, categorical]);
 
   const aval = parseFinite(alpha, 0.05);
@@ -981,7 +991,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'mds_nonmetric') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(nonMetricMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
       if (a === 'path_analysis') return pathAnalysis(data, pathEquations.trim().split('\n').map(l => l.trim()).filter(Boolean));
       if (a === 'latent_growth') { const vars = scaleVars.filter(c => numeric.includes(c)); const times = semTimes.trim() ? parseNumList(semTimes) : null; return latentGrowthModel(data, vars, times && times.length === vars.length ? times : null); }
-      if (a === 'bifactor') return bifactorModel(data, [], bifactorGroups.filter(g => g.items.length));
+      if (a === 'bifactor') { const r = bifactorModel(data, [], bifactorGroups.filter(g => g.items.length)); return r ? { ...r, warning: 'ω total and per-item communality are not shown: @statlab/core does not cap the group loading, so these routinely exceed the [0,1] range they are defined to stay within. ω hierarchical and the general/group loadings below are unaffected.' } : r; }
       if (a === 'efa')       return efa(data, scaleVars.filter(c => numeric.includes(c)), parseInt(nFactors) || 2);
       if (a === 'manova') {
         const ys = scaleVars.filter(c => numeric.includes(c));
