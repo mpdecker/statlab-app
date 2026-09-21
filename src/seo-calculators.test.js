@@ -127,11 +127,31 @@ describe('SEO calculator pages', () => {
       'grubbs-outlier-test',
       'dixon-q-test',
       'reliability-block-diagram',
+      'half-life-decay-rate',
+      'arrhenius-equation-activation',
+      'logistic-growth-carrying-capacity',
+      'hill-equation-ec50',
+      'michaelis-menten-kinetics',
+      'gumbel-distribution-calculator',
+      'weibull-two-parameter-fit',
+      'log-normal-distribution-calculator',
+      'gamma-distribution-calculator',
+      'cauchy-distribution-calculator',
+      'beta-distribution-calculator',
+      'dirichlet-distribution-calculator',
+      'hypergeometric-distribution-calculator',
+      'negative-binomial-distribution',
+      'multinomial-distribution-calculator',
+      'box-cox-transformation',
+      'yeo-johnson-transformation',
+      'spectral-density-periodogram',
+      'signal-to-noise-ratio-snr',
+      'cusum-mean-variance-spc',
     ]);
-    expect(calculatorPages.length).toBe(120);
+    expect(calculatorPages.length).toBe(140);
   });
 
-  it('renders static HTML with canonical metadata, math formulas, code snippets, JSON-LD, and VoxelPulse/VoxelAssurance CTAs', () => {
+  it('renders static HTML with canonical metadata, math formulas, code snippets, JSON-LD, and open CTAs', () => {
     const page = calculatorPages.find((candidate) => candidate.slug === 'mann-whitney-u');
     const html = renderCalculatorPage(page);
     expect(html).toContain('<title>Mann-Whitney U calculator | StatLab</title>');
@@ -140,22 +160,22 @@ describe('SEO calculator pages', () => {
     expect(html).toContain('Run this test live in StatLab');
     expect(html).toContain('Python (SciPy / Statsmodels)');
     expect(html).toContain('TypeScript (@statlab/core)');
-    expect(html).toContain('VoxelPulse Telemetry Control Plane');
-    expect(html).toContain('VoxelAssurance Release Readiness');
+    expect(html).toContain('StatLab Interactive Workbench');
+    expect(html).toContain('@statlab/core TypeScript Library');
   });
 
-  it('renders new statistical families (Probability distributions, SPC, Information theory, Reliability, Resampling, DOE, Vector Distance, Extreme Value, Outliers)', () => {
-    const bootPage = calculatorPages.find((c) => c.slug === 'bootstrap-confidence-interval');
-    expect(renderCalculatorPage(bootPage)).toContain('Bootstrap confidence interval calculator');
+  it('renders new statistical families (Probability distributions, SPC, Information theory, Reliability, Resampling, DOE, Vector Distance, Extreme Value, Kinetic Growth)', () => {
+    const decayPage = calculatorPages.find((c) => c.slug === 'half-life-decay-rate');
+    expect(renderCalculatorPage(decayPage)).toContain('Half-life, decay constant &amp; mean lifetime calculator');
 
-    const gevPage = calculatorPages.find((c) => c.slug === 'gev-generalized-extreme-value');
-    expect(renderCalculatorPage(gevPage)).toContain('Generalized Extreme Value (GEV) distribution calculator');
+    const lognormPage = calculatorPages.find((c) => c.slug === 'log-normal-distribution-calculator');
+    expect(renderCalculatorPage(lognormPage)).toContain('Log-normal distribution &amp; geometric mean calculator');
 
-    const grubbsPage = calculatorPages.find((c) => c.slug === 'grubbs-outlier-test');
-    expect(renderCalculatorPage(grubbsPage)).toContain('Grubbs&#39; test for univariate outliers calculator');
+    const psdPage = calculatorPages.find((c) => c.slug === 'spectral-density-periodogram');
+    expect(renderCalculatorPage(psdPage)).toContain('Fast Fourier Transform (FFT) Power Spectral Density calculator');
 
-    const rbdPage = calculatorPages.find((c) => c.slug === 'reliability-block-diagram');
-    expect(renderCalculatorPage(rbdPage)).toContain('Reliability Block Diagram (RBD) system reliability calculator');
+    const bcPage = calculatorPages.find((c) => c.slug === 'box-cox-transformation');
+    expect(renderCalculatorPage(bcPage)).toContain('Box-Cox power transformation calculator');
   });
 
   it('writes calculator routes plus sitemap and robots files', () => {

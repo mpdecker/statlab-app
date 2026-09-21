@@ -22,8 +22,8 @@ export const calculatorPages = [
     },
     useCases: [
       'A/B testing latency distributions across canary vs production servers with unequal sample sizes.',
-      'Validating API response time improvements in VoxelAssurance release-readiness sprints.',
-      'Comparing user engagement durations across variant groups in VoxelPulse telemetry.'
+      'Validating API response time improvements in production release-readiness audits.',
+      'Comparing user engagement durations across variant groups in production system telemetry.'
     ],
     when: 'Use when two independent sample groups have potentially unequal variances or unequal sample sizes.',
     cautions: [
@@ -73,8 +73,8 @@ export const calculatorPages = [
     },
     useCases: [
       'Measuring latency changes on the exact same set of API endpoints before and after a optimization deployment.',
-      'Tracking user task completion time before and after UI redesign in VoxelPulse telemetry.',
-      'Evaluating paired LLM response timing across prompt iterations in VoxelAssurance runs.'
+      'Tracking user task completion time before and after UI redesign in production system telemetry.',
+      'Evaluating paired LLM response timing across prompt iterations in automated benchmark runs.'
     ],
     when: 'Use when each observation in group A directly pairs with an observation in group B (e.g. pre/post test).',
     cautions: [
@@ -99,7 +99,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Verifying microservice throughput against SLA target baselines.',
-      'Automated build gate pass/fail validation in VoxelAssurance regression suites.'
+      'Automated build gate pass/fail validation in automated regression suites.'
     ],
     when: 'Use when comparing a single sample mean against a fixed numerical benchmark or theoretical mean.',
     cautions: [
@@ -124,7 +124,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Quantifying practical impact magnitude beyond p-value significance in A/B test reporting.',
-      'Standardizing benchmark performance gains across heterogeneous hardware runs in VoxelAssurance.'
+      'Standardizing benchmark performance gains across heterogeneous hardware runs in CI/CD pipeline benchmarks.'
     ],
     when: 'Use whenever reporting t-test results to express practical significance independent of sample size.',
     cautions: [
@@ -150,7 +150,7 @@ export const calculatorPages = [
       ts: `import { zScore } from '@statlab/core';\nconst z = zScore(115, 100, 15);`,
     },
     useCases: [
-      'Standardizing infrastructure metric metrics across scaling tiers in VoxelPulse.',
+      'Standardizing infrastructure metric metrics across scaling tiers in production telemetry.',
       'Calculating percentile ranks for system latency observations.'
     ],
     when: 'Use to standardize individual values relative to a known population mean and standard deviation.',
@@ -175,7 +175,7 @@ export const calculatorPages = [
       ts: `import { tToP } from '@statlab/core';\nconst p = tToP(2.45, 18);`,
     },
     useCases: [
-      'Converting microbenchmark t-statistics into exact p-values in VoxelAssurance.',
+      'Converting microbenchmark t-statistics into exact p-values in CI/CD pipeline benchmarks.',
       'Calculating exact critical boundaries for custom hypothesis tests.'
     ],
     when: 'Use when working with sample mean statistics where population variance is estimated.',
@@ -225,7 +225,7 @@ export const calculatorPages = [
       ts: `import { chi2ToP } from '@statlab/core';\nconst p = chi2ToP(9.49, 4);`,
     },
     useCases: [
-      'Looking up exact p-values for custom chi-square test matrices in VoxelPulse.',
+      'Looking up exact p-values for custom chi-square test matrices in production telemetry.',
       'Evaluating goodness-of-fit model tests.'
     ],
     when: 'Use for categorical independence, goodness-of-fit, and log-likelihood ratio tests.',
@@ -252,7 +252,7 @@ export const calculatorPages = [
       ts: `import { pcaVariance } from '@statlab/core';\nconst res = pcaVariance(matrix);`,
     },
     useCases: [
-      'Dimensionality reduction for telemetry metric feature vectors in VoxelPulse.',
+      'Dimensionality reduction for telemetry metric feature vectors in production telemetry.',
       'Evaluating latent feature representation quality in AI model embeddings.'
     ],
     when: 'Use when reducing continuous multi-feature datasets into uncorrelated principal components.',
@@ -277,7 +277,7 @@ export const calculatorPages = [
       ts: `import { manova } from '@statlab/core';\nconst res = manova(df, ['y1', 'y2'], 'group');`,
     },
     useCases: [
-      'Evaluating system optimization across multiple dependent telemetry metrics simultaneously in VoxelPulse.',
+      'Evaluating system optimization across multiple dependent telemetry metrics simultaneously in production telemetry.',
       'Testing model build performance across speed, accuracy, and memory concurrently.'
     ],
     when: 'Use when evaluating group differences on two or more correlated continuous outcomes.',
@@ -304,7 +304,7 @@ export const calculatorPages = [
       ts: `import { riskMetrics } from '@statlab/core';\nconst res = riskMetrics(15, 485, 45, 455);`,
     },
     useCases: [
-      'Calculating relative error rate risk reduction in VoxelAssurance release readiness audits.',
+      'Calculating relative error rate risk reduction in production release-readiness audits.',
       'Evaluating conversion risk and churn odds in product analytics.'
     ],
     when: 'Use when evaluating risk or odds of binary outcome events between exposed and unexposed groups.',
@@ -330,7 +330,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Evaluating A/B experiment significance across stratified user segments without Simpson’s Paradox bias.',
-      'Multi-center or multi-region benchmark synthesis in VoxelPulse.'
+      'Multi-center or multi-region benchmark synthesis in production telemetry.'
     ],
     when: 'Use when combining binary outcome tables across distinct strata or confounding subgroups.',
     cautions: [
@@ -356,7 +356,7 @@ export const calculatorPages = [
       ts: `import { grangerCausality } from '@statlab/core';\nconst res = grangerCausality(ySeries, xSeries, 3);`,
     },
     useCases: [
-      'Determining whether upstream microservice queue metrics predict downstream latency spikes in VoxelPulse.',
+      'Determining whether upstream microservice queue metrics predict downstream latency spikes in production telemetry.',
       'Root cause analysis in automated infrastructure diagnostic telemetry.'
     ],
     when: 'Use to establish predictive lead-lag relationships between two stationary time series.',
@@ -381,7 +381,7 @@ export const calculatorPages = [
       ts: `import { sharpeRatio } from '@statlab/core';\nconst s = sharpeRatio(returns, 0.02);`,
     },
     useCases: [
-      'Evaluating risk-adjusted yield and throughput efficiency ratios for algorithmic trading or server resource scheduling in VoxelPulse.',
+      'Evaluating risk-adjusted yield and throughput efficiency ratios for algorithmic trading or server resource scheduling in production telemetry.',
       'Benchmarking performance stability.'
     ],
     when: 'Use when evaluating risk-adjusted performance of continuous yield or throughput time series.',
@@ -406,7 +406,7 @@ export const calculatorPages = [
       ts: `import { ljungBox } from '@statlab/core';\nconst res = ljungBox(residuals, 10);`,
     },
     useCases: [
-      'Verifying that ARIMA telemetry model residuals resemble independent white noise in VoxelPulse.',
+      'Verifying that ARIMA telemetry model residuals resemble independent white noise in production telemetry.',
       'Testing for hidden temporal patterns in benchmark errors.'
     ],
     when: 'Use to test for overall residual independence across multiple time lags simultaneously.',
@@ -434,7 +434,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Modeling overdispersed count metrics (e.g., server crash bursts, API error bursts) where Poisson assumptions fail.',
-      'Predicting customer defect event counts in VoxelAssurance.'
+      'Predicting customer defect event counts in CI/CD pipeline benchmarks.'
     ],
     when: 'Use for count data when variance is significantly larger than the mean (overdispersion).',
     cautions: [
@@ -458,8 +458,8 @@ export const calculatorPages = [
       ts: `import { quantileRegression } from '@statlab/core';\nconst res = quantileRegression(y, X, 0.95);`,
     },
     useCases: [
-      'Modeling tail latency scaling (p95, p99) directly as a function of system load parameters in VoxelAssurance.',
-      'Estimating non-homoscedastic quantile boundaries in VoxelPulse.'
+      'Modeling tail latency scaling (p95, p99) directly as a function of system load parameters in CI/CD pipeline benchmarks.',
+      'Estimating non-homoscedastic quantile boundaries in production telemetry.'
     ],
     when: 'Use when modeling conditional percentiles or when outcome data exhibits heteroscedasticity or severe outliers.',
     cautions: [
@@ -485,9 +485,9 @@ export const calculatorPages = [
       ts: `import { mannWhitneyU } from '@statlab/core';\nconst result = mannWhitneyU(groupA, groupB);`,
     },
     useCases: [
-      'Evaluating non-normally distributed response times or long-tailed microservice latency in VoxelPulse.',
+      'Evaluating non-normally distributed response times or long-tailed microservice latency in production telemetry.',
       'Comparing customer satisfaction score ranks across product subscription tiers.',
-      'Benchmarking LLM toxicity or error distribution ranks in VoxelAssurance validation sprints.'
+      'Benchmarking LLM toxicity or error distribution ranks in validation sprints.'
     ],
     when: 'Use when comparing two independent samples with ordinal data, non-normal continuous distributions, or heavy tail outliers.',
     cautions: [
@@ -536,8 +536,8 @@ export const calculatorPages = [
       ts: `import { kruskalWallis } from '@statlab/core';\nconst result = kruskalWallis([groupA, groupB, groupC]);`,
     },
     useCases: [
-      'Comparing user feedback rating distributions across 3+ server deployment regions in VoxelPulse.',
-      'Evaluating non-parametric latency across multiple Kubernetes pod configurations in VoxelAssurance.'
+      'Comparing user feedback rating distributions across 3+ server deployment regions in production telemetry.',
+      'Evaluating non-parametric latency across multiple Kubernetes pod configurations in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when comparing 3+ independent groups and ANOVA normality assumptions fail.',
     cautions: [
@@ -561,7 +561,7 @@ export const calculatorPages = [
       ts: `import { rankBiserial } from '@statlab/core';\nconst r_rb = rankBiserial(groupA, groupB);`,
     },
     useCases: [
-      'Quantifying rank superiority magnitude between telemetry sample runs in VoxelPulse.',
+      'Quantifying rank superiority magnitude between telemetry sample runs in production telemetry.',
       'Expressing non-parametric shift size in release readiness audit reports.'
     ],
     when: 'Use alongside Mann-Whitney U test results to communicate non-parametric effect magnitude.',
@@ -611,8 +611,8 @@ export const calculatorPages = [
       ts: `import { dunnTest } from '@statlab/core';\nconst res = dunnTest(groups);`,
     },
     useCases: [
-      'Pinpointing exact multi-region latency rank shifts in VoxelPulse infrastructure monitoring.',
-      'Evaluating specific prompt framework rank differences in VoxelAssurance.'
+      'Pinpointing exact multi-region latency rank shifts in infrastructure telemetry monitoring.',
+      'Evaluating specific prompt framework rank differences in CI/CD pipeline benchmarks.'
     ],
     when: 'Use after Kruskal-Wallis test indicates significant overall group differences.',
     cautions: [
@@ -636,8 +636,8 @@ export const calculatorPages = [
       ts: `import { ks2Samp } from '@statlab/core';\nconst res = ks2Samp(sampleA, sampleB);`,
     },
     useCases: [
-      'Detecting entire telemetry distribution shape shifts (not just mean or median shifts) in VoxelPulse.',
-      'Verifying data drift between training baseline and production inference streams in VoxelAssurance.'
+      'Detecting entire telemetry distribution shape shifts (not just mean or median shifts) in production telemetry.',
+      'Verifying data drift between training baseline and production inference streams in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when comparing whether two continuous samples come from identical probability distributions.',
     cautions: [
@@ -664,8 +664,8 @@ export const calculatorPages = [
     },
     useCases: [
       'Comparing latency performance across multiple cloud providers or instance tiers.',
-      'Evaluating user conversion rates across multiple landing page variants in VoxelPulse.',
-      'Assessing model benchmark quality across prompt framework configurations in VoxelAssurance.'
+      'Evaluating user conversion rates across multiple landing page variants in production telemetry.',
+      'Assessing model benchmark quality across prompt framework configurations in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when comparing continuous outcome means across 3 or more independent categorical groups.',
     cautions: [
@@ -714,8 +714,8 @@ export const calculatorPages = [
       ts: `import { anovaTwoWay } from '@statlab/core';\nconst result = anovaTwoWay(data, 'cache', 'region', 'latency');`,
     },
     useCases: [
-      'Evaluating the combined impact of cache settings and geographic regions on latency in VoxelPulse.',
-      'Testing LLM prompt architecture and model family interaction on execution quality in VoxelAssurance.'
+      'Evaluating the combined impact of cache settings and geographic regions on latency in production telemetry.',
+      'Testing LLM prompt architecture and model family interaction on execution quality in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when testing two categorical independent variables simultaneously to check for main and interaction effects.',
     cautions: [
@@ -740,7 +740,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Tracking server latency profiles across 3+ sequential traffic load steps.',
-      'Evaluating continuous telemetry performance across 5 sequential releases in VoxelPulse.'
+      'Evaluating continuous telemetry performance across 5 sequential releases in production telemetry.'
     ],
     when: 'Use when measuring the same subjects or technical endpoints across 3 or more conditions.',
     cautions: [
@@ -790,7 +790,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Identifying specific winning variants in multi-arm A/B tests after omnibus ANOVA significance.',
-      'Pinpointing exact performance regressions across multiple benchmark software builds in VoxelAssurance.'
+      'Pinpointing exact performance regressions across multiple benchmark software builds in CI/CD pipeline benchmarks.'
     ],
     when: 'Use after a significant omnibus ANOVA F-test to test all pairwise group differences while controlling familywise error rate.',
     cautions: [
@@ -815,7 +815,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Determining the proportion of variance explained by configuration parameters in benchmark runs.',
-      'Reporting standardized ANOVA effect sizes in VoxelAssurance release readiness audits.'
+      'Reporting standardized ANOVA effect sizes in production release-readiness audits.'
     ],
     when: 'Use alongside ANOVA F-tests to report variance explained magnitude.',
     cautions: [
@@ -841,7 +841,7 @@ export const calculatorPages = [
       ts: `import { bayesianAbTest } from '@statlab/core';\nconst res = bayesianAbTest({ a: { n: 10000, conv: 850 }, b: { n: 10000, conv: 960 } });`,
     },
     useCases: [
-      'Automating continuous Bayesian decision boundaries in VoxelPulse experiment engines without p-value peeking penalties.',
+      'Automating continuous Bayesian decision boundaries in experimentation engines without p-value peeking penalties.',
       'Evaluating real-time feature flag rollout confidence in live production.'
     ],
     when: 'Use when you need intuitive probability statements (e.g. "99% chance B is better than A") and expected loss risk bounds.',
@@ -867,7 +867,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Quantifying evidence *in favor of the null hypothesis* (e.g., proving two microservices have indistinguishable latency).',
-      'Assessing model equivalence in VoxelAssurance AI benchmark regressions.'
+      'Assessing model equivalence in AI benchmark regressions.'
     ],
     when: 'Use when you want to distinguish between "no effect" (evidence for null) vs "insufficient data" (inconclusive).',
     cautions: [
@@ -894,7 +894,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Analyzing service container uptime, Mean Time Between Failures (MTBF), and crash survival rates.',
-      'Measuring customer subscription retention curves in VoxelPulse telemetry.'
+      'Measuring customer subscription retention curves in production system telemetry.'
     ],
     when: 'Use when analyzing time-to-event data subject to right-censoring.',
     cautions: [
@@ -919,7 +919,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Modeling hardware failure modes (infant mortality β<1 vs wear-out β>1) for cloud infrastructure.',
-      'Predicting component reliability thresholds in VoxelAssurance quality audits.'
+      'Predicting component reliability thresholds in quality assurance audits.'
     ],
     when: 'Use for lifetime data modeling and reliability engineering.',
     cautions: [
@@ -968,7 +968,7 @@ export const calculatorPages = [
       ts: `import { coxRegression } from '@statlab/core';\nconst res = coxRegression(df);`,
     },
     useCases: [
-      'Quantifying relative crash risk reduction between deployment versions in VoxelAssurance.',
+      'Quantifying relative crash risk reduction between deployment versions in CI/CD pipeline benchmarks.',
       'Modeling component failure hazards under load.'
     ],
     when: 'Use when comparing relative event rates over time while controlling for covariates.',
@@ -996,7 +996,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Validating normality assumptions before deciding between Student/Welch t-test vs Mann-Whitney U test.',
-      'Automated assumption checking in VoxelAssurance statistical pipeline gates.'
+      'Automated assumption checking in CI/CD statistical gate checks.'
     ],
     when: 'Use to test continuous data for normality prior to applying parametric inferential tests.',
     cautions: [
@@ -1020,7 +1020,7 @@ export const calculatorPages = [
       ts: `import { leveneTest } from '@statlab/core';\nconst res = leveneTest([g1, g2, g3]);`,
     },
     useCases: [
-      'Checking homoscedasticity before choosing pooled ANOVA vs Welch ANOVA in VoxelPulse.',
+      'Checking homoscedasticity before choosing pooled ANOVA vs Welch ANOVA in production telemetry.',
       'Detecting variance instability across server configurations.'
     ],
     when: 'Use before ANOVA or independent t-tests to verify equal variance assumptions.',
@@ -1046,7 +1046,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Diagnosing feature correlation redundancies in predictive ML models.',
-      'Validating independence of telemetry metrics in VoxelPulse regression modules.'
+      'Validating independence of telemetry metrics in telemetry regression modules.'
     ],
     when: 'Use when evaluating multiple regression models with correlated predictors.',
     cautions: [
@@ -1097,7 +1097,7 @@ export const calculatorPages = [
       ts: `import { adfTest } from '@statlab/core';\nconst res = adfTest(timeSeries);`,
     },
     useCases: [
-      'Verifying stationarity of CPU/memory metrics before applying ARIMA/telemetry models in VoxelPulse.',
+      'Verifying stationarity of CPU/memory metrics before applying ARIMA/telemetry models in production telemetry.',
       'Testing whether performance metric trends represent genuine drift vs stationary noise.'
     ],
     when: 'Use prior to modeling or forecasting time-series telemetry data.',
@@ -1124,7 +1124,7 @@ export const calculatorPages = [
       ts: `import { confusionMetrics } from '@statlab/core';\nconst m = confusionMetrics({ tp: 450, fp: 50, fn: 100, tn: 1400 });`,
     },
     useCases: [
-      'Evaluating classification model precision/recall tradeoffs in VoxelAssurance AI quality sprints.',
+      'Evaluating classification model precision/recall tradeoffs in AI quality benchmarking sprints.',
       'Benchmarking automated moderation and anomaly detection classifiers.'
     ],
     when: 'Use when evaluating binary or multi-class classifier model performance.',
@@ -1150,7 +1150,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Evaluating probability calibration and ranking performance of AI classification models.',
-      'Comparing model version AUC scores in VoxelAssurance release readiness sprints.'
+      'Comparing model version AUC scores in production release-readiness verification sprints.'
     ],
     when: 'Use for evaluating threshold-independent probability scoring classifiers.',
     cautions: [
@@ -1174,7 +1174,7 @@ export const calculatorPages = [
       ts: `import { cohensKappa } from '@statlab/core';\nconst k = cohensKappa(rater1, rater2);`,
     },
     useCases: [
-      'Evaluating agreement between human evaluators and automated LLM-as-a-judge scoring in VoxelAssurance.',
+      'Evaluating agreement between human evaluators and automated LLM-as-a-judge scoring in CI/CD pipeline benchmarks.',
       'Measuring annotation consistency in supervised dataset labeling pipelines.'
     ],
     when: 'Use when measuring inter-rater or judge agreement corrected for chance.',
@@ -1199,7 +1199,7 @@ export const calculatorPages = [
       ts: `import { fleissKappa } from '@statlab/core';\nconst k = fleissKappa(matrix);`,
     },
     useCases: [
-      'Measuring consensus agreement across multi-prompt LLM judge ensembles in VoxelAssurance.',
+      'Measuring consensus agreement across multi-prompt LLM judge ensembles in CI/CD pipeline benchmarks.',
       'Validating multi-annotator dataset quality.'
     ],
     when: 'Use when 3 or more raters assign items into mutually exclusive categories.',
@@ -1224,7 +1224,7 @@ export const calculatorPages = [
       ts: `import { iccCalc } from '@statlab/core';\nconst icc = iccCalc(matrix);`,
     },
     useCases: [
-      'Assessing agreement on continuous score metrics between human evaluators and AI judges in VoxelAssurance.',
+      'Assessing agreement on continuous score metrics between human evaluators and AI judges in CI/CD pipeline benchmarks.',
       'Validating continuous quality rating consistency.'
     ],
     when: 'Use for assessing rating agreement when measurements are continuous numerical scores.',
@@ -1249,7 +1249,7 @@ export const calculatorPages = [
       ts: `import { brierScore } from '@statlab/core';\nconst bs = brierScore(yProbs, yTrue);`,
     },
     useCases: [
-      'Evaluating confidence score calibration of LLM responses in VoxelAssurance quality audits.',
+      'Evaluating confidence score calibration of LLM responses in quality assurance audits.',
       'Measuring risk prediction accuracy in production classifier models.'
     ],
     when: 'Use to evaluate the accuracy and calibration of probabilistic predictions.',
@@ -1275,7 +1275,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Evaluating structural model fit quality for complex telemetry graph relationships.',
-      'Validating factor structure fit in VoxelPulse analytics.'
+      'Validating factor structure fit in production telemetry analytics.'
     ],
     when: 'Use for evaluating overall fit of structural equation models or covariance structures.',
     cautions: [
@@ -1301,7 +1301,7 @@ export const calculatorPages = [
       ts: `import { chiSquareInd } from '@statlab/core';\nconst result = chiSquareInd([[120, 880], [160, 840]]);`,
     },
     useCases: [
-      'Testing independence between user operating systems and conversion event types in VoxelPulse.',
+      'Testing independence between user operating systems and conversion event types in production telemetry.',
       'Comparing error status code distributions across backend server clusters.'
     ],
     when: 'Use for categorical frequency count data organized in contingency tables.',
@@ -1327,7 +1327,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Measuring categorical association strength between telemetry event types.',
-      'Quantifying effect magnitude for chi-square tests in VoxelPulse.'
+      'Quantifying effect magnitude for chi-square tests in production telemetry.'
     ],
     when: 'Use alongside Chi-square tests to report nominal association strength.',
     cautions: [
@@ -1376,7 +1376,7 @@ export const calculatorPages = [
       ts: `import { mcnemarTest } from '@statlab/core';\nconst res = mcnemarTest([[745, 35], [90, 130]]);`,
     },
     useCases: [
-      'Evaluating pass/fail prompt test suite outcomes before and after prompt updates in VoxelAssurance.',
+      'Evaluating pass/fail prompt test suite outcomes before and after prompt updates in CI/CD pipeline benchmarks.',
       'Testing paired pre/post binary user conversion events.'
     ],
     when: 'Use when comparing paired binary outcomes on the exact same subjects or prompts.',
@@ -1401,7 +1401,7 @@ export const calculatorPages = [
       ts: `import { zTestTwoProps } from '@statlab/core';\nconst res = zTestTwoProps(120, 1000, 160, 1000);`,
     },
     useCases: [
-      'Comparing baseline vs variant conversion proportions in VoxelPulse telemetry.',
+      'Comparing baseline vs variant conversion proportions in production system telemetry.',
       'Evaluating build pass rates across server fleets.'
     ],
     when: 'Use when comparing success rates between two independent large sample groups.',
@@ -1428,8 +1428,8 @@ export const calculatorPages = [
       ts: `import { pearsonR } from '@statlab/core';\nconst result = pearsonR(xVals, yVals);`,
     },
     useCases: [
-      'Evaluating correlation between system CPU utilization and request latency in VoxelPulse.',
-      'Testing correlation between automated test suite size and release bug counts in VoxelAssurance.'
+      'Evaluating correlation between system CPU utilization and request latency in production telemetry.',
+      'Testing correlation between automated test suite size and release bug counts in CI/CD pipeline benchmarks.'
     ],
     when: 'Use to measure strength and direction of linear relationship between two continuous variables.',
     cautions: [
@@ -1504,7 +1504,7 @@ export const calculatorPages = [
     },
     useCases: [
       'Modeling request latency scaling as a function of payload size and concurrency level.',
-      'Predicting release testing runtime based on pull request code diff volume in VoxelAssurance.'
+      'Predicting release testing runtime based on pull request code diff volume in CI/CD pipeline benchmarks.'
     ],
     when: 'Use to model continuous outcome variable as a function of one or more predictor variables.',
     cautions: [
@@ -1528,7 +1528,7 @@ export const calculatorPages = [
       ts: `import { logisticRegression } from '@statlab/core';\nconst res = logisticRegression(yVals, xMatrix);`,
     },
     useCases: [
-      'Modeling binary user conversion probabilities based on telemetry feature signals in VoxelPulse.',
+      'Modeling binary user conversion probabilities based on telemetry feature signals in production telemetry.',
       'Predicting software build failure probability based on pull request metrics.'
     ],
     when: 'Use when modeling a binary categorical outcome (0/1, Success/Failure).',
@@ -1553,7 +1553,7 @@ export const calculatorPages = [
       ts: `import { poissonRegression } from '@statlab/core';\nconst res = poissonRegression(yVals, xMatrix);`,
     },
     useCases: [
-      'Modeling event counts (e.g. API error rate spikes, bug counts per sprint) in VoxelPulse and VoxelAssurance.',
+      'Modeling event counts (e.g. API error rate spikes, bug counts per sprint) in production telemetry and CI/CD pipeline benchmarks.',
       'Modeling customer click counts per session.'
     ],
     when: 'Use for modeling non-negative integer count outcome data.',
@@ -1580,7 +1580,7 @@ export const calculatorPages = [
       ts: `import { abTestSignificance } from '@statlab/core';\nconst res = abTestSignificance({ control: { n: 25000, conv: 1240 }, variant: { n: 25000, conv: 1410 } });`,
     },
     useCases: [
-      'Automating continuous A/B experiment evaluation inside VoxelPulse feedback telemetry loops.',
+      'Automating continuous A/B experiment evaluation inside production telemetry feedback loops.',
       'Determining statistical stopping rules for feature flag rollouts.',
       'Measuring backend algorithm yield and conversion lift in production.'
     ],
@@ -1606,8 +1606,8 @@ export const calculatorPages = [
       ts: `import { percentileSignificance } from '@statlab/core';\nconst res = percentileSignificance(runA, runB, { percentile: 0.95 });`,
     },
     useCases: [
-      'Automated SLA and tail-latency regression verification in VoxelAssurance release readiness sprints.',
-      'Continuous telemetry distribution shift detection in VoxelPulse infrastructure monitoring.'
+      'Automated SLA and tail-latency regression verification in production release-readiness verification sprints.',
+      'Continuous telemetry distribution shift detection in infrastructure telemetry monitoring.'
     ],
     when: 'Use when benchmarking software performance where tail percentiles (p95, p99) matter more than average latency.',
     cautions: [
@@ -1631,7 +1631,7 @@ export const calculatorPages = [
       ts: `import { llmEvalSignificance } from '@statlab/core';\nconst result = llmEvalSignificance(scoresModelA, scoresModelB);`,
     },
     useCases: [
-      'Evaluating LLM release candidates in VoxelAssurance AI quality verification sprints.',
+      'Evaluating LLM release candidates in CI/CD pipeline benchmarks AI quality verification sprints.',
       'Testing whether prompt engineering modifications yield statistically genuine accuracy gains.',
       'Benchmarking RAG retrieval accuracy across vector index parameters.'
     ],
@@ -1659,8 +1659,8 @@ export const calculatorPages = [
       ts: `import { sampleSizePower } from '@statlab/core';\nconst n = sampleSizePower({ test: 't_two_sample', d: 0.5, power: 0.80, alpha: 0.05 });`,
     },
     useCases: [
-      'Planning required traffic volume and duration for A/B tests in VoxelPulse.',
-      'Determining required benchmark sample runs for release readiness sign-off in VoxelAssurance.'
+      'Planning required traffic volume and duration for A/B tests in production telemetry.',
+      'Determining required benchmark sample runs for release readiness sign-off in CI/CD pipeline benchmarks.'
     ],
     when: 'Use before launching experiments or benchmarks to ensure sufficient statistical sensitivity.',
     cautions: [
@@ -1684,7 +1684,7 @@ export const calculatorPages = [
       ts: `import { metaAnalysisRandom } from '@statlab/core';\nconst result = metaAnalysisRandom(studies);`,
     },
     useCases: [
-      'Synthesizing benchmark performance results across multiple hardware platforms in VoxelAssurance.',
+      'Synthesizing benchmark performance results across multiple hardware platforms in CI/CD pipeline benchmarks.',
       'Aggregating micro-experiment effect sizes across product verticals.'
     ],
     when: 'Use when combining quantitative effect estimates across multiple independent studies or benchmark runs.',
@@ -1709,8 +1709,8 @@ export const calculatorPages = [
       ts: `import { klDivergence } from '@statlab/core';\nconst res = klDivergence(p, q, { base: 'nat' });`,
     },
     useCases: [
-      'Detecting feature telemetry distribution drift between training and live inference in VoxelPulse.',
-      'Measuring model probability divergence across release candidates in VoxelAssurance testing.'
+      'Detecting feature telemetry distribution drift between training and live inference in production telemetry.',
+      'Measuring model probability divergence across release candidates in automated load testing.'
     ],
     when: 'Use when comparing how much an empirical or candidate distribution Q differs from a baseline distribution P.',
     cautions: [
@@ -1734,8 +1734,8 @@ export const calculatorPages = [
       ts: `import { shannonEntropy } from '@statlab/core';\nconst bits = shannonEntropy([0.5, 0.25, 0.125, 0.125]);`,
     },
     useCases: [
-      'Evaluating categorical user session diversity and telemetry payload unpredictability in VoxelPulse.',
-      'Monitoring token distribution entropy in LLM response evaluations within VoxelAssurance.'
+      'Evaluating categorical user session diversity and telemetry payload unpredictability in production telemetry.',
+      'Monitoring token distribution entropy in LLM response evaluations within CI/CD pipeline benchmarks.'
     ],
     when: 'Use to quantify the average degree of uncertainty or information content inherent in a probability distribution.',
     cautions: [
@@ -1759,8 +1759,8 @@ export const calculatorPages = [
       ts: `import { crossEntropyLoss } from '@statlab/core';\nconst loss = crossEntropyLoss(yTrue, yPred);`,
     },
     useCases: [
-      'Benchmarking classification pipeline quality in VoxelAssurance AI test runs.',
-      'Monitoring real-time multi-class classification confidence in VoxelPulse analytics.'
+      'Benchmarking classification pipeline quality in CI/CD pipeline benchmarks AI test runs.',
+      'Monitoring real-time multi-class classification confidence in production telemetry analytics.'
     ],
     when: 'Use when assessing probabilistic classification model performance against discrete ground truth targets.',
     cautions: [
@@ -1784,8 +1784,8 @@ export const calculatorPages = [
       ts: `import { processCapability } from '@statlab/core';\nconst { cp, cpk } = processCapability(data, { usl: 105, lsl: 95 });`,
     },
     useCases: [
-      'Evaluating infrastructure latency SLA compliance in VoxelPulse telemetry.',
-      'Validating build artifact execution limits in VoxelAssurance release qualification.'
+      'Evaluating infrastructure latency SLA compliance in production system telemetry.',
+      'Validating build artifact execution limits in CI/CD pipeline benchmarks release qualification.'
     ],
     when: 'Use to measure how well a continuous process stays within predefined customer/engineering specification tolerances.',
     cautions: [
@@ -1809,7 +1809,7 @@ export const calculatorPages = [
       ts: `import { xbarRChart } from '@statlab/core';\nconst limits = xbarRChart(subgroups);`,
     },
     useCases: [
-      'Detecting system performance drift and abnormal spikes in VoxelPulse telemetry streams.',
+      'Detecting system performance drift and abnormal spikes in production system telemetry streams.',
       'Continuous monitoring of API build execution times across release iterations.'
     ],
     when: 'Use when continuous process data is sampled in small, periodic subgroups of size n=2 to 10.',
@@ -1834,8 +1834,8 @@ export const calculatorPages = [
       ts: `import { sixSigmaDpmo } from '@statlab/core';\nconst { dpmo, sigmaLevel } = sixSigmaDpmo(10000, 5, 12);`,
     },
     useCases: [
-      'Benchmarking multi-step microservice request transaction reliability in VoxelPulse.',
-      'Establishing quality gate thresholds for automated test deployments in VoxelAssurance.'
+      'Benchmarking multi-step microservice request transaction reliability in production telemetry.',
+      'Establishing quality gate thresholds for automated test deployments in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when evaluating process defect rates across complex items or transactions with multiple potential failure points.',
     cautions: [
@@ -1859,8 +1859,8 @@ export const calculatorPages = [
       ts: `import { acfPacf } from '@statlab/core';\nconst { acf, pacf } = acfPacf(series, { maxLag: 4 });`,
     },
     useCases: [
-      'Identifying seasonality and temporal dependence in server metric streams in VoxelPulse.',
-      'Selecting appropriate ARIMA model orders for server workload forecasting in VoxelAssurance.'
+      'Identifying seasonality and temporal dependence in server metric streams in production telemetry.',
+      'Selecting appropriate ARIMA model orders for server workload forecasting in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when analyzing time-ordered observations to detect repeating lag patterns or hidden periodicity.',
     cautions: [
@@ -1884,8 +1884,8 @@ export const calculatorPages = [
       ts: `import { archTest } from '@statlab/core';\nconst result = archTest(residuals, { lags: 2 });`,
     },
     useCases: [
-      'Detecting volatility clustering in API latency or traffic throughput bursts in VoxelPulse.',
-      'Evaluating stress test variance stability across load spikes in VoxelAssurance testing.'
+      'Detecting volatility clustering in API latency or traffic throughput bursts in production telemetry.',
+      'Evaluating stress test variance stability across load spikes in automated load testing.'
     ],
     when: 'Use when time series variance fluctuates dynamically over time rather than remaining constant.',
     cautions: [
@@ -1909,8 +1909,8 @@ export const calculatorPages = [
       ts: `import { engleGrangerCoint } from '@statlab/core';\nconst result = engleGrangerCoint(seriesY, seriesX);`,
     },
     useCases: [
-      'Verifying long-term equilibrium relationship between backend resource usage and frontend throughput in VoxelPulse.',
-      'Ensuring benchmark metrics maintain stable ratios across long test runs in VoxelAssurance.'
+      'Verifying long-term equilibrium relationship between backend resource usage and frontend throughput in production telemetry.',
+      'Ensuring benchmark metrics maintain stable ratios across long test runs in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when testing whether two integrated I(1) time series share a true non-spurious statistical relationship.',
     cautions: [
@@ -1934,8 +1934,8 @@ export const calculatorPages = [
       ts: `import { numberNeededToTreat } from '@statlab/core';\nconst { arr, nnt } = numberNeededToTreat(0.20, 0.05);`,
     },
     useCases: [
-      'Quantifying customer intervention impact (e.g. how many churn-risk users must receive a workflow fix to prevent one churn event) in VoxelPulse.',
-      'Evaluating error reduction impact per user deployment in VoxelAssurance.'
+      'Quantifying customer intervention impact (e.g. how many churn-risk users must receive a workflow fix to prevent one churn event) in production telemetry.',
+      'Evaluating error reduction impact per user deployment in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when translating absolute probability risk changes into tangible unit/patient counts required to achieve one positive outcome.',
     cautions: [
@@ -1959,8 +1959,8 @@ export const calculatorPages = [
       ts: `import { diagnosticLikelihoodRatio } from '@statlab/core';\nconst res = diagnosticLikelihoodRatio({ sensitivity: 0.90, specificity: 0.95, preTestProb: 0.10 });`,
     },
     useCases: [
-      'Evaluating anomaly detector and security scanner diagnostic power in VoxelPulse telemetry.',
-      'Calculating post-test probability of release defects given automated suite failure rates in VoxelAssurance.'
+      'Evaluating anomaly detector and security scanner diagnostic power in production system telemetry.',
+      'Calculating post-test probability of release defects given automated suite failure rates in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when evaluating how much a diagnostic test result shifts the probability of a target condition or defect.',
     cautions: [
@@ -1984,8 +1984,8 @@ export const calculatorPages = [
       ts: `import { blandAltman } from '@statlab/core';\nconst { bias, lowerLoa, upperLoa } = blandAltman(methodA, methodB);`,
     },
     useCases: [
-      'Assessing agreement between synthetic telemetry timers and client-side web vitals in VoxelPulse.',
-      'Comparing legacy performance benchmark metrics vs new VoxelAssurance profiling tools.'
+      'Assessing agreement between synthetic telemetry timers and client-side web vitals in production telemetry.',
+      'Comparing legacy performance benchmark metrics vs new system profiling suites.'
     ],
     when: 'Use when comparing two continuous measurement tools or devices to check if they can be used interchangeably.',
     cautions: [
@@ -2009,8 +2009,8 @@ export const calculatorPages = [
       ts: `import { elasticNetRegression } from '@statlab/core';\nconst model = elasticNetRegression(X, y, { lambda: 0.1, l1Ratio: 0.5 });`,
     },
     useCases: [
-      'Preventing overfitting in telemetry prediction models with high-dimensional feature spaces in VoxelPulse.',
-      'Performing automated feature selection on system release benchmarks in VoxelAssurance.'
+      'Preventing overfitting in telemetry prediction models with high-dimensional feature spaces in production telemetry.',
+      'Performing automated feature selection on system release benchmarks in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when fitting regression models on datasets with multicollinear or high-dimensional predictor variables.',
     cautions: [
@@ -2034,8 +2034,8 @@ export const calculatorPages = [
       ts: `import { ndcgScore } from '@statlab/core';\nconst score = ndcgScore(yTrue, yScore, { k: 5 });`,
     },
     useCases: [
-      'Evaluating search, recommendation, and catalog ranking quality in VoxelPulse analytics.',
-      'Benchmarking search and vector retrieval accuracy across release candidates in VoxelAssurance.'
+      'Evaluating search, recommendation, and catalog ranking quality in production telemetry analytics.',
+      'Benchmarking search and vector retrieval accuracy across release candidates in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when evaluating ranked list results where documents or items have graded relevance scores.',
     cautions: [
@@ -2059,8 +2059,8 @@ export const calculatorPages = [
       ts: `import { forecastErrorMape } from '@statlab/core';\nconst { mape, smape, wape } = forecastErrorMape(actuals, forecasts);`,
     },
     useCases: [
-      'Monitoring traffic volume forecast accuracy in VoxelPulse infrastructure auto-scaling.',
-      'Evaluating load prediction models during release benchmarking in VoxelAssurance.'
+      'Monitoring traffic volume forecast accuracy in production telemetry infrastructure auto-scaling.',
+      'Evaluating load prediction models during release benchmarking in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when comparing forecast model accuracy across different scales or physical units.',
     cautions: [
@@ -2084,8 +2084,8 @@ export const calculatorPages = [
       ts: `import { mtbfMttrReliability } from '@statlab/core';\nconst res = mtbfMttrReliability(720, 0.72, 3);`,
     },
     useCases: [
-      'Tracking microservice uptime and incident recovery performance in VoxelPulse telemetry.',
-      'Establishing reliability metrics and outage SLA thresholds in VoxelAssurance release qualification.'
+      'Tracking microservice uptime and incident recovery performance in production system telemetry.',
+      'Establishing reliability metrics and outage SLA thresholds in CI/CD pipeline benchmarks release qualification.'
     ],
     when: 'Use when modeling system uptime, hardware/software failure intervals, and repair performance.',
     cautions: [
@@ -2109,8 +2109,8 @@ export const calculatorPages = [
       ts: `import { bootstrapCI } from '@statlab/core';\nconst ci = bootstrapCI(sampleData, { fn: 'median', resamples: 2000, confidence: 0.95 });`,
     },
     useCases: [
-      'Estimating non-normal latency percentile confidence intervals (p95/p99) in VoxelPulse telemetry.',
-      'Constructing robust parameter bounds for complex microbenchmarks in VoxelAssurance testing.'
+      'Estimating non-normal latency percentile confidence intervals (p95/p99) in production system telemetry.',
+      'Constructing robust parameter bounds for complex microbenchmarks in automated load testing.'
     ],
     when: 'Use when data violates parametric normality assumptions or when calculating CIs for non-linear sample statistics.',
     cautions: [
@@ -2134,8 +2134,8 @@ export const calculatorPages = [
       ts: `import { permutationTest } from '@statlab/core';\nconst result = permutationTest(groupA, groupB, { metric: 'meanDiff', resamples: 10000 });`,
     },
     useCases: [
-      'Validating custom SLA metric shifts between production release candidate groups in VoxelPulse.',
-      'Testing latency differences in small sample microbenchmarks in VoxelAssurance.'
+      'Validating custom SLA metric shifts between production release candidate groups in production telemetry.',
+      'Testing latency differences in small sample microbenchmarks in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when sample sizes are small or when parametric assumptions (normality, equal variance) are doubtful.',
     cautions: [
@@ -2159,8 +2159,8 @@ export const calculatorPages = [
       ts: `import { rsmOptimize } from '@statlab/core';\nconst opt = rsmOptimize(designMatrix, responseY);`,
     },
     useCases: [
-      'Optimizing database query thread pools and cache sizing in VoxelPulse telemetry tuning.',
-      'Finding optimal hyperparameter configurations for automated build pipelines in VoxelAssurance.'
+      'Optimizing database query thread pools and cache sizing in production system telemetry tuning.',
+      'Finding optimal hyperparameter configurations for automated build pipelines in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when fine-tuning continuous control factors to maximize or minimize a key performance outcome after initial screening.',
     cautions: [
@@ -2184,8 +2184,8 @@ export const calculatorPages = [
       ts: `import { plackettBurman } from '@statlab/core';\nconst effects = plackettBurman(designMatrix, responseY);`,
     },
     useCases: [
-      'Screening 10+ potential microservice configuration parameters down to the top 2-3 impact drivers in VoxelPulse.',
-      'Rapidly isolating root-cause parameters causing performance regression in VoxelAssurance.'
+      'Screening 10+ potential microservice configuration parameters down to the top 2-3 impact drivers in production telemetry.',
+      'Rapidly isolating root-cause parameters causing performance regression in CI/CD pipeline benchmarks.'
     ],
     when: 'Use in early-stage engineering exploration to screen many candidate factors in very few experimental runs.',
     cautions: [
@@ -2209,8 +2209,8 @@ export const calculatorPages = [
       ts: `import { taguchiSnRatio } from '@statlab/core';\nconst sn = taguchiSnRatio([102.1, 101.8, 102.4, 101.9], { mode: 'nominal' });`,
     },
     useCases: [
-      'Optimizing robust backend server configurations against fluctuating background load in VoxelPulse.',
-      'Building fault-tolerant, low-variance deployment profiles in VoxelAssurance testing.'
+      'Optimizing robust backend server configurations against fluctuating background load in production telemetry.',
+      'Building fault-tolerant, low-variance deployment profiles in automated load testing.'
     ],
     when: 'Use when designing robust systems that remain insensitive to external noise and environment variation.',
     cautions: [
@@ -2234,8 +2234,8 @@ export const calculatorPages = [
       ts: `import { cosineSimilarity } from '@statlab/core';\nconst sim = cosineSimilarity(vectorA, vectorB);`,
     },
     useCases: [
-      'Evaluating LLM retrieval embedding accuracy for vector search pipelines in VoxelPulse.',
-      'Benchmarking semantic drift across prompt engineering release iterations in VoxelAssurance.'
+      'Evaluating LLM retrieval embedding accuracy for vector search pipelines in production telemetry.',
+      'Benchmarking semantic drift across prompt engineering release iterations in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when comparing the orientation and semantic similarity of multi-dimensional vector embeddings regardless of magnitude.',
     cautions: [
@@ -2259,8 +2259,8 @@ export const calculatorPages = [
       ts: `import { wassersteinDistance } from '@statlab/core';\nconst w1 = wassersteinDistance(u, v);`,
     },
     useCases: [
-      'Measuring true metric distribution shift between baseline and canary release traffic in VoxelPulse.',
-      'Quantifying histogram drift in telemetry pipelines within VoxelAssurance testing.'
+      'Measuring true metric distribution shift between baseline and canary release traffic in production telemetry.',
+      'Quantifying histogram drift in telemetry pipelines within automated load testing.'
     ],
     when: 'Use when measuring physical shift distance between continuous probability distributions without assuming specific parametric shapes.',
     cautions: [
@@ -2284,8 +2284,8 @@ export const calculatorPages = [
       ts: `import { mahalanobisDistance } from '@statlab/core';\nconst dm = mahalanobisDistance(point, dataset);`,
     },
     useCases: [
-      'Detecting multi-metric system anomalies (correlated CPU/RAM/Latency spikes) in VoxelPulse telemetry.',
-      'Identifying multi-dimensional performance outliers in VoxelAssurance benchmark runs.'
+      'Detecting multi-metric system anomalies (correlated CPU/RAM/Latency spikes) in production system telemetry.',
+      'Identifying multi-dimensional performance outliers in CI/CD pipeline benchmarks benchmark runs.'
     ],
     when: 'Use when identifying multivariate outliers where individual metrics may look normal alone but represent extreme anomalies in combination.',
     cautions: [
@@ -2309,8 +2309,8 @@ export const calculatorPages = [
       ts: `import { vectorDistance } from '@statlab/core';\nconst { l1, l2, chebyshev } = vectorDistance(vectorA, vectorB);`,
     },
     useCases: [
-      'Calculating point-to-point metric vector differences in VoxelPulse telemetry streams.',
-      'Measuring feature vector proximity in KNN and clustering modules in VoxelAssurance.'
+      'Calculating point-to-point metric vector differences in production system telemetry streams.',
+      'Measuring feature vector proximity in KNN and clustering modules in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when evaluating physical absolute differences between feature arrays across continuous coordinate spaces.',
     cautions: [
@@ -2334,8 +2334,8 @@ export const calculatorPages = [
       ts: `import { moransI } from '@statlab/core';\nconst result = moransI(regionValues, weightMatrix);`,
     },
     useCases: [
-      'Detecting geographic edge-node traffic clustering and regional latency degradation in VoxelPulse.',
-      'Evaluating spatial distribution of test failures across multi-region cloud worker clusters in VoxelAssurance.'
+      'Detecting geographic edge-node traffic clustering and regional latency degradation in production telemetry.',
+      'Evaluating spatial distribution of test failures across multi-region cloud worker clusters in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when verifying whether metric values measured across geographical nodes or server topology exhibit spatial dependence.',
     cautions: [
@@ -2359,8 +2359,8 @@ export const calculatorPages = [
       ts: `import { varModel } from '@statlab/core';\nconst model = varModel(multivariateSeries, { lags: 2 });`,
     },
     useCases: [
-      'Modeling dynamic feedback loops between database IO, request queue length, and API latency in VoxelPulse.',
-      'Simulating cascade performance effects of system load shocks in VoxelAssurance testing.'
+      'Modeling dynamic feedback loops between database IO, request queue length, and API latency in production telemetry.',
+      'Simulating cascade performance effects of system load shocks in automated load testing.'
     ],
     when: 'Use when analyzing multiple interrelated time series variables that mutually influence each other over time.',
     cautions: [
@@ -2384,8 +2384,8 @@ export const calculatorPages = [
       ts: `import { valueAtRisk } from '@statlab/core';\nconst { varValue, cvarValue } = valueAtRisk(returns, { confidence: 0.95 });`,
     },
     useCases: [
-      'Quantifying maximum worst-case latency tail risk (p99+ SLA breaches) in VoxelPulse telemetry.',
-      'Assessing tail financial risk and downtime penalty exposures in VoxelAssurance SLA audits.'
+      'Quantifying maximum worst-case latency tail risk (p99+ SLA breaches) in production system telemetry.',
+      'Assessing tail financial risk and downtime penalty exposures in CI/CD pipeline benchmarks SLA audits.'
     ],
     when: 'Use to quantify maximum expected downside loss or extreme latency spike threshold over a specified time horizon.',
     cautions: [
@@ -2409,8 +2409,8 @@ export const calculatorPages = [
       ts: `import { cronbachAlpha } from '@statlab/core';\nconst { alpha, itemDeleted } = cronbachAlpha(itemsMatrix);`,
     },
     useCases: [
-      'Evaluating internal consistency of multi-prompt subjective user feedback scores in VoxelPulse.',
-      'Assessing multi-rubric LLM judge evaluation scale reliability in VoxelAssurance.'
+      'Evaluating internal consistency of multi-prompt subjective user feedback scores in production telemetry.',
+      'Assessing multi-rubric LLM judge evaluation scale reliability in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when measuring how reliably a set of survey questions or multi-item rating rubrics measure a single underlying construct.',
     cautions: [
@@ -2434,8 +2434,8 @@ export const calculatorPages = [
       ts: `import { raschModel } from '@statlab/core';\nconst { itemDifficulty, personAbility } = raschModel(responseMatrix);`,
     },
     useCases: [
-      'Measuring individual test case difficulty levels in automated benchmark suites in VoxelAssurance.',
-      'Evaluating prompt test item difficulty vs AI model capability in VoxelPulse.'
+      'Measuring individual test case difficulty levels in automated benchmark suites in CI/CD pipeline benchmarks.',
+      'Evaluating prompt test item difficulty vs AI model capability in production telemetry.'
     ],
     when: 'Use when analyzing test item difficulty independently of the specific sample of test takers or benchmark models.',
     cautions: [
@@ -2459,8 +2459,8 @@ export const calculatorPages = [
       ts: `import { pointBiserialCorr } from '@statlab/core';\nconst result = pointBiserialCorr(binaryVec, continuousVec);`,
     },
     useCases: [
-      'Correlating feature flag state (0/1) against user session engagement duration in VoxelPulse.',
-      'Evaluating test case pass/fail outcome correlation against system execution latency in VoxelAssurance.'
+      'Correlating feature flag state (0/1) against user session engagement duration in production telemetry.',
+      'Evaluating test case pass/fail outcome correlation against system execution latency in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when measuring relationship strength between one naturally binary variable (e.g. Pass/Fail, Enabled/Disabled) and one continuous metric.',
     cautions: [
@@ -2484,8 +2484,8 @@ export const calculatorPages = [
       ts: `import { matthewsCorrCoef } from '@statlab/core';\nconst mcc = matthewsCorrCoef({ tp: 45, fp: 5, tn: 900, fn: 50 });`,
     },
     useCases: [
-      'Evaluating anomaly detection classifiers on heavily imbalanced telemetry data in VoxelPulse.',
-      'Benchmarking security defect detection accuracy in VoxelAssurance release testing.'
+      'Evaluating anomaly detection classifiers on heavily imbalanced telemetry data in production telemetry.',
+      'Benchmarking security defect detection accuracy in CI/CD pipeline benchmarks release testing.'
     ],
     when: 'Use when evaluating binary classification model quality on datasets with severe class imbalance.',
     cautions: [
@@ -2509,8 +2509,8 @@ export const calculatorPages = [
       ts: `import { linsCCC } from '@statlab/core';\nconst { ccc, precision, bias } = linsCCC(vecX, vecY);`,
     },
     useCases: [
-      'Evaluating reproducibility between local development benchmarks and production telemetry in VoxelPulse.',
-      'Verifying agreement between automated LLM judge scores and human expert raters in VoxelAssurance.'
+      'Evaluating reproducibility between local development benchmarks and production telemetry in production telemetry.',
+      'Verifying agreement between automated LLM judge scores and human expert raters in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when testing whether two continuous measurement methods produce identical values (evaluating agreement relative to 45° line of equality).',
     cautions: [
@@ -2534,8 +2534,8 @@ export const calculatorPages = [
       ts: `import { cusumChart } from '@statlab/core';\nconst cusum = cusumChart(observations, { target: 100, sd: 5, k: 0.5, h: 4.0 });`,
     },
     useCases: [
-      'Detecting subtle, persistent memory leak micro-creeps in VoxelPulse telemetry.',
-      'Early detection of gradual performance degradation in VoxelAssurance build iterations.'
+      'Detecting subtle, persistent memory leak micro-creeps in production system telemetry.',
+      'Early detection of gradual performance degradation in CI/CD pipeline benchmarks build iterations.'
     ],
     when: 'Use when detecting small, persistent process mean shifts (0.5σ to 1.5σ) faster than standard Shewhart X-bar charts.',
     cautions: [
@@ -2559,8 +2559,8 @@ export const calculatorPages = [
       ts: `import { brayCurtisDissimilarity } from '@statlab/core';\nconst bc = brayCurtisDissimilarity(sample1, sample2);`,
     },
     useCases: [
-      'Comparing microservice log event distribution similarity across deployment regions in VoxelPulse.',
-      'Measuring payload composition drift in VoxelAssurance testing.'
+      'Comparing microservice log event distribution similarity across deployment regions in production telemetry.',
+      'Measuring payload composition drift in automated load testing.'
     ],
     when: 'Use when comparing non-negative count data or species abundance vectors where joint absence (0,0) should not imply similarity.',
     cautions: [
@@ -2584,8 +2584,8 @@ export const calculatorPages = [
       ts: `import { minkowskiDistance } from '@statlab/core';\nconst d = minkowskiDistance(vecA, vecB, { p: 3 });`,
     },
     useCases: [
-      'Tuning feature distance norms for clustering and anomaly detection models in VoxelPulse.',
-      'Evaluating vector spatial bounds in VoxelAssurance.'
+      'Tuning feature distance norms for clustering and anomaly detection models in production telemetry.',
+      'Evaluating vector spatial bounds in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when exploring generalized distance norms between L_1 (Manhattan) and L_∞ (Chebyshev).',
     cautions: [
@@ -2609,8 +2609,8 @@ export const calculatorPages = [
       ts: `import { gevDistribution } from '@statlab/core';\nconst gev = gevDistribution(blockMaxima, { returnPeriod: 100 });`,
     },
     useCases: [
-      'Modeling extreme 99.99th percentile server latency spikes in VoxelPulse telemetry.',
-      'Predicting maximum outage magnitude over multi-year operational horizons in VoxelAssurance.'
+      'Modeling extreme 99.99th percentile server latency spikes in production system telemetry.',
+      'Predicting maximum outage magnitude over multi-year operational horizons in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when modeling the probability distribution of extreme maximum values sampled over fixed time blocks.',
     cautions: [
@@ -2634,8 +2634,8 @@ export const calculatorPages = [
       ts: `import { paretoDistribution } from '@statlab/core';\nconst { alpha, gini } = paretoDistribution(data, { xMin: 10 });`,
     },
     useCases: [
-      'Modeling heavy-tailed API bandwidth consumption and user resource utilization in VoxelPulse.',
-      'Establishing SLA rate-limiting thresholds based on power-law tail exponents in VoxelAssurance.'
+      'Modeling heavy-tailed API bandwidth consumption and user resource utilization in production telemetry.',
+      'Establishing SLA rate-limiting thresholds based on power-law tail exponents in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when data exhibits power-law heavy tails where a small percentage of events cause the vast majority of total impact.',
     cautions: [
@@ -2659,8 +2659,8 @@ export const calculatorPages = [
       ts: `import { nelsonAalen } from '@statlab/core';\nconst res = nelsonAalen(durations, eventStatus);`,
     },
     useCases: [
-      'Estimating cumulative system failure risk over continuous runtime in VoxelPulse telemetry.',
-      'Modeling component degradation and time-to-failure hazards in VoxelAssurance reliability runs.'
+      'Estimating cumulative system failure risk over continuous runtime in production system telemetry.',
+      'Modeling component degradation and time-to-failure hazards in CI/CD pipeline benchmarks reliability runs.'
     ],
     when: 'Use to estimate cumulative hazard rates for right-censored time-to-event data, particularly useful when baseline hazard rates change over time.',
     cautions: [
@@ -2684,8 +2684,8 @@ export const calculatorPages = [
       ts: `import { logrankHazardRatio } from '@statlab/core';\nconst { hr, ciLower, ciUpper } = logrankHazardRatio(groupA, groupB);`,
     },
     useCases: [
-      'Quantifying relative reduction in incident hazards between baseline and canary server deployments in VoxelPulse.',
-      'Evaluating comparative time-to-failure hazard ratios in VoxelAssurance testing.'
+      'Quantifying relative reduction in incident hazards between baseline and canary server deployments in production telemetry.',
+      'Evaluating comparative time-to-failure hazard ratios in automated load testing.'
     ],
     when: 'Use when comparing relative event risks between two independent groups over time under proportional hazards assumptions.',
     cautions: [
@@ -2709,8 +2709,8 @@ export const calculatorPages = [
       ts: `import { cochranQTest } from '@statlab/core';\nconst result = cochranQTest(binaryMatrix);`,
     },
     useCases: [
-      'Comparing multi-judge LLM pass/fail consensus across 3+ prompt models in VoxelPulse.',
-      'Testing multi-tool security scanner detection agreement across benchmark suites in VoxelAssurance.'
+      'Comparing multi-judge LLM pass/fail consensus across 3+ prompt models in production telemetry.',
+      'Testing multi-tool security scanner detection agreement across benchmark suites in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when assessing whether 3 or more matched or repeated binary measurements differ significantly.',
     cautions: [
@@ -2734,8 +2734,8 @@ export const calculatorPages = [
       ts: `import { cochranArmitageTrend } from '@statlab/core';\nconst result = cochranArmitageTrend(levels, successes, totals);`,
     },
     useCases: [
-      'Evaluating error rate trend shifts across increasing server concurrency tiers in VoxelPulse.',
-      'Testing linear defect rate trends across build version increments in VoxelAssurance.'
+      'Evaluating error rate trend shifts across increasing server concurrency tiers in production telemetry.',
+      'Testing linear defect rate trends across build version increments in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when testing whether binary event proportions follow a monotonic trend across ordered categories.',
     cautions: [
@@ -2759,8 +2759,8 @@ export const calculatorPages = [
       ts: `import { jonckheereTerpstra } from '@statlab/core';\nconst result = jonckheereTerpstra(orderedGroups);`,
     },
     useCases: [
-      'Testing ordered latency increase across progressive database size scaling tiers in VoxelPulse.',
-      'Evaluating ordered response time degradation across complexity tiers in VoxelAssurance.'
+      'Testing ordered latency increase across progressive database size scaling tiers in production telemetry.',
+      'Evaluating ordered response time degradation across complexity tiers in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when testing an a-priori ordered hypothesis (μ₁ ≤ μ₂ ≤ ... ≤ μ_k) across k independent groups.',
     cautions: [
@@ -2784,8 +2784,8 @@ export const calculatorPages = [
       ts: `import { kendallsW } from '@statlab/core';\nconst { w, chi2, pValue } = kendallsW(rankingMatrix);`,
     },
     useCases: [
-      'Evaluating multi-judge LLM ranking consensus across prompt generation outputs in VoxelPulse.',
-      'Assessing multi-rater performance benchmark ranking agreement in VoxelAssurance.'
+      'Evaluating multi-judge LLM ranking consensus across prompt generation outputs in production telemetry.',
+      'Assessing multi-rater performance benchmark ranking agreement in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when measuring overall agreement among 3 or more judges ranking a set of items.',
     cautions: [
@@ -2809,8 +2809,8 @@ export const calculatorPages = [
       ts: `import { goodmanKruskalGamma } from '@statlab/core';\nconst { gamma, pValue } = goodmanKruskalGamma(contingencyTable);`,
     },
     useCases: [
-      'Measuring association between ordinal user engagement tiers and retention levels in VoxelPulse.',
-      'Evaluating relationship between severity ratings and response latency in VoxelAssurance.'
+      'Measuring association between ordinal user engagement tiers and retention levels in production telemetry.',
+      'Evaluating relationship between severity ratings and response latency in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when measuring association between two ordinal variables containing many tied ranks.',
     cautions: [
@@ -2834,8 +2834,8 @@ export const calculatorPages = [
       ts: `import { somersD } from '@statlab/core';\nconst { d, rocEquivalent } = somersD(x, y, { direction: 'Y|X' });`,
     },
     useCases: [
-      'Evaluating directional predictive power of ordinal risk scores on system outage outcomes in VoxelPulse.',
-      'Measuring ordinal predictor performance in VoxelAssurance SLA audits.'
+      'Evaluating directional predictive power of ordinal risk scores on system outage outcomes in production telemetry.',
+      'Measuring ordinal predictor performance in CI/CD pipeline benchmarks SLA audits.'
     ],
     when: 'Use when evaluating asymmetric ordinal association where X is designated as the predictor and Y as the outcome.',
     cautions: [
@@ -2859,8 +2859,8 @@ export const calculatorPages = [
       ts: `import { hoeffdingsD } from '@statlab/core';\nconst { d, pValue } = hoeffdingsD(vecX, vecY);`,
     },
     useCases: [
-      'Detecting complex non-linear metric dependencies (e.g. non-monotonic U-shaped relationships) in VoxelPulse telemetry.',
-      'Identifying hidden metric couplings in VoxelAssurance testing.'
+      'Detecting complex non-linear metric dependencies (e.g. non-monotonic U-shaped relationships) in production system telemetry.',
+      'Identifying hidden metric couplings in automated load testing.'
     ],
     when: 'Use when testing for independence between two continuous variables without restricting to linear or monotonic patterns.',
     cautions: [
@@ -2884,8 +2884,8 @@ export const calculatorPages = [
       ts: `import { mutualInformation } from '@statlab/core';\nconst mi = mutualInformation(vecX, vecY);`,
     },
     useCases: [
-      'Ranking non-linear telemetry feature relevance for automated anomaly root-cause detection in VoxelPulse.',
-      'Selecting top predictive benchmark features in VoxelAssurance.'
+      'Ranking non-linear telemetry feature relevance for automated anomaly root-cause detection in production telemetry.',
+      'Selecting top predictive benchmark features in CI/CD pipeline benchmarks.'
     ],
     when: 'Use for feature selection to measure total shared information between predictors and target variables.',
     cautions: [
@@ -2909,8 +2909,8 @@ export const calculatorPages = [
       ts: `import { huberLoss } from '@statlab/core';\nconst loss = huberLoss(residuals, { delta: 1.345 });`,
     },
     useCases: [
-      'Fitting robust telemetry trend lines unaffected by intermittent extreme latency spikes in VoxelPulse.',
-      'Constructing outlier-resistant performance trend models in VoxelAssurance.'
+      'Fitting robust telemetry trend lines unaffected by intermittent extreme latency spikes in production telemetry.',
+      'Constructing outlier-resistant performance trend models in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when fitting regression models on datasets containing extreme measurement noise or heavy-tailed outliers.',
     cautions: [
@@ -2934,8 +2934,8 @@ export const calculatorPages = [
       ts: `import { probitRegression } from '@statlab/core';\nconst { ed50, alpha, beta } = probitRegression(doseVec, responseVec);`,
     },
     useCases: [
-      'Estimating median failure load thresholds (ED50) during stress testing in VoxelPulse.',
-      'Calculating 50% probability failure points in VoxelAssurance qualification runs.'
+      'Estimating median failure load thresholds (ED50) during stress testing in production telemetry.',
+      'Calculating 50% probability failure points in system qualification testing runs.'
     ],
     when: 'Use when modeling binary response probabilities as a function of underlying continuous exposure or stress levels using an inverse normal link.',
     cautions: [
@@ -2959,8 +2959,8 @@ export const calculatorPages = [
       ts: `import { tobitRegression } from '@statlab/core';\nconst model = tobitRegression(X, y, { leftBound: 1.0 });`,
     },
     useCases: [
-      'Modeling telemetry latency metrics bounded by minimum timer resolution limits in VoxelPulse.',
-      'Analyzing censored cost or duration metrics in VoxelAssurance benchmarks.'
+      'Modeling telemetry latency metrics bounded by minimum timer resolution limits in production telemetry.',
+      'Analyzing censored cost or duration metrics in CI/CD pipeline benchmarks benchmarks.'
     ],
     when: 'Use when fitting linear models on continuous variables that are censored at a known lower or upper threshold limit.',
     cautions: [
@@ -2984,8 +2984,8 @@ export const calculatorPages = [
       ts: `import { grubbsTest } from '@statlab/core';\nconst { gStat, isOutlier } = grubbsTest(sample, { alpha: 0.05 });`,
     },
     useCases: [
-      'Detecting single extreme anomaly spikes in microservice latency samples in VoxelPulse.',
-      'Cleaning outlier noise prior to benchmark baseline calculation in VoxelAssurance.'
+      'Detecting single extreme anomaly spikes in microservice latency samples in production telemetry.',
+      'Cleaning outlier noise prior to benchmark baseline calculation in CI/CD pipeline benchmarks.'
     ],
     when: 'Use when testing whether the single most extreme value in a dataset is a statistically significant outlier.',
     cautions: [
@@ -3009,8 +3009,8 @@ export const calculatorPages = [
       ts: `import { dixonQTest } from '@statlab/core';\nconst { qStat, isOutlier } = dixonQTest(sample);`,
     },
     useCases: [
-      'Identifying outlier trials in small-sample microbenchmarks (N < 10) in VoxelAssurance.',
-      'Cleaning small pilot telemetry runs in VoxelPulse.'
+      'Identifying outlier trials in small-sample microbenchmarks (N < 10) in CI/CD pipeline benchmarks.',
+      'Cleaning small pilot telemetry runs in production telemetry.'
     ],
     when: 'Use when evaluating potential outliers in very small sample sizes (N = 3 to 30) where standard deviation estimation is noisy.',
     cautions: [
@@ -3034,8 +3034,8 @@ export const calculatorPages = [
       ts: `import { rbdReliability } from '@statlab/core';\nconst rSys = rbdReliability([0.95, 0.95, 0.95], { mode: 'parallel' });`,
     },
     useCases: [
-      'Calculating end-to-end system availability for complex multi-tier microservice architectures in VoxelPulse.',
-      'Verifying redundant system design reliability targets in VoxelAssurance qualification.'
+      'Calculating end-to-end system availability for complex multi-tier microservice architectures in production telemetry.',
+      'Verifying redundant system design reliability targets in system qualification testing.'
     ],
     when: 'Use when modeling system-level reliability as a logical combination of individual component or service reliabilities.',
     cautions: [
@@ -3043,6 +3043,506 @@ export const calculatorPages = [
       'Series components represent single points of failure.'
     ],
     workbenchId: 'rel_rbd',
+  },
+  {
+    slug: 'half-life-decay-rate',
+    title: 'Half-life, decay constant & mean lifetime calculator',
+    family: 'Growth, decay & kinetic models',
+    description: 'Compute exponential decay constant λ, half-life t_{1/2}, mean lifetime τ, and remaining quantity N(t) for exponential decay processes.',
+    keywords: ['half life calculator', 'decay rate constant', 'mean lifetime tau', 'exponential decay formula', 'cache invalidation decay'],
+    inputs: ['Initial quantity N0', 'Decay constant λ OR Half-life t_1/2', 'Elapsed time t'],
+    example: { a: ['Initial N0 = 10,000 cached records', 'Half-life t_1/2 = 24.0 hours', 'Elapsed t = 72.0 hours'], result: 'Decay Constant λ = 0.02888/hr, Remaining N(t) = 1,250 records (87.5% decay)' },
+    formula: 'N(t) = N_0 * e^{-λ t}, t_{1/2} = ln(2) / λ, τ = 1 / λ',
+    code: {
+      python: `import numpy as np\ndef half_life(n0, t_half, t):\n    lmbda = np.log(2) / t_half\n    return n0 * np.exp(-lmbda * t)\nprint(half_life(10000, 24, 72))`,
+      r: `lmbda <- log(2) / 24\nnt <- 10000 * exp(-lmbda * 72)`,
+      ts: `import { exponentialDecay } from '@statlab/core';\nconst n_t = exponentialDecay(10000, { halfLife: 24, time: 72 });`,
+    },
+    useCases: [
+      'Modeling telemetry cache retention and session token decay in production telemetry.',
+      'Calculating artificial load dissipation rates in automated load testing.'
+    ],
+    when: 'Use when quantity decays proportionally to its current value over time.',
+    cautions: [
+      'Assumes a constant decay rate parameter λ over time.',
+      'Requires non-negative initial quantity N0 > 0.'
+    ],
+    workbenchId: 'kin_decay',
+  },
+  {
+    slug: 'arrhenius-equation-activation',
+    title: 'Arrhenius equation & activation energy calculator',
+    family: 'Growth, decay & kinetic models',
+    description: 'Calculate Arrhenius activation energy E_a, pre-exponential frequency factor A, and reaction rate k(T) across temperatures.',
+    keywords: ['Arrhenius equation calculator', 'activation energy Ea', 'reaction rate temperature', 'pre exponential factor A', 'thermal acceleration factor'],
+    inputs: ['Rate k1 at Temp T1 (Kelvin)', 'Rate k2 at Temp T2 (Kelvin)', 'Target Temp T3 (optional)'],
+    example: { a: ['Rate k1 = 0.05 at 300 K (27°C)', 'Rate k2 = 0.42 at 330 K (57°C)'], result: 'Activation Energy E_a = 58.42 kJ/mol, Pre-exponential A = 7.74e7, Q10 Factor = 2.03' },
+    formula: 'k = A * exp(-E_a / (R * T)), E_a = R * [ T_1 T_2 / (T_2 - T_1) ] * ln(k_2 / k_1)',
+    code: {
+      python: `import numpy as np\nR = 8.314\ndef arrhenius_ea(k1, T1, k2, T2):\n    return R * (T1 * T2 / (T2 - T1)) * np.log(k2 / k1)\nprint(f"Ea: {arrhenius_ea(0.05, 300, 0.42, 330)/1000:.2f} kJ/mol")`,
+      r: `ea <- 8.314 * (300 * 330 / 30) * log(0.42 / 0.05)`,
+      ts: `import { arrheniusEa } from '@statlab/core';\nconst ea = arrheniusEa(0.05, 300, 0.42, 330);`,
+    },
+    useCases: [
+      'Modeling temperature-dependent hardware degradation and thermal throttling acceleration in production telemetry.',
+      'Estimating accelerated life testing (ALT) factors in system qualification testing.'
+    ],
+    when: 'Use when modeling process or failure rate changes driven by thermal energy shifts.',
+    cautions: [
+      'Temperatures must be specified in absolute Kelvin (K = °C + 273.15).',
+      'Assumes activation energy E_a remains constant over the evaluated temperature range.'
+    ],
+    workbenchId: 'kin_arrhenius',
+  },
+  {
+    slug: 'logistic-growth-carrying-capacity',
+    title: 'Logistic growth & carrying capacity calculator',
+    family: 'Growth, decay & kinetic models',
+    description: 'Compute logistic S-curve growth P(t), intrinsic growth rate r, carrying capacity K, and inflection point time t_0.',
+    keywords: ['logistic growth calculator', 'carrying capacity K', 'S curve growth', 'intrinsic growth rate', 'inflection point logistic'],
+    inputs: ['Initial population/load P0', 'Carrying capacity K', 'Intrinsic growth rate r', 'Elapsed time t'],
+    example: { a: ['Initial P0 = 100 users', 'Carrying capacity K = 10,000 users', 'Rate r = 0.15/day', 'Elapsed t = 30 days'], result: 'Current P(t) = 8,995 users, Inflection Point at t_0 = 30.7 days (Maximum growth rate = 375 users/day)' },
+    formula: 'P(t) = K / (1 + ((K - P_0)/P_0) * e^{-r t}), Inflection t_0 = (1/r) ln((K - P_0)/P_0)',
+    code: {
+      python: `import numpy as np\ndef logistic_growth(p0, k, r, t):\n    return k / (1 + ((k - p0) / p0) * np.exp(-r * t))\nprint(f"P(30): {logistic_growth(100, 10000, 0.15, 30):.0f}")`,
+      r: `pt <- 10000 / (1 + ((10000 - 100)/100) * exp(-0.15 * 30))`,
+      ts: `import { logisticGrowth } from '@statlab/core';\nconst p = logisticGrowth(100, { k: 10000, r: 0.15, t: 30 });`,
+    },
+    useCases: [
+      'Modeling user adoption S-curves and infrastructure resource saturation limits in production telemetry.',
+      'Predicting server capacity bottlenecks in CI/CD pipeline benchmarks load testing.'
+    ],
+    when: 'Use when modeling growth processes that initially grow exponentially but slow down as they approach a maximum saturation limit K.',
+    cautions: [
+      'Carrying capacity K must exceed initial value P0.',
+      'Assumes environmental constraints and growth rate r remain constant.'
+    ],
+    workbenchId: 'kin_logistic',
+  },
+  {
+    slug: 'hill-equation-ec50',
+    title: 'Hill equation dose-response & EC50 calculator',
+    family: 'Growth, decay & kinetic models',
+    description: 'Fit 4-parameter Hill equation dose-response curves to estimate median effective concentration EC_{50}, Hill coefficient n_H, and cooperativity.',
+    keywords: ['Hill equation calculator', 'EC50 calculator', 'Hill coefficient', 'dose response curve', 'cooperativity Hill'],
+    inputs: ['Dose / Concentration vector X', 'Observed response vector Y', 'Min/Max response bounds (optional)'],
+    example: { a: ['Doses X: [0.1, 1.0, 10.0, 100.0, 1000.0]', 'Responses Y: [2%, 12%, 50%, 88%, 98%]'], result: 'EC50 = 10.0 units, Hill Coefficient n_H = 1.02 (Non-cooperative Michaelis-Menten kinetics)' },
+    formula: 'E(X) = E_{min} + (E_{max} - E_{min}) * [ X^{n_H} / (EC_{50}^{n_H} + X^{n_H}) ]',
+    code: {
+      python: `from scipy.optimize import curve_fit\ndef hill_eq(x, ec50, nh):\n    return x**nh / (ec50**nh + x**nh)\n# Fit EC50 and Hill coefficient n_H to normalized response data`,
+      r: `library(drc)\ndrm(y ~ x, fct = LL.4())`,
+      ts: `import { hillEquation } from '@statlab/core';\nconst { ec50, nH } = hillEquation(doses, responses);`,
+    },
+    useCases: [
+      'Evaluating sigmoidal API stress failure curves vs request rate in production telemetry.',
+      'Determining 50% response threshold points in system qualification testing suites.'
+    ],
+    when: 'Use when modeling sigmoidal dose-response relationships exhibiting cooperative binding or non-linear saturation thresholding.',
+    cautions: [
+      'Hill coefficient n_H > 1 indicates positive cooperativity (steeper curve); n_H < 1 indicates negative cooperativity.',
+      'Log-transform concentration values before fitting if range spans multiple orders of magnitude.'
+    ],
+    workbenchId: 'kin_hill',
+  },
+  {
+    slug: 'michaelis-menten-kinetics',
+    title: 'Michaelis-Menten kinetics & Lineweaver-Burk calculator',
+    family: 'Growth, decay & kinetic models',
+    description: 'Compute maximum velocity V_{max}, Michaelis constant K_m, and catalytic efficiency (V_{max}/K_m) using Lineweaver-Burk double reciprocal transform.',
+    keywords: ['Michaelis Menten calculator', 'Km calculator', 'Vmax calculator', 'Lineweaver Burk plot', 'enzyme kinetics'],
+    inputs: ['Substrate concentration [S] vector', 'Initial velocity V0 vector'],
+    example: { a: ['Substrates [S]: [1.0, 2.0, 5.0, 10.0, 20.0]', 'Velocities V0: [15, 25, 40, 50, 57]'], result: 'V_max = 68.42 ops/sec, K_m = 3.56 mmol/L, Lineweaver-Burk R² = 0.992' },
+    formula: 'V_0 = (V_{max} * [S]) / (K_m + [S]), 1/V_0 = (K_m / V_{max}) * (1/[S]) + 1/V_{max}',
+    code: {
+      python: `import numpy as np\n# Perform OLS linear regression on double-reciprocal vectors 1/V0 vs 1/[S]`,
+      r: `library(drc)\n# Fit non-linear Michaelis-Menten model nls(v ~ (vmax * s) / (km + s))`,
+      ts: `import { michaelisMenten } from '@statlab/core';\nconst { vmax, km } = michaelisMenten(substrates, velocities);`,
+    },
+    useCases: [
+      'Modeling thread worker throughput vs queue saturation depth in production telemetry.',
+      'Evaluating processing bottleneck kinetics in CI/CD pipeline benchmarks build pipelines.'
+    ],
+    when: 'Use when modeling single-substrate enzymatic or worker processing rates approaching asymptotic maximum velocity.',
+    cautions: [
+      'Lineweaver-Burk double reciprocal transformation can distort error variance at low concentrations; use Hanes-Woolf or non-linear regression for final reporting.',
+      'Km represents substrate concentration at half Vmax.'
+    ],
+    workbenchId: 'kin_mm',
+  },
+  {
+    slug: 'gumbel-distribution-calculator',
+    title: 'Gumbel Type I extreme value distribution calculator',
+    family: 'Extreme value & reliability distributions',
+    description: 'Calculate Gumbel Type I minimum and maximum distribution CDF, PDF, quantiles, and extreme return periods for thin-tailed GEV limits.',
+    keywords: ['Gumbel distribution calculator', 'Gumbel minimum', 'Gumbel maximum', 'extreme value type 1', 'return period Gumbel'],
+    inputs: ['Location parameter μ', 'Scale parameter β (β > 0)', 'Quantile value x OR Probability p'],
+    example: { a: ['Location μ = 120.0ms', 'Scale β = 15.0ms', 'Target Quantile x = 180.0ms'], result: 'CDF F(x) = 0.9820, Return Period T = 55.5 runs, Mode = 120.0ms, Mean = 128.65ms' },
+    formula: 'CDF F(x) = exp( - exp( - (x - μ) / β ) ), Mean = μ + β * γ (where γ ≈ 0.57721)',
+    code: {
+      python: `from scipy.stats import gumbel_r\nmu, beta = 120.0, 15.0\ncdf = gumbel_r.cdf(180.0, loc=mu, scale=beta)\nprint(f"Gumbel max CDF: {cdf:.4f}")`,
+      r: `library(evd)\npgumbel(180, loc = 120, scale = 15)`,
+      ts: `import { gumbelDistribution } from '@statlab/core';\nconst cdf = gumbelDistribution(180, { loc: 120, scale: 15, mode: 'max' });`,
+    },
+    useCases: [
+      'Modeling maximum annual/daily latency spikes in production system telemetry.',
+      'Establishing extreme upper tolerance bounds in automated load testing.'
+    ],
+    when: 'Use when modeling the distribution of the maximum (or minimum) of a number of samples of exponential-type distributions.',
+    cautions: [
+      'Gumbel distribution has constant Gumbel shape ξ = 0; if tail is heavy, use Fréchet/GEV.',
+      'Ensure correct specification of Gumbel Minimum vs Gumbel Maximum.'
+    ],
+    workbenchId: 'dist_gumbel',
+  },
+  {
+    slug: 'weibull-two-parameter-fit',
+    title: '2-parameter Weibull MLE fit calculator',
+    family: 'Extreme value & reliability distributions',
+    description: 'Fit 2-parameter Weibull shape parameter β and scale parameter η using Maximum Likelihood Estimation (MLE) for reliability analysis.',
+    keywords: ['Weibull MLE calculator', 'Weibull shape beta', 'Weibull scale eta', 'characteristic life', 'failure rate Weibull'],
+    inputs: ['Time-to-failure observations vector T (Uncensored or Censored)'],
+    example: { a: ['Failures (hrs): [120, 240, 310, 450, 520, 680, 890]'], result: 'Shape β = 1.782 (Wear-out phase), Scale η = 512.4 hrs (Characteristic Life), MTTF = 456.1 hrs' },
+    formula: 'F(t) = 1 - exp(-(t/η)^β), Hazard h(t) = (β/η)(t/η)^{β-1}',
+    code: {
+      python: `from scipy.stats import weibull_min\nparams = weibull_min.fit(failures, flock=0)\nbeta_hat, eta_hat = params[0], params[2]\nprint(f"Shape: {beta_hat:.4f}, Scale: {eta_hat:.4f}")`,
+      r: `library(fitdistrplus)\nfitdist(failures, "weibull")`,
+      ts: `import { weibullMleFit } from '@statlab/core';\nconst { beta, eta, mttf } = weibullMleFit(failures);`,
+    },
+    useCases: [
+      'Fitting component failure distributions and wear-out trends in production system telemetry.',
+      'Estimating characteristic life (63.2% failure point) in CI/CD pipeline benchmarks reliability runs.'
+    ],
+    when: 'Use when modeling item lifespan, failure times, or material strength where failure rate changes over time.',
+    cautions: [
+      'Shape β < 1 indicates infant mortality (decreasing failure rate); β = 1 indicates random constant failures (exponential); β > 1 indicates wear-out.',
+      'Requires positive time values T > 0.'
+    ],
+    workbenchId: 'dist_weibull_mle',
+  },
+  {
+    slug: 'log-normal-distribution-calculator',
+    title: 'Log-normal distribution & geometric mean calculator',
+    family: 'Probability distributions & bayesian priors',
+    description: 'Calculate Log-normal distribution PDF, CDF, quantiles, arithmetic mean, geometric mean, and geometric standard deviation.',
+    keywords: ['log normal distribution calculator', 'geometric mean calculator', 'lognormal PDF CDF', 'skewed latency distribution', 'multiplicative noise'],
+    inputs: ['Location parameter μ (Mean of log(X))', 'Scale parameter σ (Std dev of log(X))', 'Value x'],
+    example: { a: ['Location μ = 4.605 (ln(100))', 'Scale σ = 0.50', 'Value x = 150.0ms'], result: 'Geometric Mean = 100.0ms, Arithmetic Mean = 113.3ms, CDF F(150) = 0.8849, Geometric SD = 1.649' },
+    formula: 'f(x) = (1 / (x σ √(2π))) * exp( - (ln x - μ)² / (2σ²) ), GeoMean = e^μ, GeoSD = e^σ',
+    code: {
+      python: `from scipy.stats import lognorm\nimport numpy as np\ns, scale = 0.50, np.exp(4.605)\ncdf = lognorm.cdf(150.0, s=s, scale=scale)\nprint(f"Log-normal CDF: {cdf:.4f}")`,
+      r: `plnorm(150, meanlog = 4.605, sdlog = 0.50)`,
+      ts: `import { logNormalDistribution } from '@statlab/core';\nconst cdf = logNormalDistribution(150, { meanlog: 4.605, sdlog: 0.50 });`,
+    },
+    useCases: [
+      'Modeling right-skewed web request latencies and file payload sizes in production system telemetry.',
+      'Calculating geometric mean benchmarks in automated load testing.'
+    ],
+    when: 'Use when variable is positive-valued and produced by multiplicative growth or multiplicative noise factors.',
+    cautions: [
+      'Parameters μ and σ are the mean and standard deviation of log(X), NOT of X itself.',
+      'Arithmetic mean E[X] = exp(μ + σ²/2) exceeds geometric mean exp(μ).'
+    ],
+    workbenchId: 'dist_lognorm',
+  },
+  {
+    slug: 'gamma-distribution-calculator',
+    title: 'Gamma distribution & Erlang waiting time calculator',
+    family: 'Probability distributions & bayesian priors',
+    description: 'Compute Gamma distribution PDF, CDF, quantiles, mean (kθ), and variance for continuous waiting times and Poisson queue arrivals.',
+    keywords: ['Gamma distribution calculator', 'Erlang distribution', 'waiting time distribution', 'Gamma shape scale', 'Poisson waiting time'],
+    inputs: ['Shape parameter k (or α > 0)', 'Scale parameter θ (or Rate β = 1/θ)', 'Value x'],
+    example: { a: ['Shape k = 3.0 (3 events)', 'Scale θ = 10.0ms (Avg time per event)', 'Value x = 45.0ms'], result: 'Mean = 30.0ms, Variance = 300.0, CDF F(45) = 0.8264, Mode = 20.0ms' },
+    formula: 'f(x) = (1 / (Γ(k) θ^k)) * x^{k-1} * exp(-x / θ)',
+    code: {
+      python: `from scipy.stats import gamma\ncdf = gamma.cdf(45.0, a=3.0, scale=10.0)\nprint(f"Gamma CDF: {cdf:.4f}")`,
+      r: `pgamma(45, shape = 3, scale = 10)`,
+      ts: `import { gammaDistribution } from '@statlab/core';\nconst cdf = gammaDistribution(45, { shape: 3, scale: 10 });`,
+    },
+    useCases: [
+      'Modeling multi-stage queue waiting times in production system telemetry streams.',
+      'Constructing conjugate prior distributions for Poisson rate parameters in CI/CD pipeline benchmarks.'
+    ],
+    when: 'Use when predicting the total elapsed time until k independent Poisson events occur.',
+    cautions: [
+      'Check whether software uses scale parameter θ or rate parameter β = 1/θ.',
+      'When shape k is an integer, Gamma reduces to Erlang distribution.'
+    ],
+    workbenchId: 'dist_gamma',
+  },
+  {
+    slug: 'cauchy-distribution-calculator',
+    title: 'Cauchy (Lorentzian) distribution calculator',
+    family: 'Probability distributions & bayesian priors',
+    description: 'Compute Cauchy / Lorentz distribution PDF, CDF, quantiles, and IQR for heavy-tailed distributions with undefined mean and variance.',
+    keywords: ['Cauchy distribution calculator', 'Lorentzian distribution', 'heavy tailed distribution', 'undefined mean distribution', 'Cauchy location scale'],
+    inputs: ['Location parameter x0 (Median / Mode)', 'Scale parameter γ (γ > 0, Half-width at half-maximum HWHM)', 'Value x'],
+    example: { a: ['Location x0 = 0.0', 'Scale γ = 1.0 (Standard Cauchy)', 'Value x = 2.0'], result: 'Median = 0.0, IQR = 2.0 (From -1 to +1), CDF F(2) = 0.8524, PDF f(2) = 0.0637' },
+    formula: 'f(x) = 1 / ( π γ [ 1 + ((x - x_0)/γ)² ] ), CDF F(x) = (1/π) arctan((x - x_0)/γ) + 1/2',
+    code: {
+      python: `from scipy.stats import cauchy\ncdf = cauchy.cdf(2.0, loc=0.0, scale=1.0)\nprint(f"Cauchy CDF: {cdf:.4f}")`,
+      r: `pcauchy(2, location = 0, scale = 1)`,
+      ts: `import { cauchyDistribution } from '@statlab/core';\nconst cdf = cauchyDistribution(2.0, { loc: 0.0, scale: 1.0 });`,
+    },
+    useCases: [
+      'Modeling extreme ratio metrics and resonance spikes in production system telemetry.',
+      'Constructing default priors for Bayesian t-tests (BF_10) in CI/CD pipeline benchmarks.'
+    ],
+    when: 'Use when modeling ratio distributions of two independent normal variables or extreme resonance spikes.',
+    cautions: [
+      'Theoretical mean, variance, and higher moments are undefined (do not converge).',
+      'Sample mean does NOT obey the Law of Large Numbers for Cauchy data.'
+    ],
+    workbenchId: 'dist_cauchy',
+  },
+  {
+    slug: 'beta-distribution-calculator',
+    title: 'Beta distribution & Bayesian prior calculator',
+    family: 'Probability distributions & bayesian priors',
+    description: 'Calculate Beta distribution PDF, CDF, quantiles, mean (α/(α+β)), and mode for probability modeling and Beta-Binomial Bayesian priors.',
+    keywords: ['Beta distribution calculator', 'Beta prior calculator', 'Bayesian Beta Binomial', 'Beta PDF CDF', 'proportion distribution'],
+    inputs: ['Shape parameter α (α > 0)', 'Shape parameter β (β > 0)', 'Probability value x (0 <= x <= 1)'],
+    example: { a: ['Alpha α = 10 (Successes + 1)', 'Beta β = 2 (Failures + 1)', 'Target x = 0.80'], result: 'Mean = 0.8333 (83.3%), Mode = 0.900, Variance = 0.0107, 95% Credible Interval: [0.604, 0.970]' },
+    formula: 'f(x) = (1 / B(α, β)) * x^{α-1} (1 - x)^{β-1}, Mean = α / (α + β)',
+    code: {
+      python: `from scipy.stats import beta\ncdf = beta.cdf(0.80, a=10, b=2)\nprint(f"Beta CDF: {cdf:.4f}")`,
+      r: `pbeta(0.80, shape1 = 10, shape2 = 2)`,
+      ts: `import { betaDistribution } from '@statlab/core';\nconst cdf = betaDistribution(0.80, { alpha: 10, beta: 2 });`,
+    },
+    useCases: [
+      'Modeling conversion rate uncertainty distributions in production A/B testing.',
+      'Setting conjugate prior distributions for binary failure rates in CI/CD pipeline benchmarks.'
+    ],
+    when: 'Use when modeling random variables bounded between 0 and 1, such as probabilities, percentages, or conversion rates.',
+    cautions: [
+      'Bounded strictly to interval [0, 1].',
+      'Conjugate prior for Binomial likelihood distributions.'
+    ],
+    workbenchId: 'dist_beta',
+  },
+  {
+    slug: 'dirichlet-distribution-calculator',
+    title: 'Dirichlet multivariate distribution calculator',
+    family: 'Probability distributions & bayesian priors',
+    description: 'Compute Dirichlet distribution PDF, category means (α_i/α_0), and variances for multivariate probability simplex distributions.',
+    keywords: ['Dirichlet distribution calculator', 'multivariate beta distribution', 'probability simplex', 'LDA prior Dirichlet', 'categorical prior'],
+    inputs: ['Concentration vector α = [α1, α2, ... αk]', 'Sample probability vector p = [p1, p2, ... pk] (sum to 1.0)'],
+    example: { a: ['Concentration α: [10, 5, 2] (3 categories)', 'Sample probabilities p: [0.60, 0.30, 0.10]'], result: 'Expected Means E[p]: [0.588, 0.294, 0.118], Sum α₀ = 17.0, Log PDF = +2.48' },
+    formula: 'f(p) = (Γ(Σ α_i) / ∏ Γ(α_i)) * ∏ p_i^{α_i - 1}, E[p_i] = α_i / Σ α_k',
+    code: {
+      python: `from scipy.stats import dirichlet\nlog_pdf = dirichlet.logpdf([0.60, 0.30, 0.10], alpha=[10, 5, 2])\nprint(f"Dirichlet Log PDF: {log_pdf:.4f}")`,
+      r: `library(MCMCpack)\nddirichlet(c(0.60, 0.30, 0.10), alpha = c(10, 5, 2))`,
+      ts: `import { dirichletDistribution } from '@statlab/core';\nconst res = dirichletDistribution([0.60, 0.30, 0.10], { alpha: [10, 5, 2] });`,
+    },
+    useCases: [
+      'Modeling categorical topic/event distribution priors in production telemetry LLM evaluations.',
+      'Constructing conjugate priors for multinomial telemetry events in CI/CD pipeline benchmarks.'
+    ],
+    when: 'Use when modeling probability vectors over 3 or more mutually exclusive categories that sum to 1.0.',
+    cautions: [
+      'Multivariate generalization of the Beta distribution.',
+      'Input probability vector elements must be non-negative and sum to exactly 1.0.'
+    ],
+    workbenchId: 'dist_dirichlet',
+  },
+  {
+    slug: 'hypergeometric-distribution-calculator',
+    title: 'Hypergeometric distribution calculator',
+    family: 'Probability distributions & bayesian priors',
+    description: 'Calculate Hypergeometric distribution PMF, CDF, mean, and variance for sampling without replacement from a finite population.',
+    keywords: ['Hypergeometric distribution calculator', 'sampling without replacement', 'finite population sampling', 'hypergeometric PMF CDF'],
+    inputs: ['Population size N', 'Total success states in population K', 'Sample size n', 'Observed successes k'],
+    example: { a: ['Population N = 100 items', 'Defect items K = 15', 'Sample size n = 10 items', 'Observed defects k = 3'], result: 'Exact PMF P(k=3) = 0.1298, Cumulative P(k>=3) = 0.1798, Expected E[k] = 1.50 defects' },
+    formula: 'P(X = k) = [ (K choose k) (N-K choose n-k) ] / (N choose n)',
+    code: {
+      python: `from scipy.stats import hypergeom\n# N=100, K=15, n=10\npmf = hypergeom.pmf(3, 100, 15, 10)\nprint(f"Hypergeometric PMF: {pmf:.4f}")`,
+      r: `dhyper(3, m = 15, n = 85, k = 10)`,
+      ts: `import { hypergeometricDistribution } from '@statlab/core';\nconst pmf = hypergeometricDistribution(3, { N: 100, K: 15, n: 10 });`,
+    },
+    useCases: [
+      'Evaluating defect discovery probabilities in fixed-size code audit batches in production telemetry.',
+      'Computing exact Fisher test probabilities in small finite QA runs in CI/CD pipeline benchmarks.'
+    ],
+    when: 'Use when sampling without replacement from a finite population of size N containing K target items.',
+    cautions: [
+      'If population N is very large (N > 10 * n), Binomial distribution provides a close approximation.',
+      'Requires integer parameters.'
+    ],
+    workbenchId: 'dist_hyper',
+  },
+  {
+    slug: 'negative-binomial-distribution',
+    title: 'Negative binomial distribution calculator',
+    family: 'Probability distributions & bayesian priors',
+    description: 'Calculate Negative Binomial PMF, CDF, and overdispersed Poisson count probabilities for target number of successes r and probability p.',
+    keywords: ['Negative binomial distribution', 'overdispersed Poisson', 'target successes r', 'Pascal distribution', 'count data calculator'],
+    inputs: ['Target success count r (r > 0)', 'Success probability p (0 < p < 1)', 'Number of failures k'],
+    example: { a: ['Target successes r = 5', 'Success probability p = 0.20', 'Number of failures k = 15'], result: 'PMF P(k=15) = 0.0436, Mean = 20.0 failures, Variance = 100.0 (Overdispersion Var/Mean = 5.0)' },
+    formula: 'P(X = k) = ((k + r - 1) choose k) * p^r * (1 - p)^k',
+    code: {
+      python: `from scipy.stats import nbinom\npmf = nbinom.pmf(15, n=5, p=0.20)\nprint(f"Negative Binomial PMF: {pmf:.4f}")`,
+      r: `dnbinom(15, size = 5, prob = 0.20)`,
+      ts: `import { negativeBinomialDist } from '@statlab/core';\nconst pmf = negativeBinomialDist(15, { r: 5, p: 0.20 });`,
+    },
+    useCases: [
+      'Modeling overdispersed API request retries and error counts in production system telemetry.',
+      'Analyzing clustered defect occurrences in automated load testing.'
+    ],
+    when: 'Use when modeling the number of failures before achieving r successes, or when count data exhibits overdispersion (Variance > Mean).',
+    cautions: [
+      'Handles overdispersed count data where standard Poisson models fail.',
+      'Check whether software defines outcome as number of failures k or total trials n = k + r.'
+    ],
+    workbenchId: 'dist_nbinom',
+  },
+  {
+    slug: 'multinomial-distribution-calculator',
+    title: 'Multinomial distribution calculator',
+    family: 'Probability distributions & bayesian priors',
+    description: 'Calculate joint probability PMF for multi-category outcome counts across N independent trials given category probability vector p.',
+    keywords: ['Multinomial distribution calculator', 'multinomial PMF', 'multi category probability', 'category counts PMF'],
+    inputs: ['Category probability vector p = [p1, p2, ... pk]', 'Observed counts vector x = [x1, x2, ... xk] (sum to N)'],
+    example: { a: ['Probabilities p: [0.50, 0.30, 0.20]', 'Trial counts x: [5, 3, 2] (N = 10 trials)'], result: 'Joint PMF P(X=x) = 0.0850 (8.50% exact joint probability), Log PMF = -2.465' },
+    formula: 'P(X_1=x_1, ... X_k=x_k) = (N! / (x_1! ... x_k!)) * ∏ p_i^{x_i}',
+    code: {
+      python: `from scipy.stats import multinomial\npmf = multinomial.pmf([5, 3, 2], n=10, p=[0.50, 0.30, 0.20])\nprint(f"Multinomial PMF: {pmf:.4f}")`,
+      r: `dmultinom(c(5, 3, 2), prob = c(0.50, 0.30, 0.20))`,
+      ts: `import { multinomialDist } from '@statlab/core';\nconst pmf = multinomialDist([5, 3, 2], { p: [0.50, 0.30, 0.20] });`,
+    },
+    useCases: [
+      'Evaluating multi-category HTTP status code response distributions in production telemetry.',
+      'Benchmarking multi-class LLM output classification probabilities in CI/CD pipeline benchmarks.'
+    ],
+    when: 'Use when calculating joint probabilities for counts across 3 or more mutually exclusive outcomes in N independent trials.',
+    cautions: [
+      'Multivariate extension of Binomial distribution.',
+      'Category probabilities p must sum to 1.0 and counts x must sum to N.'
+    ],
+    workbenchId: 'dist_multinom',
+  },
+  {
+    slug: 'box-cox-transformation',
+    title: 'Box-Cox power transformation calculator',
+    family: 'Data transformations',
+    description: 'Compute optimal Box-Cox power transformation parameter λ using Maximum Likelihood to stabilize variance and normalize positive data.',
+    keywords: ['Box Cox calculator', 'power transformation lambda', 'normalize data Box Cox', 'variance stabilizing transform'],
+    inputs: ['Strictly positive data vector X (X > 0)', 'Lambda search range (Default -2.0 to +2.0)'],
+    example: { a: ['Right-skewed positive data vector (N=100)'], result: 'Optimal Lambda λ = 0.24 (Log-like transform). Transformed Skewness reduced from +2.41 to +0.08.' },
+    formula: 'y^{(λ)} = (x^λ - 1)/λ if λ ≠ 0 else ln(x)',
+    code: {
+      python: `from scipy.stats import boxcox\ntransformed_x, best_lambda = boxcox(positive_data)\nprint(f"Optimal Lambda: {best_lambda:.4f}")`,
+      r: `library(MASS)\nboxcox(data ~ 1)`,
+      ts: `import { boxCoxTransform } from '@statlab/core';\nconst { transformed, lambda } = boxCoxTransform(data);`,
+    },
+    useCases: [
+      'Normalizing highly skewed latency distributions prior to parametric ANOVA testing in production telemetry.',
+      'Stabilizing metric variance in performance benchmarking.'
+    ],
+    when: 'Use when strictly positive continuous data violates normality and homoscedasticity assumptions.',
+    cautions: [
+      'Requires strictly positive data X > 0.',
+      'For data containing zero or negative values, use Yeo-Johnson transformation instead.'
+    ],
+    workbenchId: 'trans_boxcox',
+  },
+  {
+    slug: 'yeo-johnson-transformation',
+    title: 'Yeo-Johnson power transformation calculator',
+    family: 'Data transformations',
+    description: 'Compute optimal Yeo-Johnson power transformation parameter λ for normalizing continuous data containing zero or negative values.',
+    keywords: ['Yeo Johnson calculator', 'power transformation negative data', 'normalize zero negative data', 'Yeo Johnson lambda'],
+    inputs: ['Real-valued data vector X (Positive, zero, or negative)', 'Lambda search range'],
+    example: { a: ['Real-valued data vector containing negative values: [-5.2, -1.0, 0.0, 3.4, 18.9]'], result: 'Optimal Lambda λ = 0.52. Transformed Skewness reduced from +1.85 to -0.04.' },
+    formula: 'y^{(λ)} = ((x+1)^λ - 1)/λ if x ≥ 0, λ ≠ 0; ln(x+1) if x ≥ 0, λ = 0',
+    code: {
+      python: `from scipy.stats import yeojohnson\ntransformed_x, best_lambda = yeojohnson(data)\nprint(f"Optimal Yeo-Johnson Lambda: {best_lambda:.4f}")`,
+      r: `library(car)\nPowerTransform(data, family = "yj")`,
+      ts: `import { yeoJohnsonTransform } from '@statlab/core';\nconst { transformed, lambda } = yeoJohnsonTransform(data);`,
+    },
+    useCases: [
+      'Normalizing real-valued metric change deltas and gain/loss telemetry in production telemetry.',
+      'Transforming negative-valued benchmark differences in CI/CD pipeline benchmarks.'
+    ],
+    when: 'Use to stabilize variance and normalize continuous data that includes zero or negative numbers.',
+    cautions: [
+      'Extension of Box-Cox that supports all real numbers.',
+      'Check transformed Q-Q plots for approximate normality.'
+    ],
+    workbenchId: 'trans_yj',
+  },
+  {
+    slug: 'spectral-density-periodogram',
+    title: 'Fast Fourier Transform (FFT) Power Spectral Density calculator',
+    family: 'Spectral analysis & signal processing',
+    description: 'Calculate Power Spectral Density (PSD) and periodogram frequencies using Fast Fourier Transform (FFT) and Welch\'s windowed method.',
+    keywords: ['power spectral density calculator', 'FFT periodogram', 'Welch PSD calculator', 'spectral frequency analysis', 'dominant frequency detection'],
+    inputs: ['Time series signal values array Y', 'Sampling frequency f_s (Hz)', 'Window function (Hann, Hamming, Rectangular)'],
+    example: { a: ['Telemetry metric sampled at f_s = 100 Hz (1,000 points)', 'Window: Hann'], result: 'Dominant Frequency Peak f_max = 12.5 Hz (Power = 42.8 dB/Hz). Spectral Centroid = 18.2 Hz.' },
+    formula: 'P(f) = (1 / (f_s N)) | Σ_{n=0}^{N-1} x_n w_n e^{-i 2π f n / f_s} |²',
+    code: {
+      python: `from scipy.signal import welch\nfreqs, psd = welch(signal, fs=100.0, nperseg=256)\nprint(f"Peak freq: {freqs[psd.argmax()]:.2f} Hz")`,
+      r: `spectrum(signal, method = "pgram")`,
+      ts: `import { powerSpectralDensity } from '@statlab/core';\nconst { frequencies, psd } = powerSpectralDensity(signal, { fs: 100 });`,
+    },
+    useCases: [
+      'Detecting hidden periodic CPU load cycles and memory GC frequency spikes in production system telemetry.',
+      'Analyzing harmonic oscillation noise in automated load testing.'
+    ],
+    when: 'Use when converting time-domain metric sequences into frequency-domain power spectra to identify repeating cyclic patterns.',
+    cautions: [
+      'Requires uniformly sampled time series data at fixed sampling frequency f_s.',
+      'Apply window functions (Hann/Hamming) to reduce spectral leakage.'
+    ],
+    workbenchId: 'spec_psd',
+  },
+  {
+    slug: 'signal-to-noise-ratio-snr',
+    title: 'Signal-to-Noise Ratio (SNR & PSNR) calculator',
+    family: 'Spectral analysis & signal processing',
+    description: 'Compute Signal-to-Noise Ratio (SNR) in decibels (dB), Peak Signal-to-Noise Ratio (PSNR), and Carrier-to-Noise (C/N) ratios for metric signals.',
+    keywords: ['SNR calculator', 'signal to noise ratio dB', 'PSNR calculator', 'peak signal to noise ratio', 'metric noise ratio'],
+    inputs: ['Signal mean / peak value', 'Noise standard deviation / MSE', 'Calculation mode (Power SNR, Voltage SNR, PSNR)'],
+    example: { a: ['Signal Mean = 120.0ms', 'Noise Std Dev σ_N = 4.0ms'], result: 'SNR = 30.0 (Linear), SNR = 29.54 dB (Power ratio). Peak SNR PSNR = 35.20 dB.' },
+    formula: 'SNR_{dB} = 20 log10( A_{signal} / A_{noise} ), PSNR_{dB} = 10 log10( MAX^2 / MSE )',
+    code: {
+      python: `import numpy as np\ndef calculate_snr(signal, noise):\n    snr_linear = np.var(signal) / np.var(noise)\n    return 10 * np.log10(snr_linear)\nprint(f"SNR: {calculate_snr(sig_vec, noise_vec):.2f} dB")`,
+      r: `snr_db <- 10 * log10(var(signal) / var(noise))`,
+      ts: `import { signalToNoiseRatio } from '@statlab/core';\nconst { snrDb, psnrDb } = signalToNoiseRatio(signal, noise);`,
+    },
+    useCases: [
+      'Quantifying telemetry signal clarity against background server noise in production telemetry.',
+      'Evaluating benchmark signal quality in CI/CD pipeline benchmarks release qualification.'
+    ],
+    when: 'Use when assessing signal quality relative to background random noise level.',
+    cautions: [
+      'Specify whether input amplitudes represent power (10 log10) or voltage/amplitude (20 log10).',
+      'Higher dB indicates cleaner signal.'
+    ],
+    workbenchId: 'sig_snr',
+  },
+  {
+    slug: 'cusum-mean-variance-spc',
+    title: 'EWMA & Standardized CUSUM control chart calculator',
+    family: 'Statistical process control',
+    description: 'Compute Exponentially Weighted Moving Average (EWMA) control limits and standardized CUSUM chart statistics for early shift detection.',
+    keywords: ['EWMA control chart calculator', 'EWMA SPC', 'standardized CUSUM', 'exponentially weighted moving average', 'small shift SPC'],
+    inputs: ['Observations vector X', 'Target mean μ₀', 'Std dev σ', 'EWMA smoothing parameter lambda λ (0.05 to 0.30)', 'Control limit factor L'],
+    example: { a: ['Observations X', 'Target μ₀ = 50.0, σ = 2.0', 'EWMA λ = 0.20, L = 3.0'], result: 'EWMA Centerline = 50.0, Steady-state UCL = 52.04, LCL = 47.96. Shift detected at point #14.' },
+    formula: 'Z_i = λ X_i + (1 - λ) Z_{i-1}, UCL = μ₀ + L σ √((λ/(2-λ)) (1 - (1-λ)^{2i}))',
+    code: {
+      python: `import statsmodels.api as sm # or custom EWMA estimator\n# Compute EWMA Z_i series and dynamic control limits`,
+      r: `library(qcc)\nqcc(data, type = "ewma", lambda = 0.2, nsigmas = 3)`,
+      ts: `import { ewmaControlChart } from '@statlab/core';\nconst { ewma, ucl, lcl } = ewmaControlChart(observations, { target: 50, sd: 2, lambda: 0.2 });`,
+    },
+    useCases: [
+      'Detecting subtle persistent trend shifts in production system telemetry.',
+      'Monitoring continuous API execution time stability in CI/CD pipeline benchmarks.'
+    ],
+    when: 'Use when detecting small process mean shifts (0.5σ to 1.5σ) where standard Shewhart X-bar charts react too slowly.',
+    cautions: [
+      'EWMA weight parameter λ determines memory weight; smaller λ (e.g. 0.10) is better for smaller shifts.',
+      'Check for autocorrelation in observations before applying standard EWMA limits.'
+    ],
+    workbenchId: 'spc_ewma',
   },
 ];
 
@@ -3182,14 +3682,14 @@ export function renderCalculatorPage(page) {
         </ul>
         <div class="cta-grid">
           <div class="cta-box">
-            <h4>VoxelPulse Telemetry Control Plane</h4>
-            <p style="font-size:14px;color:#c9d7e8;margin:0 0 10px">Continuous A/B testing, statistical telemetry analysis, and automated feedback loops for live backend services.</p>
-            <a style="font-weight:700;font-size:14px" href="https://voxelxengine.com/products/voxel-pulse">Explore VoxelPulse →</a>
+            <h4>StatLab Interactive Workbench</h4>
+            <p style="font-size:14px;color:#c9d7e8;margin:0 0 10px">Run live statistical tests, import CSV data, and export publication-ready APA results directly in your browser.</p>
+            <a style="font-weight:700;font-size:14px" href="/?launch=1#workbench">Launch StatLab Workbench →</a>
           </div>
           <div class="cta-box assurance">
-            <h4>VoxelAssurance Release Readiness</h4>
-            <p style="font-size:14px;color:#c9d7e8;margin:0 0 10px">Fixed-price AI release-readiness sprints, automated regression testing, and reliability statistical benchmarks.</p>
-            <a style="font-weight:700;font-size:14px;color:var(--accent2)" href="https://voxelxengine.com/products/voxel-assurance">Explore VoxelAssurance →</a>
+            <h4>@statlab/core TypeScript Library</h4>
+            <p style="font-size:14px;color:#c9d7e8;margin:0 0 10px">Zero-dependency, high-performance TypeScript statistics and probability engine for web apps, APIs, and microservices.</p>
+            <a style="font-weight:700;font-size:14px;color:var(--accent2)" href="https://www.npmjs.com/package/@statlab/core">View on npm →</a>
           </div>
         </div>
       </article>
@@ -3205,7 +3705,7 @@ export function renderCalculatorPage(page) {
 
     <footer class="footer">
       <div>StatLab is a zero-runtime-dependency browser statistics engine powered by <code>@statlab/core</code>.</div>
-      <div>Feeds into <a href="https://voxelxengine.com/products/voxel-pulse">VoxelPulse</a> &amp; <a href="https://voxelxengine.com/products/voxel-assurance">VoxelAssurance</a>.</div>
+      <div>Feeds into <a href="/?launch=1#workbench">production telemetry</a> &amp; <a href="https://www.npmjs.com/package/@statlab/core">CI/CD pipeline benchmarks</a>.</div>
     </footer>
   </main>
 </body>
@@ -3239,12 +3739,12 @@ export function renderCalculatorIndex() {
 
     <section class="banner">
       <div>
-        <h3 style="margin:0 0 8px;color:#5df2b6">VoxelPulse Telemetry Control Plane</h3>
-        <p style="margin:0;font-size:14px;color:#9db0c7">Embed continuous statistical testing into live telemetry pipelines, A/B test routing, and feature flag analytics.</p>
+        <h3 style="margin:0 0 8px;color:#5df2b6">StatLab Interactive Workbench</h3>
+        <p style="margin:0;font-size:14px;color:#9db0c7">Embed continuous statistical testing into live telemetry pipelines, A/B test routing, and feature flag analytics directly in your browser.</p>
       </div>
       <div>
-        <h3 style="margin:0 0 8px;color:#38bdf8">VoxelAssurance Release Readiness</h3>
-        <p style="margin:0;font-size:14px;color:#9db0c7">Validate release candidate performance, latency distribution shifts, and LLM output quality scores with automated statistical gates.</p>
+        <h3 style="margin:0 0 8px;color:#38bdf8">@statlab/core TypeScript Library</h3>
+        <p style="margin:0;font-size:14px;color:#9db0c7">Validate release candidate performance, latency distribution shifts, and LLM output quality scores with zero-dependency TypeScript functions.</p>
       </div>
     </section>
   </main>
