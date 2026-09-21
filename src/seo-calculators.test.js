@@ -89,8 +89,26 @@ describe('SEO calculator pages', () => {
       'ndcg-ranking-metrics',
       'mean-absolute-percentage-error',
       'mtbf-mttr-reliability',
+      'bootstrap-confidence-interval',
+      'permutation-test-two-samples',
+      'response-surface-methodology',
+      'plackett-burman-screening',
+      'taguchi-signal-to-noise',
+      'cosine-similarity-calculator',
+      'wasserstein-distance-earth-movers',
+      'mahalanobis-distance-calculator',
+      'vector-euclidean-manhattan-distance',
+      'morans-i-spatial-autocorrelation',
+      'var-vector-autoregression',
+      'value-at-risk-var',
+      'cronbach-alpha-reliability',
+      'rasch-item-response-theory',
+      'point-biserial-correlation',
+      'matthews-correlation-coefficient',
+      'concordance-correlation-coefficient',
+      'cusum-control-chart',
     ]);
-    expect(calculatorPages.length).toBe(82);
+    expect(calculatorPages.length).toBe(100);
   });
 
   it('renders static HTML with canonical metadata, math formulas, code snippets, JSON-LD, and VoxelPulse/VoxelAssurance CTAs', () => {
@@ -106,18 +124,18 @@ describe('SEO calculator pages', () => {
     expect(html).toContain('VoxelAssurance Release Readiness');
   });
 
-  it('renders new statistical families (Probability distributions, SPC, Information theory, Reliability)', () => {
-    const klPage = calculatorPages.find((c) => c.slug === 'kl-divergence-calculator');
-    expect(renderCalculatorPage(klPage)).toContain('Kullback-Leibler (KL) divergence calculator');
+  it('renders new statistical families (Probability distributions, SPC, Information theory, Reliability, Resampling, DOE, Vector Distance)', () => {
+    const bootPage = calculatorPages.find((c) => c.slug === 'bootstrap-confidence-interval');
+    expect(renderCalculatorPage(bootPage)).toContain('Bootstrap confidence interval calculator');
 
-    const cpkPage = calculatorPages.find((c) => c.slug === 'cpk-process-capability-calculator');
-    expect(renderCalculatorPage(cpkPage)).toContain('Cpk and Cp process capability index calculator');
+    const cosPage = calculatorPages.find((c) => c.slug === 'cosine-similarity-calculator');
+    expect(renderCalculatorPage(cosPage)).toContain('Cosine similarity &amp; angular distance calculator');
 
-    const acfPage = calculatorPages.find((c) => c.slug === 'auto-correlation-acf-pacf');
-    expect(renderCalculatorPage(acfPage)).toContain('Autocorrelation (ACF) and Partial Autocorrelation (PACF) calculator');
+    const rsmPage = calculatorPages.find((c) => c.slug === 'response-surface-methodology');
+    expect(renderCalculatorPage(rsmPage)).toContain('Response Surface Methodology (RSM) optimizer');
 
-    const mtbfPage = calculatorPages.find((c) => c.slug === 'mtbf-mttr-reliability');
-    expect(renderCalculatorPage(mtbfPage)).toContain('MTBF, MTTR, and Availability reliability calculator');
+    const alphaPage = calculatorPages.find((c) => c.slug === 'cronbach-alpha-reliability');
+    expect(renderCalculatorPage(alphaPage)).toContain('Cronbach&#39;s Alpha internal consistency calculator');
   });
 
   it('writes calculator routes plus sitemap and robots files', () => {
