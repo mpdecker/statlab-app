@@ -1446,6 +1446,12 @@ export const METHOD_NOTES = {
     assumptions: ["Each equation's residuals are (approximately) normal and homoscedastic", "The system is recursive (no feedback loops among equations)", "At least 10 observations"],
     cite: "Wright, S. (1934). The method of path coefficients. Annals of Mathematical Statistics, 5(3), 161–215.",
   },
+  latent_growth: {
+    description: "A latent growth model summarizes each person's trajectory across repeated measures with two latent factors — an intercept (starting level) and a slope (rate of change) — estimated directly from the observed means and covariance structure via GLS, without iterative fitting.",
+    usage: "Use to characterize both the average trajectory (mean intercept/slope) and individual differences in that trajectory (intercept/slope variance, and their covariance — do people who start higher also grow faster or slower?) across 2+ repeated measures.",
+    assumptions: ["Measures are ordered consistently in time across all cases", "At least 10 observations, 2+ repeated measures", "Linear growth (a straight-line trajectory) between timepoints"],
+    cite: "Meredith, W., & Tisak, J. (1990). Latent curve analysis. Psychometrika, 55(1), 107–122.",
+  },
 };
 
 /** Simplified implementation notes used as fallback when an educational note doesn't exist. */

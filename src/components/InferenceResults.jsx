@@ -800,6 +800,13 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         <PathCoeffTable coeffs={r.coefficients} />
       </>}
 
+      {r.test === 'Latent Growth Model' && <>
+        <SectionHead label={`Latent Growth Model · ${r.timePoints} timepoints · n=${r.n}`} />
+        <Row>
+          {r.coefficients.map((c, i) => <Chip key={i} label={c.parameter} value={c.estimate} color={C.accent} />)}
+        </Row>
+      </>}
+
       {r.test === "McDonald's ω" && (
         <Row>
           <Chip label="ω total" value={r.omegaTotal} color={r.omegaTotal >= .8 ? C.ok : C.warn} sub={r.label} />

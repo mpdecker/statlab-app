@@ -283,6 +283,10 @@ export function InferenceConfig({ active, ds, data, state, set, width = '100%', 
       label="Equations (one per line: y ~ x1 + x2)"
       value={state.pathEquations} onChange={state.setPathEquations} rows={5}
     />,
+    latent_growth: <>
+      <CheckList label="Repeated measures (select in time order)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <Inp label="Custom time points (optional, comma-separated)" value={state.semTimes} onChange={state.setSemTimes} width={200} placeholder="0, 6, 12" />
+    </>,
     did: <>
       <div style={{ fontSize: 8, color: C.dim, ...mono, textTransform: 'uppercase', marginBottom: 4 }}>Comma-separated values per cell</div>
       <Inp label="Pre-control"    value={didPCStr}  onChange={setDidPCStr}  width={160} placeholder="40,42,39" />

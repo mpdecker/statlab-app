@@ -28,7 +28,7 @@ import {
   manova, canonicalCorr, linearDiscriminant,
 } from '@statlab/core/methods/multivariate';
 import { classicalMDS, sammonMapping, nonMetricMDS } from '@statlab/core/methods/mds';
-import { pathAnalysis } from '@statlab/core/methods/sem';
+import { pathAnalysis, latentGrowthModel } from '@statlab/core/methods/sem';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
 import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
@@ -150,6 +150,7 @@ const RUNNERS = {
   mds_sammon: () => sammonMapping(ROWS, VARS, { nDimensions: 2 }),
   mds_nonmetric: () => nonMetricMDS(ROWS, VARS, { nDimensions: 2 }),
   path_analysis: () => pathAnalysis(ROWS, ['y ~ x', 'm ~ x + y']),
+  latent_growth: () => latentGrowthModel(ROWS, ['rm1', 'rm2', 'rm3']),
   manova: () => manova(ROWS, ['item1', 'item2'], 'group'),
   cancorr: () => canonicalCorr(ROWS, ['item1', 'item2'], ['x', 'y']),
   lda: () => linearDiscriminant(ROWS, 'group', ['x', 'y']),

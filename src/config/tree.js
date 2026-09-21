@@ -393,6 +393,7 @@ export const TREE = [
   { cat: "SEM", color: '#c4b5fd',
     tests: [
       { id: "path_analysis", label: "Path Analysis", tag: "direct · indirect · total effects" },
+      { id: "latent_growth", label: "Latent Growth Model", tag: "intercept · slope · growth factors" },
     ],
   },
 ];
