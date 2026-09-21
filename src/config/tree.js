@@ -390,4 +390,9 @@ export const TREE = [
       { id: "taylor", label: "Taylor Linearization",    tag: "stratified/clustered total · SE" },
     ],
   },
+  { cat: "SEM", color: '#c4b5fd',
+    tests: [
+      { id: "path_analysis", label: "Path Analysis", tag: "direct · indirect · total effects" },
+    ],
+  },
 ];

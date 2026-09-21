@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, within, fireEvent, waitFor, cleanup } from '@testing-library/react';
-import { InferencePanel } from './InferencePanel.jsx';
+import { render, screen, within, fireEvent, waitFor, cleanup, renderHook, act } from '@testing-library/react';
+import { InferencePanel, useInference } from './InferencePanel.jsx';
 
 afterEach(cleanup);
 
@@ -249,6 +249,76 @@ describe('InferencePanel', () => {
       render(<InferencePanel data={degenerateRows} ds={degenerateDs} active="taylor" setActive={vi.fn()} />);
       expect(screen.queryByText(/NaN/)).toBeNull();
       expect(screen.getByText(/at least 2 distinct PSU\/cluster values/i)).toBeTruthy();
+    });
+  });
+
+  describe('dataset switch revalidation (regression: stale cat1/cat2 silently survive a dataset switch)', () => {
+    // Mirrors the reported repro: Iris (single categorical column, 'species')
+    // switched to Salaries (categorical: rank/discipline/sex, no 'species').
+    // Before the fix, cat1/cat2 (Strata/PSU) were initialized once via
+    // useState(categorical[0] || '') and never revalidated, so they kept
+    // pointing at 'species' after the switch even though the <select>
+    // visually falls back to showing its first real option -- the test then
+    // silently computed against r['species'] (undefined for every row).
+    const irisRows = Array.from({ length: 25 }, (_, i) => ({ species: 'setosa', a: i + 1 }));
+    const irisDs = { numeric: ['a'], categorical: ['species'] };
+
+    const salariesRows = Array.from({ length: 25 }, (_, i) => ({
+      rank: i % 3 === 0 ? 'Prof' : i % 3 === 1 ? 'AssocProf' : 'AsstProf',
+      discipline: i % 2 === 0 ? 'A' : 'B',
+      sex: i % 2 === 0 ? 'Male' : 'Female',
+      salary: 80000 + i * 1000,
+    }));
+    const salariesDs = { numeric: ['salary'], categorical: ['rank', 'discipline', 'sex'] };
+
+    it('does not silently compute Taylor Linearization against a stale cat1/cat2 column after a dataset switch', () => {
+      const { rerender } = render(
+        <InferencePanel data={irisRows} ds={irisDs} active="taylor" setActive={vi.fn()} />,
+      );
+
+      rerender(<InferencePanel data={salariesRows} ds={salariesDs} active="taylor" setActive={vi.fn()} />);
+
+      // If cat1/cat2 silently kept pointing at 'species' (absent from Salaries),
+      // every row's r['species'] is undefined, which collapses Strata and PSU
+      // to a single implicit group each and trips the "needs at least 2
+      // distinct PSU/cluster values" guard -- note a native <select> masks this
+      // in its own displayed value by falling back to its first real option,
+      // which is why this asserts on the actual computed result, not the
+      // select's DOM value. With cat1/cat2 correctly reset to real Salaries
+      // columns (rank/discipline), the computation runs for real: 3 strata,
+      // n=25, no guard error, no NaN.
+      expect(screen.queryByText(/at least 2 distinct PSU\/cluster values/i)).toBeNull();
+      expect(screen.queryByText(/NaN/)).toBeNull();
+      expect(screen.getByText(/Taylor Linearization · 3 strata · n=25/)).toBeTruthy();
+    });
+
+    it('resets all stale numeric/categorical generic state slots on dataset switch (hook-level)', () => {
+      const { result, rerender: rerenderHook } = renderHook(
+        ({ data, ds }) => useInference(data, ds, 'twoway', vi.fn()),
+        { initialProps: { data: irisRows, ds: irisDs } },
+      );
+
+      expect(result.current.state.xVar).toBe('a');
+      expect(result.current.state.grpVar).toBe('species');
+
+      act(() => {
+        rerenderHook({ data: salariesRows, ds: salariesDs });
+      });
+
+      const {
+        xVar, yVar, zVar, mVar, tgtVar, grpVar, cat1, cat2,
+        level2Var, treatVar, ivInstrument, abmValueField, preds, scaleVars, rmCols,
+      } = result.current.state;
+
+      for (const col of [xVar, yVar, zVar, mVar, tgtVar, ivInstrument, abmValueField]) {
+        expect(col === '' || salariesDs.numeric.includes(col)).toBe(true);
+      }
+      for (const col of [grpVar, cat1, cat2, level2Var, treatVar]) {
+        expect(col === '' || salariesDs.categorical.includes(col)).toBe(true);
+      }
+      for (const arr of [preds, scaleVars, rmCols]) {
+        for (const col of arr) expect(salariesDs.numeric.includes(col)).toBe(true);
+      }
     });
   });
 });
