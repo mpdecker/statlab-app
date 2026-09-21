@@ -3544,6 +3544,506 @@ export const calculatorPages = [
     ],
     workbenchId: 'spc_ewma',
   },
+  {
+    slug: 'exponential-distribution-calculator',
+    title: 'Exponential distribution CDF, PDF & quantile calculator',
+    family: 'Probability distributions',
+    description: 'Calculate Exponential distribution cumulative distribution function (CDF), probability density function (PDF), survival function, and quantiles for rate parameter lambda.',
+    keywords: ['Exponential distribution calculator', 'exponential CDF', 'exponential PDF', 'rate parameter lambda', 'inter-arrival time distribution'],
+    inputs: ['Value x (or time t)', 'Rate parameter λ (or mean scale β = 1/λ)', 'Target probability p (for quantile)'],
+    example: { a: ['Rate parameter λ = 0.05 (mean = 20s)', 'Value x = 30s'], result: 'P(X ≤ 30) = 0.7769, Survival P(X > 30) = 0.2231, PDF f(30) = 0.0112' },
+    formula: 'F(x; λ) = 1 - e^{-λ x}, f(x; λ) = λ e^{-λ x}, Q(p; λ) = -ln(1-p)/λ',
+    code: {
+      python: `from scipy import stats\nprob = stats.expon.cdf(30, scale=1/0.05)\nq = stats.expon.ppf(0.95, scale=1/0.05)`,
+      r: `pexp(30, rate = 0.05)\nqexp(0.95, rate = 0.05)`,
+      ts: `import { exponCdf, exponQuantile } from '@statlab/core';\nconst cdf = exponCdf(30, 0.05);\nconst q95 = exponQuantile(0.95, 0.05);`,
+    },
+    useCases: [
+      'Modeling microservice queue request inter-arrival times and timeout probabilities.',
+      'Estimating component failure probabilities under constant hazard rate assumptions in reliability engineering.'
+    ],
+    when: 'Use when modeling time between independent Poisson events or constant hazard rate processes.',
+    cautions: [
+      'The exponential distribution is memoryless; P(T > s+t | T > s) = P(T > t).',
+      'Verify that hazard rate is constant over time before selecting exponential over Weibull models.'
+    ],
+    workbenchId: 'dist_expon',
+  },
+  {
+    slug: 'poisson-distribution-calculator',
+    title: 'Poisson distribution probability & rate parameter calculator',
+    family: 'Probability distributions',
+    description: 'Calculate exact Poisson distribution probabilities P(X = k), cumulative probabilities P(X ≤ k), and rate parameter confidence intervals.',
+    keywords: ['Poisson distribution calculator', 'Poisson probability', 'rate parameter lambda', 'Poisson event counts', 'rare event probability'],
+    inputs: ['Observed count k', 'Rate parameter λ (expected mean events)'],
+    example: { a: ['Expected mean rate λ = 4.5', 'Observed count k = 7'], result: 'Exact P(X = 7) = 0.0824, Cumulative P(X ≤ 7) = 0.9182, P(X > 7) = 0.0818' },
+    formula: 'P(X = k) = (λ^k e^{-λ}) / k!',
+    code: {
+      python: `from scipy import stats\np_exact = stats.poisson.pmf(7, mu=4.5)\np_cdf = stats.poisson.cdf(7, mu=4.5)`,
+      r: `dpois(7, lambda = 4.5)\nppois(7, lambda = 4.5)`,
+      ts: `import { poissonPmf, poissonCdf } from '@statlab/core';\nconst pmf = poissonPmf(7, 4.5);\nconst cdf = poissonCdf(7, 4.5);`,
+    },
+    useCases: [
+      'Predicting server error log event counts per minute in cloud infrastructure monitoring.',
+      'Evaluating traffic arrival rates and call center queue capacity requirements.'
+    ],
+    when: 'Use when counting discrete events occurring independently at a known constant average rate.',
+    cautions: [
+      'Poisson assumes mean equals variance (E[X] = Var(X)). If variance exceeds mean, use Negative Binomial regression.',
+      'Events must occur independently in non-overlapping time or space windows.'
+    ],
+    workbenchId: 'dist_poisson',
+  },
+  {
+    slug: 'log-logistic-distribution',
+    title: 'Log-logistic distribution & Fisk survival model calculator',
+    family: 'Probability distributions',
+    description: 'Calculate Log-logistic (Fisk) distribution PDF, CDF, survival rate, and hazard functions for non-monotonic hazard rates.',
+    keywords: ['log-logistic distribution calculator', 'Fisk distribution', 'non-monotonic hazard', 'log-logistic survival', 'heavy tail survival model'],
+    inputs: ['Scale parameter α', 'Shape parameter β', 'Time value t'],
+    example: { a: ['Scale α = 50.0', 'Shape β = 2.5', 'Time t = 40.0'], result: 'Survival S(40) = 0.6033, Cumulative F(40) = 0.3967, Hazard h(40) = 0.0151' },
+    formula: 'F(t) = 1 / (1 + (t/α)^{-β}), S(t) = 1 / (1 + (t/α)^β), h(t) = ( (β/α)(t/α)^{β-1} ) / ( 1 + (t/α)^β )',
+    code: {
+      python: `from scipy import stats\nres = stats.fisk.cdf(40, c=2.5, scale=50.0)`,
+      r: `library(flexsurv)\nplogis(log(40), location = log(50), scale = 1/2.5)`,
+      ts: `import { logLogisticCdf, logLogisticSurvival } from '@statlab/core';\nconst s = logLogisticSurvival(40, { alpha: 50, beta: 2.5 });`,
+    },
+    useCases: [
+      'Modeling customer churn rates where risk peaks early before declining in long-term subscribers.',
+      'Analyzing software fault discovery survival times in complex release builds.'
+    ],
+    when: 'Use when modeling survival times or event rates whose hazard function increases initially to a peak and then decreases.',
+    cautions: [
+      'Log-logistic has heavier tails than log-normal or Weibull distributions.',
+      'Shape parameter β must be > 1 for the hazard function to have a unimodal hump shape.'
+    ],
+    workbenchId: 'dist_log_logistic',
+  },
+  {
+    slug: 'rayleigh-distribution-calculator',
+    title: 'Rayleigh distribution PDF, CDF & mode calculator',
+    family: 'Probability distributions',
+    description: 'Calculate Rayleigh distribution PDF, CDF, mean, median, mode, and variance for 2D vector magnitude fading and radial error.',
+    keywords: ['Rayleigh distribution calculator', 'Rayleigh PDF', 'Rayleigh mode', 'vector magnitude distribution', 'signal fading'],
+    inputs: ['Scale parameter σ (mode)', 'Vector magnitude x'],
+    example: { a: ['Scale σ = 10.0', 'Magnitude x = 12.0'], result: 'Mode = 10.0, Mean ≈ 12.53, P(X ≤ 12) = 0.5132, PDF f(12) = 0.0587' },
+    formula: 'f(x; σ) = (x / σ²) e^{-x² / (2σ²)}, F(x; σ) = 1 - e^{-x² / (2σ²)}, Mode = σ',
+    code: {
+      python: `from scipy import stats\ncdf = stats.rayleigh.cdf(12.0, scale=10.0)\npdf = stats.rayleigh.pdf(12.0, scale=10.0)`,
+      r: `prayleigh(12.0, scale = 10.0)\ndrayleigh(12.0, scale = 10.0)`,
+      ts: `import { rayleighCdf, rayleighPdf } from '@statlab/core';\nconst cdf = rayleighCdf(12.0, 10.0);`,
+    },
+    useCases: [
+      'Modeling 2D radial position error in robotics, GPS navigation, and spatial target tracking.',
+      'Evaluating RF wireless signal fading amplitudes and acoustic noise vector magnitudes.'
+    ],
+    when: 'Use when calculating the magnitude of a 2D vector whose orthogonal components are independent normally distributed zero-mean variables.',
+    cautions: [
+      'Rayleigh distribution is defined strictly for non-negative values (x ≥ 0).',
+      'If components have non-zero means, use the Rice distribution instead.'
+    ],
+    workbenchId: 'dist_rayleigh',
+  },
+  {
+    slug: 'studentized-range-distribution',
+    title: 'Studentized range distribution (q) calculator',
+    family: 'ANOVA & factorial analysis',
+    description: 'Calculate Studentized Range q statistic, cumulative probabilities, and critical values for Tukey HSD post-hoc test significance.',
+    keywords: ['Studentized range distribution', 'q distribution calculator', 'Tukey q statistic', 'Tukey critical value', 'post hoc range distribution'],
+    inputs: ['Number of group means k', 'Degrees of freedom df', 'Studentized range statistic q (or significance level α)'],
+    example: { a: ['Group count k = 4', 'Error df = 24', 'q statistic = 3.90'], result: 'p-value ≈ 0.0431. Significant at α = 0.05 level (Critical q_0.05 = 3.901).' },
+    formula: 'q = (X̄_{max} - X̄_{min}) / (s / √n), evaluated against Studentized range CDF Q(q; k, df)',
+    code: {
+      python: `from scipy import stats\np_val = stats.studentized_range.sf(3.90, k=4, df=24)\nq_crit = stats.studentized_range.ppf(0.95, k=4, df=24)`,
+      r: `ptukey(3.90, nmeans = 4, df = 24, lower.tail = FALSE)\nqtukey(0.95, nmeans = 4, df = 24)`,
+      ts: `import { qTukeyPValue, qTukeyQuantile } from '@statlab/core';\nconst p = qTukeyPValue(3.90, 4, 24);`,
+    },
+    useCases: [
+      'Determining exact p-values for custom pairwise post-hoc group comparisons following one-way ANOVA.',
+      'Setting familywise error rate thresholds across multiple experimental treatments.'
+    ],
+    when: 'Use when comparing the range between maximum and minimum group means relative to pooled error standard error.',
+    cautions: [
+      'Assumes equal sample sizes across groups; if sample sizes differ, use the Tukey-Kramer adjustment.',
+      'Requires homoscedasticity across all evaluated treatment groups.'
+    ],
+    workbenchId: 'anova_q_range',
+  },
+  {
+    slug: 'cox-proportional-hazards-ratio',
+    title: 'Cox proportional hazards regression & log-hazard ratio calculator',
+    family: 'Survival & reliability analysis',
+    description: 'Compute Cox proportional hazards regression metrics, log-hazard ratios, Wald z-statistics, p-values, and 95% confidence intervals.',
+    keywords: ['Cox proportional hazards calculator', 'Cox regression log hazard', 'hazard ratio CI', 'survival regression model', 'proportional hazard assumption'],
+    inputs: ['Regression coefficient β (log hazard ratio)', 'Standard error SE(β)', 'Covariate delta Δx'],
+    example: { a: ['Coefficient β = 0.45', 'SE(β) = 0.15', 'Covariate unit Δx = 1.0'], result: 'Hazard Ratio HR = 1.568 (95% CI: 1.169 – 2.104), Wald z = 3.00, p = .0027' },
+    formula: 'HR = e^{β · Δx}, 95% CI = e^{β · Δx ± 1.96 · SE(β) · Δx}, z = β / SE(β)',
+    code: {
+      python: `import numpy as np\nhr = np.exp(0.45)\nci = np.exp([0.45 - 1.96*0.15, 0.45 + 1.96*0.15])`,
+      r: `library(survival)\nfit <- coxph(Surv(time, status) ~ x, data = df)\nsummary(fit)`,
+      ts: `import { coxHazardRatio } from '@statlab/core';\nconst res = coxHazardRatio({ beta: 0.45, se: 0.15, delta: 1.0 });`,
+    },
+    useCases: [
+      'Evaluating relative risk of system crashes or hardware failures adjusted for workload covariates.',
+      'Quantifying customer churn hazard ratios in SaaS analytics accounting for tenure and usage.'
+    ],
+    when: 'Use when estimating covariate effects on time-to-event outcome hazards without specifying a baseline hazard distribution.',
+    cautions: [
+      'Verify the proportional hazards assumption using Schoenfeld residuals.',
+      'Non-proportional hazards require time-varying coefficients or stratified Cox models.'
+    ],
+    workbenchId: 'survival_cox_reg',
+  },
+  {
+    slug: 'partial-correlation-calculator',
+    title: 'Partial correlation coefficient calculator',
+    family: 'Regression & correlation',
+    description: 'Calculate partial correlation coefficient r_{xy.z} and semi-partial (part) correlation controlling for one or more confounding variables.',
+    keywords: ['partial correlation calculator', 'controlling for confounder', 'semi-partial correlation', 'r_xyz correlation', 'adjusted correlation'],
+    inputs: ['Correlation r_xy', 'Correlation r_xz', 'Correlation r_yz', 'Sample size N'],
+    example: { a: ['r_xy = 0.60 (X and Y)', 'r_xz = 0.50 (X and Z)', 'r_yz = 0.70 (Y and Z)', 'N = 50'], result: 'Partial r_{xy.z} = 0.420, t = 3.19, df = 47, two-sided p = .0025' },
+    formula: 'r_{xy.z} = (r_{xy} - r_{xz} r_{yz}) / √( (1 - r_{xz}²) (1 - r_{yz}²) ), t = r_{xy.z} √((N - 2 - k) / (1 - r_{xy.z}²))',
+    code: {
+      python: `import pingouin as pg\nres = pg.partial_corr(data=df, x='X', y='Y', covar='Z')`,
+      r: `library(ppcor)\npcor.test(x, y, z)`,
+      ts: `import { partialCorr } from '@statlab/core';\nconst res = partialCorr(0.60, 0.50, 0.70, 50);`,
+    },
+    useCases: [
+      'Measuring direct association between API traffic volume and response latency while controlling for server CPU utilization.',
+      'Evaluating user engagement vs conversion correlation controlling for account age.'
+    ],
+    when: 'Use when quantifying linear relationship between two variables after removing the linear influence of one or more covariates.',
+    cautions: [
+      'Assumes linear relationships among all variable pairs.',
+      'Controlling for colliders rather than confounders can induce spurious correlations.'
+    ],
+    workbenchId: 'corr_partial',
+  },
+  {
+    slug: 'sem-path-analysis-fit',
+    title: 'SEM path analysis & structural model fit index calculator',
+    family: 'Multivariate & structural modeling',
+    description: 'Compute Structural Equation Modeling (SEM) fit indices including Comparative Fit Index (CFI), Tucker-Lewis Index (TLI), RMSEA, and SRMR.',
+    keywords: ['SEM fit indices calculator', 'CFI TLI RMSEA calculator', 'structural equation modeling fit', 'path analysis fit', 'model fit statistics'],
+    inputs: ['Model Chi-Square χ²_m', 'Model df_m', 'Baseline Chi-Square χ²_b', 'Baseline df_b', 'Sample size N'],
+    example: { a: ['χ²_m = 45.2, df_m = 20', 'χ²_b = 320.5, df_b = 35', 'Sample N = 250'], result: 'CFI = 0.982, TLI = 0.968, RMSEA = 0.071 (90% CI: 0.042 - 0.100). Good fit.' },
+    formula: 'CFI = 1 - max(χ²_m - df_m, 0) / max(χ²_b - df_b, χ²_m - df_m, 0), RMSEA = √( max((χ²_m - df_m)/(N · df_m), 0) )',
+    code: {
+      python: `from semopy import Model\nm = Model(description)\nm.fit(data)\nstats = semopy.calc_stats(m)`,
+      r: `library(lavaan)\nfit <- sem(model, data = df)\nfitMeasures(fit, c("cfi", "tli", "rmsea", "srmr"))`,
+      ts: `import { semFitIndices } from '@statlab/core';\nconst fit = semFitIndices({ chi2m: 45.2, dfm: 20, chi2b: 320.5, dfb: 35, n: 250 });`,
+    },
+    useCases: [
+      'Evaluating structural fit of multi-stage causal funnel models in product telemetry.',
+      'Assessing psychometric construct validity in latent variable survey models.'
+    ],
+    when: 'Use when evaluating how well a proposed path or structural equation model reproduces the empirical covariance matrix.',
+    cautions: [
+      'CFI and TLI > 0.95 and RMSEA < 0.06 indicate good model fit according to Hu & Bentler guidelines.',
+      'Chi-square test of model fit is highly sensitive to large sample sizes.'
+    ],
+    workbenchId: 'sem_fit',
+  },
+  {
+    slug: 'canonical-correlation-analysis',
+    title: 'Canonical Correlation Analysis (CCA) calculator',
+    family: 'Multivariate & structural modeling',
+    description: 'Calculate canonical correlations r_c, Wilks\' lambda multivariate test statistics, and dimension redundancy ratios between two set of variables.',
+    keywords: ['canonical correlation calculator', 'CCA multivariate analysis', 'Wilks lambda CCA', 'canonical variates', 'two variable sets correlation'],
+    inputs: ['Set X variable count p', 'Set Y variable count q', 'Sample size N', 'Eigenvalues λ_i of HE⁻¹ matrix'],
+    example: { a: ['Set X variables p = 3', 'Set Y variables q = 2', 'Sample N = 100', 'Eigenvalue λ₁ = 0.64'], result: 'First Canonical Correlation r_{c1} = 0.800, Wilks\' λ = 0.360, χ² = 98.4, df = 6, p < .0001' },
+    formula: 'r_{ci} = √(λ_i / (1 + λ_i)), Wilks\' Λ = ∏ (1 - r_{ci}²)',
+    code: {
+      python: `from sklearn.cross_decomposition import CCA\ncca = CCA(n_components=2)\ncca.fit(X, Y)`,
+      r: `cancor(X, Y)`,
+      ts: `import { canonicalCorrelation } from '@statlab/core';\nconst res = canonicalCorrelation(X_matrix, Y_matrix);`,
+    },
+    useCases: [
+      'Measuring relationship between a set of system performance metrics and customer satisfaction metrics.',
+      'Evaluating correlation between biological gene expression markers and clinical symptom scores.'
+    ],
+    when: 'Use when investigating linear relationships between two multidimensional sets of continuous variables.',
+    cautions: [
+      'Requires multivariate normality across both variable sets.',
+      'Sensitive to multicollinearity within either variable set X or Y.'
+    ],
+    workbenchId: 'multivariate_cca',
+  },
+  {
+    slug: 'k-means-silhouette-score',
+    title: 'Silhouette coefficient & cluster separation calculator',
+    family: 'AI / ML evaluation & robust models',
+    description: 'Calculate Silhouette scores s(i) and mean silhouette width for validating cluster compactness and inter-cluster separation.',
+    keywords: ['silhouette score calculator', 'silhouette coefficient', 'cluster validation', 'k-means silhouette', 'cluster separation metric'],
+    inputs: ['Mean intra-cluster distance a(i)', 'Mean nearest-cluster distance b(i)'],
+    example: { a: ['Mean intra-cluster distance a = 1.20', 'Nearest-cluster distance b = 3.50'], result: 'Silhouette score s(i) = (3.50 - 1.20) / max(1.20, 3.50) = 0.657. Strong cluster structure.' },
+    formula: 's(i) = (b(i) - a(i)) / max(a(i), b(i)), range -1 to +1',
+    code: {
+      python: `from sklearn.metrics import silhouette_score, silhouette_samples\nscore = silhouette_score(X, labels)`,
+      r: `library(cluster)\nsil <- silhouette(labels, dist(X))\nsummary(sil)`,
+      ts: `import { silhouetteScore } from '@statlab/core';\nconst score = silhouetteScore(distanceMatrix, clusterLabels);`,
+    },
+    useCases: [
+      'Selecting optimal k value for user segmentation clustering in telemetry.',
+      'Evaluating embedding vector cluster quality in vector databases.'
+    ],
+    when: 'Use when assessing how well-separated and cohesive clusters are in unsupervised machine learning.',
+    cautions: [
+      'Silhouette score ranges from -1 (misclustered) to +1 (well clustered); values near 0 indicate overlapping clusters.',
+      'Computationally O(N²) without sub-sampling for very large datasets.'
+    ],
+    workbenchId: 'cluster_silhouette',
+  },
+  {
+    slug: 'davies-bouldin-index',
+    title: 'Davies-Bouldin index cluster validity calculator',
+    family: 'AI / ML evaluation & robust models',
+    description: 'Calculate Davies-Bouldin Index (DBI) to measure average similarity between clusters based on cluster dispersion and centroids.',
+    keywords: ['Davies Bouldin index calculator', 'DBI cluster score', 'cluster validity index', 'k-means evaluation', 'cluster dispersion ratio'],
+    inputs: ['Cluster dispersions S_i, S_j', 'Inter-centroid distances M_ij'],
+    example: { a: ['Cluster 1 dispersion S₁ = 0.85', 'Cluster 2 dispersion S₂ = 0.90', 'Centroid distance M₁₂ = 3.20'], result: 'R₁₂ = (0.85 + 0.90)/3.20 = 0.547. Mean Davies-Bouldin Index = 0.547 (Lower is better).' },
+    formula: 'DB = (1/k) ∑_{i=1}^k max_{j ≠ i} ( (S_i + S_j) / M_{ij} )',
+    code: {
+      python: `from sklearn.metrics import davies_bouldin_score\nscore = davies_bouldin_score(X, labels)`,
+      r: 'library(clusterSim)\nindex.DB(X, labels)$DB',
+      ts: `import { daviesBouldinIndex } from '@statlab/core';\nconst dbi = daviesBouldinIndex(dataPoints, labels);`,
+    },
+    useCases: [
+      'Benchmarking unsupervised clustering models across different k hyperparameter choices.',
+      'Automating cluster quality validation gates in automated ML pipelines.'
+    ],
+    when: 'Use when evaluating clustering algorithms where lower index values signify tighter, more distinct clusters.',
+    cautions: [
+      'DBI favors convex, spherical clusters (like standard k-means).',
+      'May produce misleadingly good scores for sub-optimal non-convex shapes.'
+    ],
+    workbenchId: 'cluster_dbi',
+  },
+  {
+    slug: 'calinski-harabasz-index',
+    title: 'Calinski-Harabasz index (Variance Ratio Criterion) calculator',
+    family: 'AI / ML evaluation & robust models',
+    description: 'Calculate Calinski-Harabasz Index (CH score) ratio of between-cluster variance to within-cluster variance.',
+    keywords: ['Calinski Harabasz index calculator', 'Variance Ratio Criterion', 'CH cluster score', 'cluster variance ratio', 'k-means optimal k'],
+    inputs: ['Between-cluster sum of squares SS_B', 'Within-cluster sum of squares SS_W', 'Cluster count k', 'Sample size N'],
+    example: { a: ['SS_B = 450.0', 'SS_W = 120.0', 'Cluster count k = 3', 'Sample size N = 150'], result: 'CH Index = (450 / (3 - 1)) / (120 / (150 - 3)) = 225.0 / 0.8163 = 275.63 (Higher is better).' },
+    formula: 'CH = (SS_B / (k - 1)) / (SS_W / (N - k))',
+    code: {
+      python: `from sklearn.metrics import calinski_harabasz_score\nscore = calinski_harabasz_score(X, labels)`,
+      r: `library(clusterSim)\nindex.G1(X, labels)`,
+      ts: `import { calinskiHarabaszIndex } from '@statlab/core';\nconst ch = calinskiHarabaszIndex(dataPoints, labels);`,
+    },
+    useCases: [
+      'Finding elbow point or peak score for optimal cluster count selection.',
+      'Comparing feature space representations in unsupervised representation learning.'
+    ],
+    when: 'Use when comparing cluster models where higher scores indicate dense, well-separated clusters.',
+    cautions: [
+      'Like DBI, CH index is generally highest for spherical clusters.',
+      'Magnitude scales with sample size N and dimensionality.'
+    ],
+    workbenchId: 'cluster_ch',
+  },
+  {
+    slug: 'jaccard-similarity-index',
+    title: 'Jaccard similarity index & distance calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate Jaccard similarity coefficient and Jaccard distance for set intersections, binary vectors, and sample overlap.',
+    keywords: ['Jaccard similarity calculator', 'Jaccard distance', 'intersection over union IoU', 'set overlap coefficient', 'binary vector similarity'],
+    inputs: ['Set A size |A|', 'Set B size |B|', 'Intersection size |A ∩ B|'],
+    example: { a: ['Set A size = 45', 'Set B size = 60', 'Intersection |A ∩ B| = 30'], result: 'Union |A ∪ B| = 75, Jaccard Similarity J = 30/75 = 0.400, Jaccard Distance d_J = 0.600' },
+    formula: 'J(A,B) = |A ∩ B| / |A ∪ B|, d_J(A,B) = 1 - J(A,B)',
+    code: {
+      python: `from scipy.spatial.distance import jaccard\ndist = jaccard(bool_vector_u, bool_vector_v)`,
+      r: `library(vegan)\nvegdist(x, method = "jaccard")`,
+      ts: `import { jaccardSimilarity, jaccardDistance } from '@statlab/core';\nconst sim = jaccardSimilarity(setA, setB);`,
+    },
+    useCases: [
+      'Evaluating document similarity and token set overlaps in text search engines.',
+      'Measuring customer cohort overlap and feature flag co-occurrence rates.'
+    ],
+    when: 'Use when comparing binary presence/absence vectors or discrete sets where joint absences should be ignored.',
+    cautions: [
+      'Jaccard ignores joint negatives (0-0 matches).',
+      'For continuous or non-binary count vectors, use Bray-Curtis or Cosine distance instead.'
+    ],
+    workbenchId: 'dist_jaccard',
+  },
+  {
+    slug: 'hamming-distance-calculator',
+    title: 'Hamming distance & normalized bit error rate calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate Hamming distance and normalized bit error rate (BER) for equal-length strings, binary vectors, and code words.',
+    keywords: ['Hamming distance calculator', 'bit error rate BER', 'string distance', 'binary vector substitution count', 'code distance'],
+    inputs: ['Vector / String 1', 'Vector / String 2', 'Vector length N'],
+    example: { a: ['String 1: "10110101"', 'String 2: "10010001"', 'Length N = 8'], result: 'Hamming Distance d_H = 2, Normalized Hamming Distance = 2/8 = 0.250 (25% bit difference)' },
+    formula: 'd_H(u,v) = ∑ (u_i ≠ v_i), d_{norm} = d_H / N',
+    code: {
+      python: `from scipy.spatial.distance import hamming\ndist_norm = hamming(u, v)\ndist_abs = sum(el1 != el2 for el1, el2 in zip(u, v))`,
+      r: `sum(u != v)`,
+      ts: `import { hammingDistance } from '@statlab/core';\nconst dist = hammingDistance("10110101", "10010001");`,
+    },
+    useCases: [
+      'Measuring bit error rates in digital telecommunications and storage channels.',
+      'Evaluating categorical feature vector distance in machine learning algorithms.'
+    ],
+    when: 'Use when counting element-wise substitutions required to convert one equal-length vector or string into another.',
+    cautions: [
+      'Requires vectors or strings to be of equal length.',
+      'Does not account for insertions or deletions; use Levenshtein distance for unequal length strings.'
+    ],
+    workbenchId: 'dist_hamming',
+  },
+  {
+    slug: 'haversine-great-circle-distance',
+    title: 'Haversine formula great-circle geographic distance calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate spherical great-circle distance between two geographic coordinates (latitude and longitude) using the Haversine formula.',
+    keywords: ['Haversine distance calculator', 'great circle distance', 'latitude longitude distance', 'geographic spherical distance', 'geo distance km miles'],
+    inputs: ['Point 1 (Lat₁, Lon₁)', 'Point 2 (Lat₂, Lon₂)', 'Earth radius R (6371 km default)'],
+    example: { a: ['Point 1: 40.7128° N, 74.0060° W (NYC)', 'Point 2: 51.5074° N, 0.1278° W (London)'], result: 'Great-circle distance = 5,570.2 km (3,461.2 miles / 3,007.7 nautical miles)' },
+    formula: 'a = sin²(Δlat/2) + cos(lat₁)cos(lat₂)sin²(Δlon/2), c = 2 · atan2(√a, √(1-a)), d = R · c',
+    code: {
+      python: `from math import radians, cos, sin, asin, sqrt\n# Standard Haversine implementation`,
+      r: `library(geosphere)\ndistHaversine(c(lon1, lat1), c(lon2, lat2))`,
+      ts: `import { haversineDistance } from '@statlab/core';\nconst km = haversineDistance({ lat: 40.7128, lon: -74.0060 }, { lat: 51.5074, lon: -0.1278 });`,
+    },
+    useCases: [
+      'Calculating distance between user client IP locations and cloud server datacenters.',
+      'Spatial routing and proximity clustering in location-based services.'
+    ],
+    when: 'Use when computing distance between coordinate pairs on a spherical surface.',
+    cautions: [
+      'Assumes a perfectly spherical Earth (R = 6,371 km).',
+      'For sub-meter accuracy over long distances, use Vincenty\'s ellipsoidal formula.'
+    ],
+    workbenchId: 'dist_haversine',
+  },
+  {
+    slug: 'ewma-control-chart-calculator',
+    title: 'EWMA control chart & smoothing factor calculator',
+    family: 'Statistical process control',
+    description: 'Calculate Exponentially Weighted Moving Average (EWMA) control limits, centerline, and out-of-control signals for small shift SPC.',
+    keywords: ['EWMA control chart calculator', 'EWMA SPC', 'exponentially weighted moving average limits', 'process shift detection', 'lambda smoothing SPC'],
+    inputs: ['Observations vector X', 'Target mean μ₀', 'Process std dev σ', 'Weight λ (0.05 to 0.30)', 'Control limit factor L'],
+    example: { a: ['Target μ₀ = 100.0', 'Std dev σ = 5.0', 'Weight λ = 0.20, L = 3.0'], result: 'Asymptotic limits: UCL = 105.00, LCL = 95.00. Steady-state factor = 0.3333.' },
+    formula: 'Z_t = λ X_t + (1 - λ) Z_{t-1}, UCL = μ₀ + L σ √((λ / (2 - λ)) [1 - (1 - λ)^{2t}])',
+    code: {
+      python: `import statsmodels.api as sm\n# EWMA control limits computation`,
+      r: `library(qcc)\nqcc(data, type = "ewma", lambda = 0.2)`,
+      ts: `import { ewmaLimits } from '@statlab/core';\nconst { ucl, lcl } = ewmaLimits({ target: 100, sd: 5, lambda: 0.2, L: 3 });`,
+    },
+    useCases: [
+      'Monitoring API response times for slow, gradual latency degradation over deployment builds.',
+      'Detecting small drift shifts in semiconductor manufacturing processes.'
+    ],
+    when: 'Use when tracking continuous processes where detecting small shifts (0.5 to 1.5 standard deviations) is critical.',
+    cautions: [
+      'Choice of λ balances sensitivity: smaller λ detects smaller shifts but reacts slower to sudden step changes.',
+      'Observations must be free of significant autocorrelation.'
+    ],
+    workbenchId: 'spc_ewma_chart',
+  },
+  {
+    slug: 'p-chart-binomial-spc',
+    title: 'p-chart & np-chart proportion defective SPC calculator',
+    family: 'Statistical process control',
+    description: 'Calculate p-chart and np-chart control limits for attribute data monitoring fraction defective in variable or constant sample sizes.',
+    keywords: ['p-chart calculator', 'np-chart SPC', 'proportion defective chart', 'attribute SPC control limits', 'binomial process control'],
+    inputs: ['Total inspected units N', 'Total defective units D', 'Sample subgroup size n'],
+    example: { a: ['Total inspected N = 5,000 across 25 subgroups', 'Total defects D = 150', 'Subgroup size n = 200'], result: 'Average proportion p̄ = 0.0300 (3.0%). Centerline = 0.030. UCL = 0.0662, LCL = 0.0000.' },
+    formula: 'p̄ = ∑ D / ∑ n, UCL = p̄ + 3 √((p̄(1 - p̄)) / n), LCL = max(0, p̄ - 3 √((p̄(1 - p̄)) / n))',
+    code: {
+      python: `import statsmodels.api as sm\n# p-chart computation for binomial counts`,
+      r: `library(qcc)\nqcc(defects, sizes = n, type = "p")`,
+      ts: `import { pChartLimits } from '@statlab/core';\nconst limits = pChartLimits(defectsArray, subgroupSizes);`,
+    },
+    useCases: [
+      'Monitoring batch manufacturing defect rates or failed HTTP response ratios.',
+      'Tracking conversion funnel drop-off rates across production web release deployments.'
+    ],
+    when: 'Use when monitoring the proportion of defective items per sample subgroup under binomial process assumptions.',
+    cautions: [
+      'Requires constant or variable known subgroup sample sizes n.',
+      'If average number of defects per unit can exceed 1 per item, use c-chart or u-chart instead.'
+    ],
+    workbenchId: 'spc_p_chart',
+  },
+  {
+    slug: 'c-chart-poisson-spc',
+    title: 'c-chart & u-chart Poisson defect count SPC calculator',
+    family: 'Statistical process control',
+    description: 'Calculate c-chart and u-chart control limits for counting defects per inspection unit or area of opportunity under Poisson assumptions.',
+    keywords: ['c-chart calculator', 'u-chart SPC', 'defects per unit chart', 'Poisson attribute SPC', 'defect count control limits'],
+    inputs: ['Total defects C', 'Number of subgroups k', 'Subgroup area of opportunity u'],
+    example: { a: ['Total defects C = 75 across k = 25 subgroups (n = 1 unit each)'], result: 'Mean defects per unit c̄ = 3.00. Centerline = 3.00. UCL = 3 + 3√3 = 8.20, LCL = 0.00.' },
+    formula: 'c̄ = C / k, UCL = c̄ + 3 √c̄, LCL = max(0, c̄ - 3 √c̄)',
+    code: {
+      python: `import statsmodels.api as sm\n# c-chart limits for Poisson event counts`,
+      r: `library(qcc)\nqcc(counts, type = "c")`,
+      ts: `import { cChartLimits } from '@statlab/core';\nconst limits = cChartLimits(countsArray);`,
+    },
+    useCases: [
+      'Monitoring code bug counts per 1,000 lines of code across software releases.',
+      'Tracking surface defect counts per square meter in manufacturing QA.'
+    ],
+    when: 'Use when counting discrete occurrences of non-conformities (defects) per fixed inspection unit.',
+    cautions: [
+      'Assumes Poisson distribution where defects occur independently across space or time.',
+      'If inspection unit area varies per subgroup, use the u-chart instead.'
+    ],
+    workbenchId: 'spc_c_chart',
+  },
+  {
+    slug: 'median-absolute-deviation',
+    title: 'Median Absolute Deviation (MAD) robust scale calculator',
+    family: 'Resampling & non-parametric tests',
+    description: 'Calculate Median Absolute Deviation (MAD) and normal-consistent MAD estimator for robust scale and outlier detection.',
+    keywords: ['Median Absolute Deviation calculator', 'MAD robust scale', 'normal consistent MAD', 'robust outlier threshold', 'MAD formula'],
+    inputs: ['Data sample vector X', 'Scale factor b (1.4826 for normal consistency)'],
+    example: { a: ['Sample X: 12, 15, 14, 13, 100 (Outlier present)'], result: 'Median = 14.0, Raw MAD = 1.5, Consistent MAD (1.4826 · MAD) = 2.224. Robust to outlier.' },
+    formula: 'MAD = median(|X_i - median(X)|), MAD_{\sigma} = 1.4826 · MAD',
+    code: {
+      python: `from scipy import stats\nmad_raw = stats.median_abs_deviation(x, scale='normal')`,
+      r: `mad(x, constant = 1.4826)`,
+      ts: `import { mad } from '@statlab/core';\nconst robustSd = mad([12, 15, 14, 13, 100]);`,
+    },
+    useCases: [
+      'Setting robust outlier detection thresholds in noisy system performance telemetry.',
+      'Estimating scale parameters in non-normally distributed financial returns.'
+    ],
+    when: 'Use when estimating data dispersion in datasets containing heavy tails or extreme outliers where standard deviation breaks down.',
+    cautions: [
+      'Standard deviation is heavily distorted by single extreme values; MAD has a breakdown point of 50%.',
+      'Multiply by 1.4826 to estimate standard deviation under normal distribution assumptions.'
+    ],
+    workbenchId: 'stat_mad',
+  },
+  {
+    slug: 'winsorized-mean-trimmed-mean',
+    title: 'Trimmed mean & Winsorized variance calculator',
+    family: 'Resampling & non-parametric tests',
+    description: 'Calculate α-trimmed mean and Winsorized mean, variance, and robust confidence intervals for asymmetric or heavy-tailed data.',
+    keywords: ['trimmed mean calculator', 'Winsorized mean calculator', 'Winsorized variance', 'robust central tendency', 'alpha trimmed mean'],
+    inputs: ['Data sample vector X', 'Trim proportion α (e.g., 0.10 for 10% trim each tail)'],
+    example: { a: ['Sample X: 10, 12, 14, 15, 16, 18, 20, 22, 25, 150', 'Trim α = 0.10 (1 top, 1 bottom)'], result: 'Standard Mean = 32.20, 10% Trimmed Mean = 18.25, 10% Winsorized Mean = 19.40' },
+    formula: 'X̄_{tr} = (1 / (N - 2k)) ∑_{i=k+1}^{N-k} X_{(i)}, where k = ⌊N · α⌋',
+    code: {
+      python: `from scipy import stats\ntrimmed_m = stats.trim_mean(x, proportiontocut=0.10)\nwinsor_m = stats.mstats.winsorize(x, limits=0.10).mean()`,
+      r: `mean(x, trim = 0.10)`,
+      ts: `import { trimmedMean, winsorizedMean } from '@statlab/core';\nconst tm = trimmedMean(data, 0.10);`,
+    },
+    useCases: [
+      'Reporting central tendency for microservice latency distributions without outlier distortion.',
+      'Calculating robust performance benchmarks in competitive sports scoring and financial models.'
+    ],
+    when: 'Use when measuring location parameter while removing or capping extreme observations at tails.',
+    cautions: [
+      'Symmetric trimming removes equal proportions from both top and bottom tails.',
+      'Always state the trim percentage α when reporting trimmed means.'
+    ],
+    workbenchId: 'stat_trimmed_mean',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
