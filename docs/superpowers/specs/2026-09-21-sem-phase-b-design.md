@@ -1,7 +1,48 @@
 # StatLab SEM Phase B (`bifactorModel` + `latentGrowthModel`) — Design
 
 **Date:** 2026-09-21
-**Status:** Approved
+**Status:** Verification complete with 2 fixes (2026-09-21).
+`latentGrowthModel` shipped exactly as designed — manually verified
+end-to-end (including the custom-timepoints field's length-mismatch
+fallback, and confirming it genuinely rescales the estimated slope, not
+just accepted-but-ignored) with no issues. `bifactorModel` shipped with
+two real bugs found and fixed during manual verification:
+
+1. **`omegaTotal` and per-item `communality` are hidden.** Reading
+   `@statlab/core`'s source: the `general` loading is capped at `0.99`,
+   but the `group` loading has no equivalent cap, so both statistics
+   (which sum the squared `group` value) routinely exceed the `[0,1]`
+   range they're defined to stay within — confirmed even on well-
+   behaved, same-scale inputs (`communality = 16.33` for one item,
+   `omegaTotal = 11902.38` on mixed-scale real data), not a narrow edge
+   case. `omegaHierarchical` and the `general`/`group` loadings
+   themselves stay correctly bounded throughout. Rather than show a
+   headline statistic that's routinely wrong by construction, the
+   `ωt` chip and `communality` table column are hidden, with the
+   caveat documented in both the method note and a new `r.warning`
+   banner. An upstream bug report has been filed as a separate follow-
+   up (`task_e86f0e40`); this can be reverted once fixed and
+   re-verified.
+2. **`bifactorGroups`' nested state shape wasn't covered by the
+   existing dataset-switch revalidation fix.** A prior, separately-
+   filed fix (already merged into `main` before this worktree was
+   created) revalidates every *flat* generic state slot
+   (`xVar`/`cat1`/`scaleVars`/etc.) on dataset switch, but
+   `bifactorGroups` (`Array<{items: string[]}>`) is a nested shape that
+   fix didn't anticipate — a stale item name surviving inside a
+   group's own `items` array was invisible to the user (`GroupEditor`'s
+   checklist only ever renders checkboxes for the *current* dataset's
+   numeric columns, so a stale item could never be seen or unchecked)
+   yet still reached `bifactorModel`'s computation, silently adding
+   extra rows to the results table for columns no longer in the loaded
+   dataset. Fixed by extending the same revalidation effect to also
+   filter stale items out of each group.
+
+Both fixes are committed (`48ff17d`) with regression tests exercising
+the real failure modes against the real package, following the same
+rigor Phase A established.
+
+**Status (original, before the above):** Approved
 **Phase:** B of 3 of the "bring `@statlab/core`'s `sem.js` module to the
 webapp" initiative. Phase A (`docs/superpowers/specs/2026-09-16-sem-path-
 analysis-design.md`) shipped `pathAnalysis` and established the equations-
@@ -64,9 +105,10 @@ them now would risk repeating Phase A's exact failure.
    each a checklist). No existing precedent for a dynamic add/remove-
    group interaction anywhere in the app — this is new interaction
    surface, not a reuse of an existing pattern.
-4. `bifactorModel`'s result table (`BifactorTable`: item/general/group/
-   communality) follows the exact scrollable zebra-striped `<table>`
-   convention `PathCoeffTable` (Phase A) already established.
+4. `bifactorModel`'s result table (`BifactorTable`: item/general/group —
+   `communality` was designed in but shipped hidden, see Status) follows
+   the exact scrollable zebra-striped `<table>` convention
+   `PathCoeffTable` (Phase A) already established.
 5. No new build/runtime dependency — both functions are already exported
    by the already-installed `@statlab/core@0.1.1`.
 
@@ -165,7 +207,13 @@ McDonald's ω block's `ω total`/`ω hierarchical` chips (same labels,
 same color-threshold convention), plus a new `BifactorTable` component
 (columns: item / general / group / communality) following
 `PathCoeffTable`'s exact scrollable zebra-striped `<table>` markup
-verbatim.
+verbatim. **As shipped (see Status):** the `ωt` chip and `communality`
+column are hidden — `@statlab/core`'s `group` loading is never capped
+the way `general` is, so both routinely exceed the `[0,1]` range
+they're defined to stay within. A `r.warning` banner (an existing,
+already-supported convention this app's `InferenceResults.jsx` already
+renders generically, just not previously used by any wired-in test)
+explains the omission inline.
 
 ### Chart
 
