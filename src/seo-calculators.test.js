@@ -107,8 +107,28 @@ describe('SEO calculator pages', () => {
       'matthews-correlation-coefficient',
       'concordance-correlation-coefficient',
       'cusum-control-chart',
+      'bray-curtis-dissimilarity',
+      'minkowski-p-norm-distance',
+      'gev-generalized-extreme-value',
+      'pareto-distribution-calculator',
+      'survival-nelson-aalen',
+      'hazard-ratio-logrank-ci',
+      'cochran-q-test',
+      'cochran-armitage-trend',
+      'jonckheere-terpstra-test',
+      'kendall-w-concordance',
+      'goodman-kruskal-gamma',
+      'somers-d-calculator',
+      'hoeffding-d-dependence',
+      'mutual-information-score',
+      'huber-loss-robust-regression',
+      'quantal-response-probit',
+      'tobit-censored-regression',
+      'grubbs-outlier-test',
+      'dixon-q-test',
+      'reliability-block-diagram',
     ]);
-    expect(calculatorPages.length).toBe(100);
+    expect(calculatorPages.length).toBe(120);
   });
 
   it('renders static HTML with canonical metadata, math formulas, code snippets, JSON-LD, and VoxelPulse/VoxelAssurance CTAs', () => {
@@ -124,18 +144,18 @@ describe('SEO calculator pages', () => {
     expect(html).toContain('VoxelAssurance Release Readiness');
   });
 
-  it('renders new statistical families (Probability distributions, SPC, Information theory, Reliability, Resampling, DOE, Vector Distance)', () => {
+  it('renders new statistical families (Probability distributions, SPC, Information theory, Reliability, Resampling, DOE, Vector Distance, Extreme Value, Outliers)', () => {
     const bootPage = calculatorPages.find((c) => c.slug === 'bootstrap-confidence-interval');
     expect(renderCalculatorPage(bootPage)).toContain('Bootstrap confidence interval calculator');
 
-    const cosPage = calculatorPages.find((c) => c.slug === 'cosine-similarity-calculator');
-    expect(renderCalculatorPage(cosPage)).toContain('Cosine similarity &amp; angular distance calculator');
+    const gevPage = calculatorPages.find((c) => c.slug === 'gev-generalized-extreme-value');
+    expect(renderCalculatorPage(gevPage)).toContain('Generalized Extreme Value (GEV) distribution calculator');
 
-    const rsmPage = calculatorPages.find((c) => c.slug === 'response-surface-methodology');
-    expect(renderCalculatorPage(rsmPage)).toContain('Response Surface Methodology (RSM) optimizer');
+    const grubbsPage = calculatorPages.find((c) => c.slug === 'grubbs-outlier-test');
+    expect(renderCalculatorPage(grubbsPage)).toContain('Grubbs&#39; test for univariate outliers calculator');
 
-    const alphaPage = calculatorPages.find((c) => c.slug === 'cronbach-alpha-reliability');
-    expect(renderCalculatorPage(alphaPage)).toContain('Cronbach&#39;s Alpha internal consistency calculator');
+    const rbdPage = calculatorPages.find((c) => c.slug === 'reliability-block-diagram');
+    expect(renderCalculatorPage(rbdPage)).toContain('Reliability Block Diagram (RBD) system reliability calculator');
   });
 
   it('writes calculator routes plus sitemap and robots files', () => {
