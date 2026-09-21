@@ -126,12 +126,24 @@ function Header({ dsKey, customDef, switchDs, fileRef, handleCSV, uploadMsg, dat
       {uploadMsg && <span style={{ fontSize: 9, color: C.accent, ...mono }}>{uploadMsg}</span>}
 
       <a
+        href="/calculators/"
+        title="Browse 140 static calculators"
+        style={{
+          marginLeft: 'auto', color: C.accent, ...mono, fontSize: 9, fontWeight: 700,
+          padding: '3px 8px', border: `1px solid ${C.accent}`, borderRadius: 3,
+          textDecoration: 'none', background: 'rgba(93,242,182,0.08)'
+        }}
+      >
+        Calculators (140) &rarr;
+      </a>
+
+      <a
         href="https://ko-fi.com/matthieudecker"
         target="_blank"
         rel="noopener noreferrer"
         title="Support StatLab on Ko-fi"
         style={{
-          marginLeft: 'auto', color: C.dim, ...mono, fontSize: 9,
+          color: C.dim, ...mono, fontSize: 9,
           padding: '3px 8px', border: `1px solid ${C.border}`, borderRadius: 3,
           textDecoration: 'none',
         }}
