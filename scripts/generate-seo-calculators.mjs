@@ -8100,6 +8100,506 @@ export const calculatorPages = [
     ],
     workbenchId: 'dist_generalized_hyperbolic',
   },
+  {
+    slug: 'normal-inverse-gaussian-nig',
+    title: 'Normal Inverse Gaussian (NIG) distribution calculator',
+    family: 'Continuous probability distributions',
+    description: 'Calculate PDF, CDF, quantiles, and 4-parameter moments (location μ, scale δ, tail heaviness α, asymmetry β) for the NIG distribution.',
+    keywords: ['normal inverse gaussian calculator', 'NIG distribution heavy tail', 'Barndorff Nielsen NIG', 'NIG probability density', 'financial return NIG fit'],
+    inputs: ['Steepness α', 'Asymmetry β (|β| < α)', 'Scale δ (>0)', 'Location μ', 'Evaluation x'],
+    example: { a: ['α = 3.0, β = 0.5', 'δ = 1.0, μ = 0.0'], result: 'Mean = +0.171, Variance = 0.354, Skewness = +0.342, Excess Kurtosis = +1.42. PDF(1.0) = 0.284.' },
+    formula: 'f(x; α, β, δ, μ) = [ α δ exp(δ √(α² - β²) + β(x - μ)) / (π √(δ² + (x - μ)²)) ] K₁(α √(δ² + (x - μ)²))',
+    code: {
+      python: `from scipy.stats import norminvgauss\nrv = norminvgauss(a=3.0, b=0.5, loc=0, scale=1.0)\nprint(f"Mean={rv.mean():.4f}, PDF={rv.pdf(1.0):.4f}")`,
+      r: `library(ghyp)\nnig_spec <- nig(alpha=3, beta=0.5, delta=1, mu=0)\ndghyp(1.0, nig_spec)`,
+      ts: `import { normalInverseGaussian } from '@statlab/core';\nconst res = normalInverseGaussian({ alpha: 3, beta: 0.5, delta: 1, mu: 0 });`,
+    },
+    useCases: [
+      'Fitting non-Gaussian asset returns in high-frequency financial risk models with heavy tails and asymmetry.',
+      'Modeling turbulence or microservice response time tails under extreme load spikes.'
+    ],
+    when: 'Use when modeling empirical continuous distributions with heavier tails and higher kurtosis than the Normal distribution.',
+    cautions: [
+      'Requires parameter constraint |β| < α for density stability.',
+      'Special case of the Generalized Hyperbolic distribution with index λ = -1/2.'
+    ],
+    workbenchId: 'dist_nig',
+  },
+  {
+    slug: 'johnson-su-bounded-unbounded',
+    title: 'Johnson’s S_U and S_B system distribution quantile calculator',
+    family: 'Continuous probability distributions',
+    description: 'Calculate quantiles, PDF, CDF, and transformation parameters (γ, δ, ξ, λ) for Johnson’s unbounded (S_U) and bounded (S_B) distribution systems.',
+    keywords: ['Johnson SU distribution calculator', 'Johnson SB distribution', 'Johnson system quantile', 'flexible moment matching distribution', 'Johnson transformation calculator'],
+    inputs: ['Type (S_U unbounded, S_B bounded)', 'Shape γ', 'Shape δ (>0)', 'Location ξ', 'Scale λ (>0)', 'Quantile u (0..1)'],
+    example: { a: ['System: S_U (Unbounded)', 'γ = -0.5, δ = 1.2', 'ξ = 0, λ = 1'], result: 'Q(0.50) = +0.435, Q(0.95) = +2.48, Q(0.05) = -1.12. Matched sample skewness & kurtosis exactly.' },
+    formula: 'S_U: z = γ + δ sinh⁻¹((x - ξ)/λ); S_B: z = γ + δ ln((x - ξ)/(ξ + λ - x)) where z ~ N(0, 1)',
+    code: {
+      python: `from scipy.stats import johnsonsu\nrv = johnsonsu(a=-0.5, b=1.2, loc=0, scale=1)\nprint(f"Quantile(0.95)={rv.ppf(0.95):.4f}")`,
+      r: `library(SuppDists)\nqjohnson(p=0.95, parms=JohnsonFit(sample_vector))`,
+      ts: `import { johnsonSUQuantile } from '@statlab/core';\nconst q = johnsonSUQuantile(0.95, { gamma: -0.5, delta: 1.2, xi: 0, lambda: 1 });`,
+    },
+    useCases: [
+      'Transforming non-normal quality control telemetry metrics into exact standard normal scores.',
+      'Fitting highly skewed or bounded empirical data distributions using moment matching.'
+    ],
+    when: 'Use when seeking a flexible parametric family that covers any valid skewness-kurtosis combination.',
+    cautions: [
+      'S_B is strictly bounded to the interval [ξ, ξ + λ]; S_U is unbounded on (-∞, +∞).',
+      'Parameter estimation requires solving 4-moment non-linear system equations.'
+    ],
+    workbenchId: 'dist_johnson',
+  },
+  {
+    slug: 'extreme-value-copula-gumbel-hougaard',
+    title: 'Extreme Value Copula (Gumbel-Hougaard) tail dependence calculator',
+    family: 'Copula analysis & joint tail dependence',
+    description: 'Calculate bivariate Gumbel-Hougaard copula C_θ(u, v) and upper tail dependence coefficient λ_u = 2 - 2^(1/θ) for extreme joint events.',
+    keywords: ['Gumbel Hougaard copula calculator', 'extreme value copula', 'upper tail dependence copula', 'Gumbel copula formula', 'joint extreme risk copula'],
+    inputs: ['Quantile u ∈ (0,1)', 'Quantile v ∈ (0,1)', 'Copula parameter θ ≥ 1.0'],
+    example: { a: ['u = 0.95, v = 0.95', 'θ = 2.5'], result: 'Joint Copula C(0.95, 0.95) = 0.924. Upper Tail Dependence λ_u = 2 - 2^(1/2.5) = 0.680 (Strong joint upper tail risk).' },
+    formula: 'C_θ(u, v) = exp( -[ (-ln u)^θ + (-ln v)^θ ]^(1/θ) ); λ_u = 2 - 2^(1/θ)',
+    code: {
+      python: `from copulas.bivariate import Gumbel\ncop = Gumbel(theta=2.5)\ncdf_val = cop.cdf(np.array([[0.95, 0.95]]))`,
+      r: `library(copula)\ngumbel.cop <- gumbelCopula(param=2.5, dim=2)\npCopula(c(0.95, 0.95), gumbel.cop)`,
+      ts: `import { gumbelCopula } from '@statlab/core';\nconst cdf = gumbelCopula(0.95, 0.95, { theta: 2.5 });`,
+    },
+    useCases: [
+      'Modeling simultaneous extreme risk event probabilities across paired cloud server locations.',
+      'Quantifying joint upper-tail failure risk in financial asset portfolios.'
+    ],
+    when: 'Use when bivariate data exhibit strong upper-tail dependence (high values tend to occur together).',
+    cautions: [
+      'Gumbel copula parameter θ must be ≥ 1.0; θ = 1 corresponds to independence (λ_u = 0).',
+      'Does not model lower-tail dependence (use Clayton copula for lower-tail dependence).'
+    ],
+    workbenchId: 'copula_gumbel_hougaard',
+  },
+  {
+    slug: 'joe-copula-upper-tail-dependence',
+    title: 'Joe Copula upper tail dependence calculator',
+    family: 'Copula analysis & joint tail dependence',
+    description: 'Calculate bivariate Joe copula C_θ(u, v) and strong upper tail dependence coefficient λ_u = 2 - 2^(1/θ) for asymmetric joint tail risk.',
+    keywords: ['Joe copula calculator', 'Joe copula upper tail dependence', 'asymmetric extreme copula', 'bivariate Joe copula', 'tail risk copula'],
+    inputs: ['Quantile u ∈ (0,1)', 'Quantile v ∈ (0,1)', 'Copula parameter θ ≥ 1.0'],
+    example: { a: ['u = 0.90, v = 0.90', 'θ = 3.0'], result: 'Joint Copula C(0.90, 0.90) = 0.842. Upper Tail Dependence λ_u = 2 - 2^(1/3) = 0.413.' },
+    formula: 'C_θ(u, v) = 1 - [ (1-u)^θ + (1-v)^θ - (1-u)^θ (1-v)^θ ]^(1/θ); λ_u = 2 - 2^(1/θ)',
+    code: {
+      python: `from copulas.bivariate import Joe\n# Evaluate Joe copula CDF C(u, v; θ)`,
+      r: `library(copula)\njoe.cop <- joeCopula(param=3.0, dim=2)\npCopula(c(0.90, 0.90), joe.cop)`,
+      ts: `import { joeCopula } from '@statlab/core';\nconst cdf = joeCopula(0.90, 0.90, { theta: 3.0 });`,
+    },
+    useCases: [
+      'Modeling strong right-tail joint dependence in high-concurrency server load spikes.',
+      'Analyzing joint severe loss probabilities in insurance risk assessment.'
+    ],
+    when: 'Use when right-tail (upper) dependence is stronger than that modeled by Gumbel or Frank copulas.',
+    cautions: [
+      'Parameter θ must be ≥ 1.0.',
+      'Exhibits zero lower-tail dependence (λ_l = 0).'
+    ],
+    workbenchId: 'copula_joe',
+  },
+  {
+    slug: 't-copula-heavy-tailed-joint-risk',
+    title: 'Student’s t-Copula heavy-tailed joint risk calculator',
+    family: 'Copula analysis & joint tail dependence',
+    description: 'Calculate bivariate Student’s t-copula C_{ρ, ν}(u, v) and symmetric tail dependence coefficient λ = 2 t_{ν+1}(-√(ν+1) √(1-ρ)/√(1+ρ)).',
+    keywords: ['t copula calculator', 'Students t copula', 'symmetric tail dependence copula', 'heavy tailed joint risk', 't copula CDF'],
+    inputs: ['Quantile u ∈ (0,1)', 'Quantile v ∈ (0,1)', 'Correlation ρ (-1..1)', 'Degrees of freedom ν (>0)'],
+    example: { a: ['u = 0.95, v = 0.95', 'ρ = 0.60, ν = 4.0'], result: 'Joint t-Copula C(0.95, 0.95) = 0.928. Symmetric Tail Dependence λ_u = λ_l = 0.312 (Heavy tail correlation).' },
+    formula: 'C_{ρ, ν}(u, v) = t_ν( t_ν⁻¹(u), t_ν⁻¹(v); ρ ); λ = 2 t_{ν+1}( -√(ν+1) √(1-ρ)/√(1+ρ) )',
+    code: {
+      python: `from copulas.bivariate import StudentT\n# Evaluate bivariate t-copula CDF with degrees of freedom nu`,
+      r: `library(copula)\nt.cop <- tCopula(param=0.6, dim=2, df=4)\npCopula(c(0.95, 0.95), t.cop)`,
+      ts: `import { tCopula } from '@statlab/core';\nconst cdf = tCopula(0.95, 0.95, { rho: 0.60, df: 4 });`,
+    },
+    useCases: [
+      'Modeling symmetric joint tail dependence in financial asset crash and surge scenarios.',
+      'Estimating joint failure risks across dual correlated cloud infrastructure services.'
+    ],
+    when: 'Use when joint extreme events display symmetric tail dependence in both upper and lower tails.',
+    cautions: [
+      'As df ν → ∞, Student’s t-copula converges to the Gaussian copula (which has zero tail dependence for |ρ| < 1).',
+      'Small df ν values indicate strong joint tail clustering.'
+    ],
+    workbenchId: 'copula_student_t',
+  },
+  {
+    slug: 'vine-copula-d-vine-c-vine',
+    title: 'Vine Copula (C-Vine and D-Vine) multi-dimensional calculator',
+    family: 'Copula analysis & joint tail dependence',
+    description: 'Calculate multi-dimensional joint density f(x_1..x_d) decomposed into pair-copula trees (C-Vine canonical or D-Vine drawable vines).',
+    keywords: ['vine copula calculator', 'C-vine copula', 'D-vine copula', 'pair copula construction', 'multivariate copula decomposition'],
+    inputs: ['Dimensions d', 'Vine structure type (C-Vine or D-Vine)', 'Pair-copula family matrix', 'Marginal quantile vector U (1..d)'],
+    example: { a: ['Dimensions d = 4', 'Structure: D-Vine', 'Trees = 3'], result: 'Decomposed into 6 pair-copula fits. Joint density f(u_1..u_4) = 4.825. Kendall’s tau matrix inverted.' },
+    formula: 'f(x_1..x_d) = ∏_{k=1}^d f_k(x_k) ∏_{i=1}^{d-1} ∏_{j=1}^{d-i} c_{j, j+i | (j+1)..(j+i-1)}( u_{j|...}, u_{j+i|...} )',
+    code: {
+      python: `import pyvinecopulib as pv\ncontrols = pv.FitControlsVinecop()\nvine = pv.Vinecop(data_u, controls=controls)\nprint(vine.pdf(data_u[:5]))`,
+      r: `library(VineCopula)\nfit <- RVineStructureSelect(data_u, familyset = c(1, 3, 4, 5))\nsummary(fit)`,
+      ts: `import { vineCopula } from '@statlab/core';\nconst res = vineCopula(uMatrix, { structure: 'D-Vine' });`,
+    },
+    useCases: [
+      'Constructing flexible multi-variate joint risk models for financial portfolios with 4+ assets.',
+      'Modeling multi-dimensional dependency structures across interconnected microservice latencies.'
+    ],
+    when: 'Use when modeling complex multi-variate dependencies (d ≥ 3) with heterogeneous pair-copula families across pairs.',
+    cautions: [
+      'Selection of tree hierarchy (C-Vine for central key variable vs D-Vine for sequential chain) impacts parameterization efficiency.',
+      'Requires fitting d(d-1)/2 pair copulas.'
+    ],
+    workbenchId: 'copula_vine',
+  },
+  {
+    slug: 'fuzzy-c-means-clustering-fcm',
+    title: 'Fuzzy C-Means (FCM) partition coefficient calculator',
+    family: 'AI, ML & classification evaluation',
+    description: 'Calculate soft cluster membership matrix u_ik, cluster centroids c_k, and Partition Coefficient (PC) / Partition Entropy (PE) validation indices.',
+    keywords: ['Fuzzy C Means calculator', 'FCM clustering calculator', 'fuzzy partition coefficient', 'soft clustering membership', 'fuzzy c means entropy'],
+    inputs: ['Feature matrix X', 'Number of clusters c', 'Fuzziness exponent m (m > 1.0, e.g. 2.0)', 'Convergence threshold ε'],
+    example: { a: ['Data X (200x4)', 'Clusters c = 3', 'Fuzziness m = 2.0'], result: 'Partition Coefficient PC = 0.742 (High cluster separation). Top soft membership u_{1,k} = [0.85, 0.11, 0.04].' },
+    formula: 'u_ik = [ ∑_{j=1}^c (||x_i - c_k|| / ||x_i - c_j||)^{2/(m-1)} ]⁻¹; PC = 1/N ∑_i ∑_k u_ik²',
+    code: {
+      python: `import skfuzzy as fuzz\ncntr, u, u0, d, jm, p, fpc = fuzz.cluster.cmeans(X.T, c=3, m=2, error=0.005, maxiter=1000)\nprint(f"FPC={fpc:.4f}")`,
+      r: `library(e1071)\ncl <- cmeans(X, centers=3, m=2)\nprint(cl$membership[:5,])`,
+      ts: `import { fuzzyCMeans } from '@statlab/core';\nconst res = fuzzyCMeans(X, { clusters: 3, m: 2.0 });`,
+    },
+    useCases: [
+      'Soft customer segmentation where individual users hold partial membership across multiple behavioral tiers.',
+      'Overlapping pattern recognition in multi-sensor industrial monitoring telemetry.'
+    ],
+    when: 'Use when data points naturally belong to multiple clusters with varying degrees of partial membership.',
+    cautions: [
+      'Fuzziness exponent m = 1.0 reduces FCM to standard hard K-Means clustering.',
+      'Sensitive to initial centroid locations; run multiple random restarts.'
+    ],
+    workbenchId: 'ml_fuzzy_cmeans',
+  },
+  {
+    slug: 'hierarchical-clustering-cophenetic-correlation',
+    title: 'Hierarchical Clustering cophenetic correlation calculator',
+    family: 'AI, ML & classification evaluation',
+    description: 'Calculate cophenetic distance matrix C and Cophenetic Correlation Coefficient c to measure how faithfully a dendrogram preserves original pairwise distances.',
+    keywords: ['cophenetic correlation calculator', 'hierarchical clustering evaluation', 'dendrogram distance fit', 'cophenetic distance matrix', 'cluster dendrogram quality'],
+    inputs: ['Pairwise distance matrix D', 'Linkage method (Single, Complete, Average, Ward)'],
+    example: { a: ['Distance matrix 50x50', 'Linkage: Average (UPGMA)'], result: 'Cophenetic Correlation c = 0.884 (c > 0.8 indicates excellent dendrogram representation).' },
+    formula: 'c = [ ∑ (d_ij - d̄)(c_ij - c̄) ] / [ √(∑ (d_ij - d̄)²) √(∑ (c_ij - c̄)²) ] where c_ij is dendrogram height at join',
+    code: {
+      python: `from scipy.cluster.hierarchy import linkage, cophenet\nfrom scipy.spatial.distance import pdist\nZ = linkage(X, method='average')\ncoph_corr, coph_dists = cophenet(Z, pdist(X))\nprint(f"Cophenetic r={coph_corr:.4f}")`,
+      r: `d1 <- dist(X)\nhc <- hclust(d1, method="average")\nd2 <- cophenetic(hc)\ncor(d1, d2)`,
+      ts: `import { copheneticCorrelation } from '@statlab/core';\nconst res = copheneticCorrelation(distanceMatrix, { linkage: 'average' });`,
+    },
+    useCases: [
+      'Evaluating which linkage algorithm (Ward vs Average vs Complete) best preserves distance structure in hierarchical cluster analysis.',
+      'Validating phylogenetic tree or microservice dependency graph dendrogram fidelity.'
+    ],
+    when: 'Use after performing agglomerative hierarchical clustering to evaluate dendrogram distortion.',
+    cautions: [
+      'Ward linkage often yields lower cophenetic correlation than Average linkage despite producing cleaner visual clusters.',
+      'Cophenetic correlation > 0.75 is generally expected for reliable hierarchical interpretations.'
+    ],
+    workbenchId: 'ml_cophenetic_correlation',
+  },
+  {
+    slug: 'dbscan-epsilon-minpts-reachability',
+    title: 'DBSCAN density-based cluster reachability calculator',
+    family: 'AI, ML & classification evaluation',
+    description: 'Determine core points, border points, noise outliers, and ε-neighborhood density reachability clusters for non-spherical spatial data.',
+    keywords: ['DBSCAN calculator', 'density based clustering', 'epsilon minpts reachability', 'DBSCAN noise outlier', 'core point cluster'],
+    inputs: ['Feature matrix X', 'Neighborhood radius ε', 'MinPoints threshold k'],
+    example: { a: ['X (300x2)', 'ε = 1.5', 'MinPts = 5'], result: 'Found 4 dense clusters, 18 noise outliers. 142 Core points identified (N_eps ≥ 5).' },
+    formula: 'N_ε(p) = { q ∈ D : dist(p, q) ≤ ε }; Core point if |N_ε(p)| ≥ MinPts',
+    code: {
+      python: `from sklearn.cluster import DBSCAN\ndb = DBSCAN(eps=1.5, min_samples=5).fit(X)\nprint(f"Clusters={len(set(db.labels_)) - (1 if -1 in db.labels_ else 0)}, Noise={list(db.labels_).count(-1)}")`,
+      r: `library(dbscan)\nres <- dbscan(X, eps = 1.5, minPts = 5)\nprint(res)`,
+      ts: `import { dbscanClustering } from '@statlab/core';\nconst res = dbscanClustering(X, { eps: 1.5, minPts: 5 });`,
+    },
+    useCases: [
+      'Discovering arbitrary non-spherical spatial clusters in geographical transaction data.',
+      'Detecting isolated spatial telemetry noise points without forcing them into clusters.'
+    ],
+    when: 'Use when clusters are non-spherical and contain noise outliers, and cluster count K is not known in advance.',
+    cautions: [
+      'Selection of ε and MinPts is critical; use k-distance graph elbow plot to select optimal ε.',
+      'Struggles with clusters of varying densities (consider OPTICS or HDBSCAN for multi-density data).'
+    ],
+    workbenchId: 'ml_dbscan',
+  },
+  {
+    slug: 'optics-reachability-plot-clustering',
+    title: 'OPTICS reachability plot density clustering calculator',
+    family: 'AI, ML & classification evaluation',
+    description: 'Calculate core distance, reachability distance, and ordered reachability plot valleys to detect multi-density spatial clusters.',
+    keywords: ['OPTICS clustering calculator', 'reachability distance plot', 'OPTICS core distance', 'multi density spatial cluster', 'OPTICS valley detection'],
+    inputs: ['Feature matrix X', 'Max radius ε', 'MinPoints threshold k', 'Cluster extraction method (xi, dbscan)'],
+    example: { a: ['X (400x2)', 'Max ε = 3.0', 'MinPts = 10'], result: 'OPTICS reachability plot constructed. Extracted 5 multi-density clusters (ξ = 0.05 inflection points).' },
+    formula: 'Core-dist_k(p) = k-th smallest dist(p, q); Reachability-dist_k(p, o) = max(Core-dist_k(o), dist(p, o))',
+    code: {
+      python: `from sklearn.cluster import OPTICS\nclust = OPTICS(min_samples=10, max_eps=3.0, cluster_method='xi').fit(X)\nprint(clust.labels_[:10])`,
+      r: `library(dbscan)\nres <- optics(X, eps = 3.0, minPts = 10)\nplot(res)`,
+      ts: `import { opticsClustering } from '@statlab/core';\nconst res = opticsClustering(X, { minPts: 10, maxEps: 3.0 });`,
+    },
+    useCases: [
+      'Detecting spatial or operational clusters across regions with widely varying point density levels.',
+      'Visualizing cluster hierarchy and density transitions via reachability distance plots.'
+    ],
+    when: 'Use when spatial clusters have varying local densities where a single fixed DBSCAN ε threshold fails.',
+    cautions: [
+      'Valleys in the reachability plot correspond to dense clusters; peaks correspond to sparse background noise.',
+      'Requires more memory than standard DBSCAN to store the ordered reachability list.'
+    ],
+    workbenchId: 'ml_optics',
+  },
+  {
+    slug: 'local-outlier-factor-lof',
+    title: 'Local Outlier Factor (LOF) density anomaly score calculator',
+    family: 'Statistical diagnostics & outlier tests',
+    description: 'Calculate local reachability density (lrd) and Local Outlier Factor (LOF) scores to detect density-based local anomalies.',
+    keywords: ['LOF calculator', 'Local Outlier Factor', 'density anomaly score', 'local outlier detection', 'k distance reachability'],
+    inputs: ['Feature matrix X', 'Nearest neighbors k (e.g. 20)'],
+    example: { a: ['X (250x4)', 'k = 20 neighbors'], result: 'Max LOF score = 2.84 (Local anomaly detected at index 42 > 1.5 threshold). Mean LOF = 1.04.' },
+    formula: 'lrd_k(p) = [ ∑_{o ∈ N_k(p)} reach-dist_k(p, o) / |N_k(p)| ]⁻¹; LOF_k(p) = ∑_{o ∈ N_k(p)} [ lrd_k(o) / lrd_k(p) ] / |N_k(p)|',
+    code: {
+      python: `from sklearn.neighbors import LocalOutlierFactor\nlof = LocalOutlierFactor(n_neighbors=20)\ny_pred = lof.fit_predict(X)\nscores = -lof.negative_outlier_factor_`,
+      r: `library(dbscan)\nscores <- lof(X, minPts = 20)\nprint(summary(scores))`,
+      ts: `import { localOutlierFactor } from '@statlab/core';\nconst res = localOutlierFactor(X, { k: 20 });`,
+    },
+    useCases: [
+      'Detecting localized fraud or telemetry anomalies in datasets with varying cluster densities.',
+      'Identifying microservice response time outliers relative to local neighborhood baselines.'
+    ],
+    when: 'Use when anomaly detection requires comparing a point\'s density to its immediate local neighborhood rather than global distance.',
+    cautions: [
+      'LOF ≈ 1.0 indicates normal inlier behavior; LOF >> 1.0 indicates a local outlier.',
+      'Choice of k determines the scale of local neighborhood comparison.'
+    ],
+    workbenchId: 'diag_lof',
+  },
+  {
+    slug: 'isolation-forest-path-length',
+    title: 'Isolation Forest average anomaly path length calculator',
+    family: 'Statistical diagnostics & outlier tests',
+    description: 'Calculate average isolation path length h(x), expected tree path length c(n), and anomaly score s(x, n) = 2^(-E(h(x))/c(n)).',
+    keywords: ['Isolation Forest calculator', 'anomaly path length', 'isolation forest score', 'iForest anomaly detection', 'tree isolation score'],
+    inputs: ['Feature matrix X', 'Number of isolation trees n_trees (e.g. 100)', 'Subsample size ψ (e.g. 256)'],
+    example: { a: ['X (500x10)', 'n_trees = 100', 'ψ = 256'], result: 'Shortest average path length E(h(x)) = 3.2 (c(256) = 9.87). Anomaly score s = 2^(-3.2/9.87) = 0.798 (High anomaly).' },
+    formula: 'c(n) = 2(ln(n - 1) + 0.5772156649) - 2(n - 1)/n; s(x, n) = 2^{ -E(h(x)) / c(n) }',
+    code: {
+      python: `from sklearn.ensemble import IsolationForest\nclf = IsolationForest(n_estimators=100, max_samples=256, random_state=42).fit(X)\nscores = clf.decision_function(X)\npreds = clf.predict(X)`,
+      r: `library(isotree)\nmodel <- isolation.forest(X, ntrees=100)\nscores <- predict(model, X)`,
+      ts: `import { isolationForest } from '@statlab/core';\nconst res = isolationForest(X, { nTrees: 100, sampleSize: 256 });`,
+    },
+    useCases: [
+      'High-speed multi-dimensional telemetry anomaly detection in cloud infrastructure pipelines.',
+      'Detecting security intrusion anomalies across high-dimensional access logs.'
+    ],
+    when: 'Use for fast, scalable unsupervised anomaly detection in high-dimensional datasets.',
+    cautions: [
+      'Anomaly scores s > 0.6 indicate probable anomalies; s < 0.5 indicates clear inliers.',
+      'Random axis-aligned splits can create ghost anomaly artifacts; consider Extended Isolation Forest for complex geometries.'
+    ],
+    workbenchId: 'diag_isolation_forest',
+  },
+  {
+    slug: 'one-class-svm-decision-boundary',
+    title: 'One-Class SVM non-linear kernel anomaly boundary calculator',
+    family: 'Statistical diagnostics & outlier tests',
+    description: 'Calculate RBF kernel decision function f(x) = sgn(∑ α_i K(x_i, x) - ρ) and support vector fraction ν for novelty and outlier detection.',
+    keywords: ['One Class SVM calculator', 'kernel anomaly boundary', 'OCSVM novelty detection', 'support vector outlier', 'RBF one class SVM'],
+    inputs: ['Feature matrix X', 'Outlier fraction parameter ν ∈ (0,1)', 'RBF kernel gamma γ'],
+    example: { a: ['X (300x5)', 'ν = 0.05', 'γ = 0.1'], result: 'Decision threshold ρ = 1.42. Identified 15 support vectors (5% outlier boundary cutoff).' },
+    formula: 'Min_{w, ξ, ρ} [ 1/2 ||w||² + 1/(ν N) ∑ ξ_i - ρ ] subject to ⟨w, Φ(x_i)⟩ ≥ ρ - ξ_i, ξ_i ≥ 0',
+    code: {
+      python: `from sklearn.svm import OneClassSVM\nocsvm = OneClassSVM(nu=0.05, kernel='rbf', gamma=0.1).fit(X)\npreds = ocsvm.predict(X)\nscores = ocsvm.score_samples(X)`,
+      r: `library(e1071)\nmodel <- svm(X, type="one-classification", nu=0.05, kernel="radial", gamma=0.1)\npreds <- predict(model, X)`,
+      ts: `import { oneClassSVM } from '@statlab/core';\nconst res = oneClassSVM(X, { nu: 0.05, gamma: 0.1 });`,
+    },
+    useCases: [
+      'Learning tight non-linear operational boundaries for system health monitoring.',
+      'Novelty detection in manufacturing quality assurance where only normal baseline samples exist.'
+    ],
+    when: 'Use for novelty detection when training data consist almost entirely of normal baseline instances.',
+    cautions: [
+      'Hyper-parameter ν sets an upper bound on training error fraction and a lower bound on support vector count.',
+      'Sensitive to proper scaling of input feature matrix X.'
+    ],
+    workbenchId: 'diag_oneclass_svm',
+  },
+  {
+    slug: 'mahalanobis-taguchi-system-mts',
+    title: 'Mahalanobis-Taguchi System (MTS) pattern index calculator',
+    family: 'Statistical Process Control & quality engineering',
+    description: 'Calculate Mahalanobis Space (MS) reference baseline covariance, standardized Mahalanobis Distances (MD), and Taguchi orthogonal array feature selection.',
+    keywords: ['MTS calculator', 'Mahalanobis Taguchi System', 'Mahalanobis Space baseline', 'MTS anomaly index', 'Taguchi orthogonal array MD'],
+    inputs: ['Normal reference baseline matrix X_norm', 'Test instances X_test', 'Features list'],
+    example: { a: ['Normal baseline N = 100', 'Features P = 8'], result: 'Normal baseline Mean MD ≈ 1.0. Test instance MD = 14.8 (Multivariate anomaly detected). Signal-to-Noise ratio gain computed.' },
+    formula: 'MD_i = 1/P (z_iᵀ C⁻¹ z_i) where z_i = (x_i - m) / s and C is correlation matrix of normal space',
+    code: {
+      python: `import numpy as np\ndef mts_distance(X_ref, X_test):\n    m = np.mean(X_ref, axis=0)\n    s = np.std(X_ref, axis=0, ddof=1)\n    Z_ref = (X_ref - m) / s\n    R = np.corrcoef(Z_ref, rowvar=False)\n    R_inv = np.linalg.inv(R)\n    Z_test = (X_test - m) / s\n    return np.array([np.dot(np.dot(z, R_inv), z) / X_ref.shape[1] for z in Z_test])`,
+      r: `library(HDFA)\n# Compute Mahalanobis-Taguchi System MD scores and orthogonal array SN ratios`,
+      ts: `import { mahalanobisTaguchiSystem } from '@statlab/core';\nconst res = mahalanobisTaguchiSystem(Xref, Xtest);`,
+    },
+    useCases: [
+      'Multivariate industrial process quality diagnosis and multi-sensor health index calculation.',
+      'Selecting minimal informative diagnostic metric subsets using Taguchi orthogonal arrays.'
+    ],
+    when: 'Use in multidimensional quality engineering to construct a unified unitless anomaly scale from a healthy baseline.',
+    cautions: [
+      'Average MD for the normal baseline group is mathematically normalized to 1.0.',
+      'Requires non-singular correlation matrix R (check for extreme feature collinearity).'
+    ],
+    workbenchId: 'spc_mts',
+  },
+  {
+    slug: 'ewma-volatility-riskmetrics',
+    title: 'RiskMetrics EWMA volatility decay calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Calculate J.P. Morgan RiskMetrics Exponentially Weighted Moving Average (EWMA) conditional volatility σ_t² with decay factor λ (default 0.94).',
+    keywords: ['EWMA volatility calculator', 'RiskMetrics volatility', 'exponential decay volatility', 'λ 0.94 volatility', 'EWMA variance estimator'],
+    inputs: ['Return series r_t', 'Decay factor λ (0 < λ < 1, e.g. 0.94 for daily, 0.97 for monthly)'],
+    example: { a: ['Daily returns N = 500', 'Decay λ = 0.94'], result: 'Current EWMA Volatility σ_t = 1.48% daily (23.5% annualized). Half-life t_1/2 = ln(0.5)/ln(0.94) = 11.2 days.' },
+    formula: 'σ_t² = (1 - λ) r_{t-1}² + λ σ_{t-1}²; t_{1/2} = -ln(2) / ln(λ)',
+    code: {
+      python: `import numpy as np\ndef riskmetrics_ewma(returns, lam=0.94):\n    var = np.zeros(len(returns))\n    var[0] = np.var(returns)\n    for t in range(1, len(returns)):\n        var[t] = (1 - lam) * returns[t-1]**2 + lam * var[t-1]\n    return np.sqrt(var)`,
+      r: `library(fGarch)\n# Compute RiskMetrics EWMA volatility recursive variance filter`,
+      ts: `import { riskmetricsEWMA } from '@statlab/core';\nconst res = riskmetricsEWMA(returns, { lambda: 0.94 });`,
+    },
+    useCases: [
+      'Tracking fast-reacting daily Value at Risk (VaR) estimates in financial portfolio management.',
+      'Calculating dynamic operational latency variance filters with smooth exponential memory decay.'
+    ],
+    when: 'Use when a simple, parameter-free (fixed λ) volatility model is needed that reacts quickly to recent return shocks.',
+    cautions: [
+      'Assumes zero mean return (r_t - 0)².',
+      'Does not estimate mean-reversion level (unlike GARCH(1,1)).'
+    ],
+    workbenchId: 'ts_riskmetrics_ewma',
+  },
+  {
+    slug: 'gjr-garch-asymmetric-leverage',
+    title: 'GJR-GARCH asymmetric leverage volatility calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Calculate Glosten-Jagannathan-Runkle GJR-GARCH(1,1) conditional variance σ_t² incorporating asymmetric leverage coefficient γ.',
+    keywords: ['GJR GARCH calculator', 'asymmetric GARCH leverage', 'Glosten Jagannathan Runkle', 'GJR GARCH formula', 'leverage effect volatility'],
+    inputs: ['Return series r_t', 'Parameters (ω, α, γ, β)'],
+    example: { a: ['Daily returns N = 1000', 'GJR-GARCH(1,1)'], result: 'ω = 0.015, α = 0.035, γ = 0.092 (p = .002), β = 0.910. Asymmetry check: bad news impact (α+γ) = 0.127 vs good news (α) = 0.035.' },
+    formula: 'σ_t² = ω + [ α + γ 1(ε_{t-1} < 0) ] ε_{t-1}² + β σ_{t-1}²',
+    code: {
+      python: `from arch import arch_model\nam = arch_model(returns, p=1, o=1, q=1) # GJR-GARCH\nres = am.fit(disp='off')\nprint(res.summary())`,
+      r: `library(rugarch)\nspec <- ugarchspec(variance.model = list(model = "gjrGARCH", garchOrder = c(1, 1)))\nfit <- ugarchfit(spec, data = returns)`,
+      ts: `import { gjrGarchVolatility } from '@statlab/core';\nconst res = gjrGarchVolatility(returns);`,
+    },
+    useCases: [
+      'Capturing the financial leverage effect where negative asset returns cause higher future volatility than positive returns.',
+      'Modeling asymmetric operational volatility escalation following system outages.'
+    ],
+    when: 'Use when financial asset variance responds asymmetrically to negative return shocks.',
+    cautions: [
+      'Check persistence condition α + γ/2 + β < 1.0 for stationary variance.',
+      'Differs from Zakoian TARCH which models standard deviation σ_t rather than variance σ_t².'
+    ],
+    workbenchId: 'ts_gjr_garch',
+  },
+  {
+    slug: 'figarch-fractionally-integrated-volatility',
+    title: 'FIGARCH fractionally integrated volatility calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Calculate Fractionally Integrated GARCH (FIGARCH) conditional variance with fractional differencing parameter d (0 < d < 1) for hyperbolic volatility persistence.',
+    keywords: ['FIGARCH calculator', 'fractionally integrated GARCH', 'volatility long memory', 'FIGARCH d parameter', 'hyperbolic volatility decay'],
+    inputs: ['Return series r_t', 'Fractional differencing d', 'GARCH parameters (ω, φ, β)'],
+    example: { a: ['N = 2000 tick returns', 'FIGARCH(1,d,1)'], result: 'Fractional d = 0.415 (Strong long-memory volatility persistence). Hyperbolic volatility decay lag = 250 days.' },
+    formula: '(1 - β B) σ_t² = ω + [ (1 - β B) - (1 - φ B)(1 - B)^d ] ε_t²',
+    code: {
+      python: `from arch import arch_model\n# Fit FIGARCH model using arch library with power=2 and dist='normal'`,
+      r: `library(rugarch)\nspec <- ugarchspec(variance.model = list(model = "fiGARCH", garchOrder = c(1, 1)))\nfit <- ugarchfit(spec, data = returns)`,
+      ts: `import { figarchVolatility } from '@statlab/core';\nconst res = figarchVolatility(returns, { d: 0.415 });`,
+    },
+    useCases: [
+      'Modeling long-memory persistence in financial volatility across multi-day horizons.',
+      'Long-range forecasting of cluster latency variance in cloud computing environments.'
+    ],
+    when: 'Use when volatility autocorrelations decay hyperbolically (too slow for standard GARCH, too stationary for IGARCH).',
+    cautions: [
+      '0 < d < 1 captures intermediate long-memory volatility persistence.',
+      'Requires truncating the infinite binomial series expansion (1-B)^d at a sufficient lag length.'
+    ],
+    workbenchId: 'ts_figarch',
+  },
+  {
+    slug: 'stochastic-volatility-heston-model',
+    title: 'Heston Stochastic Volatility option pricing calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Calculate European option prices, implied volatility surfaces, and variance drift paths under the Heston stochastic volatility SDE model.',
+    keywords: ['Heston model calculator', 'stochastic volatility option pricing', 'Heston SDE variance', 'Feller condition Heston', 'Heston characteristic function'],
+    inputs: ['Spot price S_0', 'Strike K', 'Risk-free rate r', 'Time to maturity T', 'Initial variance v_0', 'Mean-reversion rate κ', 'Long-run variance θ', 'Vol-of-vol σ_v', 'Correlation ρ'],
+    example: { a: ['S_0 = 100, K = 100, T = 1.0', 'v_0 = 0.04, κ = 2.0, θ = 0.04, σ_v = 0.3, ρ = -0.7'], result: 'Call Price = $8.94. Feller condition 2κθ = 0.16 > σ_v² = 0.09 (Satisfied). Implied Vol = 20.4%.' },
+    formula: 'dS_t = r S_t dt + √v_t S_t dW_t^S; dv_t = κ(θ - v_t) dt + σ_v √v_t dW_t^v where dW^S dW^v = ρ dt',
+    code: {
+      python: `import quantlib as ql\n# Price European option using HestonProcess and AnalyticHestonEngine in QuantLib`,
+      r: `library(NMOF)\ncallHeston(S=100, K=100, tau=1, r=0.02, q=0, v0=0.04, vT=0.04, rho=-0.7, k=2, sigma=0.3)`,
+      ts: `import { hestonOptionPricing } from '@statlab/core';\nconst res = hestonOptionPricing({ S0: 100, K: 100, T: 1.0, r: 0.02, v0: 0.04, kappa: 2.0, theta: 0.04, sigmaV: 0.3, rho: -0.7 });`,
+    },
+    useCases: [
+      'Pricing options and derivative contracts under continuous stochastic volatility drift.',
+      'Modeling option implied volatility smiles and skew surfaces.'
+    ],
+    when: 'Use when option market prices exhibit pronounced volatility smiles/skews that Black-Scholes constant volatility fails to replicate.',
+    cautions: [
+      'Check Feller condition 2κθ > σ_v² to ensure the variance process v_t strictly avoids touching zero.',
+      'Requires numerical integration (e.g. Gauss-Kronrod) of the complex characteristic function.'
+    ],
+    workbenchId: 'ts_heston',
+  },
+  {
+    slug: 'jump-diffusion-merton-model',
+    title: 'Merton Jump-Diffusion option pricing calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Calculate European option prices under Merton’s Jump-Diffusion process incorporating Poisson jump arrival rate λ and log-normal jump sizes.',
+    keywords: ['Merton jump diffusion calculator', 'jump diffusion option pricing', 'Poisson jump intensity', 'merton jump model', 'jump risk option price'],
+    inputs: ['Spot S_0', 'Strike K', 'Turity T', 'Rate r', 'Diffusion vol σ', 'Jump intensity λ', 'Mean jump size μ_J', 'Jump vol σ_J'],
+    example: { a: ['S_0 = 100, K = 100, T = 0.5', 'σ = 0.15, λ = 1.0, μ_J = -0.05, σ_J = 0.10'], result: 'Merton Call Price = $6.42 (vs Black-Scholes $4.85). Short-term option volatility skew captured.' },
+    formula: 'C_{Merton} = ∑_{n=0}^∞ [ exp(-λ\' T) (λ\' T)^n / n! ] C_{BS}(S_0, K, T, r_n, σ_n)',
+    code: {
+      python: `import numpy as np\nfrom scipy.stats import norm\n# Merton Jump-Diffusion infinite Poisson sum of Black-Scholes call options`,
+      r: `library(NMOF)\ncallMerton(S=100, K=100, tau=0.5, r=0.02, q=0, sigma=0.15, lambda=1.0, muJ=-0.05, vJ=0.10)`,
+      ts: `import { mertonJumpDiffusion } from '@statlab/core';\nconst res = mertonJumpDiffusion({ S0: 100, K: 100, T: 0.5, r: 0.02, sigma: 0.15, lambda: 1.0, muJ: -0.05, sigmaJ: 0.10 });`,
+    },
+    useCases: [
+      'Pricing options subject to sudden discontinuous market price jumps (earnings announcements, macro shocks).',
+      'Simulating system metric trajectories with continuous background noise plus discrete shock spikes.'
+    ],
+    when: 'Use when asset prices or system metrics experience sudden discrete jumps alongside continuous diffusion.',
+    cautions: [
+      'Poisson series sum converges rapidly; truncating at N = 30 terms provides 16-digit precision.',
+      'Adjust risk-free rate r_n and total volatility σ_n for each jump count n.'
+    ],
+    workbenchId: 'ts_merton_jump',
+  },
+  {
+    slug: 'black-scholes-greeks-implied-volatility',
+    title: 'Black-Scholes Greeks and Implied Volatility calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Calculate European option prices (Call/Put), Greeks (Delta Δ, Gamma Γ, Vega ν, Theta Θ, Rho ρ), and Newton-Raphson Implied Volatility (IV).',
+    keywords: ['Black Scholes calculator', 'option greeks calculator', 'implied volatility Newton Raphson', 'delta gamma vega theta rho', 'black scholes call put'],
+    inputs: ['Spot price S', 'Strike price K', 'Time to maturity T (years)', 'Risk-free rate r', 'Volatility σ (or market price C to solve IV)', 'Option type (Call, Put)'],
+    example: { a: ['S = 100, K = 100, T = 1.0', 'r = 0.05, σ = 0.20', 'Call Option'], result: 'Call Price = $10.45, Delta = 0.637, Gamma = 0.0187, Vega = 37.52, Theta = -6.41/yr, Rho = 53.23.' },
+    formula: 'd_1 = [ ln(S/K) + (r + σ²/2)T ] / (σ √T); d_2 = d_1 - σ √T; C = S Φ(d_1) - K e^{-rT} Φ(d_2)',
+    code: {
+      python: `from scipy.stats import norm\ndef bs_greeks(S, K, T, r, sigma, option_type='call'):\n    d1 = (np.log(S/K) + (r + 0.5*sigma**2)*T) / (sigma*np.sqrt(T))\n    d2 = d1 - sigma*np.sqrt(T)\n    delta = norm.cdf(d1) if option_type=='call' else norm.cdf(d1) - 1\n    gamma = norm.pdf(d1) / (S * sigma * np.sqrt(T))\n    vega = S * norm.pdf(d1) * np.sqrt(T)\n    return {'price': S*norm.cdf(d1) - K*np.exp(-r*T)*norm.cdf(d2), 'delta': delta, 'gamma': gamma, 'vega': vega}`,
+      r: `library(fOptions)\nGreeks(TypeFlag="c", S=100, X=100, Time=1, r=0.05, b=0.05, sigma=0.20)`,
+      ts: `import { blackScholesGreeks } from '@statlab/core';\nconst res = blackScholesGreeks({ S: 100, K: 100, T: 1.0, r: 0.05, sigma: 0.20, type: 'call' });`,
+    },
+    useCases: [
+      'Hedging option position sensitivities (Delta hedging, Gamma neutral strategies).',
+      'Extracting implied volatility surfaces from live market option quotes via Newton-Raphson inversion.'
+    ],
+    when: 'Use for analytical European option pricing and sensitivity risk attribution under geometric Brownian motion.',
+    cautions: [
+      'Assumes constant risk-free rate r and volatility σ over option lifespan.',
+      'For American options with early exercise rights, use binomial tree or finite difference models.'
+    ],
+    workbenchId: 'ts_black_scholes',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));

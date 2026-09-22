@@ -327,8 +327,28 @@ describe('SEO calculator pages', () => {
       'generalized-synthetic-control-gsc',
       'inverse-gaussian-wald-distribution',
       'generalized-hyperbolic-distribution',
+      'normal-inverse-gaussian-nig',
+      'johnson-su-bounded-unbounded',
+      'extreme-value-copula-gumbel-hougaard',
+      'joe-copula-upper-tail-dependence',
+      't-copula-heavy-tailed-joint-risk',
+      'vine-copula-d-vine-c-vine',
+      'fuzzy-c-means-clustering-fcm',
+      'hierarchical-clustering-cophenetic-correlation',
+      'dbscan-epsilon-minpts-reachability',
+      'optics-reachability-plot-clustering',
+      'local-outlier-factor-lof',
+      'isolation-forest-path-length',
+      'one-class-svm-decision-boundary',
+      'mahalanobis-taguchi-system-mts',
+      'ewma-volatility-riskmetrics',
+      'gjr-garch-asymmetric-leverage',
+      'figarch-fractionally-integrated-volatility',
+      'stochastic-volatility-heston-model',
+      'jump-diffusion-merton-model',
+      'black-scholes-greeks-implied-volatility',
     ]);
-    expect(calculatorPages.length).toBe(320);
+    expect(calculatorPages.length).toBe(340);
   });
 
   it('renders static HTML with canonical metadata, math formulas, code snippets, JSON-LD, and open CTAs', () => {
