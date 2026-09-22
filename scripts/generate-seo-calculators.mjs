@@ -4544,6 +4544,506 @@ export const calculatorPages = [
     ],
     workbenchId: 'anova_dunnett',
   },
+  {
+    slug: 'logistic-regression-odds-ratio',
+    title: 'Logistic regression log-odds to Odds Ratio (OR) calculator',
+    family: 'Regression & correlation',
+    description: 'Calculate Odds Ratios (OR), Wald z-statistics, p-values, and 95% profile-likelihood confidence intervals from logistic regression log-odds coefficients.',
+    keywords: ['logistic regression odds ratio', 'log odds to odds ratio', 'logistic OR confidence interval', 'logit coefficient conversion', 'logistic regression CI'],
+    inputs: ['Logit coefficient β', 'Standard Error SE(β)', 'Predictor step size Δx (default 1.0)'],
+    example: { a: ['Coefficient β = 0.693', 'SE(β) = 0.200', 'Step Δx = 1.0'], result: 'Odds Ratio OR = e^0.693 = 2.000 (95% CI: 1.352 – 2.959), Wald z = 3.465, p = .0005' },
+    formula: 'OR = e^{β · Δx}, 95% CI = e^{β · Δx ± 1.96 · SE(β) · Δx}',
+    code: {
+      python: `import numpy as np\nor_val = np.exp(beta)\nci = np.exp([beta - 1.96*se, beta + 1.96*se])`,
+      r: `exp(cbind(OR = coef(fit), confint(fit)))`,
+      ts: `import { logitOddsRatio } from '@statlab/core';\nconst res = logitOddsRatio({ beta: 0.693, se: 0.200 });`,
+    },
+    useCases: [
+      'Interpreting machine learning logistic regression model feature weights as multiplicative odds shifts.',
+      'Quantifying customer conversion probability changes per unit increase in product activity.'
+    ],
+    when: 'Use when converting binary outcome logistic regression coefficients into interpretable odds ratios.',
+    cautions: [
+      'An OR of 1.0 represents no effect (equal odds). OR > 1 indicates positive association; OR < 1 indicates negative association.',
+      'Odds ratios do not equal relative risk unless the outcome event is rare (< 10% baseline incidence).'
+    ],
+    workbenchId: 'reg_logit_or',
+  },
+  {
+    slug: 'cooks-distance-outliers',
+    title: "Cook's distance & leverage regression diagnostic calculator",
+    family: 'Statistical diagnostics & outlier tests',
+    description: "Calculate Cook's Distance (D_i), leverage (h_ii), and standardized residuals for identifying influential observations in linear regression.",
+    keywords: ["Cook's distance calculator", 'regression leverage h_ii', 'influential observation test', 'regression outlier diagnostic', 'Cooks D threshold'],
+    inputs: ['Standardized residual e_i', 'Leverage value h_ii', 'Number of predictors p', 'Sample size N'],
+    example: { a: ['Standardized residual e_i = 3.20', 'Leverage h_ii = 0.25', 'Predictors p = 3', 'Sample N = 50'], result: "Cook's Distance D_i = (3.20² / (3+1)) · (0.25 / (1 - 0.25)) = 2.560 · 0.333 = 0.853. Exceeds F_0.50 threshold." },
+    formula: 'D_i = (e_i² / (p + 1)) · (h_{ii} / (1 - h_{ii}))',
+    code: {
+      python: `import statsmodels.api as sm\ninfluence = fit.get_influence()\ncooks_d = influence.cooks_distance[0]`,
+      r: `cooks.distance(fit)`,
+      ts: `import { cooksDistance } from '@statlab/core';\nconst d = cooksDistance({ stdResidual: 3.20, leverage: 0.25, p: 3 });`,
+    },
+    useCases: [
+      'Detecting single influential data points that exert disproportionate leverage on regression slope estimates.',
+      'Cleaning telemetry dataset training data prior to deploying predictive regression models.'
+    ],
+    when: 'Use when auditing linear regression models for individual observations that heavily alter parameter estimates.',
+    cautions: [
+      "Cook's D values > 1.0 (or > 4/N) warrant investigation as potentially high-influence observations.",
+      'High leverage does not necessarily mean an observation is an outlier; it must also have a large residual.'
+    ],
+    workbenchId: 'diag_cooks_d',
+  },
+  {
+    slug: 'breusch-pagan-test',
+    title: 'Breusch-Pagan & Koenker test for heteroscedasticity calculator',
+    family: 'Statistical diagnostics & outlier tests',
+    description: 'Calculate Breusch-Pagan and Koenker (studentized) Lagrange multiplier test statistics for non-constant variance in regression residuals.',
+    keywords: ['Breusch-Pagan test calculator', 'Koenker test heteroscedasticity', 'heteroskedasticity test', 'LM test constant variance', 'BP test regression'],
+    inputs: ['Squared OLS residuals e_i²', 'Fitted values Ŷ_i (or auxiliary regression explanatory matrix X)', 'Sample size N'],
+    example: { a: ['Sample N = 100', 'Auxiliary regression R²_aux = 0.125', 'Predictor count p = 2'], result: 'Breusch-Pagan LM χ² = 100 · 0.125 = 12.50, df = 2, p = .0019. Significant heteroscedasticity present.' },
+    formula: 'LM = N · R²_{auxiliary}, evaluated against Chi-Square distribution with p df',
+    code: {
+      python: `from statsmodels.stats.diagnostic import het_breuschpagan\nlm, pval, fval, f_pval = het_breuschpagan(fit.resid, fit.model.exog)`,
+      r: `library(lmtest)\nbptest(fit)`,
+      ts: `import { breuschPagan } from '@statlab/core';\nconst res = breuschPagan(residuals, exogMatrix);`,
+    },
+    useCases: [
+      'Testing if regression error variance increases with larger predicted values or system load.',
+      'Determining whether heteroscedasticity-robust standard errors (HC1/HC3) are required.'
+    ],
+    when: 'Use when testing OLS regression assumption of homoscedasticity (constant residual variance).',
+    cautions: [
+      'Original Breusch-Pagan test assumes normal residuals; use the studentized Koenker version if residuals are non-normal.',
+      'Heteroscedasticity leaves OLS coefficients unbiased but invalidates standard errors and p-values.'
+    ],
+    workbenchId: 'diag_breusch_pagan',
+  },
+  {
+    slug: 'white-test-heteroscedasticity',
+    title: "White's test for general heteroscedasticity calculator",
+    family: 'Statistical diagnostics & outlier tests',
+    description: "Calculate White's test statistic (Lagrange Multiplier) testing non-linear and cross-product heteroscedasticity in regression residuals.",
+    keywords: ["White's test calculator", 'White heteroscedasticity test', 'non linear variance test', 'regression error variance test', 'White LM test'],
+    inputs: ['OLS residuals e_i', 'Full predictor matrix X including squares X_j² and cross-products X_j X_k'],
+    example: { a: ['Sample N = 150', 'Auxiliary regression with squares R²_aux = 0.180', 'Auxiliary terms k = 5'], result: "White's LM χ² = 150 · 0.180 = 27.00, df = 5, p = .0001. Heteroscedasticity confirmed." },
+    formula: 'LM = N · R²_{aux}, evaluated against Chi-Square with df equal to number of unique auxiliary terms',
+    code: {
+      python: `from statsmodels.stats.diagnostic import het_white\nlm, pval, fval, f_pval = het_white(fit.resid, fit.model.exog)`,
+      r: `library(lmtest)\nbptest(fit, ~ fitted(fit) + I(fitted(fit)^2))`,
+      ts: `import { whiteTest } from '@statlab/core';\nconst res = whiteTest(residuals, exogMatrix);`,
+    },
+    useCases: [
+      'Testing OLS error variance stability against unknown non-linear functions of explanatory variables.',
+      'Validating financial volatility regression model assumptions.'
+    ],
+    when: 'Use when testing for general heteroscedasticity without assuming a specific linear functional form for variance.',
+    cautions: [
+      "White's test can consume many degrees of freedom if the model has many predictors.",
+      'Can also detect model specification errors (omitted non-linear terms) rather than pure heteroscedasticity.'
+    ],
+    workbenchId: 'diag_white_test',
+  },
+  {
+    slug: 'goldfeld-quandt-test',
+    title: 'Goldfeld-Quandt variance ratio test calculator',
+    family: 'Statistical diagnostics & outlier tests',
+    description: 'Calculate Goldfeld-Quandt F-test ratio comparing residual variance between low-value and high-value subgroup samples.',
+    keywords: ['Goldfeld-Quandt test calculator', 'GQ test heteroscedasticity', 'variance ratio test regression', 'subgroup variance comparison', 'GQ test formula'],
+    inputs: ['Low subgroup sum of squared errors SSE₁ (df₁)', 'High subgroup sum of squared errors SSE₂ (df₂)', 'Omitted central observations c'],
+    example: { a: ['Subgroup 1 (Low X) SSE₁ = 45.0 (df₁ = 35)', 'Subgroup 2 (High X) SSE₂ = 180.0 (df₂ = 35)', 'Central omitted c = 20'], result: 'Variance Ratio F = (180.0/35) / (45.0/35) = 5.143 / 1.286 = 4.00, df = (35, 35), p < .0001' },
+    formula: 'F = (SSE₂ / df₂) / (SSE₁ / df₁), where df₁ = df₂ = (N - c - 2p) / 2',
+    code: {
+      python: `from statsmodels.stats.diagnostic import het_goldfeldquandt\nfval, pval, ordering = het_goldfeldquandt(fit.model.endog, fit.model.exog)`,
+      r: `library(lmtest)\ngqtest(fit)`,
+      ts: `import { goldfeldQuandt } from '@statlab/core';\nconst f = goldfeldQuandt(sse1, df1, sse2, df2);`,
+    },
+    useCases: [
+      'Testing if latency variance is significantly higher in heavy server load tiers versus low load tiers.',
+      'Evaluating homoscedasticity when data can be naturally ordered by a monotonic predictor.'
+    ],
+    when: 'Use when testing heteroscedasticity where variance is hypothesized to increase monotonically with an ordered predictor variable.',
+    cautions: [
+      'Omitting central 20% to 30% of observations (c ≈ N/5) increases test power.',
+      'Requires specifying the ordering variable beforehand.'
+    ],
+    workbenchId: 'diag_goldfeld_quandt',
+  },
+  {
+    slug: 'breusch-godfrey-test',
+    title: 'Breusch-Godfrey higher-order serial correlation LM test calculator',
+    family: 'Time series & econometrics',
+    description: 'Calculate Breusch-Godfrey Lagrange Multiplier (LM) test statistic for p-th order autocorrelation in regression residuals.',
+    keywords: ['Breusch-Godfrey test calculator', 'higher order serial correlation', 'LM autocorrelation test', 'BG test time series', 'p-th order AR residual test'],
+    inputs: ['OLS residuals e_t', 'Predictor matrix X', 'Lag order p', 'Sample size N'],
+    example: { a: ['Sample N = 120', 'Auxiliary regression R²_aux = 0.110 with p = 2 lags'], result: 'Breusch-Godfrey LM χ² = (120 - 2) · 0.110 = 12.98, df = 2, p = .0015. Significant 2nd-order autocorrelation.' },
+    formula: 'LM = (N - p) · R²_{auxiliary}, evaluated against Chi-Square distribution with p df',
+    code: {
+      python: `from statsmodels.stats.diagnostic import acorr_breusch_godfrey\nlm, pval, fval, f_pval = acorr_breusch_godfrey(fit, nlags=2)`,
+      r: `library(lmtest)\nbgtest(fit, order = 2)`,
+      ts: `import { breuschGodfrey } from '@statlab/core';\nconst res = breuschGodfrey(residuals, exogMatrix, 2);`,
+    },
+    useCases: [
+      'Testing higher-order serial correlation in microservice metric time series regressions.',
+      'Validating dynamic econometrics models where lagged dependent variables are present.'
+    ],
+    when: 'Use when testing for residual autocorrelation when lagged dependent variables are present or when testing higher-order AR(p) processes.',
+    cautions: [
+      'Unlike Durbin-Watson, Breusch-Godfrey remains valid when lagged Y values are included as predictors.',
+      'Tests for any AR(p) or MA(p) autocorrelation up to specified lag order p.'
+    ],
+    workbenchId: 'ts_breusch_godfrey',
+  },
+  {
+    slug: 'hansen-j-statistic',
+    title: "Hansen's J-statistic overidentifying restriction test calculator",
+    family: 'Advanced regression & econometrics',
+    description: "Calculate Hansen's J-statistic and p-value for testing overidentifying restrictions and instrument validity in GMM models.",
+    keywords: ["Hansen's J statistic calculator", 'GMM overidentification test', 'Hansen J test p-value', 'instrument validity GMM', 'Sargan Hansen test'],
+    inputs: ['GMM objective function value J (N · ḡ^T W ḡ)', 'Number of instruments L', 'Number of endogenous parameters k'],
+    example: { a: ['GMM Objective value J = 8.45', 'Instruments L = 5', 'Endogenous parameters k = 2'], result: 'Hansen J χ² = 8.45, df = 5 - 2 = 3, p = .0376. Rejects instrument validity at α = 0.05 level.' },
+    formula: 'J = N · ḡ(β̂)^T Ŵ ḡ(β̂), df = L - k',
+    code: {
+      python: `import linearmodels as lm\n# GMM Hansen J test output\nres = lm.IVGMM(dependent, exog, endog, instruments).fit()\nj_stat = res.j_stat`,
+      r: `library(gmm)\ngmm_fit <- gmm(g_form, x_data)\nspecTest(gmm_fit)`,
+      ts: `import { hansenJTest } from '@statlab/core';\nconst p = hansenJTest(8.45, 5, 2);`,
+    },
+    useCases: [
+      'Testing joint validity of multiple instrumental variables in Generalized Method of Moments (GMM) models.',
+      'Evaluating moment condition orthogonality in structural econometrics.'
+    ],
+    when: 'Use when assessing whether extra instrumental variables (L > k) are uncorrelated with model structural error terms.',
+    cautions: [
+      'Requires model to be overidentified (number of instruments L > number of estimated parameters k).',
+      'A significant J-statistic indicates either invalid instruments or model misspecification.'
+    ],
+    workbenchId: 'econ_hansen_j',
+  },
+  {
+    slug: 'sargan-test-overidentification',
+    title: 'Sargan test of overidentifying restrictions calculator',
+    family: 'Advanced regression & econometrics',
+    description: 'Calculate Sargan test chi-square statistic and p-value for instrument validity in 2SLS instrumental variable regression.',
+    keywords: ['Sargan test calculator', '2SLS overidentification test', 'Sargan test statistic', 'instrumental variable validation', '2SLS IV test'],
+    inputs: ['2SLS structural residuals e_IV', 'Full instrument matrix Z (L instruments)', 'Sample size N'],
+    example: { a: ['Sample N = 200', 'Auxiliary regression of e_IV on Z gives R² = 0.035', 'Instruments L = 4', 'Endogenous vars k = 1'], result: 'Sargan χ² = 200 · 0.035 = 7.00, df = 4 - 1 = 3, p = .0719. Instruments valid at α = 0.05 level.' },
+    formula: 'Sargan χ² = N · R²_{auxiliary}, df = L - k',
+    code: {
+      python: `import linearmodels.iv as iv\nres = iv.IV2SLS(y, exog, endog, instruments).fit()\nsargan = res.sargan`,
+      r: `library(AER)\nsummary(ivreg_fit, diagnostics = TRUE)`,
+      ts: `import { sarganTest } from '@statlab/core';\nconst res = sarganTest(residuals, instrumentMatrix, 1);`,
+    },
+    useCases: [
+      'Validating instrumental variable independence in two-stage least squares (2SLS) estimation.',
+      'Testing exogenous instrument requirements in causal inference regressions.'
+    ],
+    when: 'Use when evaluating instrument orthogonality under homoscedastic 2SLS error assumptions.',
+    cautions: [
+      'Sargan test assumes homoscedastic 2SLS errors; under heteroscedasticity, use Hansen’s J-statistic instead.',
+      'Requires at least one excess instrument (L > k).'
+    ],
+    workbenchId: 'econ_sargan',
+  },
+  {
+    slug: 'hausman-specification-test',
+    title: 'Hausman specification test (Fixed vs Random Effects) calculator',
+    family: 'Advanced regression & econometrics',
+    description: 'Calculate Hausman specification test statistic comparing Fixed Effects (FE) vs Random Effects (RE) panel regression models.',
+    keywords: ['Hausman test calculator', 'fixed vs random effects test', 'Hausman specification test', 'panel data model selection', 'FE RE Hausman test'],
+    inputs: ['Fixed Effects coefficients β_FE', 'Random Effects coefficients β_RE', 'Covariance matrices Var(β_FE), Var(β_RE)'],
+    example: { a: ['Difference vector d = β_FE - β_RE', 'Matrix diff Var(d) = Var(β_FE) - Var(β_RE)', 'Parameter count k = 3'], result: 'Hausman χ² = d^T [Var(d)]⁻¹ d = 14.82, df = 3, p = .0019. Reject RE; use Fixed Effects model.' },
+    formula: 'H = (β̂_{FE} - β̂_{RE})^T [ Var(β̂_{FE}) - Var(β̂_{RE}) ]^{-1} (β̂_{FE} - β̂_{RE}), df = k',
+    code: {
+      python: `import linearmodels.panel as panel\n# Compute Hausman test comparing PanelOLS vs RandomEffects`,
+      r: `library(plm)\nphtest(fe_fit, re_fit)`,
+      ts: `import { hausmanTest } from '@statlab/core';\nconst h = hausmanTest(betaFE, betaRE, covFE, covRE);`,
+    },
+    useCases: [
+      'Choosing between Fixed Effects and Random Effects models in longitudinal user panel data.',
+      'Testing if individual entity effects are correlated with regressor variables.'
+    ],
+    when: 'Use when determining whether Random Effects estimator is consistent in panel data econometrics.',
+    cautions: [
+      'If p < 0.05, reject Random Effects in favor of Fixed Effects.',
+      'Difference in covariance matrices must be positive definite; use Moore-Penrose pseudo-inverse if singular.'
+    ],
+    workbenchId: 'econ_hausman',
+  },
+  {
+    slug: 'pesaran-cd-dependence',
+    title: 'Pesaran CD cross-sectional dependence test calculator',
+    family: 'Advanced regression & econometrics',
+    description: 'Calculate Pesaran Cross-Sectional Dependence (CD) test statistic for testing cross-sectional correlation in panel time series data.',
+    keywords: ['Pesaran CD test calculator', 'cross sectional dependence panel', 'Pesaran test formula', 'panel correlation test', 'spatial panel dependence'],
+    inputs: ['Pairwise residual correlation matrix ρ_ij', 'Panel cross-sections N', 'Time periods T'],
+    example: { a: ['Panel N = 20 cross-sections', 'Time T = 50 periods', 'Mean pairwise correlation ρ̄ = 0.18'], result: 'Pesaran CD z = √(2·50 / (20·19)) · (∑ ∑ ρ_ij) = 4.32, p < .0001. Significant cross-sectional correlation.' },
+    formula: 'CD = √( (2 T) / (N (N - 1)) ) ∑_{i=1}^{N-1} ∑_{j=i+1}^N ρ_{ij}',
+    code: {
+      python: `import linearmodels.panel as panel\n# Pesaran CD test implementation`,
+      r: `library(plm)\npcdtest(panel_fit, test = "cd")`,
+      ts: `import { pesaranCD } from '@statlab/core';\nconst cd = pesaranCD(corrMatrix, N, T);`,
+    },
+    useCases: [
+      'Testing for spatial or regional metric interdependence across server nodes in cloud monitoring.',
+      'Evaluating cross-sectional correlation in financial asset return panels.'
+    ],
+    when: 'Use when testing for cross-sectional dependence in panel data with large N and small/medium T.',
+    cautions: [
+      'Standard panel estimators produce inconsistent standard errors if cross-sectional dependence is present.',
+      'CD test is robust to non-stationarity and structural breaks.'
+    ],
+    workbenchId: 'econ_pesaran_cd',
+  },
+  {
+    slug: 'dickey-fuller-gls-dfgls',
+    title: 'DF-GLS unit root stationarity test calculator',
+    family: 'Time series & econometrics',
+    description: 'Calculate Elliott-Rothenberg-Stock DF-GLS unit root test statistic for higher power stationarity testing with detrending.',
+    keywords: ['DF-GLS test calculator', 'Elliott Rothenberg Stock unit root', 'ERS DF-GLS test', 'detrended Dickey Fuller', 'stationarity test higher power'],
+    inputs: ['Time series vector Y_t', 'Trend option (Constant vs Constant + Trend)', 'Lag length p'],
+    example: { a: ['Series length N = 150', 'Trend: Constant + Linear Trend', 'Lag p = 2'], result: 'DF-GLS t-statistic = -3.42 (Critical 5% = -3.03). Reject unit root hypothesis; series is stationary.' },
+    formula: 'Standard ADF t-statistic on GLS detrended series y^d_t = y_t - z_t β̂_{GLS}',
+    code: {
+      python: `from arch.unitroot import DFGLS\nres = DFGLS(y, trend='ct').summary()`,
+      r: `library(urca)\nur.ers(y, type = "DF-GLS", model = "trend")`,
+      ts: `import { dfGlsTest } from '@statlab/core';\nconst res = dfGlsTest(series, { trend: 'ct', lags: 2 });`,
+    },
+    useCases: [
+      'Testing stationarity of server CPU utilization time series prior to ARIMA/GARCH modeling.',
+      'Evaluating unit roots in financial exchange rates with improved statistical power.'
+    ],
+    when: 'Use when conducting unit root tests with higher statistical power than standard Augmented Dickey-Fuller (ADF).',
+    cautions: [
+      'Uses modified AIC (MAIC) for optimal lag length selection.',
+      'More robust than standard ADF in small to medium sample sizes.'
+    ],
+    workbenchId: 'ts_dfgls',
+  },
+  {
+    slug: 'kpss-stationarity-test',
+    title: 'KPSS trend stationarity test calculator',
+    family: 'Time series & econometrics',
+    description: 'Calculate Kwiatkowski-Phillips-Schmidt-Shin (KPSS) test statistic for testing level or trend stationarity null hypothesis in time series.',
+    keywords: ['KPSS test calculator', 'KPSS stationarity test', 'trend stationarity test', 'KPSS critical values', 'unit root complement test'],
+    inputs: ['Time series vector Y_t', 'Regression model (Level vs Trend)', 'Newey-West bandwidth lag L'],
+    example: { a: ['Series length N = 200', 'Model: Constant + Linear Trend', 'KPSS LM statistic = 0.082'], result: 'KPSS LM = 0.082 < 0.146 (Critical 5%). Fail to reject null; series is trend stationary.' },
+    formula: 'LM = (1 / (N² s²(L))) ∑ S_t², where S_t = ∑_{i=1}^t e_i is partial sum of OLS residuals',
+    code: {
+      python: `from statsmodels.tsa.stattools import kpss\nstat, pval, lags, crit = kpss(y, regression='ct')`,
+      r: `library(tseries)\nkpss.test(y, null = "Trend")`,
+      ts: `import { kpssTest } from '@statlab/core';\nconst res = kpssTest(series, { regression: 'ct' });`,
+    },
+    useCases: [
+      'Complementing ADF/DF-GLS unit root tests to confirm true stationarity versus unit root non-stationarity.',
+      'Validating stationarity of telemetry error rates before fitting time series models.'
+    ],
+    when: 'Use when testing the null hypothesis that a time series is stationary (unlike ADF where null is unit root).',
+    cautions: [
+      'KPSS null is stationarity; ADF null is non-stationarity.',
+      'If ADF fails to reject unit root and KPSS rejects stationarity, the series is unit-root non-stationary.'
+    ],
+    workbenchId: 'ts_kpss',
+  },
+  {
+    slug: 'zivot-andrews-unit-root',
+    title: 'Zivot-Andrews structural break unit root test calculator',
+    family: 'Time series & econometrics',
+    description: 'Calculate Zivot-Andrews unit root test statistic allowing for an unknown single structural break in intercept or trend.',
+    keywords: ['Zivot Andrews test calculator', 'unit root structural break', 'Zivot Andrews test p value', 'stationarity with break', 'unknown break unit root'],
+    inputs: ['Time series vector Y_t', 'Break model (Intercept, Trend, or Both)', 'Max lag order p'],
+    example: { a: ['Series length N = 180', 'Break Model: Both (Intercept + Trend)', 'Break Point estimated at t = 105'], result: 'ZA t-statistic = -5.48 < -5.08 (Critical 5%). Reject unit root; stationary with structural break at t=105.' },
+    formula: 'Minimizes ADF t-statistic t_β(λ) over all candidate break points λ = T_b / T',
+    code: {
+      python: `from arch.unitroot import ZivotAndrews\nres = ZivotAndrews(y, trend='b').summary()`,
+      r: `library(urca)\nur.za(y, model = "both")`,
+      ts: `import { zivotAndrewsTest } from '@statlab/core';\nconst res = zivotAndrewsTest(series, { model: 'both' });`,
+    },
+    useCases: [
+      'Testing stationarity of cloud metric series experiencing an architectural deployment shift.',
+      'Evaluating economic time series stability across policy or market regime breaks.'
+    ],
+    when: 'Use when testing for unit roots in time series that may contain a single structural break in level or trend.',
+    cautions: [
+      'Standard ADF tests lose power and falsely fail to reject unit roots if a structural break is present.',
+      'Zivot-Andrews endogenously estimates the break point rather than imposing a fixed date.'
+    ],
+    workbenchId: 'ts_zivot_andrews',
+  },
+  {
+    slug: 'chow-test-structural-break',
+    title: 'Chow test structural break F-statistic calculator',
+    family: 'Time series & econometrics',
+    description: 'Calculate Chow test F-statistic for testing parameter equality and structural stability across two sub-period regression samples.',
+    keywords: ['Chow test calculator', 'structural break test', 'Chow F statistic', 'parameter stability test', 'regression split test'],
+    inputs: ['Pooled sum of squared errors SSE_P', 'Sub-period 1 SSE₁ (N₁ obs)', 'Sub-period 2 SSE₂ (N₂ obs)', 'Predictor count k'],
+    example: { a: ['Pooled SSE_P = 250.0 (N = 100)', 'Sub-period 1 SSE₁ = 90.0 (N₁ = 50)', 'Sub-period 2 SSE₂ = 110.0 (N₂ = 50)', 'Predictors k = 3'], result: 'Chow F = ((250.0 - (90+110)) / 3) / ((90+110) / (100 - 2·3)) = (50/3) / (200/94) = 16.67 / 2.128 = 7.83, p = .0001' },
+    formula: 'F = ( (SSE_P - (SSE₁ + SSE₂)) / k ) / ( (SSE₁ + SSE₂) / (N₁ + N₂ - 2k) )',
+    code: {
+      python: `import scipy.stats as stats\n# Compute Chow test F statistic from OLS fits`,
+      r: `library(strucchange)\nsctest(y ~ x, type = "Chow", point = 50)`,
+      ts: `import { chowTest } from '@statlab/core';\nconst f = chowTest({ ssePooled: 250, sse1: 90, sse2: 110, n1: 50, n2: 50, k: 3 });`,
+    },
+    useCases: [
+      'Testing if conversion regression parameters changed after a major software release.',
+      'Evaluating structural shift in server resource utilization models following hardware upgrades.'
+    ],
+    when: 'Use when testing whether regression coefficients are constant across two known sub-samples divided at a specified break date.',
+    cautions: [
+      'Assumes error variances are equal across both sub-periods (homoscedasticity across breaks).',
+      'Requires specifying the exact break point location in advance.'
+    ],
+    workbenchId: 'ts_chow_test',
+  },
+  {
+    slug: 'bds-test-independence',
+    title: 'BDS non-linear independence & chaos test calculator',
+    family: 'Time series & econometrics',
+    description: 'Calculate BDS (Broock, Dechert, Scheinkman) test statistic for non-linear independence and chaotic structure in time series residuals.',
+    keywords: ['BDS test calculator', 'BDS non linear independence', 'time series chaos test', 'm-history embedding distance', 'BDS test statistic'],
+    inputs: ['Residual series e_t', 'Embedding dimension m (2 to 5)', 'Distance threshold ε (standardized fraction of SD)'],
+    example: { a: ['Residual series length N = 300', 'Embedding dim m = 2', 'Distance ε = 0.70 · SD'], result: 'BDS z-statistic = 4.15, p < .0001. Rejects i.i.d. independence; non-linear structure present.' },
+    formula: 'W_{m,N}(ε) = √N · (C_{m,N}(ε) - C_{1,N}(ε)^m) / σ_{m,N}(ε) ~ N(0,1)',
+    code: {
+      python: `from statsmodels.tsa.stattools import bds\nbds_stat, pval = bds(e, max_dim=2, epsilon=0.7)`,
+      r: `library(tseries)\nbds.test(e, m = 2)`,
+      ts: `import { bdsTest } from '@statlab/core';\nconst res = bdsTest(residuals, { dim: 2, epsilon: 0.7 });`,
+    },
+    useCases: [
+      'Detecting remaining non-linear dependence in time series model residuals.',
+      'Testing for deterministic chaos and non-linear dynamics in financial market returns.'
+    ],
+    when: 'Use when testing the null hypothesis that a time series is independently and identically distributed (i.i.d.) against non-linear alternatives.',
+    cautions: [
+      'Sensitive to sample size N; works best for N ≥ 200.',
+      'Rejecting i.i.d. does not identify the specific non-linear form (GARCH, bilinear, chaotic, etc.).'
+    ],
+    workbenchId: 'ts_bds',
+  },
+  {
+    slug: 'diebold-mariano-test',
+    title: 'Diebold-Mariano forecast accuracy comparison test calculator',
+    family: 'Time series & econometrics',
+    description: 'Calculate Diebold-Mariano (DM) test statistic and Harvey-Leybourne-Newbold (HLN) small-sample adjusted test for equal predictive accuracy between two forecast models.',
+    keywords: ['Diebold-Mariano test calculator', 'forecast accuracy test', 'DM test statistic', 'HLN adjusted DM test', 'competing forecast comparison'],
+    inputs: ['Forecast errors e₁_t (Model 1)', 'Forecast errors e₂_t (Model 2)', 'Loss function (MSE default)', 'Forecast horizon h'],
+    example: { a: ['Model 1 MSE = 14.5', 'Model 2 MSE = 18.2', 'Evaluation periods N = 100', 'Horizon h = 1'], result: 'Loss diff d̄ = -3.70, DM z-statistic = -2.85, p = .0044. Model 1 is significantly more accurate.' },
+    formula: 'DM = d̄ / √( V̂(d̄) / N ) ~ N(0,1), where d_t = g(e_{1t}) - g(e_{2t})',
+    code: {
+      python: `import numpy as np\n# Compute Diebold-Mariano z statistic with Newey-West variance`,
+      r: `library(forecast)\ndm.test(e1, e2, h = 1, power = 2)`,
+      ts: `import { dieboldMariano } from '@statlab/core';\nconst res = dieboldMariano(errors1, errors2, { h: 1, loss: 'mse' });`,
+    },
+    useCases: [
+      'Evaluating whether a new machine learning forecast model significantly outperforms a baseline ARIMA model.',
+      'Comparing predictive accuracy of competing capacity planning models.'
+    ],
+    when: 'Use when comparing the forecast accuracy of two competing time series forecasting models over a test horizon.',
+    cautions: [
+      'Use Harvey-Leybourne-Newbold (HLN) modified statistic for small samples (N < 50).',
+      'Requires non-nested forecasting models for exact standard normal asymptotic distribution.'
+    ],
+    workbenchId: 'ts_diebold_mariano',
+  },
+  {
+    slug: 'mendershausen-overlap-coefficient',
+    title: 'Overlapping Coefficient (OVL) distribution similarity calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate the Overlapping Coefficient (OVL) measuring the common area under two probability density functions or empirical histograms.',
+    keywords: ['Overlapping Coefficient calculator', 'OVL distribution overlap', 'density area overlap', 'Mendershausen OVL', 'histogram overlap metric'],
+    inputs: ['Distribution / Histogram P', 'Distribution / Histogram Q'],
+    example: { a: ['Histogram P (Group 1)', 'Histogram Q (Group 2)', 'Bin resolution = 50 bins'], result: 'Overlapping Coefficient OVL = 0.765 (76.5% density area overlap). Range 0 (disjoint) to 1 (identical).' },
+    formula: 'OVL = ∫ min(f_1(x), f_2(x)) dx = ∑ min(p_i, q_i)',
+    code: {
+      python: `import numpy as np\novl = np.sum(np.minimum(p, q))`,
+      r: `library(overlapping)\noverlap(x = list(x1, x2))$OV`,
+      ts: `import { overlapCoefficient } from '@statlab/core';\nconst ovl = overlapCoefficient(histP, histQ);`,
+    },
+    useCases: [
+      'Quantifying overlap magnitude between control and treatment response time distributions in A/B testing.',
+      'Measuring demographic cohort distribution similarity in user research.'
+    ],
+    when: 'Use when calculating intuitive percentage area overlap between two continuous distributions.',
+    cautions: [
+      'OVL is non-parametric and invariant to monotonic scale transformations of X.',
+      'Ranges strictly between 0 (completely separate distributions) and 1 (identical distributions).'
+    ],
+    workbenchId: 'dist_ovl',
+  },
+  {
+    slug: 'mood-median-test',
+    title: "Mood's median test multi-sample equality calculator",
+    family: 'Resampling & non-parametric tests',
+    description: "Calculate Mood's median test chi-square statistic, degrees of freedom, and p-value for testing median equality across k independent samples.",
+    keywords: ["Mood's median test calculator", 'multi-group median test', 'non parametric median comparison', 'Mood median chi-square', 'k-sample median test'],
+    inputs: ['k independent sample vectors X₁, X₂, ..., X_k'],
+    example: { a: ['3 Groups (n₁=20, n₂=20, n₃=20)', 'Combined Grand Median = 45.0'], result: "Mood's χ² = 7.33, df = 2, p = .0256. Medians differ significantly across groups." },
+    formula: 'χ² = ∑ ( (O_i - E_i)² / E_i ) on 2 × k table of counts above/below grand median',
+    code: {
+      python: `from scipy import stats\nstat, pval, med, tbl = stats.median_test(group1, group2, group3)`,
+      r: `mood.test(group1, group2)`,
+      ts: `import { moodMedianTest } from '@statlab/core';\nconst res = moodMedianTest([g1, g2, g3]);`,
+    },
+    useCases: [
+      'Comparing median latency across 3 or more server clusters when data contains severe outliers.',
+      'Evaluating non-parametric median differences across independent user experiment groups.'
+    ],
+    when: 'Use when testing if k independent samples have the same median when data is heavy-tailed or contains severe outliers.',
+    cautions: [
+      "Mood's test is more robust to extreme outliers than Kruskal-Wallis but has lower statistical power for continuous data.",
+      'Requires cell expected frequencies in 2 × k table to be ≥ 5.'
+    ],
+    workbenchId: 'stat_mood_median',
+  },
+  {
+    slug: 'brown-forsythe-test',
+    title: 'Brown-Forsythe robust variance homogeneity test calculator',
+    family: 'Statistical diagnostics & outlier tests',
+    description: 'Calculate Brown-Forsythe ANOVA F-statistic for testing homoscedasticity across k groups using median absolute deviations.',
+    keywords: ['Brown-Forsythe test calculator', 'robust Levene test', 'variance homogeneity median', 'Brown Forsythe F test', 'heteroscedasticity group test'],
+    inputs: ['k group data vectors X₁, X₂, ..., X_k'],
+    example: { a: ['3 Groups (n₁=25, n₂=25, n₃=25)', 'Group Medians M₁=12.0, M₂=14.5, M₃=18.0'], result: 'Brown-Forsythe F = 2.45, df = (2, 72), p = .0934. Variance homogeneity supported.' },
+    formula: 'One-way ANOVA F-test on transformed variables z_{ij} = |x_{ij} - M_i|, where M_i is group median',
+    code: {
+      python: `from scipy import stats\nstat, pval = stats.levene(g1, g2, g3, center='median')`,
+      r: `library(car)\nleveneTest(y ~ group, data = df, center = median)`,
+      ts: `import { brownForsytheTest } from '@statlab/core';\nconst res = brownForsytheTest([g1, g2, g3]);`,
+    },
+    useCases: [
+      'Verifying homoscedasticity before running ANOVA when group distributions are skewed or heavy-tailed.',
+      'Comparing performance metric variance across multiple deployment regions.'
+    ],
+    when: 'Use when testing for equality of variances across k groups when sample data is non-normally distributed or skewed.',
+    cautions: [
+      'More robust than standard Levene test (which uses means) when group distributions are asymmetric.',
+      'Recommended over Bartlett test whenever normality cannot be guaranteed.'
+    ],
+    workbenchId: 'diag_brown_forsythe',
+  },
+  {
+    slug: 'fligner-killeen-test',
+    title: 'Fligner-Killeen non-parametric variance homogeneity test calculator',
+    family: 'Statistical diagnostics & outlier tests',
+    description: 'Calculate Fligner-Killeen median-ranked chi-square test statistic for non-parametric variance homogeneity across k groups.',
+    keywords: ['Fligner-Killeen test calculator', 'non parametric variance test', 'Fligner Killeen chi-square', 'ranked variance test', 'homogeneity of variance ranks'],
+    inputs: ['k group sample vectors X₁, X₂, ..., X_k'],
+    example: { a: ['4 Groups (n=15 each)', 'Total N = 60'], result: 'Fligner-Killeen χ² = 9.85, df = 3, p = .0199. Significant variance heterogeneity across groups.' },
+    formula: 'χ²_{FK} = ∑ n_i (ā_i - ā)² / s_a², where a_i are normal scores of ranked |x_{ij} - M_i|',
+    code: {
+      python: `from scipy import stats\nstat, pval = stats.fligner(g1, g2, g3, g4)`,
+      r: `fligner.test(y ~ group, data = df)`,
+      ts: `import { flignerKilleenTest } from '@statlab/core';\nconst res = flignerKilleenTest([g1, g2, g3, g4]);`,
+    },
+    useCases: [
+      'Testing homoscedasticity across groups when samples are non-normal and contain severe outliers.',
+      'Checking non-parametric variance equality before applying non-parametric rank tests.'
+    ],
+    when: 'Use when testing for equal group variances with maximum robustness against non-normality and extreme outliers.',
+    cautions: [
+      'One of the most robust tests for variance homogeneity available.',
+      'Uses normal scores of ranks of absolute deviations from group medians.'
+    ],
+    workbenchId: 'diag_fligner_killeen',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));

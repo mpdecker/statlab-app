@@ -187,8 +187,28 @@ describe('SEO calculator pages', () => {
       'cohen-w-chi-square-effect',
       'cohen-f2-regression-effect',
       'dunnett-test-control',
+      'logistic-regression-odds-ratio',
+      'cooks-distance-outliers',
+      'breusch-pagan-test',
+      'white-test-heteroscedasticity',
+      'goldfeld-quandt-test',
+      'breusch-godfrey-test',
+      'hansen-j-statistic',
+      'sargan-test-overidentification',
+      'hausman-specification-test',
+      'pesaran-cd-dependence',
+      'dickey-fuller-gls-dfgls',
+      'kpss-stationarity-test',
+      'zivot-andrews-unit-root',
+      'chow-test-structural-break',
+      'bds-test-independence',
+      'diebold-mariano-test',
+      'mendershausen-overlap-coefficient',
+      'mood-median-test',
+      'brown-forsythe-test',
+      'fligner-killeen-test',
     ]);
-    expect(calculatorPages.length).toBe(180);
+    expect(calculatorPages.length).toBe(200);
   });
 
   it('renders static HTML with canonical metadata, math formulas, code snippets, JSON-LD, and open CTAs', () => {
