@@ -3,9 +3,9 @@ import React from 'react';
 import { describe, test, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import {
-  ViolinPlot, BoxPlot, BarCI, HeatmapCorr, QuickSlopes, IRTCurves,
+  ViolinPlot, BoxPlot, BoxPlotGrid, BarCI, HeatmapCorr, QuickSlopes, IRTCurves,
   QQPlot, ResidualPlot, PowerCurve, ScreePlot, LCAProfiles, SpaghettiPlot,
-  ITSPlot, RDPlot, BootstrapHist, MDSPlot,
+  ITSPlot, RDPlot, BootstrapHist, MDSPlot, MAX_CHART_GROUPS,
 } from './charts.jsx';
 
 describe('charts', () => {
@@ -17,6 +17,32 @@ describe('charts', () => {
   test('BoxPlot renders median line', () => {
     const { container } = render(<BoxPlot data={[1, 2, 3, 4, 5]} width={200} height={80} />);
     expect(container.querySelector('[data-testid="median"]')).toBeTruthy();
+  });
+
+  test('BoxPlotGrid renders one box per group when group count is within the cap', () => {
+    // Regression: diamonds' `cut` (Fair/Good/Very Good/Premium/Ideal, 5
+    // levels) used to lose whichever category appeared 5th in the data's
+    // first-occurrence order, because the group list was capped at 4 with
+    // no indication anything was hidden.
+    const data = ['a', 'b', 'c', 'd', 'e'].flatMap((g) =>
+      [1, 2, 3].map((y) => ({ g, y }))
+    );
+    const { container, queryByText } = render(
+      <BoxPlotGrid data={data} groupVar="g" yVar="y" width={400} height={150} />
+    );
+    expect(container.querySelectorAll('svg').length).toBe(5);
+    expect(queryByText(/more not shown/)).toBeFalsy();
+  });
+
+  test('BoxPlotGrid truncates and labels the overflow when group count exceeds the cap', () => {
+    const data = Array.from({ length: MAX_CHART_GROUPS + 3 }, (_, i) => `g${i}`).flatMap((g) =>
+      [1, 2, 3].map((y) => ({ g, y }))
+    );
+    const { container, getByText } = render(
+      <BoxPlotGrid data={data} groupVar="g" yVar="y" width={400} height={150} />
+    );
+    expect(container.querySelectorAll('svg').length).toBe(MAX_CHART_GROUPS);
+    expect(getByText('+3 more not shown')).toBeTruthy();
   });
 
   test('BarCI renders a BarChart', () => {

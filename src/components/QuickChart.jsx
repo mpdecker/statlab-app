@@ -2,7 +2,7 @@ import {
   QuickScatter, QuickScatterFit, ViolinPlot, BarCI, HistogramDensity, HeatmapCorr, MosaicPlot,
   PowerCurve, PathDiagram, ForestPlot, QQPlot, ScreePlot, ResidualPlot, BootstrapHist,
   QuickSlopes, BoxPlotGrid, IRTCurves, LCAProfiles, SpaghettiPlot, CaterpillarPlot,
-  ITSPlot, RDPlot, SociogramPlot, TimeSeriesChart, MDSPlot,
+  ITSPlot, RDPlot, SociogramPlot, TimeSeriesChart, MDSPlot, MAX_CHART_GROUPS,
 } from './charts.jsx';
 import { C } from '../palette.js';
 import {
@@ -19,19 +19,26 @@ export default function QuickChart({ mode, data, xVar, yVar, colorVar, ds, color
   switch (mode) {
     case 'violin': {
       const gVar = colorVar && colorVar !== '(none)' ? colorVar : null;
-      const gList = gVar ? [...new Set(data.map(r => r[gVar]))].slice(0, 4) : ['all'];
+      const allGroups = gVar ? [...new Set(data.map(r => r[gVar]))] : ['all'];
+      const gList = allGroups.slice(0, MAX_CHART_GROUPS);
+      const hiddenCount = allGroups.length - gList.length;
       const violinW = Math.max(60, Math.floor(canvasSize.w / gList.length) - 8);
       return (
-        <div style={{ display: 'flex', gap: 4, height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-          {gList.map(g => (
-            <div key={g} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 8, color: C.dim }}>{g}</div>
-              <ViolinPlot
-                data={(gVar ? data.filter(r => r[gVar] === g) : data).map(r => +r[yVar]).filter(Number.isFinite)}
-                width={violinW} height={canvasSize.h}
-              />
-            </div>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div style={{ display: 'flex', flex: 1, gap: 4, alignItems: 'center', justifyContent: 'center' }}>
+            {gList.map(g => (
+              <div key={g} style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: 8, color: C.dim }} title={String(g)}>{g}</div>
+                <ViolinPlot
+                  data={(gVar ? data.filter(r => r[gVar] === g) : data).map(r => +r[yVar]).filter(Number.isFinite)}
+                  width={violinW} height={canvasSize.h}
+                />
+              </div>
+            ))}
+          </div>
+          {hiddenCount > 0 && (
+            <div style={{ fontSize: 7, color: C.dim, ...mono, textAlign: 'center' }}>+{hiddenCount} more not shown</div>
+          )}
         </div>
       );
     }

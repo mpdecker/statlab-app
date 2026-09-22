@@ -4,6 +4,7 @@ import { describe, test, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import QuickChart from './QuickChart.jsx';
 import { CHART_MODE_LABELS } from '../utils/vizHelpers.js';
+import { MAX_CHART_GROUPS } from './charts.jsx';
 
 const VIOLIN_DATA = [
   { g: 'a', y: 1 }, { g: 'a', y: 2 }, { g: 'a', y: 3 },
@@ -60,6 +61,34 @@ describe('QuickChart', () => {
       expect(() => render(<QuickChart {...props} />)).not.toThrow();
     });
   }
+});
+
+describe('QuickChart violin grouping', () => {
+  // Regression for the same silently-dropped-category bug covered in
+  // charts.test.jsx for BoxPlotGrid: gapminder's `continent` (Asia/Europe/
+  // Africa/Americas/Oceania, 5 levels) is a default color var too, so this
+  // isn't a diamonds-only edge case.
+  test('renders one violin per group when group count is within the cap', () => {
+    const data = ['a', 'b', 'c', 'd', 'e'].flatMap((g) =>
+      [1, 2, 3, 4, 5].map((y) => ({ g, y }))
+    );
+    const { container, queryByText } = render(
+      <QuickChart mode="violin" data={data} colorVar="g" yVar="y" />
+    );
+    expect(container.querySelectorAll('svg').length).toBe(5);
+    expect(queryByText(/more not shown/)).toBeFalsy();
+  });
+
+  test('truncates and labels the overflow when group count exceeds the cap', () => {
+    const data = Array.from({ length: MAX_CHART_GROUPS + 2 }, (_, i) => `g${i}`).flatMap((g) =>
+      [1, 2, 3, 4, 5].map((y) => ({ g, y }))
+    );
+    const { container, getByText } = render(
+      <QuickChart mode="violin" data={data} colorVar="g" yVar="y" />
+    );
+    expect(container.querySelectorAll('svg').length).toBe(MAX_CHART_GROUPS);
+    expect(getByText('+2 more not shown')).toBeTruthy();
+  });
 });
 
 describe('QuickChart sizing', () => {

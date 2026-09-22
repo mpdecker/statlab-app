@@ -10,6 +10,10 @@ import { CTip } from './ui.jsx';
 import { fitOLS } from '../utils/vizHelpers.js';
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+// Categorical grouping vars this app ships with top out at 7 levels
+// (diamonds' `color`); 8 covers every built-in dataset without a group
+// silently vanishing from the chart.
+export const MAX_CHART_GROUPS = 8;
 
 // ── t-distribution visualizer ─────────────────────────────────────────────────
 export function TDistViz({ t, df, alpha = .05, t2 = null }) {
@@ -326,20 +330,27 @@ export function QuickSlopes({ slopes, width = 210, height = 120 }) {
 
 export function BoxPlotGrid({ data, groupVar, yVar, width = 210, height = 150 }) {
   if (!data?.length || !groupVar || groupVar === '(none)' || !yVar) return null;
-  const groups = [...new Set(data.map(r => r[groupVar]))].slice(0, 4);
+  const allGroups = [...new Set(data.map(r => r[groupVar]))];
+  const groups = allGroups.slice(0, MAX_CHART_GROUPS);
+  const hiddenCount = allGroups.length - groups.length;
   const gw = Math.max(48, Math.floor((width - 8) / groups.length) - 4);
   return (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-      {groups.map((g, i) => (
-        <div key={g} style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 7, color: C.dim, ...mono, marginBottom: 2 }}>{String(g).slice(0, 8)}</div>
-          <BoxPlot
-            data={data.filter(r => r[groupVar] === g).map(r => +r[yVar]).filter(Number.isFinite)}
-            width={gw} height={height - 14}
-            color={PAL[i % PAL.length]}
-          />
-        </div>
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'flex', flex: 1, gap: 4, alignItems: 'center', justifyContent: 'center' }}>
+        {groups.map((g, i) => (
+          <div key={g} style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 7, color: C.dim, ...mono, marginBottom: 2 }} title={String(g)}>{String(g).slice(0, 10)}</div>
+            <BoxPlot
+              data={data.filter(r => r[groupVar] === g).map(r => +r[yVar]).filter(Number.isFinite)}
+              width={gw} height={height - 14}
+              color={PAL[i % PAL.length]}
+            />
+          </div>
+        ))}
+      </div>
+      {hiddenCount > 0 && (
+        <div style={{ fontSize: 7, color: C.dim, ...mono, textAlign: 'center' }}>+{hiddenCount} more not shown</div>
+      )}
     </div>
   );
 }
