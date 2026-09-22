@@ -6072,6 +6072,520 @@ export const calculatorPages = [
     ],
     workbenchId: 'spc_tolerance_interval',
   },
+
+  // --- SPATIAL POINT PROCESSES & GEOSTATISTICAL MODELING FAMILY ---
+  {
+    slug: 'marked-point-pattern-cross-k-function',
+    title: 'Marked Point Pattern Cross-K function calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate Marked Point Pattern Cross-K_{ij}(r) and Cross-L_{ij}(r) functions for spatial attraction or repulsion between two distinct event types i and j.',
+    keywords: ['cross K function calculator', 'marked point pattern', 'spatial attraction repulsion', 'multitype point pattern', 'cross L function'],
+    inputs: ['Spatial coordinates (X, Y)', 'Mark type labels (Type A vs Type B)', 'Distance radii r'],
+    example: { a: ['N_A = 40 Type A events, N_B = 60 Type B events', 'Area = 100x100'], result: 'Cross-L_{AB}(r=15) = +4.18 > 0 (Significant spatial co-location / attraction between Type A and Type B events).' },
+    formula: 'K_{ij}(r) = (A / (N_i N_j)) ∑_{m ∈ i} ∑_{n ∈ j} w(x_m, x_n) I(d_{mn} ≤ r), L_{ij}(r) = √(K_{ij}(r)/π) - r',
+    code: {
+      python: `from pointpats import k_function\n# Compute cross K function between type A and type B spatial points`,
+      r: `library(spatstat)\nplot(Kcross(multitype_ppp, i="A", j="B"))`,
+      ts: `import { crossKFunction } from '@statlab/core';\nconst res = crossKFunction(pointsA, pointsB, radii, bounds);`,
+    },
+    useCases: [
+      'Evaluating spatial co-location or avoidance between two distinct node types (e.g. primary databases vs edge read replicas).',
+      'Testing spatial interaction between different disease or crime categories in GIS spatial analysis.'
+    ],
+    when: 'Use when analyzing spatial interaction or clustering between two different classes/types of 2D point locations.',
+    cautions: [
+      'Requires isotropic edge correction for accurate estimation near spatial study boundaries.',
+      'Cross-L(r) > 0 indicates spatial attraction; Cross-L(r) < 0 indicates spatial repulsion/independence.'
+    ],
+    workbenchId: 'spatial_cross_k',
+  },
+  {
+    slug: 'spatial-kriging-interpolation-variance',
+    title: 'Ordinary Kriging spatial interpolation variance calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate Ordinary Kriging spatial prediction z*(s_0) and Kriging estimation variance σ²_k(s_0) given variogram model parameters.',
+    keywords: ['Kriging interpolation calculator', 'Ordinary Kriging variance', 'spatial prediction error', 'variogram Kriging weights', 'spatial estimation variance'],
+    inputs: ['Sample coordinates and Z values', 'Target prediction coordinate s_0', 'Fitted variogram parameters (Nugget, Sill, Range)'],
+    example: { a: ['N = 20 spatial sensors', 'Target point s_0 = (45.2, 12.8)'], result: 'Kriged Estimate z*(s_0) = 48.25, Kriging Standard Error σ_k(s_0) = 2.14.' },
+    formula: 'z*(s_0) = ∑ λ_i z(s_i) s.t. ∑ λ_i = 1; Kriging Variance σ²_k(s_0) = γ_0^T λ + μ',
+    code: {
+      python: `from pykrige.ok import OrdinaryKriging\nOK = OrdinaryKriging(x, y, z, variogram_model='spherical')\nz_pred, ss_var = OK.execute('point', target_x, target_y)`,
+      r: `library(gstat)\nkrige(z ~ 1, locations = sample_sp, newdata = target_sp, model = variogram_model)`,
+      ts: `import { ordinaryKriging } from '@statlab/core';\nconst res = ordinaryKriging(samples, targetCoord, variogramModel);`,
+    },
+    useCases: [
+      'Interpolating continuous spatial surfaces (temperature, air quality, network latency) with rigorous variance confidence bounds.',
+      'Optimizing spatial sensor placement by identifying locations with maximum Kriging variance.'
+    ],
+    when: 'Use for best linear unbiased spatial prediction (BLUP) when spatial sample locations exhibit spatial autocorrelation.',
+    cautions: [
+      'Kriging variance depends on spatial sample geometry and variogram structure, not on actual data values at target s_0.',
+      'Assumes intrinsic stationarity of the spatial process.'
+    ],
+    workbenchId: 'spatial_ordinary_kriging',
+  },
+  {
+    slug: 'spatial-error-lag-regression',
+    title: 'Spatial Error and Spatial Lag (SAR/SEM) regression calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate Spatial Lag Model (SAR) spatial autoregressive coefficient rho (ρ) and Spatial Error Model (SEM) lambda (λ) regression parameters.',
+    keywords: ['spatial regression calculator', 'spatial lag model SAR', 'spatial error model SEM', 'spatial autoregression rho', 'spatial weight regression'],
+    inputs: ['Response vector Y', 'Predictor matrix X', 'Spatial weight matrix W (row-standardized)'],
+    example: { a: ['Spatial units N = 50', 'Row-standardized weight matrix W'], result: 'Spatial Lag SAR ρ = +0.382 (p = .0014), Predictor β_1 = +1.85 (p = .0002). Lagrange Multiplier test favors Spatial Lag.' },
+    formula: 'SAR: Y = ρ W Y + X β + ε; SEM: Y = X β + u, u = λ W u + ε',
+    code: {
+      python: `from pysal.model import spreg\nmodel = spreg.ML_Lag(y, x, w=w)\nprint(f"rho={model.rho:.4f}, p={model.z_stat[1][1]:.4f}")`,
+      r: `library(spatialreg)\nlagsarlm(y ~ x, data = df, listw = spatial_weights)`,
+      ts: `import { spatialRegression } from '@statlab/core';\nconst res = spatialRegression(vectorY, matrixX, weightMatrix, { type: 'lag' });`,
+    },
+    useCases: [
+      'Modeling economic or regional metrics where outcome at location i directly influences outcome at neighbor location j.',
+      'Eliminating spatial autocorrelation bias from regression model coefficients.'
+    ],
+    when: 'Use when standard OLS residuals exhibit spatial autocorrelation (violating independence assumption).',
+    cautions: [
+      'Use Lagrange Multiplier (LM) diagnostics to select between Spatial Lag (SAR) and Spatial Error (SEM) specifications.',
+      'OLS estimates are biased and inconsistent under spatial lag dependencies.'
+    ],
+    workbenchId: 'spatial_sar_sem_reg',
+  },
+
+  // --- STRUCTURAL EQUATION MODELING (SEM) & FACTOR ANALYSIS FAMILY ---
+  {
+    slug: 'confirmatory-factor-analysis-cfa-fit',
+    title: 'Confirmatory Factor Analysis (CFA) fit indices calculator',
+    family: 'Multivariate & Dimensionality Reduction',
+    description: 'Calculate Confirmatory Factor Analysis (CFA) overall fit statistics: Chi-square (χ²), CFI, TLI, RMSEA (with 90% CI), and SRMR.',
+    keywords: ['CFA calculator', 'confirmatory factor analysis fit', 'CFI TLI RMSEA calculator', 'structural model fit', 'CFA fit indices'],
+    inputs: ['Sample covariance matrix S', 'Model implied covariance matrix Σ(θ)', 'Sample size N', 'Model degrees of freedom df'],
+    example: { a: ['N = 300, df = 42', 'CFA Model'], result: 'χ² = 58.4 (p = .048), CFI = 0.982, TLI = 0.976, RMSEA = 0.036 [0.008, 0.058], SRMR = 0.028 (Excellent model fit).' },
+    formula: 'CFI = 1 - max(χ²_m - df_m, 0) / max(χ²_null - df_null, 0), RMSEA = √[ max(χ²_m - df_m, 0) / (df_m (N - 1)) ]',
+    code: {
+      python: `from semopy import Model\nmodel = Model(cfa_spec)\nmodel.fit(data)\nfrom semopy.stats import calc_stats\nstats = calc_stats(model)`,
+      r: `library(lavaan)\nfit <- cfa(cfa_spec, data = df)\nfitMeasures(fit, c("chisq", "cfi", "tli", "rmsea", "srmr"))`,
+      ts: `import { cfaFitIndices } from '@statlab/core';\nconst fit = cfaFitIndices(sampleCov, modelCov, { n: 300, df: 42 });`,
+    },
+    useCases: [
+      'Testing construct validity of psychometric measurement scales and questionnaire factor structures.',
+      'Evaluating structural model fit in software engineering human factors and UX research.'
+    ],
+    when: 'Use when validating an a priori factor structure theory against observed sample covariance data.',
+    cautions: [
+      'CFI/TLI > 0.95 and RMSEA < 0.06 indicate good model fit.',
+      'Chi-square statistic χ² is sensitive to large sample sizes (N > 400 routinely rejects H₀).'
+    ],
+    workbenchId: 'sem_cfa_fit',
+  },
+  {
+    slug: 'bifactor-model-omega-hierarchical',
+    title: 'Bifactor Model general vs group factor decomposition calculator',
+    family: 'Multivariate & Dimensionality Reduction',
+    description: 'Calculate Bifactor Model factor loadings, variance explained by general factor (ECV), Omega Hierarchical (ω_h), and Omega Subscale (ω_s).',
+    keywords: ['bifactor model calculator', 'ECV explained common variance', 'omega hierarchical bifactor', 'general vs group factor', 'bifactor factor analysis'],
+    inputs: ['Standardized factor loading matrix (General factor λ_g, Specific group factors λ_s)'],
+    example: { a: ['12 Items, 1 General Factor + 3 Specific Group Factors'], result: 'Explained Common Variance ECV = 72.4%, Omega Hierarchical ω_h = 0.825, Group Factor ω_s = [0.18, 0.22, 0.15].' },
+    formula: 'ECV = ∑ λ_{g,i}² / [ ∑ λ_{g,i}² + ∑ λ_{s,i}² ], ω_h = (∑ λ_{g,i})² / Var(Total)',
+    code: {
+      python: `import factor_analyzer\n# Fit bifactor rotation model and compute ECV and Omega Hierarchical`,
+      r: `library(psych)\nomega(correlation_matrix, nfactors = 3, rotate = "bifactor")`,
+      ts: `import { bifactorDecomposition } from '@statlab/core';\nconst res = bifactorDecomposition(generalLoadings, specificLoadingsMatrix);`,
+    },
+    useCases: [
+      'Determining whether a multidimensional scale is sufficiently unidimensional (ECV > 0.70) to score as a single total sum.',
+      'Decomposing total score variance into general domain capability vs specific sub-skill components.'
+    ],
+    when: 'Use when evaluating items that measure both a dominant general construct and specific narrow sub-domain facets.',
+    cautions: [
+      'General factor loadings λ_g and specific factor loadings λ_s must be orthogonal (uncorrelated).',
+      'ECV > 0.70 and ω_h > 0.80 support treating the scale as essentially unidimensional.'
+    ],
+    workbenchId: 'sem_bifactor_model',
+  },
+  {
+    slug: 'latent-growth-curve-model',
+    title: 'Latent Growth Curve Model (LGCM) trajectory calculator',
+    family: 'Multivariate & Dimensionality Reduction',
+    description: 'Calculate Latent Growth Curve Model (LGCM) mean initial status (intercept), mean growth rate (slope), and intercept-slope covariance.',
+    keywords: ['latent growth curve model', 'LGCM calculator', 'longitudinal trajectory model', 'growth intercept slope', 'repeated measures SEM'],
+    inputs: ['Repeated measurement longitudinal matrix Y (T time points)', 'Time point loadings t_k (e.g. 0, 1, 2, 3)'],
+    example: { a: ['N = 200 subjects, T = 4 annual time points'], result: 'Mean Intercept μ_I = 45.2 (p < .001), Mean Slope μ_S = +3.85/yr (p < .001), Intercept-Slope Covariance σ_{IS} = -2.14.' },
+    formula: 'y_{it} = η_{0i} + λ_t η_{1i} + ε_{it}, where η_{0i} ~ N(μ_I, σ²_I), η_{1i} ~ N(μ_S, σ²_S)',
+    code: {
+      python: `from semopy import Model\nmodel = Model("i =~ 1*y1 + 1*y2 + 1*y3; s =~ 0*y1 + 1*y2 + 2*y3")\nmodel.fit(data)`,
+      r: `library(lavaan)\nmodel <- ' i =~ 1*y1 + 1*y2 + 1*y3; s =~ 0*y1 + 1*y2 + 2*y3 '\nfit <- growth(model, data = df)`,
+      ts: `import { latentGrowthModel } from '@statlab/core';\nconst res = latentGrowthModel(longitudinalMatrix, { timepoints: [0, 1, 2, 3] });`,
+    },
+    useCases: [
+      'Modeling longitudinal performance growth curves or degradation trajectories over time in repeated measurement studies.',
+      'Testing whether baseline capability (intercept) correlates with rate of change (slope).'
+    ],
+    when: 'Use for repeated measures longitudinal panel data to model individual trajectory differences.',
+    cautions: [
+      'Requires at least 3 longitudinal time points for linear growth models; 4+ for quadratic growth curves.',
+      'Check for non-linear growth trajectories by comparing linear vs quadratic LGCM fit.'
+    ],
+    workbenchId: 'sem_latent_growth',
+  },
+
+  // --- TIME SERIES VOLATILITY & HIGH-FREQUENCY FINANCIAL ECONOMETRICS FAMILY ---
+  {
+    slug: 'egarch-exponential-volatility',
+    title: 'EGARCH exponential volatility asymmetric shock calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate Exponential GARCH (EGARCH(1,1)) volatility model parameters, leverage effect parameter gamma (γ), and conditional variance forecasts.',
+    keywords: ['EGARCH calculator', 'exponential GARCH model', 'asymmetric volatility leverage', 'EGARCH 1 1', 'conditional variance forecast'],
+    inputs: ['Time series return residuals e_t', 'ARCH lag p', 'GARCH lag q'],
+    example: { a: ['Return series T = 500', 'EGARCH(1,1)'], result: 'Omega ω = -0.12, Alpha α = 0.15, Beta β = 0.94, Leverage γ = -0.08 (p = .014 - Significant negative shock leverage effect).' },
+    formula: 'ln(σ_t²) = ω + β ln(σ_{t-1}²) + α [ |e_{t-1}/σ_{t-1}| - √(2/π) ] + γ (e_{t-1}/σ_{t-1})',
+    code: {
+      python: `from arch import arch_model\nam = arch_model(returns, vol='EGARCH', p=1, o=1, q=1)\nres = am.fit(disp='off')`,
+      r: `library(rugarch)\nspec <- ugarchspec(variance.model = list(model = "eGARCH", garchOrder = c(1,1)))\nfit <- ugarchfit(spec, data = returns)`,
+      ts: `import { egarchModel } from '@statlab/core';\nconst res = egarchModel(returnResiduals);`,
+    },
+    useCases: [
+      'Modeling financial or system latency volatility where negative shocks increase future volatility more than positive shocks of equal magnitude (leverage effect).',
+      'Ensuring non-negative volatility guarantees without enforcing non-negativity parameter constraints.'
+    ],
+    when: 'Use when modeling asymmetric volatility response to positive vs negative return innovations.',
+    cautions: [
+      'Negative leverage parameter γ < 0 indicates bad news increases volatility more than good news.',
+      'Log formulation guarantees σ_t² > 0 for all parameter values.'
+    ],
+    workbenchId: 'ts_egarch_volatility',
+  },
+  {
+    slug: 'garch-in-mean-garch-m',
+    title: 'GARCH-in-Mean (GARCH-M) risk premium return calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate GARCH-in-Mean (GARCH-M) model risk premium parameter lambda (λ) and conditional variance feedback on mean returns.',
+    keywords: ['GARCH-M calculator', 'GARCH in mean model', 'risk premium coefficient', 'conditional variance mean feedback', 'GARCH M volatility return'],
+    inputs: ['Return series r_t', 'Variance feedback term (σ_t, σ_t², or ln(σ_t²))'],
+    example: { a: ['Financial returns T = 750', 'Feedback term = σ_t'], result: 'Risk Premium λ = +0.245 (p = .0082). Higher conditional volatility significantly increases expected mean returns.' },
+    formula: 'r_t = μ + λ σ_t + e_t, e_t = σ_t z_t, σ_t² = ω + α e_{t-1}² + β σ_{t-1}²',
+    code: {
+      python: `from arch import arch_model\n# Fit GARCH-M return mean equation with conditional std dev feedback term`,
+      r: `library(rugarch)\nspec <- ugarchspec(mean.model = list(archm = TRUE, archpow = 1))\nfit <- ugarchfit(spec, data = returns)`,
+      ts: `import { garchInMean } from '@statlab/core';\nconst res = garchInMean(returnSeries);`,
+    },
+    useCases: [
+      'Testing financial market risk-return tradeoff hypotheses (expected return increases with risk/volatility).',
+      'Modeling workload execution time mean shifts under elevated latency variance.'
+    ],
+    when: 'Use when a time series mean return depends directly on its own conditional volatility or variance.',
+    cautions: [
+      'Positive risk premium λ > 0 indicates risk-averse behavior requiring higher expected returns for higher risk.',
+      'Model convergence can be sensitive to return scaling.'
+    ],
+    workbenchId: 'ts_garch_in_mean',
+  },
+  {
+    slug: 'realized-volatility-high-frequency',
+    title: 'Realized Volatility & Realized Bipower Variation calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate intraday Realized Volatility (RV), Realized Bipower Variation (BV), and Jump component detection ratio for high-frequency time series.',
+    keywords: ['realized volatility calculator', 'bipower variation BV', 'intraday high frequency volatility', 'jump detection volatility', 'RV calculation'],
+    inputs: ['Intraday log return series r_{t,i} (e.g. 5-minute returns)'],
+    example: { a: ['M = 78 5-minute intraday returns per day'], result: 'Daily Realized Volatility RV = 1.45%, Bipower Variation BV = 1.28%, Jump Component = 11.7% (p = .024).' },
+    formula: 'RV_t = ∑_{i=1}^M r_{t,i}², BV_t = (π/2) ∑_{i=2}^M |r_{t,i}| |r_{t,i-1}|, Jump_t = max(0, RV_t - BV_t)',
+    code: {
+      python: `import numpy as np\ndef realized_volatility(r):\n    rv = np.sum(r**2)\n    bv = (np.pi / 2.0) * np.sum(np.abs(r[1:]) * np.abs(r[:-1]))\n    return np.sqrt(rv), np.sqrt(bv)`,
+      r: `library(highfrequency)\nrCov(returns)\nrBPCov(returns)`,
+      ts: `import { realizedVolatility } from '@statlab/core';\nconst res = realizedVolatility(intradayReturns);`,
+    },
+    useCases: [
+      'Computing non-parametric model-free daily volatility measures from high-frequency 1-minute or 5-minute intraday prices.',
+      'Separating continuous diffusive volatility from discrete price jump components.'
+    ],
+    when: 'Use when high-frequency intraday tick or bar data is available to estimate model-free daily volatility.',
+    cautions: [
+      'Sampling too frequently (e.g. 1-second) introduces market microstructure noise bias.',
+      'Bipower variation (BV) is robust to discrete jumps, isolating continuous diffusion variance.'
+    ],
+    workbenchId: 'ts_realized_volatility',
+  },
+  {
+    slug: 'vector-error-correction-model-vecm',
+    title: 'Vector Error Correction Model (VECM) calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate Vector Error Correction Model (VECM) speed-of-adjustment alpha (α) parameters, long-run cointegrating beta (β) vector, and short-run dynamics.',
+    keywords: ['VECM calculator', 'vector error correction model', 'cointegration speed of adjustment', 'long run equilibrium VECM', 'VAR VECM model'],
+    inputs: ['Non-stationary cointegrated multivariate matrix Y', 'Number of cointegrating vectors r', 'Lag length k'],
+    example: { a: ['2 Cointegrated Series T = 200', 'r = 1 cointegrating rank'], result: 'Speed of Adjustment α_1 = -0.185 (p = .0004 - 18.5% error correction per period). Long-run vector β = [1.0, -1.42].' },
+    formula: 'Δ Y_t = α β^T Y_{t-1} + ∑_{i=1}^{k-1} Γ_i Δ Y_{t-i} + u_t',
+    code: {
+      python: `from statsmodels.tsa.vector_ar.vecm import VECM\nvecm_model = VECM(endog_matrix, k_ar_diff=1, coint_rank=1).fit()`,
+      r: `library(vars)\nvec2var(ca.jo(data, spec = "transitory"), r = 1)`,
+      ts: `import { vecmModel } from '@statlab/core';\nconst res = vecmModel(dataMatrix, { rank: 1, lags: 2 });`,
+    },
+    useCases: [
+      'Modeling multivariate time series that share long-run equilibrium relationships (e.g. pairs trading, interest rates, throughput vs capacity).',
+      'Distinguishing short-run transitional dynamics from long-run equilibrium restoration.'
+    ],
+    when: 'Use when Johansen test confirms cointegration rank r > 0 among non-stationary I(1) multivariate time series.',
+    cautions: [
+      'Speed of adjustment parameter alpha (α) must be negative and statistically significant for equilibrium error correction.',
+      'Requires specification of cointegration rank r established via Johansen test.'
+    ],
+    workbenchId: 'ts_vecm_model',
+  },
+
+  // --- ADVANCED NON-PARAMETRIC & ROBUST ESTIMATION FAMILY ---
+  {
+    slug: 'theil-sen-robust-regression',
+    title: 'Theil-Sen robust median slope linear regression calculator',
+    family: 'Resampling & non-parametric tests',
+    description: 'Calculate Theil-Sen estimator median slope, intercept, and 95% confidence bounds for non-parametric linear regression robust to up to 29% outliers.',
+    keywords: ['Theil Sen calculator', 'robust linear regression slope', 'median slope regression', 'Theil Sen estimator', 'outlier robust slope'],
+    inputs: ['Predictor X vector', 'Response Y vector', 'Confidence level (95%, 99%)'],
+    example: { a: ['N = 25 pairs with 3 severe outliers'], result: 'Theil-Sen Slope m = +2.48, Intercept b = 10.2 (vs OLS Slope = +1.12 biased by outliers). 95% CI [2.15, 2.82].' },
+    formula: 'm = median( { (y_j - y_i) / (x_j - x_i) } ) for all 1 ≤ i < j ≤ N',
+    code: {
+      python: `from scipy import stats\nres = stats.theilslopes(y, x, alpha=0.95)\nprint(f"slope={res.slope:.4f}, intercept={res.intercept:.4f}")`,
+      r: `library(mblm)\nmblm(y ~ x, dataframe, repeated = FALSE)`,
+      ts: `import { theilSenRegression } from '@statlab/core';\nconst res = theilSenRegression(vectorX, vectorY);`,
+    },
+    useCases: [
+      'Estimating linear trends in telemetry or sensor metrics when data contains extreme spikes or anomalous outliers.',
+      'Non-parametric trend estimation in environmental, financial, or system performance monitoring.'
+    ],
+    when: 'Use for bivariate linear trend estimation when data contains extreme outliers or violates normality assumptions.',
+    cautions: [
+      'Computes slopes for all N(N-1)/2 pairwise points; computational complexity is O(N²).',
+      'Breakdown point is ~29.3% for standard Theil-Sen estimator.'
+    ],
+    workbenchId: 'robust_theil_sen',
+  },
+  {
+    slug: 'siegel-repeated-median-regression',
+    title: 'Siegel repeated median robust slope regression calculator',
+    family: 'Resampling & non-parametric tests',
+    description: 'Calculate Siegel repeated median slope and intercept for non-parametric regression with a 50% breakdown point against severe outliers.',
+    keywords: ['Siegel repeated median', '50% breakdown regression', 'Siegel slope estimator', 'robust median regression', 'high breakdown slope'],
+    inputs: ['Predictor X', 'Response Y'],
+    example: { a: ['N = 30 pairs with 40% extreme outlier contamination'], result: 'Siegel Slope m = +3.14, Intercept b = 5.6. Successfully ignores up to 50% corrupted data points.' },
+    formula: 'm = median_i( median_{j≠i} { (y_j - y_i) / (x_j - x_i) } )',
+    code: {
+      python: `import numpy as np\n# Calculate Siegel nested median of pairwise slopes`,
+      r: `library(mblm)\nmblm(y ~ x, dataframe, repeated = TRUE)`,
+      ts: `import { siegelRepeatedMedian } from '@statlab/core';\nconst res = siegelRepeatedMedian(vectorX, vectorY);`,
+    },
+    useCases: [
+      'Estimating true signal slope when up to nearly half the dataset contains severe corrupt outliers.',
+      'Automated telemetry trend line extraction in noisy uncleaned streams.'
+    ],
+    when: 'Use when data may contain up to 50% arbitrary outliers (highest possible breakdown point for linear regression).',
+    cautions: [
+      'More robust against clustered leverage point outliers than standard Theil-Sen estimator.',
+      'Slightly lower efficiency than OLS when data is purely normal with zero outliers.'
+    ],
+    workbenchId: 'robust_siegel_median',
+  },
+  {
+    slug: 'hodges-lehmann-estimator',
+    title: 'Hodges-Lehmann median difference robust effect size calculator',
+    family: 'Resampling & non-parametric tests',
+    description: 'Calculate Hodges-Lehmann non-parametric median difference estimator and 95% Moses confidence intervals for two independent or paired samples.',
+    keywords: ['Hodges Lehmann calculator', 'median difference estimator', 'robust effect size median', 'HL difference interval', 'non-parametric mean shift'],
+    inputs: ['Group A sample vector', 'Group B sample vector', 'Unpaired vs Paired design', 'Confidence level'],
+    example: { a: ['Group A (n=20)', 'Group B (n=20)'], result: 'Hodges-Lehmann Median Diff Δ = +4.50, 95% Confidence Interval [1.80, 7.20]. Wilcoxon p = .0024.' },
+    formula: 'Unpaired: Δ = median( { x_i - y_j } ) for all i,j; Paired: Δ = median( { (d_i + d_j)/2 } ) Walsh averages',
+    code: {
+      python: `from scipy import stats\nres = stats.mannwhitneyu(groupA, groupB)\n# Compute pairwise differences median and asymptotic confidence interval`,
+      r: `wilcox.test(groupA, groupB, conf.int = TRUE)$estimate`,
+      ts: `import { hodgesLehmann } from '@statlab/core';\nconst res = hodgesLehmann(groupA, groupB);`,
+    },
+    useCases: [
+      'Reporting a non-parametric point estimate of location shift (median difference) alongside Mann-Whitney U or Wilcoxon tests.',
+      'Quantifying latency difference between baseline and treatment when distributions are skewed.'
+    ],
+    when: 'Use to report exact non-parametric location shift effect size in unit measurement scale alongside rank tests.',
+    cautions: [
+      'Do NOT confuse Hodges-Lehmann median of differences with difference of sample medians (Median(A) - Median(B)).',
+      'Uses Walsh averages for paired samples.'
+    ],
+    workbenchId: 'robust_hodges_lehmann',
+  },
+
+  // --- FUNCTIONAL DATA ANALYSIS (FDA) FAMILY ---
+  {
+    slug: 'functional-pca-fpca',
+    title: 'Functional Principal Component Analysis (FPCA) calculator',
+    family: 'Multivariate & Dimensionality Reduction',
+    description: 'Calculate Functional Principal Component Analysis (FPCA) eigenfunctions ξ_k(t), functional scores, and percentage of curve variance explained.',
+    keywords: ['FPCA calculator', 'functional principal component analysis', 'eigenfunction curve decomposition', 'functional data variance', 'FPCA score'],
+    inputs: ['Functional curve matrix X_i(t) (N curves x T timepoints)', 'Basis representation (B-spline or Fourier basis)', 'Number of components K'],
+    example: { a: ['N = 50 curves, T = 100 evaluation points per curve'], result: 'FPC1 explains 78.4% curve variance, FPC2 explains 14.2% curve variance. First 2 FPCs account for 92.6% cumulative curve shape variation.' },
+    formula: 'x_i(t) = μ(t) + ∑_{k=1}^K ξ_{ik} ϕ_k(t), where ∫ ϕ_k(t) ϕ_m(t) dt = δ_{km}',
+    code: {
+      python: `from skfda.exploratory.visualization import FPCAPlot\nfrom skfda.representation.grid import FDataGrid\nfrom skfda.exploratory.analysis import FPCA\nfpca = FPCA(n_components=2).fit(fd_grid)`,
+      r: `library(fda)\nfpca_res <- pca.fd(fd_object, nharm = 2)`,
+      ts: `import { functionalPCA } from '@statlab/core';\nconst res = functionalPCA(curveMatrix, { nComponents: 2 });`,
+    },
+    useCases: [
+      'Decomposing continuous daily latency or CPU usage curves into primary modes of shape variation.',
+      'Dimensionality reduction for functional sensor telemetry signals.'
+    ],
+    when: 'Use when observations are continuous curves or functions measured over a continuous domain (t).',
+    cautions: [
+      'Curves should be smoothed using B-splines or Fourier basis prior to FPCA decomposition.',
+      'Eigenfunctions ϕ_k(t) represent dominant shape variation modes over time t.'
+    ],
+    workbenchId: 'fda_functional_pca',
+  },
+  {
+    slug: 'functional-mean-covariance-surface',
+    title: 'Functional mean curve and covariance surface estimator calculator',
+    family: 'Multivariate & Dimensionality Reduction',
+    description: 'Calculate functional mean curve μ(t) and bivariate 2D covariance surface G(s, t) for functional data analysis.',
+    keywords: ['functional mean curve', 'covariance surface estimator', 'FDA covariance surface', 'functional data mean', 'bivariate covariance surface'],
+    inputs: ['Functional data grid matrix X (N sample curves x T grid points)', 'Time grid vector t'],
+    example: { a: ['N = 40 curves across T = 50 timepoints'], result: 'Functional Mean Curve μ(t) computed. Bivariate Covariance Surface G(s,t) 50x50 grid estimated.' },
+    formula: 'μ(t) = 1/N ∑_{i=1}^N x_i(t), G(s, t) = 1/(N - 1) ∑_{i=1}^N (x_i(s) - μ(s))(x_i(t) - μ(t))',
+    code: {
+      python: `import numpy as np\nmean_curve = np.mean(curves_matrix, axis=0)\ncov_surface = np.cov(curves_matrix, rowvar=False)`,
+      r: `library(fda)\nmean_fd <- mean.fd(fd_object)\ncov_fd <- var.fd(fd_object)`,
+      ts: `import { functionalMeanCov } from '@statlab/core';\nconst res = functionalMeanCov(curvesMatrix);`,
+    },
+    useCases: [
+      'Computing average daily profile curves and cross-time correlation structures for system performance metrics.',
+      'Summarizing functional curve datasets in IoT and telemetry analytics.'
+    ],
+    when: 'Use as the foundational exploratory step in functional data analysis to visualize overall mean trend and cross-time variance.',
+    cautions: [
+      'Covariance surface diagonal G(t,t) represents point-wise variance over time t.',
+      'Ensure curves are evaluated on a synchronized time grid.'
+    ],
+    workbenchId: 'fda_mean_cov_surface',
+  },
+
+  // --- BAYESIAN NON-PARAMETRICS & MIXTURE MODELS FAMILY ---
+  {
+    slug: 'dirichlet-process-mixture-model',
+    title: 'Dirichlet Process Mixture Model (DPMM) clustering calculator',
+    family: 'Bayesian statistics',
+    description: 'Calculate Dirichlet Process Mixture Model (DPMM) non-parametric infinite cluster count, stick-breaking concentration alpha (α), and cluster assignments.',
+    keywords: ['DPMM calculator', 'dirichlet process mixture model', 'infinite mixture model', 'stick breaking alpha', 'non parametric bayesian clustering'],
+    inputs: ['Data matrix X', 'Concentration parameter alpha (α)', 'Base distribution H₀'],
+    example: { a: ['N = 150 points', 'Concentration α = 1.0'], result: 'DPMM inferred K = 4 optimal clusters automatically without pre-specifying K. Cluster entropy = 1.24.' },
+    formula: 'G ~ DP(α, G₀), π_k = β_k ∏_{l=1}^{k-1} (1 - β_l), β_k ~ Beta(1, α)',
+    code: {
+      python: `from sklearn.mixture import BayesianGaussianMixture\ndpmm = BayesianGaussianMixture(n_components=10, weight_concentration_prior_type='dirichlet_process', weight_concentration_prior=1.0).fit(X)`,
+      r: `library(dirichletprocess)\ndp <- dirichletprocessCreate(data)\ndp <- Fit(dp, 1000)`,
+      ts: `import { dirichletProcessMixture } from '@statlab/core';\nconst res = dirichletProcessMixture(dataMatrix, { alpha: 1.0 });`,
+    },
+    useCases: [
+      'Clustering datasets where the true number of clusters K is unknown and inferred dynamically from data.',
+      'Non-parametric Bayesian density estimation and customer segmentation.'
+    ],
+    when: 'Use when clustering data without wanting to hardcode a fixed number of clusters K (as required in standard K-Means).',
+    cautions: [
+      'Concentration parameter alpha (α) controls expected number of clusters (E[K] ≈ α ln(N)).',
+      'Uses stick-breaking construction or Chinese Restaurant Process (CRP) representation.'
+    ],
+    workbenchId: 'bayes_dpmm_clustering',
+  },
+  {
+    slug: 'gaussian-mixture-model-bic-aic',
+    title: 'Gaussian Mixture Model (GMM) BIC/AIC model selector calculator',
+    family: 'AI / ML evaluation & robust models',
+    description: 'Calculate Gaussian Mixture Model (GMM) Expectation-Maximization (EM) log-likelihood, BIC, AIC, and optimal component count selection.',
+    keywords: ['GMM calculator', 'gaussian mixture model BIC', 'EM algorithm GMM', 'AIC model selection GMM', 'cluster component selection'],
+    inputs: ['Data matrix X', 'Component range K_min to K_max', 'Covariance type (full, tied, diagonal, spherical)'],
+    example: { a: ['N = 250 sample points', 'Testing K = 1 to 6 components'], result: 'Optimal K = 3 components (Minimum BIC = 1420.5, AIC = 1385.2). Log-Likelihood = -672.1.' },
+    formula: 'BIC = -2 ln(L) + k ln(N), AIC = -2 ln(L) + 2k, where k is total estimated parameters',
+    code: {
+      python: `from sklearn.mixture import GaussianMixture\ngmm = GaussianMixture(n_components=3, covariance_type='full').fit(X)\nprint(f"BIC={gmm.bic(X):.2f}, AIC={gmm.aic(X):.2f}")`,
+      r: `library(mclust)\nfit <- Mclust(data, G = 1:6)\nsummary(fit)`,
+      ts: `import { gmmModelSelector } from '@statlab/core';\nconst res = gmmModelSelector(dataMatrix, { maxK: 6 });`,
+    },
+    useCases: [
+      'Selecting optimal cluster count K for soft probabilistic clustering models using rigorous information criteria.',
+      'Fitting multimodal continuous feature distributions.'
+    ],
+    when: 'Use when fitting Gaussian mixture models to evaluate soft cluster membership probabilities and select optimal component counts.',
+    cautions: [
+      'Lower BIC/AIC values indicate superior trade-off between model fit and parameter complexity.',
+      'EM algorithm is susceptible to local optima; run multiple initializations.'
+    ],
+    workbenchId: 'ml_gmm_bic_aic',
+  },
+
+  // --- QUALITY ENGINEERING & RELIABILITY MAINTENANCE FAMILY ---
+  {
+    slug: 'renewal-process-repairable-systems',
+    title: 'Renewal Process & NHPP repairable systems calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate Renewal Process Mean Cumulative Function (MCF), Non-Homogeneous Poisson Process (NHPP) Power Law rate of occurrence of failures (ROCOF).',
+    keywords: ['renewal process calculator', 'NHPP ROCOF calculator', 'repairable system reliability', 'mean cumulative function MCF', 'duane model power law'],
+    inputs: ['Failure event operating times t_i', 'System ID labels', 'NHPP Power Law vs Renewal model selection'],
+    example: { a: ['15 Failure operating times up to T_max = 5000 hours'], result: 'NHPP Power Law Intensity λ(t) = 0.0024 t^{0.35}. ROCOF indicates improving system reliability (beta = 0.65 < 1).' },
+    formula: 'NHPP Power Law: N(t) = λ t^β, ROCOF v(t) = λ β t^{β-1}; β < 1 (Improving), β > 1 (Deteriorating)',
+    code: {
+      python: `import numpy as np\n# Fit NHPP Power Law (Duane) model via maximum likelihood on failure arrival times`,
+      r: `library(Reliability)\n# Fit NHPP model to repairable system data`,
+      ts: `import { nhppRepairableModel } from '@statlab/core';\nconst res = nhppRepairableModel(failureTimes, { maxTime: 5000 });`,
+    },
+    useCases: [
+      'Modeling failure arrival rates for repairable hardware or software systems over operational lifespans.',
+      'Testing whether system reliability is improving (β < 1), stable (β = 1), or deteriorating (β > 1) over time.'
+    ],
+    when: 'Use for repairable systems where failed components are repaired/replaced and returned to service.',
+    cautions: [
+      'Do NOT treat repairable system failure arrivals as independent identically distributed (i.i.d.) non-repairable survival times.',
+      'Power Law model beta β < 1 indicates reliability growth.'
+    ],
+    workbenchId: 'spc_renewal_nhpp',
+  },
+  {
+    slug: 'sequential-probability-ratio-test-sprt',
+    title: "Wald's Sequential Probability Ratio Test (SPRT) calculator",
+    family: 'Statistical process control & quality engineering',
+    description: "Calculate Wald's Sequential Probability Ratio Test (SPRT) decision boundaries A and B, log-likelihood ratio path, and stopping decisions.",
+    keywords: ['SPRT calculator', 'Wald sequential test', 'sequential probability ratio test', 'log likelihood ratio bound', 'quality sampling decision'],
+    inputs: ['Sequential observations X_1, X_2, ...', 'Null hypothesis parameter θ_0', 'Alternative hypothesis parameter θ_1', 'Acceptable Type I error α', 'Acceptable Type II error β'],
+    example: { a: ['Sequential samples = [0, 0, 1, 0, 0, 0, 0]', 'θ_0 = 0.02, θ_1 = 0.10', 'α=0.05, β=0.10'], result: 'Log-Likelihood Ratio Λ = -2.42 < Lower Bound B = -2.25 at sample N = 7. DECISION: Accept H₀ (Pass lot quality).' },
+    formula: 'A = (1 - β) / α, B = β / (1 - α); Continue if B < ∏ f(x_i; θ_1)/f(x_i; θ_0) < A',
+    code: {
+      python: `import numpy as np\ndef sprt_step(log_lr, alpha=0.05, beta=0.10):\n    bound_a = np.log((1.0 - beta) / alpha)\n    bound_b = np.log(beta / (1.0 - alpha))\n    if log_lr >= bound_a: return "REJECT_H0"\n    elif log_lr <= bound_b: return "ACCEPT_H0"\n    else: return "CONTINUE"`,
+      r: `library(spatstat)\n# Evaluate sequential likelihood ratio bounds A and B`,
+      ts: `import { sprtSequentialTest } from '@statlab/core';\nconst decision = sprtSequentialTest(sampleSequence, { theta0: 0.02, theta1: 0.10 });`,
+    },
+    useCases: [
+      'Performing continuous automated quality control sampling where data arrives sequentially, minimizing required sample size N before reaching a decision.',
+      'Early stopping in automated A/B tests or CI/CD build performance gates.'
+    ],
+    when: 'Use when observations arrive sequentially and immediate early stopping saves time or sample collection cost.',
+    cautions: [
+      'SPRT requires fewer sample observations on average (50% reduction) than fixed sample size tests.',
+      'Bounds A and B are approximations derived from Wald’s inequality.'
+    ],
+    workbenchId: 'spc_sprt_test',
+  },
+  {
+    slug: 'normal-tolerance-interval-one-sided',
+    title: 'One-sided Normal Tolerance Bound (k1-factor) calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate one-sided lower or upper statistical tolerance bound containing p% of population with 1-α confidence using exact k_1 factor multipliers.',
+    keywords: ['one sided tolerance bound', 'k1 factor calculator', 'lower tolerance bound', 'upper tolerance limit', 'population quantile bound'],
+    inputs: ['Sample mean X̄', 'Sample standard deviation s', 'Sample size n', 'Coverage percentage p', 'Confidence level 1-α', 'Bound side (Lower, Upper)'],
+    example: { a: ['Sample mean = 50.0 ms, s = 4.2 ms, n = 40', 'Coverage p = 99%, Confidence = 95%', 'Upper Bound'], result: 'One-sided Upper k_1 = 3.072. Upper 99% Tolerance Bound with 95% Confidence = 62.90 ms.' },
+    formula: 'Upper Bound = X̄ + k_1 s, Lower Bound = X̄ - k_1 s, where k_1 is derived from non-central t-distribution',
+    code: {
+      python: `from scipy import stats\n# Compute exact non-central t-distribution k1 tolerance factor`,
+      r: `library(tolerance)\nnormtol.int(x = sample_data, alpha = 0.05, P = 0.99, side = 1)`,
+      ts: `import { oneSidedToleranceBound } from '@statlab/core';\nconst res = oneSidedToleranceBound(sample, { p: 0.99, confidence: 0.95, side: 'upper' });`,
+    },
+    useCases: [
+      'Setting upper SLA latency limits guaranteeing 99% of future requests stay below the bound with 95% confidence.',
+      'Establishing minimum structural strength lower bounds in aerospace or quality manufacturing.'
+    ],
+    when: 'Use when only one specification limit (upper max limit or lower min limit) is relevant for quality compliance.',
+    cautions: [
+      'One-sided k_1 factors are smaller than two-sided k factors for the same (n, p, 1-α).',
+      'Assumes sample observations are drawn from a normal distribution.'
+    ],
+    workbenchId: 'spc_tolerance_one_sided',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));

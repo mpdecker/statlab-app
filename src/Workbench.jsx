@@ -127,14 +127,14 @@ function Header({ dsKey, customDef, switchDs, fileRef, handleCSV, uploadMsg, dat
 
       <a
         href="/calculators/"
-        title="Browse 240 static calculators"
+        title="Browse 260 static calculators"
         style={{
           marginLeft: 'auto', color: C.accent, ...mono, fontSize: 9, fontWeight: 700,
           padding: '3px 8px', border: `1px solid ${C.accent}`, borderRadius: 3,
           textDecoration: 'none', background: 'rgba(93,242,182,0.08)'
         }}
       >
-        Calculators (240) &rarr;
+        Calculators (260) &rarr;
       </a>
 
       <a
