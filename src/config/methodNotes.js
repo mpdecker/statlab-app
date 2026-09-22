@@ -1440,6 +1440,12 @@ export const METHOD_NOTES = {
     assumptions: ["Dissimilarities are at least ordinally meaningful", "At least 6 observations, 2+ numeric variables"],
     cite: "Kruskal, J. B. (1964). Nonmetric multidimensional scaling: A numerical method. Psychometrika, 29(2), 115–129.",
   },
+  sem: {
+    description: "Structural equation modeling combines an optional latent-factor measurement model with structural regressions among factors and/or observed variables, fit by maximum likelihood, yielding standardized fit indices for how well the specified model reproduces the observed covariance structure.",
+    usage: "Use to test a hypothesized causal/measurement structure among several variables at once (e.g. does a single latent construct explain the correlations among 3+ indicators, and does it predict an outcome) rather than testing each relationship in isolation.",
+    assumptions: ["Multivariate normality of observed variables (approximately)", "At least 10 observations, 3+ observed variables", "Model is identified (enough constraints for a unique solution)"],
+    cite: "Bollen, K. A. (1989). Structural equations with latent variables. Wiley.",
+  },
   path_analysis: {
     description: "Path analysis fits a system of recursive OLS regression equations among observed variables (no latent factors), then traces indirect and total effects through chained equations via the reduced-form matrix (I − B)⁻¹ − I, where B holds every direct path coefficient in the system.",
     usage: "Use to decompose a variable's total effect on an outcome into its direct effect plus any indirect effects mediated through other variables in a multi-equation causal chain — the multi-equation generalization of a single mediation analysis.",

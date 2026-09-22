@@ -372,4 +372,36 @@ describe('InferencePanel', () => {
       }
     });
   });
+
+  describe('SEM non-convergence guard', () => {
+    // The original (pre-0.1.2) fixture for this test rescaled 3 identical-signal
+    // columns across ~16 orders of magnitude to force a negative-determinant NaN
+    // in mlDiscrepancy. @statlab/core@0.1.2 fixed that exact bug (detS || 1e-10
+    // now also catches small negative determinants from floating-point error),
+    // so that fixture no longer reproduces non-convergence — confirmed by
+    // re-running it against the live 0.1.2 package during this plan's own
+    // testing phase (chi2 comes back as a real finite number).
+    //
+    // A new fixture was found empirically against the live 0.1.2 package: a
+    // constant (zero-variance) column mixed with two real-varying columns.
+    // 0.1.2's Newton-step-descent-direction fix makes the optimizer converge to
+    // a genuine (if nonsensical) finite chi2 here, but the model is still
+    // singular enough that both loadings' standard errors come back Infinity —
+    // exactly the case semResultOrError's coefsFinite check exists to catch.
+    const semRows = Array.from({ length: 25 }, (_, i) => ({
+      v1: i + 1,
+      v2: i * 2 + 3,
+      v3: 5,
+    }));
+    const semDs = { numeric: ['v1', 'v2'], categorical: [] };
+
+    it('reports an explicit error, not raw NaN/Infinity, when the model does not converge', () => {
+      const { container } = render(<InferencePanel data={semRows} ds={semDs} active="sem" setActive={vi.fn()} />);
+      const textarea = container.querySelector('textarea');
+      fireEvent.change(textarea, { target: { value: 'f1 =~ v1 + v2 + v3' } });
+      expect(screen.queryByText(/NaN/)).toBeNull();
+      expect(screen.queryByText(/Infinity/)).toBeNull();
+      expect(screen.getByText(/did not converge/i)).toBeTruthy();
+    });
+  });
 });
