@@ -1461,7 +1461,7 @@ export const METHOD_NOTES = {
   bifactor: {
     description: "A bifactor model decomposes each item's variance into a general factor (loading on every item) and a specific group factor (loading only on its own item subset), extracted via eigendecomposition with a target (Procrustes) rotation toward that general-plus-groups pattern.",
     usage: "Use when you suspect items measure both one broad overall construct AND their own narrower sub-domain simultaneously (e.g. a wellbeing scale with a general wellbeing factor plus separate physical/emotional/social sub-factors) — omega hierarchical tells you how much of the total reliable variance is attributable to the general factor alone.",
-    assumptions: ["Each item belongs to exactly one specified group", "At least 20 observations", "2+ groups with 2+ items each recommended for a meaningful general/group split", "ω total and per-item communality are currently unreliable in @statlab/core (the group loading is never capped, so both routinely exceed their defined [0,1] range) and are hidden from the results pending an upstream fix — ω hierarchical and the general/group loadings are unaffected."],
+    assumptions: ["Each item belongs to exactly one specified group", "At least 20 observations", "2+ groups with 2+ items each recommended for a meaningful general/group split"],
     cite: "Reise, S. P. (2012). The rediscovery of bifactor measurement models. Multivariate Behavioral Research, 47(5), 667–696.",
   },
 };

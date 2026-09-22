@@ -331,15 +331,14 @@ describe('InferencePanel', () => {
       expect(screen.getAllByText('yrs').length).toBeGreaterThan(0);
     });
 
-    it('does not leak the unbounded omega_t into the APA citation, only into the raw package result', () => {
-      // Confirmed directly against the real package: this exact fixture's
-      // default 2-group split ({yrs,svc},{sal}) produces omega_t = 8256.245
-      // -- the same unbounded-group-loading failure mode documented in the
-      // spec Status and hidden from the chip row/table. The APA citation
-      // (rendered at the top of every result, and reused by "copy",
-      // "copy all", and the Markdown export) must not leak it either.
+    it('shows bounded omega_t in the APA citation now that @statlab/core@0.1.2 caps general+group loadings', () => {
+      // @statlab/core@0.1.2 now standardizes to a correlation matrix before
+      // extraction and jointly caps general+group loadings, so omega_t and
+      // per-item communality are correctly bounded to [0,1]. The APA citation
+      // (rendered at the top of every result, and reused by "copy", "copy all",
+      // and the Markdown export) now correctly includes omega_t.
       render(<InferencePanel data={bifactorSalariesRows} ds={bifactorSalariesDs} active="bifactor" setActive={vi.fn()} />);
-      expect(screen.queryByText(/omega_t/)).toBeNull();
+      expect(screen.getByText(/omega_t/)).toBeTruthy();
       expect(screen.getByText(/omega_h = 0\.746/)).toBeTruthy();
     });
 

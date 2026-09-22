@@ -999,14 +999,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'sem') return semResultOrError(sem({ equations: semEquations.trim().split('\n').map(l => l.trim()).filter(Boolean), data, method: 'ML' }));
       if (a === 'path_analysis') return pathAnalysis(data, pathEquations.trim().split('\n').map(l => l.trim()).filter(Boolean));
       if (a === 'latent_growth') { const vars = scaleVars.filter(c => numeric.includes(c)); const times = semTimes.trim() ? parseNumList(semTimes) : null; return latentGrowthModel(data, vars, times && times.length === vars.length ? times : null); }
-      if (a === 'bifactor') {
-        const r = bifactorModel(data, [], bifactorGroups.filter(g => g.items.length));
-        return r ? {
-          ...r,
-          apa: `Bifactor: omega_h = ${r.omegaHierarchical.toFixed(3)}, n = ${r.n}`,
-          warning: 'ω total and per-item communality are not shown: @statlab/core does not cap the group loading, so these routinely exceed the [0,1] range they are defined to stay within. ω hierarchical and the general/group loadings below are unaffected.',
-        } : r;
-      }
+      if (a === 'bifactor') return bifactorModel(data, [], bifactorGroups.filter(g => g.items.length));
       if (a === 'efa')       return efa(data, scaleVars.filter(c => numeric.includes(c)), parseInt(nFactors) || 2);
       if (a === 'manova') {
         const ys = scaleVars.filter(c => numeric.includes(c));

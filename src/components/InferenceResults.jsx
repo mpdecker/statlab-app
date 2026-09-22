@@ -103,14 +103,7 @@ function SemCoeffTable({ coeffs }) {
 
 function BifactorTable({ loadings }) {
   if (!loadings?.length) return null;
-  // 'communality' (general^2 + group^2) is omitted: @statlab/core@0.1.1's
-  // bifactorModel caps the general loading at 0.99 but never caps the
-  // group loading, so communality (and omegaTotal, similarly omitted from
-  // the chip row below) routinely exceeds 1 -- a value that's supposed to
-  // be a bounded proportion of variance by definition. Confirmed against
-  // the real package on well-behaved, same-scale inputs, not just an edge
-  // case. general/group/omegaHierarchical stay correctly bounded.
-  const headers = ['item', 'general', 'group'];
+  const headers = ['item', 'general', 'group', 'communality'];
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ borderCollapse: 'collapse', ...mono, fontSize: 9, width: '100%' }}>
@@ -123,6 +116,7 @@ function BifactorTable({ loadings }) {
               <td style={{ padding: '2px 6px', color: PAL[i % PAL.length] }}>{l.item}</td>
               <td style={{ padding: '2px 6px', color: C.text }}>{l.general}</td>
               <td style={{ padding: '2px 6px', color: C.text }}>{l.group}</td>
+              <td style={{ padding: '2px 6px', color: C.dim }}>{l.communality}</td>
             </tr>
           ))}
         </tbody>
@@ -888,6 +882,7 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         <SectionHead label={`Bifactor Model · n=${r.n}`} />
         <Row>
           <Chip label="ω hierarchical" value={r.omegaHierarchical} color={r.omegaHierarchical >= .5 ? C.ok : C.warn} />
+          <Chip label="ω total" value={r.omegaTotal} color={C.dim} />
         </Row>
         <BifactorTable loadings={r.loadings} />
       </>}
