@@ -5558,6 +5558,520 @@ export const calculatorPages = [
     ],
     workbenchId: 'ml_brier_skill_score',
   },
+
+  // --- GENERALIZED LINEAR & ADDITIVE MODELS (GLM/GAM) FAMILY ---
+  {
+    slug: 'generalized-additive-model-gam-spline',
+    title: 'Generalized Additive Model (GAM) spline regression calculator',
+    family: 'Generalized linear & additive models',
+    description: 'Calculate Generalized Additive Model (GAM) thin-plate regression spline smooths, effective degrees of freedom (edf), residual deviance, and GCV score.',
+    keywords: ['GAM calculator', 'generalized additive model', 'thin plate regression spline', 'GCV score', 'non linear smooth regression'],
+    inputs: ['Dependent variable Y', 'Independent predictor X', 'Basis dimension k (spline knots)', 'Smoothing parameter lambda (λ)'],
+    example: { a: ['N = 120 observations', 'Basis dimension k = 10'], result: 'GAM deviance explained = 84.2%, Effective df = 4.82, GCV score = 0.142. Non-linear smooth curve highly significant (p < .0001).' },
+    formula: 'g(E(Y)) = β₀ + ∑ f_j(X_j), where f_j(x) = ∑ b_k(x) β_k penalized by λ ∫ [f\'\'(x)]² dx',
+    code: {
+      python: `from pygam import LinearGAM, s\ngam = LinearGAM(s(0, n_splines=10)).fit(X, y)\ngam.summary()`,
+      r: `library(mgcv)\ngam_fit <- gam(y ~ s(x, bs = "tp", k = 10), data = df)\nsummary(gam_fit)`,
+      ts: `import { fitGAM } from '@statlab/core';\nconst res = fitGAM(vectorY, vectorX, { k: 10 });`,
+    },
+    useCases: [
+      'Modeling non-linear relationship curves between server load and memory consumption telemetry without forcing rigid polynomial shapes.',
+      'Fitting non-linear dose-response or environmental relationship functions.'
+    ],
+    when: 'Use when predictor relationships are non-linear and parametric functional forms (linear, exponential, quadratic) are unknown or inadequate.',
+    cautions: [
+      'Effective degrees of freedom (edf) > 1 indicates non-linear smooth shape.',
+      'Avoid setting basis dimension k too high to prevent spline overfitting.'
+    ],
+    workbenchId: 'glm_gam_spline',
+  },
+  {
+    slug: 'beta-regression-proportions',
+    title: 'Beta regression calculator for continuous proportions',
+    family: 'Generalized linear & additive models',
+    description: 'Calculate Beta regression coefficients, pseudo R-squared, and precision parameter phi (ϕ) for modeling continuous outcomes bounded in (0, 1).',
+    keywords: ['Beta regression calculator', 'bounded proportion regression', 'percentage outcome model', 'precision parameter phi', 'logit link beta regression'],
+    inputs: ['Dependent continuous proportion Y ∈ (0, 1)', 'Predictor variables X₁, ..., X_k', 'Link function (logit, probit, loglog)'],
+    example: { a: ['N = 80 rate observations (0.05 to 0.95)', 'Predictor X = engine temperature'], result: 'Logit Beta coef β_1 = +2.45 (p = .0004), Precision φ = 18.4, Pseudo R² = .642.' },
+    formula: 'f(y; μ, φ) = [ Γ(φ) / (Γ(μ φ) Γ((1-μ) φ)) ] y^{μ φ - 1} (1-y)^{(1-μ) φ - 1}, logit(μ) = X β',
+    code: {
+      python: `import statsmodels.api as sm\n# Fit Beta regression model via maximum likelihood estimation`,
+      r: `library(betareg)\nfit <- betareg(y ~ x, data = df, link = "logit")\nsummary(fit)`,
+      ts: `import { betaRegression } from '@statlab/core';\nconst res = betaRegression(vectorY, matrixX);`,
+    },
+    useCases: [
+      'Modeling rate outcomes bounded strictly between 0 and 1 (e.g. CPU utilization %, error rates, pass percentages).',
+      'Evaluating continuous percentage bounded variables where linear OLS causes out-of-bounds predictions.'
+    ],
+    when: 'Use for modeling continuous percentages, proportions, or fractions bounded strictly between 0 and 1.',
+    cautions: [
+      'Exact 0 or 1 values must be transformed (e.g. y* = [y(N-1) + 0.5] / N) as standard Beta density is undefined at 0 and 1.',
+      'Precision parameter phi (φ) reflects inverse dispersion.'
+    ],
+    workbenchId: 'glm_beta_regression',
+  },
+  {
+    slug: 'zero-inflated-negative-binomial-zinb',
+    title: 'Zero-Inflated Negative Binomial (ZINB) count data calculator',
+    family: 'Generalized linear & additive models',
+    description: 'Calculate Zero-Inflated Negative Binomial (ZINB) regression parameters for overdispersed count data containing excess structural zeros.',
+    keywords: ['ZINB calculator', 'zero inflated negative binomial', 'overdispersed count zeros', 'two component zero model', 'dispersion alpha count'],
+    inputs: ['Count response Y (non-negative integers)', 'Count predictor matrix X', 'Zero-inflation predictor matrix Z'],
+    example: { a: ['N = 250 count observations (60% zeros)', 'Overdispersion present'], result: 'Count model coef β = 0.85 (p < .001), Zero model logit = -1.20 (p = .012), Dispersion α = 1.42 (Significant zero inflation & overdispersion).' },
+    formula: 'P(Y=0) = π + (1-π)(1 + α μ)^{-1/α}, P(Y=y>0) = (1-π) [ Γ(y+1/α) / (y! Γ(1/α)) ] (α μ)^y (1+α μ)^{-(y+1/α)}',
+    code: {
+      python: `from statsmodels.discrete.count_model import ZeroInflatedNegativeBinomialP\nmodel = ZeroInflatedNegativeBinomialP(y, x, exog_infl=z).fit()`,
+      r: `library(pscl)\nfit <- zeroinfl(y ~ x | z, dist = "negbin", data = df)`,
+      ts: `import { zinbRegression } from '@statlab/core';\nconst res = zinbRegression(vectorY, matrixX, matrixZ);`,
+    },
+    useCases: [
+      'Modeling API failure count telemetry characterized by both excess zero counts and overdispersed variance.',
+      'Analyzing insurance claims or hospital visit counts.'
+    ],
+    when: 'Use when count data exhibits both excess zeros (structural vs sampling zeros) and variance substantially exceeding mean (overdispersion).',
+    cautions: [
+      'Use Vuong test to confirm ZINB superiority over standard Negative Binomial model.',
+      'Zero component models the probability of belonging to the always-zero structural state.'
+    ],
+    workbenchId: 'glm_zinb',
+  },
+  {
+    slug: 'hurdle-poisson-model',
+    title: 'Hurdle Poisson model calculator for zero-inflated counts',
+    family: 'Generalized linear & additive models',
+    description: 'Calculate two-part Hurdle Poisson model parameters separating zero crossing (hurdle logit) from positive truncated Poisson counts.',
+    keywords: ['Hurdle Poisson model', 'hurdle model count data', 'truncated Poisson regression', 'zero crossing count', 'two part count model'],
+    inputs: ['Count response Y', 'Zero hurdle predictors Z', 'Truncated count predictors X'],
+    example: { a: ['N = 180 count observations', '45% Zeros'], result: 'Hurdle Logit (Zero vs Positive) β_z = +1.12 (p = .002), Truncated Poisson β_x = +0.48 (p = .001).' },
+    formula: 'Part 1: P(Y=0) = 1 - π(Z); Part 2: P(Y=y | y>0) = π(Z) * [ μ^y e^{-μ} / (y! (1 - e^{-μ})) ]',
+    code: {
+      python: `import statsmodels.api as sm\n# Fit binomial logit zero part and truncated Poisson positive part`,
+      r: `library(pscl)\nfit <- hurdle(y ~ x | z, dist = "poisson", data = df)`,
+      ts: `import { hurdlePoisson } from '@statlab/core';\nconst res = hurdlePoisson(vectorY, matrixX, matrixZ);`,
+    },
+    useCases: [
+      'Modeling user session purchasing counts where deciding to buy (crossing hurdle) is governed by different mechanisms than quantity bought.',
+      'Evaluating system defect counts where zero defects vs non-zero defects have distinct causal factors.'
+    ],
+    when: 'Use when zero counts are produced by a distinct process from positive counts, and all zeros are treated as hurdle crossings.',
+    cautions: [
+      'Unlike ZIP (Zero-Inflated Poisson), Hurdle models assume all zeros come from the hurdle binary component.',
+      'Interpret hurdle coefficients as odds of producing a non-zero count.'
+    ],
+    workbenchId: 'glm_hurdle_poisson',
+  },
+
+  // --- SIGNAL PROCESSING & WAVELET ANALYSIS FAMILY ---
+  {
+    slug: 'continuous-wavelet-transform-cwt',
+    title: 'Continuous Wavelet Transform (CWT) scalogram power spectrum calculator',
+    family: 'Signal processing & wavelet analysis',
+    description: 'Calculate Continuous Wavelet Transform (CWT) complex coefficients, scale-frequency power spectrum, and Morlet wavelet time-frequency scalogram.',
+    keywords: ['CWT calculator', 'continuous wavelet transform', 'wavelet scalogram', 'Morlet wavelet power', 'time frequency spectrum'],
+    inputs: ['Time series signal x(t)', 'Sampling frequency f_s', 'Wavelet type (Morlet, Paul, Mexican Hat)', 'Scale vector s'],
+    example: { a: ['Signal length N = 512', 'Sampling f_s = 1000 Hz'], result: 'CWT Scalogram computed across 32 frequency scales. Peak power detected at t = 240 ms, f = 125 Hz.' },
+    formula: 'W(a, b) = 1/√a ∫_{-∞}^∞ x(t) ψ*((t - b)/a) dt, where ψ(t) is complex Morlet mother wavelet',
+    code: {
+      python: `import pywt\ncoefficients, frequencies = pywt.cwt(signal, scales, 'morl', sampling_period=1/fs)`,
+      r: `library(WaveletComp)\nanalyze.wavelet(df, "signal", loess.span = 0)`,
+      ts: `import { cwtSpectrum } from '@statlab/core';\nconst res = cwtSpectrum(signalVector, { fs: 1000 });`,
+    },
+    useCases: [
+      'Detecting transient frequency bursts and non-stationary spectral shifts in hardware sensor telemetry.',
+      'Analyzing time-varying periodicities in EEG, audio, or financial signal streams.'
+    ],
+    when: 'Use when analyzing non-stationary time series signals whose frequency content changes over time.',
+    cautions: [
+      'Cone of Influence (COI) delineates boundary regions where edge effects distort wavelet power estimates.',
+      'Trade-off between time resolution and frequency resolution is governed by scale parameter a.'
+    ],
+    workbenchId: 'sig_cwt_spectrum',
+  },
+  {
+    slug: 'cross-wavelet-coherence',
+    title: 'Cross-Wavelet Coherence (XWT) time-frequency correlation calculator',
+    family: 'Signal processing & wavelet analysis',
+    description: 'Calculate Cross-Wavelet Transform (XWT) and Wavelet Coherence R²(a,b) for localized time-frequency correlation and phase lag between two signals.',
+    keywords: ['cross wavelet coherence', 'XWT calculator', 'wavelet coherence R2', 'time frequency correlation', 'phase lag wavelet'],
+    inputs: ['Signal X(t)', 'Signal Y(t)', 'Sampling frequency f_s', 'Smoothing window scales'],
+    example: { a: ['Two signals N = 500', 'Sampling f_s = 500 Hz'], result: 'High Wavelet Coherence R² > 0.85 detected in frequency band 12-25 Hz between t=1.2s and t=2.8s. Phase angle φ = +45° (X leads Y).' },
+    formula: 'R²(a,b) = |S(a^{-1} W_{xy}(a,b))|² / [ S(a^{-1} |W_x(a,b)|²) * S(a^{-1} |W_y(a,b)|²) ]',
+    code: {
+      python: `from pycwt import wct\nWCT, aWCT, coi, freq, sig = wct(y1, y2, dt)`,
+      r: `library(biwavelet)\nwtc_res <- wtc(signal1, signal2)`,
+      ts: `import { crossWaveletCoherence } from '@statlab/core';\nconst res = crossWaveletCoherence(signalX, signalY, { fs: 500 });`,
+    },
+    useCases: [
+      'Identifying transient synchronized bursts between two microservice telemetry metrics across frequency bands.',
+      'Measuring time-localized correlation and phase leadership between financial or physiological signals.'
+    ],
+    when: 'Use to evaluate localized correlation and phase relationships between two time series signals across time and frequency.',
+    cautions: [
+      'Requires spatial/temporal smoothing operator S to prevent trivial unit coherence R²=1 everywhere.',
+      'Phase arrows indicate relative phase lead (in-phase vs anti-phase relationship).'
+    ],
+    workbenchId: 'sig_cross_wavelet',
+  },
+  {
+    slug: 'hilbert-transform-instantaneous-phase',
+    title: 'Hilbert Transform & Instantaneous Phase estimator calculator',
+    family: 'Signal processing & wavelet analysis',
+    description: 'Calculate analytic signal z(t), Hilbert transform H{x(t)}, instantaneous amplitude envelope, and instantaneous phase/frequency.',
+    keywords: ['Hilbert transform calculator', 'instantaneous phase', 'analytic signal', 'amplitude envelope', 'instantaneous frequency'],
+    inputs: ['Time series signal x(t)', 'Sampling rate f_s'],
+    example: { a: ['N = 256 signal samples'], result: 'Analytic signal z(t) computed. Mean Instantaneous Frequency = 42.5 Hz, Peak Envelope Amplitude = 3.82.' },
+    formula: 'z(t) = x(t) + i H{x(t)}, A(t) = |z(t)| = √(x² + H{x}²), θ(t) = arg(z(t)) = arctan(H{x} / x)',
+    code: {
+      python: `from scipy.signal import hilbert\nanalytic_signal = hilbert(signal)\namplitude_envelope = np.abs(analytic_signal)\ninstantaneous_phase = np.angle(analytic_signal)`,
+      r: `library(seewave)\nres <- hilbert(signal, f = fs)`,
+      ts: `import { hilbertTransform } from '@statlab/core';\nconst res = hilbertTransform(signalVector);`,
+    },
+    useCases: [
+      'Demodulating amplitude-modulated (AM) and phase-modulated (FM) sensor signals.',
+      'Extracting instantaneous phase features for machine learning signal classification.'
+    ],
+    when: 'Use for narrow-band or bandpass-filtered signals to compute instantaneous amplitude envelopes and unwrapped phase trajectories.',
+    cautions: [
+      'Signal x(t) should be narrow-band (e.g. bandpass filtered) to satisfy Bedrosian theorem for meaningful instantaneous frequency.',
+      'Unwrap phase angles to eliminate ±π jump discontinuities.'
+    ],
+    workbenchId: 'sig_hilbert_transform',
+  },
+
+  // --- NETWORK ANALYSIS & GRAPH METRICS FAMILY ---
+  {
+    slug: 'graph-density-centrality-metrics',
+    title: 'Network graph density and degree centrality calculator',
+    family: 'Network analysis & graph metrics',
+    description: 'Calculate network graph density, node degree centrality, in-degree/out-degree distributions, and adjacency matrix graph spectrum.',
+    keywords: ['graph density calculator', 'degree centrality', 'network graph metrics', 'in degree out degree', 'adjacency matrix spectrum'],
+    inputs: ['Adjacency matrix A or Edge list (Node i -> Node j)', 'Graph directedness (Directed, Undirected)'],
+    example: { a: ['N = 20 nodes, E = 45 edges', 'Directed graph'], result: 'Graph Density D = 0.118, Max Out-Degree = 8 (Node #3), Avg Degree = 2.25.' },
+    formula: 'Undirected Density D = 2 E / [N(N-1)], Directed Density D = E / [N(N-1)], C_D(v) = deg(v) / (N - 1)',
+    code: {
+      python: `import networkx as nx\nG = nx.from_numpy_array(adj_matrix)\ndensity = nx.density(G)\ndeg_centrality = nx.degree_centrality(G)`,
+      r: `library(igraph)\ng <- graph_from_adjacency_matrix(adj_matrix)\nedge_density(g)\ndegree(g, mode = "all")`,
+      ts: `import { graphMetrics } from '@statlab/core';\nconst res = graphMetrics(adjMatrix, { directed: true });`,
+    },
+    useCases: [
+      'Evaluating microservice dependency call graph density and hub node centrality.',
+      'Analyzing social network, communication, or supply chain topological structure.'
+    ],
+    when: 'Use when analyzing network topology and identifying highly connected hub nodes.',
+    cautions: [
+      'Self-loops and multiple parallel edges should be filtered prior to calculating standard graph density.',
+      'Degree centrality reflects local connectivity only, not global bridge positioning.'
+    ],
+    workbenchId: 'net_graph_density',
+  },
+  {
+    slug: 'betweenness-closeness-centrality',
+    title: 'Betweenness and closeness centrality calculator',
+    family: 'Network analysis & graph metrics',
+    description: 'Calculate node betweenness centrality (shortest path bottleneck score) and closeness centrality (shortest path distance summary).',
+    keywords: ['betweenness centrality calculator', 'closeness centrality', 'network bottleneck node', 'shortest path centrality', 'graph bridge node'],
+    inputs: ['Graph network adjacency matrix or edge list', 'Edge weight handling (Unweighted, Weighted distances)'],
+    example: { a: ['Network N = 15 nodes', 'Undirected graph'], result: 'Top Betweenness Node = Node #7 (g(v) = 0.425 - Key bottleneck bridge). Top Closeness Node = Node #2 (C(v) = 0.682).' },
+    formula: 'C_B(v) = ∑_{s≠v≠t} σ_{st}(v) / σ_{st}, C_C(v) = (N - 1) / ∑_{u≠v} d(v, u)',
+    code: {
+      python: `import networkx as nx\nbet_cent = nx.betweenness_centrality(G)\nclose_cent = nx.closeness_centrality(G)`,
+      r: `library(igraph)\nbetweenness(g)\ncloseness(g)`,
+      ts: `import { pathCentralities } from '@statlab/core';\nconst res = pathCentralities(adjMatrix);`,
+    },
+    useCases: [
+      'Identifying single points of failure and bottleneck bridge nodes in distributed system networks.',
+      'Locating optimal information dissemination nodes in communication networks.'
+    ],
+    when: 'Use betweenness to locate bottleneck/bridge nodes; use closeness to locate nodes with minimal total path distance to all others.',
+    cautions: [
+      'Brandes algorithm computes betweenness in O(V E) time for unweighted graphs.',
+      'Disconnected graphs require computing closeness per connected component or using harmonic centrality.'
+    ],
+    workbenchId: 'net_path_centralities',
+  },
+  {
+    slug: 'modularity-community-detection',
+    title: 'Network modularity (Q) community structure calculator',
+    family: 'Network analysis & graph metrics',
+    description: 'Calculate network modularity Q score, community partition quality, and intra-community vs inter-community edge density ratios.',
+    keywords: ['network modularity Q', 'community detection score', 'Louvain modularity', 'graph partition score', 'community structure Q'],
+    inputs: ['Graph adjacency matrix A', 'Node community assignment vector C'],
+    example: { a: ['Graph N = 30 nodes, E = 85 edges', '3 Communities assigned'], result: 'Modularity Q = +0.542 > 0.3 (Strong community structure detected).' },
+    formula: 'Q = 1/(2m) ∑_{ij} [ A_{ij} - (k_i k_j)/(2m) ] δ(c_i, c_j)',
+    code: {
+      python: `import networkx as nx\nimport networkx.algorithms.community as nx_comm\nmodularity = nx_comm.modularity(G, communities)`,
+      r: `library(igraph)\nmodularity(g, membership)`,
+      ts: `import { networkModularity } from '@statlab/core';\nconst q = networkModularity(adjMatrix, communityAssignments);`,
+    },
+    useCases: [
+      'Evaluating quality of cluster partitions in network community detection algorithms (Louvain, Leiden, Fast Greedy).',
+      'Assessing modular architecture boundaries in software call graphs.'
+    ],
+    when: 'Use to measure strength of division of a network into modules/communities (Q > 0.3 indicates significant community structure; max Q = 1).',
+    cautions: [
+      'Modularity suffers from a resolution limit: fails to detect small communities in large networks.',
+      'Comparing Q scores across graphs with different node counts requires normalization.'
+    ],
+    workbenchId: 'net_modularity_q',
+  },
+
+  // --- ADVANCED SURVIVAL & COMPETING RISKS FAMILY ---
+  {
+    slug: 'competing-risks-cumulative-incidence',
+    title: 'Competing risks Cumulative Incidence Function (CIF) calculator',
+    family: 'Survival & reliability analysis',
+    description: 'Calculate Cumulative Incidence Function (CIF) and Fine-Gray subdistribution hazard for survival data with competing risk event types.',
+    keywords: ['competing risks calculator', 'cumulative incidence function CIF', 'Fine Gray regression', 'cause specific hazard', 'competing events survival'],
+    inputs: ['Time to event T_i', 'Event type code status (0=Censored, 1=Event of Interest, 2=Competing Event)', 'Grouping factor'],
+    example: { a: ['N = 150 subjects', 'Event 1 (Interest), Event 2 (Competing)'], result: '12-Month Cumulative Incidence CIF_1(t=12) = 18.5%, CIF_2(t=12) = 32.0%. Gray test p = .014.' },
+    formula: 'CIF_k(t) = ∫_0^t S(u-) h_k(u) du, where S(u-) is overall event-free survival',
+    code: {
+      python: `from lifelines import AalenJohansenFitter\najf = AalenJohansenFitter().fit(durations, event_observed, event_of_interest=1)`,
+      r: `library(cmprsk)\nfit <- cuminc(ftime = time, fstatus = status, group = group)`,
+      ts: `import { competingRisksCIF } from '@statlab/core';\nconst res = competingRisksCIF(times, statusCodes);`,
+    },
+    useCases: [
+      'Analyzing failure rates when multiple distinct failure causes compete (e.g. disk failure vs power outage vs system deprecation).',
+      'Clinical trial analysis where patient death from non-target causes precludes observing target disease recurrence.'
+    ],
+    when: 'Use when subjects are exposed to multiple mutually exclusive event types, making 1 - Kaplan-Meier an overestimate.',
+    cautions: [
+      'Standard Kaplan-Meier 1 - S(t) overestimates event probability when competing risks exist.',
+      'Use Gray’s test to compare CIF curves across groups.'
+    ],
+    workbenchId: 'surv_competing_risks',
+  },
+  {
+    slug: 'restricted-mean-survival-time-rmst',
+    title: 'Restricted Mean Survival Time (RMST) difference calculator',
+    family: 'Survival & reliability analysis',
+    description: 'Calculate Restricted Mean Survival Time RMST μ(τ), Restricted Mean Time Lost (RMTL), and between-group RMST differences up to horizon τ.',
+    keywords: ['RMST calculator', 'restricted mean survival time', 'RMST difference', 'RMTL calculation', 'survival horizon tau'],
+    inputs: ['Time to event T', 'Event indicator status', 'Group assignment', 'Truncation time horizon τ'],
+    example: { a: ['Group A vs Group B', 'Time horizon τ = 24 months'], result: 'RMST_A(τ=24) = 18.4 mos, RMST_B(τ=24) = 14.2 mos. Difference Δ = +4.2 months (p = .003, 95% CI [1.4, 7.0]).' },
+    formula: 'μ(τ) = ∫_0^τ S(t) dt, ΔRMST = μ_A(τ) - μ_B(τ)',
+    code: {
+      python: `import numpy as np\n# Integrate Kaplan-Meier survival curves S_A(t) and S_B(t) up to time horizon tau`,
+      r: `library(survRM2)\nrmst2(time = time, status = status, arm = group, tau = 24)`,
+      ts: `import { rmstDifference } from '@statlab/core';\nconst res = rmstDifference(timesA, statusA, timesB, statusB, { tau: 24 });`,
+    },
+    useCases: [
+      'Quantifying average event-free survival time gain over a fixed time horizon τ in clinical or engineering trials.',
+      'Providing an easily interpretable summary metric when proportional hazards assumptions are violated.'
+    ],
+    when: 'Use as a primary effect size measure in survival analysis, especially when Cox proportional hazards assumption fails (crossing survival curves).',
+    cautions: [
+      'Truncation horizon τ must be chosen prior to analysis and cannot exceed minimum of max follow-up times in both groups.',
+      'Interpretation is tied strictly to the specified time horizon τ.'
+    ],
+    workbenchId: 'surv_rmst_diff',
+  },
+  {
+    slug: 'frailty-model-clustered-survival',
+    title: 'Shared Frailty Model for clustered survival data calculator',
+    family: 'Survival & reliability analysis',
+    description: 'Calculate Shared Frailty Cox model parameters, cluster random effect variance θ (gamma or log-normal frailty), and adjusted hazard ratios.',
+    keywords: ['frailty model calculator', 'shared frailty survival', 'clustered survival data', 'gamma frailty model', 'random effects Cox'],
+    inputs: ['Event times T_ij', 'Censoring flags', 'Predictors X', 'Cluster ID grouping variable'],
+    example: { a: ['N = 300 observations in 30 clusters', 'Gamma frailty'], result: 'Hazard Ratio HR = 1.65 (p = .004), Frailty variance θ = 0.38 (p = .012 - Significant cluster heterogeneity).' },
+    formula: 'h_{ij}(t) = w_i h_0(t) exp(X_{ij} β), where w_i ~ Gamma(1/θ, 1/θ)',
+    code: {
+      python: `from lifelines import CoxPHFitter\n# Fit Cox model with cluster unobserved frailty variance`,
+      r: `library(survival)\ncoxph(Surv(time, status) ~ x + frailty(cluster, distribution="gamma"), data = df)`,
+      ts: `import { sharedFrailtyModel } from '@statlab/core';\nconst res = sharedFrailtyModel(times, status, matrixX, clusterIds);`,
+    },
+    useCases: [
+      'Analyzing survival/failure times clustered by hardware batch, geographic server rack, or medical center.',
+      'Accounting for unobserved intra-cluster correlation in event history analysis.'
+    ],
+    when: 'Use when survival observations are grouped into clusters (e.g. repeated events per subject or subjects within centers).',
+    cautions: [
+      'Ignoring cluster frailty leads to underestimated standard errors and biased hazard ratios.',
+      'Frailty variance θ = 0 indicates absence of unobserved cluster heterogeneity.'
+    ],
+    workbenchId: 'surv_shared_frailty',
+  },
+
+  // --- EXTREME VALUE THEORY & SPATIAL EXTREME METRICS FAMILY ---
+  {
+    slug: 'pot-peaks-over-threshold-gpd',
+    title: 'Peaks Over Threshold (POT) Generalized Pareto calculator',
+    family: 'Extreme value & heavy-tailed distributions',
+    description: 'Calculate Peaks Over Threshold (POT) Generalized Pareto Distribution (GPD) shape parameter xi (ξ), scale sigma (σ), and high return level quantiles.',
+    keywords: ['POT peaks over threshold', 'generalized pareto GPD', 'extreme quantile calculator', 'threshold exceedance', 'extreme value POT'],
+    inputs: ['Data series X_t', 'Threshold u', 'Return period T (e.g. 100-year, 1000-year event)'],
+    example: { a: ['N = 1000 daily observations', 'Threshold u = 95th percentile (u = 85.0)'], result: 'GPD Scale σ = 12.4, Shape ξ = +0.18 (Heavy tail). 100-Period Return Level = 142.8.' },
+    formula: 'F_u(y) = 1 - (1 + ξ y / σ)^{-1/ξ}, where y = x - u > 0',
+    code: {
+      python: `from scipy import stats\n# Fit scipy.stats.genpareto to threshold exceedances (x - u)`,
+      r: `library(evd)\nfpot(x, threshold = 85.0)`,
+      ts: `import { gpdThresholdFit } from '@statlab/core';\nconst res = gpdThresholdFit(dataSeries, { threshold: 85.0 });`,
+    },
+    useCases: [
+      'Estimating extreme latency spikes or queue overflow levels exceeded once per 10,000 requests.',
+      'Modeling financial tail loss exceedances and environmental flood/wind extreme quantiles.'
+    ],
+    when: 'Use for modeling extreme tail exceedances above a high threshold u (more data-efficient than GEV block maxima).',
+    cautions: [
+      'Threshold u selection requires balancing bias (u too low) and variance (u too high); use Mean Residual Life plot.',
+      'Positive shape ξ > 0 indicates heavy Pareto tail; ξ < 0 indicates bounded upper tail.'
+    ],
+    workbenchId: 'evt_pot_gpd',
+  },
+  {
+    slug: 'return-period-extreme-events',
+    title: 'Extreme Event Return Period and Exceedance Probability calculator',
+    family: 'Extreme value & heavy-tailed distributions',
+    description: 'Calculate return period T_R, annual exceedance probability p_e, and probability of occurrence over planning horizon N years.',
+    keywords: ['return period calculator', 'exceedance probability', '100 year event probability', 'extreme event risk', 'planning horizon risk'],
+    inputs: ['Annual exceedance probability p OR Return Period T_R', 'Planning horizon years N'],
+    example: { a: ['Return Period T_R = 100 years', 'Planning Horizon N = 30 years'], result: 'Annual Exceedance Prob p = 1.0%. Risk of experiencing ≥1 100-year event over 30 years = 26.03%.' },
+    formula: 'p = 1 / T_R, Risk R_N = 1 - (1 - p)^N = 1 - (1 - 1/T_R)^N',
+    code: {
+      python: `def extreme_event_risk(return_period, years):\n    p = 1.0 / return_period\n    risk = 1.0 - (1.0 - p)**years\n    return p, risk`,
+      r: `risk <- 1 - (1 - 1/100)^30`,
+      ts: `import { returnPeriodRisk } from '@statlab/core';\nconst res = returnPeriodRisk(100, 30);`,
+    },
+    useCases: [
+      'Calculating cumulative risk of a 100-year outage or infrastructure failure occurring over a 30-year operational life.',
+      'Communicating extreme event probabilities accurately to non-statistical stakeholders.'
+    ],
+    when: 'Use when translating annual extreme return periods into total cumulative risk over a multi-year project lifespan.',
+    cautions: [
+      'A "100-year event" does NOT mean the event occurs exactly once every 100 years; there is a 26% chance of occurrence in any 30-year window.',
+      'Assumes stationary annual exceedance probabilities over time.'
+    ],
+    workbenchId: 'evt_return_period',
+  },
+
+  // --- INFORMATION THEORY & CAUSALITY DISCOVERY FAMILY ---
+  {
+    slug: 'transfer-entropy-time-series',
+    title: 'Transfer Entropy time series causality calculator',
+    family: 'Information theory & Machine learning',
+    description: 'Calculate non-parametric Transfer Entropy TE_{X→Y} measuring directional non-linear information transfer from time series X to Y.',
+    keywords: ['transfer entropy calculator', 'directional information transfer', 'non-linear Granger causality', 'Kullback Leibler TE', 'time series causality'],
+    inputs: ['Source series X_t', 'Target series Y_t', 'History lag length k', 'Bin count or kernel width'],
+    example: { a: ['Series length N = 500', 'History lag k = 1'], result: 'TE_{X→Y} = 0.185 bits (p = .0012), TE_{Y→X} = 0.021 bits (p = .42). Significant directional causality X → Y.' },
+    formula: 'TE_{X→Y} = ∑ p(y_{t+1}, y_t^{(k)}, x_t^{(k)}) log₂ [ p(y_{t+1} | y_t^{(k)}, x_t^{(k)}) / p(y_{t+1} | y_t^{(k)}) ]',
+    code: {
+      python: `from pyinform import transfer_entropy\nte_val = transfer_entropy(source_series, target_series, k=1)`,
+      r: `library(RTransferEntropy)\ncalc_TE(x, y, lx = 1, ly = 1)`,
+      ts: `import { transferEntropy } from '@statlab/core';\nconst te = transferEntropy(seriesX, seriesY, { lag: 1 });`,
+    },
+    useCases: [
+      'Detecting non-linear directional causal dependencies between microservice latency telemetry series where linear Granger causality fails.',
+      'Analyzing information flow directionality in neural, financial, or complex physical networks.'
+    ],
+    when: 'Use when testing directional causal relationship between time series that may possess non-linear dependencies.',
+    cautions: [
+      'Requires surrogate data testing (e.g. phase-randomized surrogates) to establish statistical significance p-value.',
+      'Sensitive to probability density estimation choice (histogram binning vs k-NN mutual information).'
+    ],
+    workbenchId: 'info_transfer_entropy',
+  },
+  {
+    slug: 'conditional-mutual-information',
+    title: 'Conditional Mutual Information I(X; Y | Z) calculator',
+    family: 'Information theory & Machine learning',
+    description: 'Calculate Conditional Mutual Information I(X; Y | Z) measuring shared information between X and Y while conditioning on Z.',
+    keywords: ['conditional mutual information', 'CMI calculator', 'IXYZ info theory', 'feature selection conditioning', 'conditional dependency'],
+    inputs: ['Variable X', 'Variable Y', 'Conditioning variable Z', 'Estimation method (binned, k-NN)'],
+    example: { a: ['N = 300 tri-variate samples'], result: 'I(X; Y | Z) = 0.042 bits (vs unconditioned I(X; Y) = 0.385 bits). Dependency between X and Y is mediated by Z.' },
+    formula: 'I(X; Y | Z) = H(X, Z) + H(Y, Z) - H(X, Y, Z) - H(Z)',
+    code: {
+      python: `from sklearn.feature_selection import mutual_info_regression\n# Compute CMI using k-NN entropy estimation`,
+      r: `library(infotheo)\ncondinformation(X, Y, Z)`,
+      ts: `import { conditionalMI } from '@statlab/core';\nconst cmi = conditionalMI(vectorX, vectorY, vectorZ);`,
+    },
+    useCases: [
+      'Testing whether feature X provides unique predictive information for Y beyond what is already provided by existing feature set Z.',
+      'Building Bayesian networks and causal DAG structures via constraint-based algorithms (PC algorithm).'
+    ],
+    when: 'Use in feature selection to eliminate redundant predictors that share no unique information with target Y given Z.',
+    cautions: [
+      'If I(X; Y | Z) ≈ 0, X and Y are conditionally independent given Z.',
+      'Requires sufficient sample size N for stable joint entropy estimation in 3D continuous space.'
+    ],
+    workbenchId: 'info_conditional_mi',
+  },
+
+  // --- QUALITY CONTROL & RELIABILITY ENGINEERING FAMILY ---
+  {
+    slug: 'accelerated-life-testing-alt',
+    title: 'Accelerated Life Testing (ALT) Arrhenius-Weibull model calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate Accelerated Life Testing (ALT) activation energy E_a, acceleration factor AF, and extrapolated use-condition MTTF under thermal/stress acceleration.',
+    keywords: ['ALT calculator', 'accelerated life testing', 'Arrhenius Weibull model', 'activation energy Ea', 'acceleration factor AF'],
+    inputs: ['Stress level test temperatures T_1, T_2 (Kelvin)', 'Failure times at test conditions', 'Use condition temperature T_use'],
+    example: { a: ['Test T_1 = 353K (80°C), Test T_2 = 393K (120°C)', 'Use T_use = 298K (25°C)'], result: 'Activation Energy E_a = 0.68 eV, Acceleration Factor AF = 42.5. Extrapolated Use MTTF = 125,000 hours.' },
+    formula: 'AF = exp[ (E_a / k_B) (1/T_use - 1/T_stress) ], where k_B = 8.617 x 10^{-5} eV/K',
+    code: {
+      python: `import numpy as np\n# Fit Arrhenius-Weibull stress log-linear model via maximum likelihood`,
+      r: `library(Reliability)\n# Fit ALT model with temperature stress covariate`,
+      ts: `import { arrheniusALT } from '@statlab/core';\nconst res = arrheniusALT(testData, { tUseKelvin: 298 });`,
+    },
+    useCases: [
+      'Extrapolating component hardware lifespan under normal operating conditions from high-temperature accelerated burn-in tests.',
+      'Estimating product warranty failure rates in reliability engineering.'
+    ],
+    when: 'Use when product lifespans under normal conditions are too long to test directly without stress acceleration.',
+    cautions: [
+      'Assumes failure mechanism does not change under elevated stress conditions.',
+      'Temperatures must always be converted to absolute Kelvin scale (K = °C + 273.15).'
+    ],
+    workbenchId: 'spc_alt_arrhenius',
+  },
+  {
+    slug: 'gage-rr-measurement-system',
+    title: 'Gage R&R measurement system capability calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate Gage Repeatability and Reproducibility (Gage R&R) variance components, %GRR, Part-to-Part variation, and Number of Distinct Categories (ndc).',
+    keywords: ['Gage RR calculator', 'measurement system analysis', '%GRR calculation', 'repeatability reproducibility', 'number of distinct categories ndc'],
+    inputs: ['Parts count p', 'Appraisers count a', 'Trials count r', 'Measurement data matrix'],
+    example: { a: ['10 Parts, 3 Appraisers, 2 Trials each (60 measurements)'], result: '%GRR = 8.4% (< 10% Acceptable measurement system), Distinct Categories ndc = 14 (Good discrimination).' },
+    formula: 'σ²_{total} = σ²_{repeatability} + σ²_{reproducibility} + σ²_{part}, %GRR = 100% * (σ_{GRR} / σ_{total}), ndc = 1.41 (σ_{part} / σ_{GRR})',
+    code: {
+      python: `import statsmodels.api as sm\n# ANOVA two-way cross-factorial decomposition of Gage R&R variance components`,
+      r: `library(sixsigma)\nss.rr(var = measurement, part = part, appr = appraiser, data = df)`,
+      ts: `import { gageRRAnalysis } from '@statlab/core';\nconst res = gageRRAnalysis(measurements, { parts: 10, appraisers: 3, trials: 2 });`,
+    },
+    useCases: [
+      'Auditing measurement instrument and operator precision in Six Sigma quality control programs.',
+      'Ensuring automated telemetry instrumentation error does not corrupt quality metrics.'
+    ],
+    when: 'Use to evaluate measurement system capability before running process capability (Cpk) or control chart analyses.',
+    cautions: [
+      '%GRR < 10% is acceptable; 10%-30% is marginal; > 30% indicates unacceptable measurement variation.',
+      'Number of Distinct Categories (ndc) should be ≥ 5.'
+    ],
+    workbenchId: 'spc_gage_rr',
+  },
+  {
+    slug: 'tolerance-interval-normal',
+    title: 'Normal distribution tolerance interval (k-factor) calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate two-sided and one-sided statistical tolerance bounds containing p% of population with 1-α confidence level using exact k-factor multipliers.',
+    keywords: ['tolerance interval calculator', 'k factor multiplier', 'normal tolerance bounds', 'population coverage interval', 'confidence coverage bound'],
+    inputs: ['Sample mean X̄', 'Sample standard deviation s', 'Sample size n', 'Coverage percentage p (e.g. 99%, 95%)', 'Confidence level 1-α (e.g. 95%)'],
+    example: { a: ['Sample mean = 100.0, s = 5.0, n = 30', 'Coverage p = 99%, Confidence = 95%'], result: 'Tolerance Factor k = 3.370. 99% Tolerance Interval with 95% Confidence = [83.15, 116.85].' },
+    formula: 'Interval = X̄ ± k s, where k ≈ z_{(1+p)/2} * √( (n-1)/χ²_{α, n-1} ) * √( 1 + 1/n )',
+    code: {
+      python: `from scipy import stats\n# Calculate exact Howe/Exact k-factor for specified (n, p, 1-alpha)`,
+      r: `library(tolerance)\nnormtol.int(x = sample_data, alpha = 0.05, P = 0.99, side = 2)`,
+      ts: `import { normalToleranceInterval } from '@statlab/core';\nconst res = normalToleranceInterval(sample, { p: 0.99, confidence: 0.95 });`,
+    },
+    useCases: [
+      'Establishing engineering specification limits that guarantee 99% of production items meet compliance with 95% confidence.',
+      'Setting SLA latency limits based on sample benchmark telemetry.'
+    ],
+    when: 'Use when establishing bounds that contain a specified proportion (p%) of an entire population, rather than just bounding the mean (confidence interval).',
+    cautions: [
+      'Do not confuse tolerance intervals with confidence intervals (which bound the mean) or prediction intervals (which bound a single future observation).',
+      'Assumes underlying population is normally distributed.'
+    ],
+    workbenchId: 'spc_tolerance_interval',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
