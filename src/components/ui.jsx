@@ -79,6 +79,50 @@ export function CheckList({ label, items, selected, onChange }) {
   );
 }
 
+// ── Group editor (add/remove named groups, each a checklist) ──────────────────
+export function GroupEditor({ label, items, groups, onChange }) {
+  function addGroup() { onChange([...groups, { items: [] }]); }
+  function removeGroup(gi) { onChange(groups.filter((_, i) => i !== gi)); }
+  function toggleItem(gi, item, checked) {
+    onChange(groups.map((g, i) => i === gi
+      ? { items: checked ? [...g.items, item] : g.items.filter(x => x !== item) }
+      : g));
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {label && <div style={{ fontSize: 8, color: C.dim, ...mono, textTransform: "uppercase", letterSpacing: ".1em" }}>{label}</div>}
+      {groups.map((g, gi) => (
+        <div key={gi} style={{ border: `1px solid ${C.border}`, borderRadius: 3, padding: 5, display: "flex", flexDirection: "column", gap: 3 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 9, ...mono, color: C.dim }}>Group {gi + 1}</span>
+            <button
+              type="button"
+              onClick={() => removeGroup(gi)}
+              style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.dim, padding: "1px 6px", borderRadius: 3, cursor: "pointer", fontSize: 10 }}
+            >×</button>
+          </div>
+          {items.map(it => (
+            <label key={it} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, ...mono, color: g.items.includes(it) ? C.accent : C.text, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={g.items.includes(it)}
+                onChange={e => toggleItem(gi, it, e.target.checked)}
+                style={{ accentColor: C.accent }}
+              />
+              {it}
+            </label>
+          ))}
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addGroup}
+        style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.dim, padding: "3px 8px", borderRadius: 3, cursor: "pointer", fontSize: 9, ...mono, alignSelf: "flex-start" }}
+      >+ Add group</button>
+    </div>
+  );
+}
+
 // ── Toggle switch ─────────────────────────────────────────────────────────────
 export function Toggle({ label, value, onChange }) {
   return (

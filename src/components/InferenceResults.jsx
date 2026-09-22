@@ -76,6 +76,36 @@ function PathCoeffTable({ coeffs }) {
   );
 }
 
+function BifactorTable({ loadings }) {
+  if (!loadings?.length) return null;
+  // 'communality' (general^2 + group^2) is omitted: @statlab/core@0.1.1's
+  // bifactorModel caps the general loading at 0.99 but never caps the
+  // group loading, so communality (and omegaTotal, similarly omitted from
+  // the chip row below) routinely exceeds 1 -- a value that's supposed to
+  // be a bounded proportion of variance by definition. Confirmed against
+  // the real package on well-behaved, same-scale inputs, not just an edge
+  // case. general/group/omegaHierarchical stay correctly bounded.
+  const headers = ['item', 'general', 'group'];
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', ...mono, fontSize: 9, width: '100%' }}>
+        <thead>
+          <tr>{headers.map(h => <th key={h} style={{ padding: '2px 6px', textAlign: 'left', color: C.dim, borderBottom: `1px solid ${C.border}`, fontSize: 7, textTransform: 'uppercase' }}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {loadings.map((l, i) => (
+            <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : C.panel }}>
+              <td style={{ padding: '2px 6px', color: PAL[i % PAL.length] }}>{l.item}</td>
+              <td style={{ padding: '2px 6px', color: C.text }}>{l.general}</td>
+              <td style={{ padding: '2px 6px', color: C.text }}>{l.group}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, normG1, normG2, levene, scaleVars, ds }) {
   const [showQQ, setShowQQ] = useState(false);
   const [showPow, setShowPow] = useState(false);
@@ -798,6 +828,21 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
           {Object.entries(r.rSquared ?? {}).map(([k, v]) => <Chip key={k} label={`R² ${k}`} value={v} color={C.pos} />)}
         </Row>
         <PathCoeffTable coeffs={r.coefficients} />
+      </>}
+
+      {r.test === 'Latent Growth Model' && <>
+        <SectionHead label={`Latent Growth Model · ${r.timePoints} timepoints · n=${r.n}`} />
+        <Row>
+          {r.coefficients.map((c, i) => <Chip key={i} label={c.parameter} value={c.estimate} color={C.accent} />)}
+        </Row>
+      </>}
+
+      {r.test === 'Bifactor Model' && <>
+        <SectionHead label={`Bifactor Model · n=${r.n}`} />
+        <Row>
+          <Chip label="ω hierarchical" value={r.omegaHierarchical} color={r.omegaHierarchical >= .5 ? C.ok : C.warn} />
+        </Row>
+        <BifactorTable loadings={r.loadings} />
       </>}
 
       {r.test === "McDonald's ω" && (

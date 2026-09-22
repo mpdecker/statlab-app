@@ -292,6 +292,57 @@ describe('InferencePanel', () => {
       expect(screen.getByText(/Taylor Linearization · 3 strata · n=25/)).toBeTruthy();
     });
 
+    // bifactorGroups holds a nested shape (Array<{items: string[]}>) the
+    // generic revalidation logic above didn't originally cover: a stale
+    // item name surviving inside a group's own `items` array is invisible
+    // to the user (GroupEditor's checklist only ever renders checkboxes
+    // for the CURRENT dataset's numeric columns, so a stale item can never
+    // be seen or unchecked) yet still reaches bifactorModel's computation,
+    // silently producing extra rows in the results table for columns that
+    // no longer exist in the loaded dataset. Found during manual
+    // verification against the real app, not a hypothetical.
+    const bifactorIrisRows = Array.from({ length: 25 }, (_, i) => ({
+      sepalLength: 4 + i * 0.1, sepalWidth: 2 + i * 0.05, petalLength: 1 + i * 0.15, petalWidth: 0.1 + i * 0.02,
+    }));
+    const bifactorIrisDs = { numeric: ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'], categorical: [] };
+
+    const bifactorSalariesRows = Array.from({ length: 25 }, (_, i) => ({
+      yrs: 1 + i, svc: 1 + i * 0.9, sal: 50000 + i * 2000,
+    }));
+    const bifactorSalariesDs = { numeric: ['yrs', 'svc', 'sal'], categorical: [] };
+
+    it('does not silently keep stale group items (invisible orphans) in bifactor groups after a dataset switch', () => {
+      const { rerender } = render(
+        <InferencePanel data={bifactorIrisRows} ds={bifactorIrisDs} active="bifactor" setActive={vi.fn()} />,
+      );
+
+      rerender(<InferencePanel data={bifactorSalariesRows} ds={bifactorSalariesDs} active="bifactor" setActive={vi.fn()} />);
+
+      expect(screen.queryByText('sepalLength')).toBeNull();
+      expect(screen.queryByText('sepalWidth')).toBeNull();
+      expect(screen.queryByText('petalLength')).toBeNull();
+      expect(screen.queryByText('petalWidth')).toBeNull();
+      // Positive anchor: confirms the panel genuinely re-rendered real
+      // content for the new dataset (via the fresh-default fallback
+      // split) rather than silently rendering nothing at all. 'yrs'
+      // legitimately appears multiple times (GroupEditor's per-group
+      // checklist labels plus the results table), so assert presence,
+      // not uniqueness.
+      expect(screen.getAllByText('yrs').length).toBeGreaterThan(0);
+    });
+
+    it('does not leak the unbounded omega_t into the APA citation, only into the raw package result', () => {
+      // Confirmed directly against the real package: this exact fixture's
+      // default 2-group split ({yrs,svc},{sal}) produces omega_t = 8256.245
+      // -- the same unbounded-group-loading failure mode documented in the
+      // spec Status and hidden from the chip row/table. The APA citation
+      // (rendered at the top of every result, and reused by "copy",
+      // "copy all", and the Markdown export) must not leak it either.
+      render(<InferencePanel data={bifactorSalariesRows} ds={bifactorSalariesDs} active="bifactor" setActive={vi.fn()} />);
+      expect(screen.queryByText(/omega_t/)).toBeNull();
+      expect(screen.getByText(/omega_h = 0\.746/)).toBeTruthy();
+    });
+
     it('resets all stale numeric/categorical generic state slots on dataset switch (hook-level)', () => {
       const { result, rerender: rerenderHook } = renderHook(
         ({ data, ds }) => useInference(data, ds, 'twoway', vi.fn()),
