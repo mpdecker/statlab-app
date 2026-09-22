@@ -7100,6 +7100,506 @@ export const calculatorPages = [
     ],
     workbenchId: 'nonparam_siegel_tukey',
   },
+  {
+    slug: 'multinomial-logistic-regression-odds',
+    title: 'Multinomial logistic regression odds ratio calculator',
+    family: 'AI, ML & classification evaluation',
+    description: 'Calculate relative risk ratios (RRR) and multinomial logit odds across nominal outcome categories with multi-class reference baselines.',
+    keywords: ['multinomial logistic regression calculator', 'multinomial logit odds', 'relative risk ratio calculator', 'nominal outcome regression', 'multiclass odds ratio'],
+    inputs: ['Reference outcome class', 'Predictor variable vector X', 'Nominal outcome class matrix Y'],
+    example: { a: ['Reference class: Control', 'Predictor: SLA Latency Tier'], result: 'Class 2 RRR = 2.45 (95% CI: 1.62-3.71, p < .001); Class 3 RRR = 0.68 (95% CI: 0.44-1.05)' },
+    formula: 'ln(P(Y=k) / P(Y=ref)) = β₀ₖ + β₁ₖX₁ + ... + βₚₖXₚ, RRRₖ = exp(βₖ)',
+    code: {
+      python: `import statsmodels.api as sm\nmdl = sm.MNLogit(y, sm.add_constant(x)).fit()\nprint(mdl.summary())`,
+      r: `library(nnet)\nmdl <- multinom(y ~ x)\nexp(coef(mdl))`,
+      ts: `import { multinomialLogit } from '@statlab/core';\nconst res = multinomialLogit(X, y, { refClass: 0 });`,
+    },
+    useCases: [
+      'Evaluating multi-class user conversion tiers based on onboarding interaction patterns.',
+      'Classifying cloud infrastructure fault categories from multi-dimensional log telemetry.'
+    ],
+    when: 'Use when the outcome variable is categorical with 3 or more un-ordered (nominal) levels.',
+    cautions: [
+      'Assumes Independence of Irrelevant Alternatives (IIA); run Hausman-McFadden test if candidate classes are closely related.',
+      'Check for complete separation across sparse outcome cells.'
+    ],
+    workbenchId: 'ml_multinomial_logit',
+  },
+  {
+    slug: 'ordinal-logistic-regression-polytomous',
+    title: 'Ordinal logistic regression proportional odds calculator',
+    family: 'AI, ML & classification evaluation',
+    description: 'Calculate cumulative odds ratios and cut-point threshold intercepts for ordered categorical outcomes under the proportional odds assumption.',
+    keywords: ['ordinal logistic regression calculator', 'proportional odds model', 'cumulative logit calculator', 'ordered logit regression', 'polytomous ordinal regression'],
+    inputs: ['Ordered outcome levels (1..K)', 'Predictor matrix X'],
+    example: { a: ['Outcome: Rating (Low, Med, High)', 'Predictor: System Load'], result: 'Cumulative OR = 1.85 (95% CI: 1.34-2.56, p = .0002). Brant test p = .42 (proportional odds holds).' },
+    formula: 'logit(P(Y ≤ k)) = αₖ - βᵀX for k = 1..K-1, cumulative OR = exp(β)',
+    code: {
+      python: `from statsmodels.miscmodels.ordinal_model import OrderedModel\nmdl = OrderedModel(y, X, distr='logit').fit()`,
+      r: `library(MASS)\nmdl <- polr(ordered_y ~ X, Hess=TRUE)\nsummary(mdl)`,
+      ts: `import { ordinalLogit } from '@statlab/core';\nconst res = ordinalLogit(X, orderedY);`,
+    },
+    useCases: [
+      'Modeling multi-level severity ratings in automated application performance monitoring.',
+      'Analyzing Likert-scale user satisfaction scores across product variant cohorts.'
+    ],
+    when: 'Use when the dependent variable is ordinal (ranked categories with meaningful order).',
+    cautions: [
+      'Must verify the parallel lines (proportional odds) assumption using Brant test.',
+      'If parallel lines assumption is violated, consider a partial proportional odds model.'
+    ],
+    workbenchId: 'ml_ordinal_logit',
+  },
+  {
+    slug: 'cox-proportional-hazards-schoenfeld',
+    title: 'Schoenfeld residuals proportional hazards test calculator',
+    family: 'Survival & reliability analysis',
+    description: 'Test the proportional hazards assumption in Cox regression using scaled Schoenfeld residuals and Grambsch-Therneau time-trend tests.',
+    keywords: ['Schoenfeld residuals calculator', 'proportional hazards assumption test', 'Cox model diagnostic', 'Grambsch Therneau test', 'survival time dependence'],
+    inputs: ['Cox model object', 'Event indicator vector', 'Time vector'],
+    example: { a: ['Model: Cox PH on 250 instances', 'Covariate: Load Factor'], result: 'Global Schoenfeld test chi2 = 1.84, df = 3, p = .606. Proportional hazards assumption supported.' },
+    formula: 'r*_jk = r_jk + V_j * β̂_k; test correlation r*_jk vs g(t_j) where g(t)=t or km(t)',
+    code: {
+      python: `from lifelines import CoxPHFitter\ncph = CoxPHFitter().fit(df, 'time', 'event')\ncph.check_assumptions(df, p_value_threshold=0.05)`,
+      r: `library(survival)\nfit <- coxph(Surv(time, status) ~ x, data=df)\nzph <- cox.zph(fit); print(zph)`,
+      ts: `import { schoenfeldTest } from '@statlab/core';\nconst res = schoenfeldTest(coxFitResult);`,
+    },
+    useCases: [
+      'Diagnostic validation of proportional hazard ratios in long-term customer churn survival models.',
+      'Checking non-constant hazard effects over time in server cluster uptime duration models.'
+    ],
+    when: 'Use after fitting a Cox PH regression model to confirm covariate effect constancy over time.',
+    cautions: [
+      'P-values can be sensitive in very large sample sizes; inspect smoothed residual plots alongside p-values.',
+      'If violated, include time-dependent covariates or stratify by non-proportional variables.'
+    ],
+    workbenchId: 'survival_schoenfeld',
+  },
+  {
+    slug: 'kaplan-meier-log-rank-power',
+    title: 'Log-rank test sample size and statistical power calculator',
+    family: 'Survival & reliability analysis',
+    description: 'Calculate required sample size and statistical power for log-rank survival tests based on hazard ratio (HR), event counts, and follow-up duration.',
+    keywords: ['log rank sample size calculator', 'survival power calculator', 'log rank test power', 'Schoenfeld survival sample size', 'hazard ratio sample size'],
+    inputs: ['Hazard ratio (HR)', 'Target power (1-β)', 'Significance level α', 'Accrual / follow-up time'],
+    example: { a: ['Target HR = 0.65', 'Power = 80%, α = 0.05', 'Event probability = 0.60'], result: 'Required events E = 164, Total sample N = 274 subjects (137 per group).' },
+    formula: 'E = 4 * (z_α/2 + z_β)² / (ln(HR))²; N = E / P(Event)',
+    code: {
+      python: `import math\nfrom scipy.stats import norm\ndef logrank_n(hr, power=0.8, alpha=0.05, p_event=0.6):\n    e = 4 * (norm.ppf(1-alpha/2) + norm.ppf(power))**2 / (math.log(hr))**2\n    return math.ceil(e), math.ceil(e / p_event)`,
+      r: `library(powerSurvEpi)\nssizeCT(formula=hp ~ h0, power=0.8, alpha=0.05, k=1, pE=0.6, pC=0.6, RR=0.65)`,
+      ts: `import { logrankPower } from '@statlab/core';\nconst res = logrankPower({ hr: 0.65, power: 0.80, alpha: 0.05 });`,
+    },
+    useCases: [
+      'Sizing randomized reliability trial duration and node sample sizes for infrastructure failure testing.',
+      'Planning clinical trial cohort sizes for time-to-event endpoint survival comparisons.'
+    ],
+    when: 'Use prior to conducting a survival study to ensure adequate statistical power to detect a target hazard ratio.',
+    cautions: [
+      'Account for anticipated dropout/censoring rates by inflating the required sample size.',
+      'Assumes proportional hazards over the entire follow-up window.'
+    ],
+    workbenchId: 'survival_logrank_power',
+  },
+  {
+    slug: 'spatial-bivariate-morans-i',
+    title: 'Bivariate Moran’s I spatial cross-autocorrelation calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Measure spatial cross-autocorrelation between variable X at a spatial location and variable Y in surrounding spatial neighborhoods.',
+    keywords: ['bivariate Morans I calculator', 'spatial cross correlation', 'spatial bivariate association', 'neighborhood spatial lag', 'spatial co-location index'],
+    inputs: ['Spatial weight matrix W', 'Variable vector X', 'Variable vector Y'],
+    example: { a: ['Spatial units N = 100', 'X: Infrastructure density', 'Y: Latency spikes'], result: 'Bivariate Moran’s I = +0.482, z-score = 5.21, p < .0001 (High spatial co-location).' },
+    formula: 'I_xy = [ ∑_i ∑_j w_ij (x_i - x̄)(y_j - ȳ) ] / [ S₀ * s_x * s_y ]',
+    code: {
+      python: `from esda.moran import Moran_BV\nbv_moran = Moran_BV(x, y, w)\nprint(f"I_bv={bv_moran.I:.4f}, p={bv_moran.p_z_sim:.4f}")`,
+      r: `library(spdep)\n# Compute spatial lag of Y (W %*% Y) and correlate with X`,
+      ts: `import { bivariateMoranI } from '@statlab/core';\nconst res = bivariateMoranI(X, Y, spatialWeights);`,
+    },
+    useCases: [
+      'Analyzing cross-spatial dependence between regional server density and local network latency.',
+      'Detecting geographic co-location hotspots between demographic factors and mobile app usage.'
+    ],
+    when: 'Use when investigating if values of X in one location correlate with values of Y in neighboring locations.',
+    cautions: [
+      'Bivariate Moran’s I is asymmetric (I_xy ≠ I_yx); specify which variable is spatially lagged.',
+      'Does not imply direct point-to-point correlation without spatial neighborhood weighting.'
+    ],
+    workbenchId: 'spatial_bivariate_moran',
+  },
+  {
+    slug: 'lisa-local-morans-i',
+    title: 'LISA local Moran’s I spatial cluster calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Decompose global spatial autocorrelation into Local Indicators of Spatial Association (LISA) to detect High-High, Low-Low, High-Low, and Low-High spatial clusters.',
+    keywords: ['LISA calculator', 'local Morans I', 'spatial cluster detection', 'local indicator spatial association', 'spatial hotspot coldspot'],
+    inputs: ['Spatial feature vector X', 'Spatial weight matrix W', 'Permutations count'],
+    example: { a: ['N = 50 spatial zones', 'Permutations = 999'], result: 'Cluster map: 8 High-High hotspots, 5 Low-Low coldspots, 2 High-Low outliers (p < .05).' },
+    formula: 'I_i = (x_i - x̄)/s² * ∑_j w_ij (x_j - x̄)',
+    code: {
+      python: `from esda.moran import Moran_Local\nlm = Moran_Local(x, w, permutations=999)\nprint(lm.Is[:5], lm.p_sim[:5])`,
+      r: `library(spdep)\nlocalm <- localmoran(x, nb2listw(neighbors))\nhead(localm)`,
+      ts: `import { localMoranI } from '@statlab/core';\nconst res = localMoranI(X, spatialWeights);`,
+    },
+    useCases: [
+      'Identifying micro-geographic hotspots of network transmission errors across data center nodes.',
+      'Detecting localized spatial clusters of high-volume customer service inquiries.'
+    ],
+    when: 'Use to discover localized spatial clusters or spatial outliers rather than assuming uniform global spatial patterns.',
+    cautions: [
+      'Apply Bonferroni or FDR corrections for multiple hypothesis testing across N spatial locations.',
+      'Results depend directly on the choice of spatial weight matrix W (k-nearest vs distance cutoff).'
+    ],
+    workbenchId: 'spatial_lisa',
+  },
+  {
+    slug: 'point-process-l-function',
+    title: 'Besag’s L-function spatial point pattern calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate Besag’s L-function (variance-stabilized transformation of Ripley’s K-function) to test spatial point clustering vs CSR (Complete Spatial Randomness).',
+    keywords: ['Besags L function calculator', 'Ripleys K transformation', 'spatial point clustering', 'point pattern analysis', 'complete spatial randomness test'],
+    inputs: ['Spatial coordinates (X, Y)', 'Evaluation radii vector r', 'Bounding window domain'],
+    example: { a: ['Point count N = 120', 'Radii r = 1..20'], result: 'L(r) - r max peak at r = 5.2 (L-r = +2.41 > envelope ceiling). Significant clustering at r=5.2.' },
+    formula: 'L(r) = √(K(r) / π), L(r) - r = 0 under CSR',
+    code: {
+      python: `from pointpats import k_function\n# Compute Ripley K and transform L(r) = np.sqrt(K / np.pi)`,
+      r: `library(spatstat)\nL <- Lest(point_pattern)\nplot(L, . - r ~ r)`,
+      ts: `import { besagLFunction } from '@statlab/core';\nconst res = besagLFunction(points, { window: bounds });`,
+    },
+    useCases: [
+      'Testing whether sensor placement configurations display spatial clustering, regularity, or spatial randomness.',
+      'Analyzing spatial clustering of fault events in distributed geographical systems.'
+    ],
+    when: 'Use when analyzing 2D point coordinate distributions to evaluate multi-scale spatial aggregation.',
+    cautions: [
+      'Requires edge-correction (e.g., Ripley or translation edge-correction) near bounding window borders.',
+      'L(r) - r values above zero indicate clustering; below zero indicate spatial regularity/dispersion.'
+    ],
+    workbenchId: 'spatial_l_function',
+  },
+  {
+    slug: 'cross-correlation-function-ccf',
+    title: 'Cross-Correlation Function (CCF) time series lag calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Calculate sample cross-correlation coefficients r_xy(k) across positive and negative time lags to identify lead-lag relationships between two series.',
+    keywords: ['CCF calculator', 'cross correlation time series', 'time series lag lead calculator', 'cross correlation function', 'lead lag relationship'],
+    inputs: ['Series X(t)', 'Series Y(t)', 'Max lag k_max'],
+    example: { a: ['Length N = 500', 'Max lag k = 20'], result: 'Peak cross-correlation r_xy(+3) = +0.742 (Series X leads Y by 3 time steps).' },
+    formula: 'r_xy(k) = c_xy(k) / √(c_xx(0) c_yy(0)) where c_xy(k) = 1/N ∑ (x_t - x̄)(y_{t+k} - ȳ)',
+    code: {
+      python: `import statsmodels.api as sm\nccf = sm.tsa.stattools.ccf(x, y, adjusted=False)\nprint(ccf[:10])`,
+      r: `ccf_res <- ccf(x, y, lag.max=20, plot=FALSE)\nprint(ccf_res)`,
+      ts: `import { ccfTimeSeries } from '@statlab/core';\nconst res = ccfTimeSeries(seriesX, seriesY, { maxLag: 20 });`,
+    },
+    useCases: [
+      'Determining lag response times between upstream CPU load spikes and downstream memory pressure.',
+      'Identifying leading macroeconomic indicators for financial portfolio returns.'
+    ],
+    when: 'Use to evaluate non-directional or directional lead-lag linear dependence between two stationary time series.',
+    cautions: [
+      'Pre-whiten series if either exhibits strong autocorrelation to avoid spurious cross-correlation spikes.',
+      'Confirmatory causal inference requires formal Granger causality testing.'
+    ],
+    workbenchId: 'ts_ccf',
+  },
+  {
+    slug: 'hahn-hasbrouck-market-microstructure',
+    title: 'Roll and Hasbrouck market microstructure spread calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Estimate implicit bid-ask spreads, trade indicator noise, and permanent vs transitory price impact from high-frequency tick price changes.',
+    keywords: ['Roll spread model calculator', 'Hasbrouck microstructure spread', 'bid ask spread estimator', 'high frequency trade impact', 'implicit spread calculation'],
+    inputs: ['Price series P(t) or log prices p(t)', 'Trade direction signs q(t)'],
+    example: { a: ['Tick price changes N = 1000'], result: 'Roll implicit spread = $0.042 (Cov(Δp_t, Δp_{t-1}) = -0.000441). Transitory impact = 68%.' },
+    formula: 's_Roll = 2 * √(-Cov(Δp_t, Δp_{t-1})) if Cov < 0',
+    code: {
+      python: `import numpy as np\ndp = np.diff(prices)\ncov_1 = np.cov(dp[1:], dp[:-1])[0, 1]\nroll_spread = 2 * np.sqrt(-cov_1) if cov_1 < 0 else 0`,
+      r: `dp <- diff(prices)\ncov_lag <- cov(dp[-1], dp[-length(dp)])\nroll_spread <- 2 * sqrt(pmax(0, -cov_lag))`,
+      ts: `import { rollSpreadEstimator } from '@statlab/core';\nconst res = rollSpreadEstimator(prices);`,
+    },
+    useCases: [
+      'Estimating effective liquidity and bid-ask transaction friction from high-frequency price feeds.',
+      'Benchmarking market quality across automated market maker (AMM) liquidity pools.'
+    ],
+    when: 'Use when bid-ask quotes are unavailable but high-frequency transaction prices are logged.',
+    cautions: [
+      'If sample autocovariance of Δp_t is positive (due to trending or microstructure noise), Roll spread formula is undefined.',
+      'Hasbrouck VAR extension accounts for trade size sign correlation.'
+    ],
+    workbenchId: 'ts_microstructure_roll',
+  },
+  {
+    slug: 'bivariate-garch-dcc',
+    title: 'Dynamic Conditional Correlation (DCC-GARCH) volatility calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Estimate time-varying conditional covariance and dynamic correlation matrices R_t between two financial or operational time series.',
+    keywords: ['DCC GARCH calculator', 'dynamic conditional correlation', 'bivariate GARCH volatility', 'time varying correlation', 'multivariate GARCH'],
+    inputs: ['Return series 1', 'Return series 2', 'GARCH(1,1) univariate parameters', 'DCC parameters (a, b)'],
+    example: { a: ['N = 1000 daily observations', 'DCC α = 0.04, β = 0.93'], result: 'Average correlation = +0.52. Dynamic correlation range: [+0.18 to +0.81]. Mean persistence α+β = 0.97.' },
+    formula: 'H_t = D_t R_t D_t, Q_t = (1-a-b) Q̄ + a (ε_{t-1} ε’_{t-1}) + b Q_{t-1}, R_t = diag(Q_t)^{-1/2} Q_t diag(Q_t)^{-1/2}',
+    code: {
+      python: `from arch.multivariate import DCCGARCH\n# Fit bivariate DCC-GARCH model using arch library`,
+      r: `library(rmgarch)\nspec <- dccspec(uspec = multispec(replicate(2, garchspec())))\nfit <- dccfit(spec, data = returns)`,
+      ts: `import { dccGarchBivariate } from '@statlab/core';\nconst res = dccGarchBivariate(series1, series2);`,
+    },
+    useCases: [
+      'Tracking time-varying hedge ratios and risk correlations across cryptocurrency or equity asset pairs.',
+      'Monitoring dynamic co-volatility between interconnected cloud microservice response latencies.'
+    ],
+    when: 'Use when correlation between two volatility-clustering time series changes dynamically over time.',
+    cautions: [
+      'Requires stationarity of dynamic correlation persistence (a + b < 1).',
+      'Univariate GARCH models must be adequately specified before fitting DCC parameters.'
+    ],
+    workbenchId: 'ts_dcc_garch',
+  },
+  {
+    slug: 'partial-least-squares-pls-fit',
+    title: 'Partial Least Squares (PLS-SEM / PLSR) VIP score calculator',
+    family: 'Advanced regression & multivariate modeling',
+    description: 'Calculate PLS latent variable component loadings, inner model path coefficients, and Variable Importance in Projection (VIP) scores.',
+    keywords: ['PLS regression calculator', 'PLS-SEM VIP score', 'partial least squares', 'latent variable path modeling', 'VIP score calculator'],
+    inputs: ['Predictor matrix X', 'Response matrix Y', 'Number of latent components n_comp'],
+    example: { a: ['X (200x15)', 'Y (200x1)', 'n_components = 3'], result: 'R²Y = 0.784, Q² = 0.712. Top VIP feature: Var_4 (VIP = 1.68 > 1.0 threshold).' },
+    formula: 'VIP_j = √[ K * ∑_m (w_jm² * SSY_m) / SSY_total ]',
+    code: {
+      python: `from sklearn.cross_decomposition import PLSRegression\npls = PLSRegression(n_components=3).fit(X, y)\n# Calculate VIP scores from weights W and score variance`,
+      r: `library(pls)\nfit <- plsr(y ~ X, ncomp=3, validation="CV")\nsummary(fit)`,
+      ts: `import { plsRegression } from '@statlab/core';\nconst res = plsRegression(X, Y, { nComponents: 3 });`,
+    },
+    useCases: [
+      'Predicting system load from multi-collinear telemetry metrics with more predictors than sample observations.',
+      'Modeling structural equations (PLS-SEM) in user experience and customer satisfaction surveys.'
+    ],
+    when: 'Use when predictor variables are highly collinear or when sample size N is smaller than feature count P.',
+    cautions: [
+      'VIP scores > 1.0 are generally considered important for feature selection.',
+      'Perform cross-validation (Q² score) to avoid over-fitting component counts.'
+    ],
+    workbenchId: 'multivariate_pls',
+  },
+  {
+    slug: 'principal-component-regression-pcr',
+    title: 'Principal Component Regression (PCR) calculator',
+    family: 'Advanced regression & multivariate modeling',
+    description: 'Perform OLS regression on orthogonal principal components extracted from a predictor matrix X to eliminate severe multicollinearity.',
+    keywords: ['PCR calculator', 'principal component regression', 'PCR multicollinearity', 'PCA linear regression', 'dimension reduction regression'],
+    inputs: ['Predictor matrix X', 'Response vector y', 'Components count k'],
+    example: { a: ['X (100x10, VIFs > 15)', 'k = 3 components'], result: 'Cumulative variance explained: 84.2%. PCR R² = 0.725 (stabilized standard errors).' },
+    formula: 'Z = X W_k, β_PCR = W_k (Zᵀ Z)⁻¹ Zᵀ y',
+    code: {
+      python: `from sklearn.decomposition import PCA\nfrom sklearn.linear_model import LinearRegression\nz = PCA(n_components=3).fit_transform(X)\nmdl = LinearRegression().fit(z, y)`,
+      r: `library(pls)\npcr_fit <- pcr(y ~ X, ncomp=3, validation="CV")\nsummary(pcr_fit)`,
+      ts: `import { pcrRegression } from '@statlab/core';\nconst res = pcrRegression(X, y, { nComponents: 3 });`,
+    },
+    useCases: [
+      'Constructing predictive regression models on high-dimensional sensor measurements with extreme collinearity.',
+      'Predicting API throughput using orthogonalized system metrics.'
+    ],
+    when: 'Use when predictor variables are severely collinear and standard OLS yields inflated standard errors.',
+    cautions: [
+      'PCR selects components based on variance in X, which does not guarantee relevance to outcome Y (unlike PLS).',
+      'Always scale X variables prior to PCA component extraction.'
+    ],
+    workbenchId: 'multivariate_pcr',
+  },
+  {
+    slug: 'conjoint-analysis-part-worth-utility',
+    title: 'Conjoint analysis part-worth utility calculator',
+    family: 'Psychometrics & scale analysis',
+    description: 'Calculate part-worth utilities and relative attribute importance percentages from preference ranking or rating conjoint matrices.',
+    keywords: ['conjoint analysis calculator', 'part worth utility', 'relative attribute importance', 'tradeoff preference analysis', 'choice based conjoint'],
+    inputs: ['Respondent preference vector Y', 'Dummy/effects coded design matrix X'],
+    example: { a: ['Attributes: Price, Speed, Storage', 'Profiles = 16'], result: 'Relative Importance: Price (45.2%), Speed (38.1%), Storage (16.7%). Max utility profile identified.' },
+    formula: 'U_profile = β₀ + ∑ ∑ β_ik X_ik; Importance_j = Range(β_j) / ∑ Range(β_k) * 100%',
+    code: {
+      python: `import statsmodels.api as sm\nmdl = sm.OLS(y, X_dummy).fit()\n# Utility ranges computed per attribute`,
+      r: `library(conjoint)\nca_res <- Conjoint(y, x, z)\nprint(ca_res)`,
+      ts: `import { conjointPartWorths } from '@statlab/core';\nconst res = conjointPartWorths(designMatrix, ratings);`,
+    },
+    useCases: [
+      'Quantifying customer tradeoffs between feature offerings and tier pricing structures.',
+      'Optimizing product package configurations based on feature preference surveys.'
+    ],
+    when: 'Use when analyzing multi-attribute trade-off preferences from factorial survey choices.',
+    cautions: [
+      'Effects coding ensures part-worth utilities sum to zero within each attribute.',
+      'Check for potential attribute interactions if additive utility assumptions are too restrictive.'
+    ],
+    workbenchId: 'psych_conjoint',
+  },
+  {
+    slug: 'multidimensional-scaling-mds-stress',
+    title: 'Multidimensional Scaling (MDS) Kruskal’s Stress-1 calculator',
+    family: 'Probability distributions & dimensionality reduction',
+    description: 'Calculate Kruskal’s Stress-1 metric and low-dimensional spatial configurations from pairwise dissimilarity or distance matrices.',
+    keywords: ['MDS calculator', 'multidimensional scaling', 'Kruskals stress 1', 'dissimilarity map', 'perceptual mapping calculator'],
+    inputs: ['Symmetric dissimilarity matrix D', 'Dimensions target d (2 or 3)'],
+    example: { a: ['10x10 Dissimilarity matrix', 'Target d = 2'], result: 'Kruskal’s Stress-1 = 0.048 (Good fit < 0.05). 2D coordinate plot generated.' },
+    formula: 'Stress-1 = √[ ∑ (d_ij - d̂_ij)² / ∑ d_ij² ]',
+    code: {
+      python: `from sklearn.manifold import MDS\nmds = MDS(n_components=2, dissimilarity='precomputed', random_state=42)\npos = mds.fit_transform(dist_matrix)\nprint(f"Stress={mds.stress_:.4f}")`,
+      r: `mds_res <- cmdscale(dist_matrix, k=2, eig=TRUE)\n# or isoMDS(dist_matrix, k=2) for non-metric MDS`,
+      ts: `import { mdsKruskal } from '@statlab/core';\nconst res = mdsKruskal(distanceMatrix, { dimensions: 2 });`,
+    },
+    useCases: [
+      'Visualizing perceptual proximity maps of competing products from brand similarity ratings.',
+      'Mapping high-dimensional service latency dissimilarity matrices into 2D diagnostic maps.'
+    ],
+    when: 'Use to visualize high-dimensional proximity or dissimilarity data in 2D or 3D space.',
+    cautions: [
+      'Stress-1 values: <0.05 excellent, 0.05-0.10 good, >0.20 poor representation.',
+      'Metric MDS preserves actual distances; Non-metric MDS preserves ordinal rank order of distances.'
+    ],
+    workbenchId: 'dimred_mds',
+  },
+  {
+    slug: 'correspondence-analysis-inertia',
+    title: 'Simple Correspondence Analysis (CA) inertia calculator',
+    family: 'Categorical & proportion tests',
+    description: 'Calculate principal inertias, chi-square distances, and row/column factor coordinates for two-way contingency tables.',
+    keywords: ['correspondence analysis calculator', 'CA principal inertia', 'contingency table map', 'chi square distance map', 'bivariate CA calculator'],
+    inputs: ['Contingency table matrix N (R x C)'],
+    example: { a: ['Contingency matrix 4x5', 'Grand total N = 500'], result: 'Total Inertia = 0.245 (Chi-sq = 122.5, df = 12, p < .0001). Dim 1 explains 68.4%, Dim 2 explains 22.1%.' },
+    formula: 'P = N / n, D_r = diag(r), D_c = diag(c), Standardized residuals S = D_r^{-1/2} (P - r cᵀ) D_c^{-1/2} = U D_α Vᵀ',
+    code: {
+      python: `import prince\nca = prince.CA(n_components=2).fit(df_contingency)\nprint(ca.eigenvalues_)`,
+      r: `library(ca)\nfit <- ca(contingency_matrix)\nsummary(fit)`,
+      ts: `import { correspondenceAnalysis } from '@statlab/core';\nconst res = correspondenceAnalysis(contingencyMatrix);`,
+    },
+    useCases: [
+      'Visualizing association patterns between customer market segments and product usage tiers.',
+      'Analyzing cross-tabulations of categorical survey responses in 2D perceptual maps.'
+    ],
+    when: 'Use when exploring complex associations in two-way categorical contingency tables.',
+    cautions: [
+      'Total inertia equals Pearson Chi-square statistic divided by grand sample size N.',
+      'Interpretation relies on row and column profiles lying near each other in the joint coordinate plot.'
+    ],
+    workbenchId: 'cat_ca_inertia',
+  },
+  {
+    slug: 'canonical-variate-analysis-cva',
+    title: 'Canonical Variate Analysis (CVA) discrimination calculator',
+    family: 'Probability distributions & dimensionality reduction',
+    description: 'Calculate canonical discriminant variates, Wilks’ Lambda, and group centroid separation across multi-group multivariate samples.',
+    keywords: ['CVA calculator', 'canonical variate analysis', 'discriminant analysis variates', 'Wilks lambda CVA', 'group centroid separation'],
+    inputs: ['Feature matrix X (N x P)', 'Group assignment vector G (K groups)'],
+    example: { a: ['N = 150 instances', 'P = 4 features', 'K = 3 groups'], result: 'CanVar 1 eigenvalue = 32.1 (99.1% variance), Wilks’ Lambda = 0.023 (p < .0001).' },
+    formula: 'Solve (W⁻¹ B - λ I) v = 0 where B = between-group SSCP, W = within-group SSCP',
+    code: {
+      python: `from sklearn.discriminant_analysis import LinearDiscriminantAnalysis\nlda = LinearDiscriminantAnalysis().fit(X, y)\nprint(lda.explained_variance_ratio_)`,
+      r: `library(candisc)\nfit_lm <- lm(cbind(v1, v2, v3) ~ group, data=df)\ncd <- candisc(fit_lm); print(cd)`,
+      ts: `import { canonicalVariateAnalysis } from '@statlab/core';\nconst res = canonicalVariateAnalysis(X, groupVector);`,
+    },
+    useCases: [
+      'Finding linear feature combinations that maximize discrimination between user behavior tiers.',
+      'Visualizing cluster separation across multi-class hardware performance metrics.'
+    ],
+    when: 'Use to identify linear combinations of variables that best discriminate between 3 or more known groups.',
+    cautions: [
+      'Assumes multivariate normality and equal covariance matrices across groups (Box’s M test).',
+      'Number of canonical variates is min(P, K - 1).'
+    ],
+    workbenchId: 'dimred_cva',
+  },
+  {
+    slug: 'bivariate-normal-cdf-elliptical',
+    title: 'Bivariate Normal CDF and elliptical probability calculator',
+    family: 'Continuous probability distributions',
+    description: 'Calculate joint cumulative probability P(X ≤ h, Y ≤ k) and elliptical confidence regions for correlated bivariate normal distributions.',
+    keywords: ['bivariate normal CDF calculator', 'bivariate normal probability', 'elliptical confidence region', 'joint normal distribution', 'Dreiball CDF'],
+    inputs: ['Upper bound h (X)', 'Upper bound k (Y)', 'Correlation ρ', 'Means (μx, μy)', 'Std devs (σx, σy)'],
+    example: { a: ['h = 1.0, k = 1.0', 'ρ = +0.60'], result: 'Joint CDF P(X ≤ 1, Y ≤ 1) = 0.7381. 95% Elliptical boundary radius r² = 5.991.' },
+    formula: 'Φ₂(h, k; ρ) = 1/(2π √(1-ρ²)) ∫_{-∞}^h ∫_{-∞}^k exp[ -(x² - 2ρxy + y²)/(2(1-ρ²)) ] dx dy',
+    code: {
+      python: `from scipy.stats import multivariate_normal\ncdf = multivariate_normal.cdf([1.0, 1.0], mean=[0,0], cov=[[1, 0.6],[0.6, 1]])\nprint(f"CDF={cdf:.4f}")`,
+      r: `library(mvtnorm)\ncdf <- pmvnorm(lower=c(-Inf,-Inf), upper=c(1,1), corr=matrix(c(1,0.6,0.6,1),2,2))\nprint(cdf)`,
+      ts: `import { bivariateNormalCDF } from '@statlab/core';\nconst cdf = bivariateNormalCDF(1.0, 1.0, 0.6);`,
+    },
+    useCases: [
+      'Calculating simultaneous SLA compliance probability for dual latency & memory constraints.',
+      'Computing joint risk probabilities for two correlated asset returns.'
+    ],
+    when: 'Use when evaluating joint cumulative probabilities or confidence ellipses for two correlated Gaussian variables.',
+    cautions: [
+      'Requires correlation |ρ| < 1; uses Genz numerical integration for accurate tail probabilities.',
+      'Check for bivariate normality before applying elliptical confidence regions.'
+    ],
+    workbenchId: 'dist_bivariate_normal',
+  },
+  {
+    slug: 'truncated-normal-distribution',
+    title: 'Truncated Normal distribution calculator',
+    family: 'Continuous probability distributions',
+    description: 'Calculate PDF, CDF, quantiles, truncated mean E[X|a < X < b], and truncated variance for bounds [a, b].',
+    keywords: ['truncated normal calculator', 'truncated normal mean', 'truncated gaussian distribution', 'bounded normal distribution', 'truncated variance'],
+    inputs: ['Mean μ', 'Std dev σ', 'Lower bound a', 'Upper bound b', 'Evaluation x'],
+    example: { a: ['μ = 100, σ = 15', 'Bounds [80, 120]'], result: 'Truncated mean = 100.0, Truncated std dev = 10.42. Mass in bounds P(80 ≤ X ≤ 120) = 0.8176.' },
+    formula: 'f(x; μ, σ, a, b) = [ (1/σ) φ((x-μ)/σ) ] / [ Φ((b-μ)/σ) - Φ((a-μ)/σ) ] for a ≤ x ≤ b',
+    code: {
+      python: `from scipy.stats import truncnorm\na_scaled, b_scaled = (80 - 100)/15, (120 - 100)/15\nrv = truncnorm(a_scaled, b_scaled, loc=100, scale=15)\nprint(f"Mean={rv.mean():.2f}, std={rv.std():.2f}")`,
+      r: `library(truncnorm)\netm <- etruncnorm(a=80, b=120, mean=100, sd=15)\nvtm <- vtruncnorm(a=80, b=120, mean=100, sd=15)`,
+      ts: `import { truncatedNormal } from '@statlab/core';\nconst res = truncatedNormal({ mean: 100, sd: 15, a: 80, b: 120 });`,
+    },
+    useCases: [
+      'Modeling process variables subject to physical hard thresholds (e.g. non-negative latencies or buffer caps).',
+      'Simulating truncated performance metrics in quality control sampling.'
+    ],
+    when: 'Use when a normally distributed variable is strictly restricted to a bounded interval [a, b].',
+    cautions: [
+      'Truncation reduces variance compared to the un-truncated parent normal distribution.',
+      'If bounds are asymmetric relative to μ, the truncated mean shifts away from μ.'
+    ],
+    workbenchId: 'dist_truncated_normal',
+  },
+  {
+    slug: 'skew-normal-distribution',
+    title: 'Skew-Normal distribution calculator',
+    family: 'Continuous probability distributions',
+    description: 'Calculate PDF, CDF, quantiles, skewness, and parameters (location ξ, scale ω, shape α) for Azzalini’s Skew-Normal distribution.',
+    keywords: ['skew normal calculator', 'Azzalini skew normal', 'asymmetric normal distribution', 'skewed gaussian distribution', 'skew normal PDF CDF'],
+    inputs: ['Location ξ', 'Scale ω', 'Shape / Skewness α', 'Evaluation x'],
+    example: { a: ['ξ = 0, ω = 1, α = 4.0'], result: 'Mean = +0.774, Variance = 0.401, Skewness γ₁ = +0.784. PDF at x=1.0: 0.479.' },
+    formula: 'f(x; ξ, ω, α) = (2/ω) φ((x-ξ)/ω) Φ(α (x-ξ)/ω)',
+    code: {
+      python: `from scipy.stats import skewnorm\nrv = skewnorm(a=4.0, loc=0, scale=1)\nprint(f"Mean={rv.mean():.4f}, PDF(1.0)={rv.pdf(1.0):.4f}")`,
+      r: `library(sn)\ndsn(1.0, xi=0, omega=1, alpha=4)`,
+      ts: `import { skewNormal } from '@statlab/core';\nconst res = skewNormal({ loc: 0, scale: 1, alpha: 4.0 });`,
+    },
+    useCases: [
+      'Modeling right-skewed response time distributions in cloud infrastructure microservices.',
+      'Fitting asymmetric asset return distributions in financial risk analysis.'
+    ],
+    when: 'Use when data exhibits normal-like unimodal structure but clear parametric asymmetry/skewness.',
+    cautions: [
+      'When α = 0, the Skew-Normal reduces exactly to the standard Normal distribution.',
+      'Maximum likelihood estimation of α can be unbounded for extremely skewed samples.'
+    ],
+    workbenchId: 'dist_skew_normal',
+  },
+  {
+    slug: 'generalized-lambda-distribution-gld',
+    title: 'Generalized Lambda Distribution (GLD) quantile calculator',
+    family: 'Continuous probability distributions',
+    description: 'Calculate quantiles Q(u), PDF, CDF, and 4-parameter moments (median λ₁, scale λ₂, skewness λ₃, kurtosis λ₄) for the Ramberg-Schmeiser GLD.',
+    keywords: ['GLD calculator', 'generalized lambda distribution', 'Ramberg Schmeiser GLD', '4 parameter quantile distribution', 'flexible distribution fitting'],
+    inputs: ['λ₁ (location)', 'λ₂ (scale)', 'λ₃ (skewness shape)', 'λ₄ (kurtosis shape)', 'Quantile u (0..1)'],
+    example: { a: ['λ₁ = 0, λ₂ = 1, λ₃ = 0.14, λ₄ = 0.14'], result: 'Approximates Normal: Q(0.5) = 0.0, Q(0.975) = +1.96, Q(0.025) = -1.96.' },
+    formula: 'Q(u; λ) = λ₁ + [ u^{λ₃} - (1-u)^{λ₄} ] / λ₂ for 0 ≤ u ≤ 1',
+    code: {
+      python: `from gldlib import gld\n# Compute Ramberg-Schmeiser GLD quantile Q(u) = l1 + (u**l3 - (1-u)**l4) / l2`,
+      r: `library(gld)\nqgl(p=0.95, lambda1=0, lambda2=1, lambda3=0.14, lambda4=0.14, param="rs")`,
+      ts: `import { gldQuantile } from '@statlab/core';\nconst q = gldQuantile(0.95, { l1: 0, l2: 1, l3: 0.14, l4: 0.14 });`,
+    },
+    useCases: [
+      'Fitting highly versatile empirical distributions to complex non-standard telemetry data.',
+      'Monte Carlo simulation of system variables with non-standard skewness and tail-fatness.'
+    ],
+    when: 'Use when standard 2-parameter distributions fail to capture complex empirical skewness and kurtosis.',
+    cautions: [
+      'Check parameter validity region for λ₂ and shape parameters (λ₃, λ₄) to ensure monotonic quantile function Q(u).',
+      'Parameter estimation can be sensitive to extreme sample outliers.'
+    ],
+    workbenchId: 'dist_gld',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
