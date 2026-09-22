@@ -49,7 +49,7 @@ function LandingPage({ onLaunch }) {
               letterSpacing: '.04em'
             }}
           >
-            Calculators Directory (200) &rarr;
+            Calculators Directory (220) &rarr;
           </a>
           <a href="https://www.npmjs.com/package/@statlab/core" target="_blank" rel="noopener" style={{ color: C.dim, fontSize: 13, textDecoration: 'none', ...mono }}>
             npm
@@ -94,7 +94,7 @@ function LandingPage({ onLaunch }) {
               letterSpacing: '.05em', display: 'inline-flex', alignItems: 'center', gap: 6
             }}
           >
-            EXPLORE 200 CALCULATORS &rarr;
+            EXPLORE 220 CALCULATORS &rarr;
           </a>
         </div>
 
@@ -111,10 +111,10 @@ function LandingPage({ onLaunch }) {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
             <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#fff', letterSpacing: '.03em', textTransform: 'uppercase' }}>
-              Static SEO Calculators Directory (200 Pages)
+              Static SEO Calculators Directory (220 Pages)
             </h3>
             <a href="/calculators/" style={{ color: C.accent, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
-              View All 200 Calculators &rarr;
+              View All 220 Calculators &rarr;
             </a>
           </div>
           <p style={{ fontSize: 13, color: C.dim, margin: '0 0 14px', lineHeight: 1.45, textAlign: 'left' }}>
@@ -155,7 +155,7 @@ function LandingPage({ onLaunch }) {
           Designed for researchers, instructors, developers, and statistical engineers.
         </p>
         <p style={{ fontSize: 10, color: C.dim, marginTop: 8 }}>
-          <a href="/calculators/" style={{ color: C.accent, textDecoration: 'none' }}>200 Calculators</a>
+          <a href="/calculators/" style={{ color: C.accent, textDecoration: 'none' }}>220 Calculators</a>
           {' \u00B7 '}
           <a href="https://github.com/mpdecker/Statlab" target="_blank" rel="noopener" style={{ color: C.accent, textDecoration: 'none' }}>GitHub</a>
           {' \u00B7 '}

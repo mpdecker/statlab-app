@@ -5044,6 +5044,520 @@ export const calculatorPages = [
     ],
     workbenchId: 'diag_fligner_killeen',
   },
+
+  // --- SPATIAL STATISTICS & GEOSTATISTICS FAMILY ---
+  {
+    slug: 'morans-i-spatial-autocorrelation',
+    title: "Moran's I spatial autocorrelation calculator",
+    family: 'Spatial statistics & geostatistics',
+    description: "Calculate Moran's I global spatial autocorrelation index, expected value E[I], z-score, and p-value under spatial weight matrix W.",
+    keywords: ['Morans I calculator', 'spatial autocorrelation', 'spatial clustering test', 'global Morans I', 'spatial weight matrix'],
+    inputs: ['Spatial observations vector Y', 'Spatial weight matrix W (distance or contiguity based)', 'Randomization vs Normality assumption'],
+    example: { a: ['Spatial units N = 36', 'Weight matrix W = 36x36 row-standardized'], result: 'Moran’s I = +0.482, E[I] = -0.028, Z = +4.12, p < .0001 (Strong positive spatial autocorrelation).' },
+    formula: 'I = (N / S₀) * [ ∑_i ∑_j w_{ij}(y_i - ȳ)(y_j - ȳ) ] / [ ∑_i (y_i - ȳ)² ]',
+    code: {
+      python: `from esda.moran import Moran\nmi = Moran(y, w)\nprint(f"I={mi.I:.4f}, p={mi.p_norm:.4f}")`,
+      r: `library(spdep)\nmoran.test(y, nb2listw(neighbors))`,
+      ts: `import { moransI } from '@statlab/core';\nconst res = moransI(yValues, weightMatrix);`,
+    },
+    useCases: [
+      'Detecting spatial clustering of network latency or edge node response times across geographic deployment regions.',
+      'Evaluating spatial dependency in GIS and environmental dataset telemetry.'
+    ],
+    when: 'Use when evaluating whether continuous values measured at geographic or spatial locations display spatial clustering or dispersion.',
+    cautions: [
+      'Spatial weights matrix W choice (k-nearest neighbors vs inverse distance) directly influences Moran’s I value.',
+      'Global Moran’s I does not identify specific local spatial clusters; use Local Moran’s I (LISA) for hot-spot analysis.'
+    ],
+    workbenchId: 'spatial_morans_i',
+  },
+  {
+    slug: 'gearys-c-spatial-association',
+    title: "Geary's C spatial association index calculator",
+    family: 'Spatial statistics & geostatistics',
+    description: "Calculate Geary's C spatial dissimilarity statistic, expected value, z-score, and p-value for local spatial variance analysis.",
+    keywords: ['Gearys C calculator', 'spatial dissimilarity index', 'Gearys C test', 'spatial association', 'local spatial variance'],
+    inputs: ['Spatial attribute vector Y', 'Spatial spatial weight matrix W'],
+    example: { a: ['Spatial units N = 25', 'Distance threshold weight matrix W'], result: 'Geary’s C = 0.42, E[C] = 1.00, Z = -3.25, p = .0012 (Positive spatial association / similarity).' },
+    formula: 'C = [(N - 1) / (2 S₀)] * [ ∑_i ∑_j w_{ij}(y_i - y_j)² ] / [ ∑_i (y_i - ȳ)² ]',
+    code: {
+      python: `from esda.geary import Geary\ngc = Geary(y, w)\nprint(f"C={gc.C:.4f}, p={gc.p_norm:.4f}")`,
+      r: `library(spdep)\ngeary.test(y, nb2listw(neighbors))`,
+      ts: `import { gearysC } from '@statlab/core';\nconst res = gearysC(yValues, weightMatrix);`,
+    },
+    useCases: [
+      'Measuring local spatial variability and dissimilarity across neighboring geographic nodes.',
+      'Complementing Moran’s I to detect small-scale spatial anomalies.'
+    ],
+    when: 'Use when measuring local spatial dissimilarity (Geary’s C < 1 indicates positive spatial similarity; C > 1 indicates spatial dispersion).',
+    cautions: [
+      'Geary’s C is sensitive to local squared differences between neighbors.',
+      'Unlike Moran’s I, Geary’s C focuses on local differences rather than deviations from global mean.'
+    ],
+    workbenchId: 'spatial_gearys_c',
+  },
+  {
+    slug: 'ripleys-k-function-spatial-points',
+    title: "Ripley's K-function spatial point pattern calculator",
+    family: 'Spatial statistics & geostatistics',
+    description: "Calculate Ripley's K(r) and Besag's L(r) functions for analyzing spatial point pattern clustering, randomness, or dispersion across distance radii r.",
+    keywords: ['Ripleys K function', 'spatial point pattern analysis', 'Besags L function', 'CSR complete spatial randomness', 'spatial point clustering'],
+    inputs: ['Point coordinates X, Y in bounded region A', 'Distance radii vector r', 'Edge correction method (isotropic, translation, none)'],
+    example: { a: ['N = 100 spatial events in 100x100 area', 'Radii r = [5, 10, 15, 20]'], result: 'L(r=10) = +3.42 > 0 (Significant point clustering relative to Complete Spatial Randomness CSR at scale r=10).' },
+    formula: 'K(r) = (A / N²) ∑_i ∑_{j≠i} w(x_i, x_j) I(d_{ij} ≤ r), L(r) = √(K(r) / π) - r',
+    code: {
+      python: `from pointpats import k_function\nk_res = k_function(points, radii)`,
+      r: `library(spatstat)\nplot(Kest(point_pattern))`,
+      ts: `import { ripleysK } from '@statlab/core';\nconst res = ripleysK(pointCoords, radii, bounds);`,
+    },
+    useCases: [
+      'Analyzing spatial distribution patterns of user check-ins or sensor events.',
+      'Testing whether point events exhibit spatial clustering, complete spatial randomness (CSR), or spatial inhibition.'
+    ],
+    when: 'Use when analyzing 2D point patterns across multiple spatial distance scales r.',
+    cautions: [
+      'Boundary/edge effects require isotropic or translation edge correction for accurate K(r) estimates.',
+      'Use Besag’s L(r) transformation for easier visual interpretation against CSR baseline 0.'
+    ],
+    workbenchId: 'spatial_ripleys_k',
+  },
+  {
+    slug: 'semi-variogram-spatial-interpolation',
+    title: 'Empirical semi-variogram spatial dependence calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate empirical semi-variogram γ(h), nugget, sill, and range parameters for spatial autocorrelation and Kriging interpolation.',
+    keywords: ['semivariogram calculator', 'spatial variogram', 'nugget sill range', 'Kriging variogram fit', 'spatial variance vs distance'],
+    inputs: ['Spatial coordinate locations (X,Y)', 'Attribute value Z', 'Distance lag bins h'],
+    example: { a: ['N = 50 spatial samples', 'Lag distance h = 10 km'], result: 'Empirical semivariance γ(h=10) = 4.25, Nugget c₀ = 0.5, Sill c₀+c = 12.1, Range a = 45 km.' },
+    formula: 'γ(h) = 1 / (2 N(h)) ∑_{N(h)} (z(s_i) - z(s_i + h))²',
+    code: {
+      python: `from skgstat import Variogram\nV = Variogram(coordinates, values)\nprint(V.describe())`,
+      r: `library(gstat)\nvariogram(z ~ 1, locations = ~x+y, data = df)`,
+      ts: `import { semiVariogram } from '@statlab/core';\nconst res = semiVariogram(coords, values, lagBins);`,
+    },
+    useCases: [
+      'Modeling spatial continuity and variance growth as a function of distance in geostatistical applications.',
+      'Fitting theoretical variogram models (Spherical, Exponential, Gaussian) prior to spatial Kriging.'
+    ],
+    when: 'Use when quantifying spatial correlation structure in continuous spatial fields as lag distance h increases.',
+    cautions: [
+      'Ensure sufficient point pairs N(h) per distance bin (typically N(h) ≥ 30).',
+      'Check for anisotropy (directional dependence) by computing directional variograms.'
+    ],
+    workbenchId: 'spatial_variogram',
+  },
+
+  // --- MULTIVARIATE DISTANCE & CLUSTERING FAMILY ---
+  {
+    slug: 'gower-distance-mixed-data',
+    title: "Gower's distance matrix calculator for mixed data types",
+    family: 'Multivariate & Dimensionality Reduction',
+    description: "Compute Gower's similarity and dissimilarity matrix for dataset tables containing mixed numeric, categorical, and ordinal attributes.",
+    keywords: ['Gowers distance calculator', 'mixed data dissimilarity', 'Gower similarity index', 'clustering mixed data', 'PAM clustering distance'],
+    inputs: ['Feature table (numeric columns, factor columns, binary columns)', 'Custom column weights w_k'],
+    example: { a: ['Observations N = 5', '3 Features (Continuous, Nominal, Binary)'], result: 'Gower Dissimilarity Matrix computed. Avg pairwise dissimilarity d(i,j) = 0.345.' },
+    formula: 'd_{ij} = [ ∑_k w_k s_{ijk} ] / [ ∑_k w_k ], where s_{ijk} is attribute-specific dissimilarity score',
+    code: {
+      python: `import gower\ndist_matrix = gower.gower_matrix(df)`,
+      r: `library(cluster)\ndaisy(df, metric = "gower")`,
+      ts: `import { gowerDistance } from '@statlab/core';\nconst distMatrix = gowerDistance(dataframe);`,
+    },
+    useCases: [
+      'Calculating distance matrices for clustering algorithms (PAM / medoids) on customer profiles with mixed data types.',
+      'Measuring item similarity in recommendation and matching engines.'
+    ],
+    when: 'Use when computing distance/similarity between data rows that combine continuous numbers, categorical strings, and binary flags.',
+    cautions: [
+      'Continuous features are normalized by their sample range (max - min).',
+      'Missing values in attributes drop that component from the weighting sum.'
+    ],
+    workbenchId: 'multivar_gower_dist',
+  },
+  {
+    slug: 'hopkins-statistic-clustering-tendency',
+    title: 'Hopkins statistic spatial clustering tendency calculator',
+    family: 'Multivariate & Dimensionality Reduction',
+    description: 'Calculate Hopkins statistic H to assess whether a high-dimensional dataset contains cluster structure or is uniformly distributed.',
+    keywords: ['Hopkins statistic calculator', 'clustering tendency test', 'clusterability test', 'Hopkins H statistic', 'data cluster structure'],
+    inputs: ['Data matrix X (N rows, d features)', 'Sample size m (typically m = 0.1 * N)'],
+    example: { a: ['Dataset N = 500, d = 8', 'Sample size m = 50'], result: 'Hopkins H = 0.825 > 0.5 (Strong clusterability / non-uniform spatial structure).' },
+    formula: 'H = [ ∑_{i=1}^m u_i^d ] / [ ∑_{i=1}^m u_i^d + ∑_{i=1}^m w_i^d ]',
+    code: {
+      python: `from pyclustertend import hopkins\nh_score = hopkins(data_matrix, sampling_size=50)`,
+      r: `library(factoextra)\nget_clust_tendency(df, n = 50)`,
+      ts: `import { hopkinsStatistic } from '@statlab/core';\nconst h = hopkinsStatistic(dataMatrix, { m: 50 });`,
+    },
+    useCases: [
+      'Verifying dataset clusterability before applying K-Means, DBSCAN, or Agglomerative clustering.',
+      'Preventing false cluster interpretations on uniformly random noise datasets.'
+    ],
+    when: 'Use to test whether data possesses significant clustering tendency (H > 0.7 indicates high clusterability; H ≈ 0.5 indicates random distribution).',
+    cautions: [
+      'Hopkins statistic is sensitive to feature scaling; standardize variables prior to computation.',
+      'Requires synthetic uniform sampling across bounding box of data space.'
+    ],
+    workbenchId: 'multivar_hopkins_stat',
+  },
+
+  // --- ECONOMETRICS & DYNAMIC TIME SERIES FAMILY ---
+  {
+    slug: 'cusum-sq-structural-stability',
+    title: 'CUSUM and CUSUM-sq structural stability test calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate CUSUM and CUSUM-squared recursive residual cumulative sum statistics for detecting parameter instability and structural breaks in regression models.',
+    keywords: ['CUSUM test calculator', 'CUSUM-sq test', 'structural break stability', 'recursive residuals', 'parameter constancy test'],
+    inputs: ['Regression model residuals or recursive residuals w_t', 'Significance level α (5%, 1%)'],
+    example: { a: ['Time series T = 120 observations', 'Recursive residuals w_t'], result: 'CUSUM-sq statistic remains within 95% critical boundary lines. No structural parameter break detected.' },
+    formula: 'W_t = ∑_{j=k+1}^t w_j / σ̂, S_t = [ ∑_{j=k+1}^t w_j² ] / [ ∑_{j=k+1}^T w_j² ]',
+    code: {
+      python: `from statsmodels.stats.diagnostic import breaks_cusumolsresid\nres = breaks_cusumolsresid(ols_results.resid)`,
+      r: `library(strucchange)\nefp_res <- efp(y ~ x, type = "Rec-CUSUM")\nplot(efp_res)`,
+      ts: `import { cusumSqTest } from '@statlab/core';\nconst res = cusumSqTest(recursiveResiduals);`,
+    },
+    useCases: [
+      'Testing parameter stability over time in financial econometric time series models.',
+      'Detecting structural regime shifts in system throughput telemetry regressions.'
+    ],
+    when: 'Use when checking if regression coefficients remain constant over time vs undergoing structural breaks.',
+    cautions: [
+      'CUSUM measures systemic drift; CUSUM-squared is more sensitive to sudden variance/volatility shifts.',
+      'Crossing critical boundary lines indicates statistically significant structural change.'
+    ],
+    workbenchId: 'ts_cusum_sq',
+  },
+  {
+    slug: 'ljung-box-portmanteau-test',
+    title: 'Ljung-Box portmanteau multivariate autocorrelation test calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate Ljung-Box Q statistics across multiple lag lengths k to test for residual autocorrelation in time series and ARIMA models.',
+    keywords: ['Ljung Box test calculator', 'portmanteau test', 'ARIMA residual autocorrelation', 'Q statistic time series', 'white noise test'],
+    inputs: ['Time series residuals e_t', 'Maximum lag length K', 'Degrees of freedom adjustment (ARIMA p+q)'],
+    example: { a: ['Residual series T = 200', 'Max lag K = 12'], result: 'Ljung-Box Q(12) = 14.2, df = 12, p = .288. Residuals are white noise (no autocorrelation).' },
+    formula: 'Q(K) = n(n + 2) ∑_{k=1}^K r_k² / (n - k)',
+    code: {
+      python: `from statsmodels.stats.diagnostic import acorr_ljungbox\nres = acorr_ljungbox(residuals, lags=[12], return_df=True)`,
+      r: `Box.test(residuals, lag = 12, type = "Ljung-Box")`,
+      ts: `import { ljungBoxTest } from '@statlab/core';\nconst res = ljungBoxTest(residuals, { lags: 12 });`,
+    },
+    useCases: [
+      'Verifying that ARIMA / SARIMA model residuals behave as uncorrelated white noise.',
+      'Validating financial time series volatility model adequacy.'
+    ],
+    when: 'Use to test joint hypothesis that autocorrelation coefficients up to lag K are all zero.',
+    cautions: [
+      'Adjust degrees of freedom (df = K - p - q) when testing residuals of fitted ARIMA(p,d,q) models.',
+      'Choice of lag length K should scale with sample size (e.g., K = min(10, T/5)).'
+    ],
+    workbenchId: 'ts_ljung_box_portmanteau',
+  },
+  {
+    slug: 'toda-yamamoto-granger-causality',
+    title: 'Toda-Yamamoto Granger causality test calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate Toda-Yamamoto modified Wald test for Granger causality in VAR systems containing non-stationary or cointegrated time series.',
+    keywords: ['Toda Yamamoto test', 'Granger causality non-stationary', 'modified Wald test VAR', 'VAR lag augmentation', 'causality cointegration'],
+    inputs: ['Time series X and Y', 'Optimal VAR lag length k', 'Maximum order of integration d_max'],
+    example: { a: ['Series T = 150', 'Lag k = 2', 'Integration d_max = 1 (VAR(3) estimated)'], result: 'Toda-Yamamoto Modified Wald χ² = 11.45, df = 2, p = .0033. X Granger-causes Y in the long run.' },
+    formula: 'VAR(k + d_{max}) estimated; MWald test applied strictly to first k coefficient matrices',
+    code: {
+      python: `from statsmodels.tsa.api import VAR\n# Estimate VAR(k + d_max), test joint zero constraints on first k lags`,
+      r: `library(vars)\nVARselect(data, lag.max = 10)\n# Fit augmented VAR and run wald test on k lags`,
+      ts: `import { todaYamamotoTest } from '@statlab/core';\nconst res = todaYamamotoTest(seriesX, seriesY, { k: 2, dMax: 1 });`,
+    },
+    useCases: [
+      'Testing direction of causality between non-stationary macroeconomic or system metrics without risk of spurious regression.',
+      'Validating long-run directional dependencies in econometric models.'
+    ],
+    when: 'Use for Granger causality testing when time series are I(1) or I(2) non-stationary or cointegrated.',
+    cautions: [
+      'Requires correct determination of maximum integration order d_max via ADF unit root tests.',
+      'Wald test statistic is evaluated only on the first k lag coefficients, ignoring the d_max extra lags.'
+    ],
+    workbenchId: 'ts_toda_yamamoto',
+  },
+  {
+    slug: 'auto-regressive-distributed-lag-ardl',
+    title: 'ARDL bounds test for cointegration calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate Autoregressive Distributed Lag (ARDL) bounds F-statistic and t-statistic for testing long-run cointegrating relationships among variables with mixed I(0)/I(1) integration.',
+    keywords: ['ARDL bounds test', 'ARDL cointegration calculator', 'Pesaran Shin Smith bounds', 'I0 I1 cointegration', 'unrestricted ECM model'],
+    inputs: ['Dependent variable Y', 'Independent variables X₁, ..., X_k', 'Lag specifications (p, q₁, ..., q_k)'],
+    example: { a: ['Series T = 100', 'k = 3 independent variables'], result: 'ARDL Bounds F-statistic = 6.42 > I(1) Upper Critical Bound 4.35 at α = .05 (Cointegration established).' },
+    formula: 'F_{bounds} tested against Pesaran, Shin & Smith (2001) lower I(0) and upper I(1) critical value bounds',
+    code: {
+      python: `from statsmodels.tsa.ardl import ARDL\nardl_model = ARDL(y, lags=2, exog=x, order=2).fit()`,
+      r: `library(ARDL)\nbounds_f_test(ardl_model, case = 3)`,
+      ts: `import { ardlBoundsTest } from '@statlab/core';\nconst res = ardlBoundsTest(seriesY, matrixX, { lagsY: 2, lagsX: 2 });`,
+    },
+    useCases: [
+      'Testing long-run cointegrating relationships when variables are a mixture of stationary I(0) and non-stationary I(1) series.',
+      'Estimating short-run error correction models (ECM) alongside long-run multipliers.'
+    ],
+    when: 'Use when investigating cointegration without requiring all variables to be strictly I(1) as in Johansen test.',
+    cautions: [
+      'No variable in the ARDL system can be integrated of order I(2).',
+      'Verify model error term serial correlation using Ljung-Box test before relying on bounds F-statistic.'
+    ],
+    workbenchId: 'ts_ardl_bounds',
+  },
+
+  // --- EQUIVALENCE & CIRCULAR STATISTICS FAMILY ---
+  {
+    slug: 'tost-two-one-sided-tests',
+    title: 'TOST equivalence testing calculator',
+    family: 'Equivalence & circular statistics',
+    description: 'Calculate Two One-Sided Tests (TOST) for statistical equivalence between sample means within lower (-Δ) and upper (+Δ) equivalence bounds.',
+    keywords: ['TOST calculator', 'two one sided tests', 'equivalence testing', 'bioequivalence test', 'TOST p value'],
+    inputs: ['Mean Group A & B (or Samples)', 'Standard deviations & sample sizes', 'Equivalence margin bounds [-Δ, +Δ]'],
+    example: { a: ['Mean A = 100.2, Mean B = 100.5', 'Equivalence bound Δ = 2.0', 'n = 50 per group'], result: 't_lower = +4.12 (p < .0001), t_upper = -3.85 (p = .0001). Statistically equivalent within [-2.0, +2.0].' },
+    formula: 't_L = [(X̄₁ - X̄₂) - (-Δ)] / SE, t_U = [(X̄₁ - X̄₂) - (+Δ)] / SE; p_{TOST} = max(p_{tL}, p_{tU})',
+    code: {
+      python: `from statsmodels.stats.weightstats import ttost_ind\nstat, pval, _ = ttost_ind(groupA, groupB, low=-2.0, upp=2.0)`,
+      r: `library(TOSTER)\nTOSTtwo(m1 = 100.2, m2 = 100.5, sd1 = 3.0, sd2 = 3.0, n1 = 50, n2 = 50, low_eqbound = -2.0, high_eqbound = 2.0)`,
+      ts: `import { tostEquivalence } from '@statlab/core';\nconst res = tostEquivalence(groupA, groupB, { margin: 2.0 });`,
+    },
+    useCases: [
+      'Demonstrating bioequivalence or performance parity (confirming new algorithm release is not worse by more than margin Δ).',
+      'Proving absence of practical differences between release candidates in production systems.'
+    ],
+    when: 'Use when the goal is to prove that two groups are practically identical rather than testing for a non-zero difference.',
+    cautions: [
+      'Standard null hypothesis t-test (NHST) failing to reject H₀ does NOT prove equivalence.',
+      'Equivalence margin Δ must be specified a priori based on domain or regulatory standards.'
+    ],
+    workbenchId: 'eq_tost',
+  },
+  {
+    slug: 'rayleigh-test-circular-uniformity',
+    title: 'Rayleigh test for circular uniformity calculator',
+    family: 'Equivalence & circular statistics',
+    description: 'Calculate Rayleigh R statistic and p-value for testing directional data uniformity around a 360° circle or 24-hour clock.',
+    keywords: ['Rayleigh test calculator', 'circular uniformity test', 'directional statistics', 'Rayleigh R statistic', 'circular data mean direction'],
+    inputs: ['Angular observations θ in degrees (0°-360°) or radians (0-2π)'],
+    example: { a: ['N = 30 angles', 'Concentrated around 45°'], result: 'Mean direction x̄ = 46.2°, Mean resultant length R̄ = 0.725, Z = 15.76, p < .0001 (Significant directional clustering).' },
+    formula: 'C = ∑ cos(θ_i), S = ∑ sin(θ_i), R = √(C² + S²), R̄ = R / n, Z = n R̄²',
+    code: {
+      python: `from scipy import stats\nimport numpy as np\n# Calculate resultant vector R and Rayleigh z statistic`,
+      r: `library(circular)\nrayleigh.test(circular(angles, units="degrees"))`,
+      ts: `import { rayleighTest } from '@statlab/core';\nconst res = rayleighTest(anglesDegrees);`,
+    },
+    useCases: [
+      'Testing whether peak system error events or user requests are concentrated at specific times of day (24h clock cycle).',
+      'Analyzing directional wind, orientation, or angular movement data in physical sensors.'
+    ],
+    when: 'Use when analyzing circular or angular data (0° to 360°) to test whether directions are uniformly distributed vs clustered around a preferred angle.',
+    cautions: [
+      'Standard linear mean arithmetic produces invalid results for angles (e.g. mean of 1° and 359° is 0°/360°, not 180°).',
+      'Assumes unimodal directional concentration when rejecting uniformity.'
+    ],
+    workbenchId: 'circ_rayleigh',
+  },
+  {
+    slug: 'watson-williams-circular-test',
+    title: 'Watson-Williams two-sample circular test calculator',
+    family: 'Equivalence & circular statistics',
+    description: 'Calculate Watson-Williams F-statistic for testing equality of mean directions between two independent samples of circular/angular data.',
+    keywords: ['Watson Williams test', 'circular ANOVA calculator', 'two sample angle test', 'directional mean comparison', 'circular statistic F test'],
+    inputs: ['Angular Sample A (degrees/radians)', 'Angular Sample B (degrees/radians)'],
+    example: { a: ['Sample A (n=20, mean=30°)', 'Sample B (n=20, mean=75°)'], result: 'Watson-Williams F = 12.84, df = (1, 38), p = .0009. Statistically significant difference in mean direction.' },
+    formula: 'F = (N - 2) * [ (R₁ + R₂ - R) / (N - R₁ - R₂) ], adjusted by correction factor K',
+    code: {
+      python: `import numpy as np\n# Compute resultant R1, R2, combined R, and Watson-Williams F statistic`,
+      r: `library(circular)\nwatson.williams.test(sampleA, sampleB)`,
+      ts: `import { watsonWilliamsTest } from '@statlab/core';\nconst res = watsonWilliamsTest(sampleA, sampleB);`,
+    },
+    useCases: [
+      'Comparing peak incident timing distributions across two different geographic data centers.',
+      'Testing mean directional shifts in navigation sensor telemetry.'
+    ],
+    when: 'Use to compare mean directions between two or more groups of circular/angular measurements (circular equivalent of two-sample t-test / ANOVA).',
+    cautions: [
+      'Requires data groups to have high concentration (R̄ > 0.45) and equal concentration parameters κ.',
+      'Angles must be properly converted to radians prior to trigonometric summation.'
+    ],
+    workbenchId: 'circ_watson_williams',
+  },
+
+  // --- PSYCHOMETRICS & SCALE ANALYSIS FAMILY ---
+  {
+    slug: 'two-parameter-logistic-irt-2pl',
+    title: '2PL IRT item difficulty and discrimination calculator',
+    family: 'Psychometrics & scale analysis',
+    description: 'Calculate Two-Parameter Logistic (2PL) Item Response Theory item difficulty (b) and item discrimination (a) parameters alongside Item Characteristic Curves (ICC).',
+    keywords: ['2PL IRT calculator', 'item response theory', 'item difficulty b', 'item discrimination a', 'item characteristic curve ICC'],
+    inputs: ['Binary response matrix (N test takers x K items)', 'Latent ability estimates θ'],
+    example: { a: ['Item #4 response vector', '100 respondent abilities θ'], result: 'Item discrimination a = 1.45, Item difficulty b = +0.62. Item has good slope discrimination at moderate difficulty.' },
+    formula: 'P_i(θ) = 1 / [ 1 + exp(-a_i (θ - b_i)) ]',
+    code: {
+      python: `from pyirt import pyirt\n# Fit 2PL IRT model using marginal maximum likelihood (MML)`,
+      r: `library(mirt)\nmirt(data_matrix, 1, itemtype = '2PL')`,
+      ts: `import { fit2PLItem } from '@statlab/core';\nconst res = fit2PLItem(responseVector, abilityVector);`,
+    },
+    useCases: [
+      'Evaluating quiz or benchmark question difficulty and discrimination power in educational software.',
+      'Calibrating synthetic evaluation task sets in machine learning test benches.'
+    ],
+    when: 'Use when items vary in both difficulty (b) and capacity to discriminate (a) between high and low ability subjects.',
+    cautions: [
+      'Requires larger sample sizes (N ≥ 200) for stable joint estimation of a and b parameters.',
+      'Check for unidimensionality assumption using factor analysis before fitting IRT models.'
+    ],
+    workbenchId: 'psych_irt_2pl',
+  },
+  {
+    slug: 'mcdonald-omega-reliability',
+    title: "McDonald's Omega hierarchical reliability calculator",
+    family: 'Psychometrics & scale analysis',
+    description: "Calculate McDonald's Omega hierarchical (ω_h) and total (ω_t) internal consistency scale reliability metrics from factor analysis loadings.",
+    keywords: ['McDonalds omega calculator', 'Omega hierarchical', 'scale reliability omega', 'psychometric reliability', 'Omega vs Cronbach alpha'],
+    inputs: ['Item correlation matrix or factor loading matrix (general factor loadings g_i, specific factor loadings s_i)'],
+    example: { a: ['8-item scale', 'General factor loadings g = [0.70, 0.65, 0.72, 0.68, 0.58, 0.62, 0.64, 0.60]'], result: 'McDonald’s Omega Total ω_t = 0.885, Omega Hierarchical ω_h = 0.792 (High general factor saturation).' },
+    formula: 'ω_h = (∑ λ_i)² / [ (∑ λ_i)² + ∑ (1 - h_i²) ], where λ_i are general factor loadings',
+    code: {
+      python: `import factor_analyzer\n# Compute bifactor loadings and evaluate omega hierarchical and total`,
+      r: `library(psych)\nomega(correlation_matrix, nfactors = 3)`,
+      ts: `import { mcdonaldsOmega } from '@statlab/core';\nconst res = mcdonaldsOmega(factorLoadingsMatrix);`,
+    },
+    useCases: [
+      'Evaluating composite scale reliability in psychometric surveys and user experience questionnaires.',
+      'Replacing Cronbach’s alpha when tau-equivalence assumptions are violated.'
+    ],
+    when: 'Use as a superior alternative to Cronbach’s alpha when items have unequal factor loadings or multidimensional structure.',
+    cautions: [
+      'Omega Hierarchical (ω_h) measures the proportion of variance attributable strictly to a single general factor.',
+      'Requires a fitted factor analysis model (bifactor or confirmatory factor model).'
+    ],
+    workbenchId: 'psych_mcdonalds_omega',
+  },
+
+  // --- META-ANALYSIS & HETEROGENEITY FAMILY ---
+  {
+    slug: 'cochran-q-meta-analysis-heterogeneity',
+    title: "Cochran's Q and I² meta-analysis heterogeneity calculator",
+    family: 'Meta-analysis & heterogeneity',
+    description: "Calculate Cochran's Q statistic, I² percentage, and Tau² (τ²) variance between studies for assessing heterogeneity across meta-analytic study effect sizes.",
+    keywords: ['Cochrans Q meta analysis', 'I2 heterogeneity calculator', 'Tau squared variance', 'meta analysis heterogeneity', 'forest plot heterogeneity'],
+    inputs: ['Study effect sizes y_i', 'Study standard errors SE_i or variances v_i'],
+    example: { a: ['K = 12 studies', 'Effect sizes and variances'], result: 'Cochran’s Q = 28.45, df = 11, p = .0027; I² = 61.3% (Moderate to high heterogeneity across studies); Tau² = 0.042.' },
+    formula: 'Q = ∑ w_i (y_i - ȳ_w)², I² = max(0, (Q - df) / Q * 100%), τ² = max(0, (Q - df) / [ ∑ w_i - ∑ w_i² / ∑ w_i ])',
+    code: {
+      python: `import numpy as np\n# Compute weighted fixed-effect mean y_w, Cochran Q, I^2, and DerSimonian-Laird Tau^2`,
+      r: `library(metafor)\nrma(yi = effect_sizes, sei = std_errors, method = "DL")`,
+      ts: `import { metaHeterogeneity } from '@statlab/core';\nconst res = metaHeterogeneity(effectSizes, stdErrors);`,
+    },
+    useCases: [
+      'Quantifying statistical heterogeneity across published benchmarks or independent trial studies in meta-analytic reviews.',
+      'Deciding between Fixed-Effects vs Random-Effects models in meta-analysis synthesis.'
+    ],
+    when: 'Use when combining effect sizes from multiple independent studies or benchmark suites.',
+    cautions: [
+      'Cochran’s Q has low statistical power when the number of studies K is small (K < 10).',
+      'I² values > 50% indicate substantial heterogeneity that warrants subgroup or meta-regression analysis.'
+    ],
+    workbenchId: 'meta_cochran_q',
+  },
+  {
+    slug: 'funnel-plot-egger-regression',
+    title: "Egger's regression funnel plot asymmetry calculator",
+    family: 'Meta-analysis & heterogeneity',
+    description: "Calculate Egger's linear regression intercept test statistic and p-value for detecting publication bias and small-study effects in meta-analyses.",
+    keywords: ['Eggers regression calculator', 'funnel plot asymmetry', 'publication bias test', 'meta analysis bias', 'small study effect'],
+    inputs: ['Study effect sizes y_i', 'Study standard errors SE_i'],
+    example: { a: ['K = 15 meta-analysis studies'], result: 'Egger’s Intercept a = 1.85, SE = 0.62, t = +2.98, p = .0107 (Significant funnel plot asymmetry / publication bias).' },
+    formula: 'Regress standardized effect size (y_i / SE_i) against precision (1 / SE_i): y_i / SE_i = a + b (1 / SE_i)',
+    code: {
+      python: `from statsmodels.api import OLS, add_constant\n# Fit Egger weighted regression of y_i/SE_i on 1/SE_i`,
+      r: `library(metafor)\nregtest(rma_object, model = "lm")`,
+      ts: `import { eggersRegression } from '@statlab/core';\nconst res = eggersRegression(effectSizes, stdErrors);`,
+    },
+    useCases: [
+      'Testing for publication bias where smaller studies report systematically larger effect sizes than large studies.',
+      'Auditing benchmark literature synthesis for funnel asymmetry.'
+    ],
+    when: 'Use when evaluating funnel plot asymmetry in meta-analyses with K ≥ 10 studies.',
+    cautions: [
+      'Funnel plot asymmetry can be caused by genuine study heterogeneity or methodological differences, not just publication bias.',
+      'Egger’s test has low power when K < 10.'
+    ],
+    workbenchId: 'meta_eggers_regression',
+  },
+
+  // --- HIGH-DIMENSIONAL & SPARSE LEARNING EVALUATION FAMILY ---
+  {
+    slug: 'lasso-ridge-elastic-net-cv-score',
+    title: 'LASSO, Ridge, and Elastic Net regularization calculator',
+    family: 'AI / ML evaluation & robust models',
+    description: 'Calculate L1 (LASSO), L2 (Ridge), and Elastic Net penalty cross-validation scores, MSE path loss, and optimal lambda regularization parameters.',
+    keywords: ['LASSO calculator', 'Ridge regression penalty', 'Elastic Net CV score', 'regularization path MSE', 'L1 L2 penalty score'],
+    inputs: ['Data matrix X (N x p)', 'Target vector Y', 'Penalty mix ratio alpha (0=Ridge, 1=LASSO, 0.5=Elastic Net)', 'Cross-validation folds K'],
+    example: { a: ['N = 100, p = 50 features', 'Alpha = 0.5 (Elastic Net)'], result: 'Optimal λ_min = 0.045, Cross-Validation MSE = 1.24. 18 of 50 feature coefficients zeroed out.' },
+    formula: 'Loss = 1/(2N) ||Y - Xβ||₂² + λ [ α ||β||₁ + (1-α)/2 ||β||₂² ]',
+    code: {
+      python: `from sklearn.linear_model import ElasticNetCV\nmodel = ElasticNetCV(l1_ratio=0.5, cv=5).fit(X, y)\nprint(f"best alpha={model.alpha_:.4f}")`,
+      r: `library(glmnet)\ncv.glmnet(X, y, alpha = 0.5)`,
+      ts: `import { elasticNetCV } from '@statlab/core';\nconst res = elasticNetCV(matrixX, vectorY, { alpha: 0.5, cv: 5 });`,
+    },
+    useCases: [
+      'Selecting optimal regularization strength (λ) for high-dimensional predictive models.',
+      'Performing feature selection via L1 sparsity penalties in automated machine learning pipelines.'
+    ],
+    when: 'Use when fitting linear or logistic regressions with many correlated features (p > N or high collinearity).',
+    cautions: [
+      'Standardize all input features to zero mean and unit variance before fitting regularized models.',
+      'Choose λ_1se (1-standard-error rule) for sparser, more parsimonious models.'
+    ],
+    workbenchId: 'ml_elastic_net_cv',
+  },
+  {
+    slug: 'concordance-index-c-index',
+    title: "Harrell's Concordance Index (C-index) calculator",
+    family: 'Survival & reliability analysis',
+    description: "Calculate Harrell's C-index (Concordance Index) for evaluating risk prediction and survival analysis ranking accuracy with right-censored data.",
+    keywords: ['C index calculator', 'Harrells concordance index', 'survival C index', 'censored risk score ranking', 'concordance ratio'],
+    inputs: ['Predicted risk scores or survival times', 'Observed event times T_i', 'Censoring indicator vector δ_i'],
+    example: { a: ['N = 80 risk predictions', 'Observed survival times and event flags'], result: 'Concordance Index C = 0.785 (78.5% of concordant pairs correctly ordered by predicted risk).' },
+    formula: 'C = [ ∑_{i,j} I(T_i < T_j) I(η_i > η_j) δ_i ] / [ ∑_{i,j} I(T_i < T_j) δ_i ]',
+    code: {
+      python: `from lifelines.utils import concordance_index\nc_idx = concordance_index(event_times, predicted_scores, event_observed)`,
+      r: `library(survival)\nsurvConcordance(Surv(time, status) ~ risk_score)`,
+      ts: `import { concordanceIndex } from '@statlab/core';\nconst c = concordanceIndex(predictedScores, eventTimes, statusFlags);`,
+    },
+    useCases: [
+      'Evaluating predictive accuracy of Cox proportional hazards survival models.',
+      'Comparing machine learning risk model performance under right-censored survival data.'
+    ],
+    when: 'Use as the standard discrimination metric for survival models (C = 0.5 is random guess; C = 1.0 is perfect concordance).',
+    cautions: [
+      'Pairs where both subjects are censored cannot be evaluated for concordance.',
+      'C-index is equivalent to Area Under ROC curve (AUC) when no censoring is present.'
+    ],
+    workbenchId: 'surv_c_index',
+  },
+  {
+    slug: 'brier-skill-score-bss',
+    title: 'Brier Skill Score (BSS) forecast calibration calculator',
+    family: 'AI / ML evaluation & robust models',
+    description: 'Calculate Brier Skill Score (BSS) comparing model probabilistic forecast Brier score against reference baseline forecasts.',
+    keywords: ['Brier skill score calculator', 'BSS calibration metric', 'forecast skill score', 'Brier score baseline comparison', 'probabilistic model skill'],
+    inputs: ['Predicted probabilities p_i', 'Observed binary outcomes y_i', 'Reference baseline forecast probability p_ref'],
+    example: { a: ['N = 500 predictions', 'Baseline climatology / prior p_ref = 0.20'], result: 'Model Brier Score BS = 0.085, Reference BS_ref = 0.160, Brier Skill Score BSS = +0.469 (46.9% improvement over baseline).' },
+    formula: 'BS = 1/N ∑ (p_i - y_i)², BSS = 1 - (BS / BS_{ref})',
+    code: {
+      python: `import numpy as np\ndef brier_skill_score(p, y, p_ref):\n    bs = np.mean((p - y)**2)\n    bs_ref = np.mean((p_ref - y)**2)\n    return 1.0 - (bs / bs_ref)`,
+      r: `library(Verification)\nbrier(obs, pred)$bss`,
+      ts: `import { brierSkillScore } from '@statlab/core';\nconst bss = brierSkillScore(probs, outcomes, baselineProb);`,
+    },
+    useCases: [
+      'Quantifying improvement of ML classifier probability calibration relative to naive base-rate predictors.',
+      'Benchmarking LLM confidence scores against baseline prior rates.'
+    ],
+    when: 'Use when evaluating whether a probabilistic prediction model provides skill over simple historical frequency or baseline forecasts (BSS > 0 indicates positive skill).',
+    cautions: [
+      'BSS = 1 indicates perfect deterministic prediction accuracy.',
+      'Negative BSS indicates model performs worse than the reference baseline forecast.'
+    ],
+    workbenchId: 'ml_brier_skill_score',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
