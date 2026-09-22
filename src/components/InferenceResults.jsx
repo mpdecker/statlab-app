@@ -863,6 +863,18 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         </>}
       </>}
 
+      {r.test === 'Ordinal SEM' && <>
+        <SectionHead label={`Ordinal SEM · n=${r.n}`} />
+        <Row>
+          <Chip label="χ²" value={r.fit?.chisq} sub={`df=${r.fit?.df}`} color={C.dim} />
+          <Chip label="p" value={r.fit?.p != null ? fmtP(r.fit.p) : '—'} color={sig(r.fit?.p) ? C.neg : C.ok} />
+          <Chip label="CFI" value={r.fit?.cfi} color={r.fit?.cfi >= .95 ? C.ok : r.fit?.cfi >= .90 ? C.warn : C.neg} />
+          <Chip label="TLI" value={r.fit?.tli} color={C.dim} />
+          <Chip label="RMSEA" value={r.fit?.rmsea} color={r.fit?.rmsea <= .06 ? C.ok : r.fit?.rmsea <= .08 ? C.warn : C.neg} />
+        </Row>
+        <SemCoeffTable coeffs={(r.loadings ?? []).map(l => ({ from: l.indicator, estimate: l.estimate, se: l.se, z: l.z, p: l.p }))} />
+      </>}
+
       {r.test === 'Path Analysis' && <>
         <SectionHead label={`Path Analysis · n=${r.n}`} />
         <Row>

@@ -28,7 +28,7 @@ import {
   manova, canonicalCorr, linearDiscriminant,
 } from '@statlab/core/methods/multivariate';
 import { classicalMDS, sammonMapping, nonMetricMDS } from '@statlab/core/methods/mds';
-import { sem, pathAnalysis, latentGrowthModel, bifactorModel } from '@statlab/core/methods/sem';
+import { sem, pathAnalysis, latentGrowthModel, bifactorModel, ordinalSEM } from '@statlab/core/methods/sem';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
 import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
@@ -150,6 +150,7 @@ const RUNNERS = {
   mds_sammon: () => sammonMapping(ROWS, VARS, { nDimensions: 2 }),
   mds_nonmetric: () => nonMetricMDS(ROWS, VARS, { nDimensions: 2 }),
   sem: () => sem({ equations: ['f1 =~ item1 + item2 + item3'], data: ROWS }),
+  ordinal_sem: () => ordinalSEM(ROWS, ['item1', 'item2', 'item3'], 'f1'),
   path_analysis: () => pathAnalysis(ROWS, ['y ~ x', 'm ~ x + y']),
   latent_growth: () => latentGrowthModel(ROWS, ['rm1', 'rm2', 'rm3']),
   bifactor: () => bifactorModel(ROWS, [], [{ items: ['item1', 'item2'] }, { items: ['item3', 'item4'] }]),

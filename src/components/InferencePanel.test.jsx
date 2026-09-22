@@ -403,4 +403,29 @@ describe('InferencePanel', () => {
       expect(screen.getByText(/did not converge/i)).toBeTruthy();
     });
   });
+
+  describe('Ordinal SEM non-convergence guard', () => {
+    // ordinalSEM() reuses sem()'s _fitRAMByML optimizer internally (confirmed
+    // against the real @statlab/core@0.1.2 package during this plan's testing
+    // phase), so it fails the same way: a constant (zero-variance) column
+    // mixed with two varying binary columns produces a finite fit.chisq
+    // (552.6149) but Infinity standard errors on both loadings.
+    //
+    // scaleVars defaults to numeric.slice(0, 4) (see InferencePanel.jsx), so
+    // listing all 3 columns in ds.numeric selects them automatically — no
+    // checkbox interaction needed to trigger computation.
+    const ordinalRows = Array.from({ length: 25 }, (_, i) => ({
+      v1: i % 2,
+      v2: (i + 1) % 2,
+      v3: 0,
+    }));
+    const ordinalDs = { numeric: ['v1', 'v2', 'v3'], categorical: [] };
+
+    it('reports an explicit error, not raw NaN/Infinity, when the model does not converge', () => {
+      render(<InferencePanel data={ordinalRows} ds={ordinalDs} active="ordinal_sem" setActive={vi.fn()} />);
+      expect(screen.queryByText(/NaN/)).toBeNull();
+      expect(screen.queryByText(/Infinity/)).toBeNull();
+      expect(screen.getByText(/did not converge/i)).toBeTruthy();
+    });
+  });
 });

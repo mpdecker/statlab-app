@@ -25,7 +25,7 @@ import {
 import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from '@statlab/core/methods/multivariate';
 import { weightedMean, weightedVar, weightedCorrelation, designEffect, taylorLinearization } from '@statlab/core/methods/survey';
 import { classicalMDS, sammonMapping, nonMetricMDS } from '@statlab/core/methods/mds';
-import { sem, pathAnalysis, latentGrowthModel, bifactorModel } from '@statlab/core/methods/sem';
+import { sem, pathAnalysis, latentGrowthModel, bifactorModel, ordinalSEM } from '@statlab/core/methods/sem';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
 import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
@@ -595,6 +595,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [binoK, setBinoK] = useState('15'); const [binoN, setBinoN] = useState('30'); const [binoP, setBinoP] = useState('0.5');
   const [metaInput, setMetaInput] = useState('Study1,0.5,0.20\nStudy2,0.3,0.25\nStudy3,0.8,0.18\nStudy4,0.4,0.22\nStudy5,0.6,0.19');
   const [semEquations, setSemEquations] = useState(numeric.length >= 3 ? `f1 =~ ${numeric.slice(0, Math.min(4, numeric.length)).join(' + ')}` : '');
+  const [ordinalFactorName, setOrdinalFactorName] = useState('f1');
   const [pathEquations, setPathEquations] = useState(numeric.length >= 2 ? `${numeric[1]} ~ ${numeric[0]}` : '');
   const [semTimes, setSemTimes] = useState('');
   const [bifactorGroups, setBifactorGroups] = useState(() => {
@@ -997,6 +998,14 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
         return fitFinite && coefsFinite ? r : { error: 'SEM model did not converge — try a simpler model or check for near-collinear variables.' };
       }
       if (a === 'sem') return semResultOrError(sem({ equations: semEquations.trim().split('\n').map(l => l.trim()).filter(Boolean), data, method: 'ML' }));
+      if (a === 'ordinal_sem') {
+        const vars = scaleVars.filter(c => numeric.includes(c));
+        const r = ordinalSEM(data, vars, ordinalFactorName.trim() || 'f1');
+        if (!r) return null;
+        const fitFinite = Number.isFinite(r.fit?.chisq);
+        const coefsFinite = (r.loadings ?? []).every(l => Number.isFinite(l.se));
+        return fitFinite && coefsFinite ? r : { error: 'Ordinal SEM model did not converge — try fewer items or a simpler factor structure.' };
+      }
       if (a === 'path_analysis') return pathAnalysis(data, pathEquations.trim().split('\n').map(l => l.trim()).filter(Boolean));
       if (a === 'latent_growth') { const vars = scaleVars.filter(c => numeric.includes(c)); const times = semTimes.trim() ? parseNumList(semTimes) : null; return latentGrowthModel(data, vars, times && times.length === vars.length ? times : null); }
       if (a === 'bifactor') return bifactorModel(data, [], bifactorGroups.filter(g => g.items.length));
@@ -1370,7 +1379,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     active, g1vals, g2vals, allTgt, mu0, sigma, groups, getVals, data,
     cat1, cat2, xy, xyz, medXMY, modXZY, preds, yVar, xVar, mVar, zVar,
     grpVar, tgtVar, tostL, tostH, bfPrior, aval, scaleVars, scaleMatrix,
-    rmMatrix, rmCols, polDeg, metaInput, semEquations, pathEquations, semTimes, bifactorGroups, didPCStr, didPOStr, didPTStr, didPTtStr,
+    rmMatrix, rmCols, polDeg, metaInput, semEquations, ordinalFactorName, pathEquations, semTimes, bifactorGroups, didPCStr, didPOStr, didPTStr, didPTtStr,
     fx_a, fx_b, fx_c, fx_d, p1x, p1n, p2x, p2n, binoK, binoN, binoP,
     nFactors, ssType, ssPow, ssD, ssR, effFrom, effVal, pairsInput, corrMeth,
     numeric, groups, leveneTest, bartlettTest,
@@ -1426,6 +1435,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     didPTStr, setDidPTStr, didPTtStr, setDidPTtStr,
     metaInput, setMetaInput,
     semEquations, setSemEquations,
+    ordinalFactorName, setOrdinalFactorName,
     pathEquations, setPathEquations,
     semTimes, setSemTimes,
     bifactorGroups, setBifactorGroups,

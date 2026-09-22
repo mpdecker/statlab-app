@@ -1446,6 +1446,12 @@ export const METHOD_NOTES = {
     assumptions: ["Multivariate normality of observed variables (approximately)", "At least 10 observations, 3+ observed variables", "Model is identified (enough constraints for a unique solution)"],
     cite: "Bollen, K. A. (1989). Structural equations with latent variables. Wiley.",
   },
+  ordinal_sem: {
+    description: "Ordinal SEM fits a one-factor measurement model to ordinal/Likert items by first estimating polychoric correlations between items (which model each item as a coarsened observation of an underlying continuous normal variable), then fitting the same maximum-likelihood factor model used by Structural Equation Model to that polychoric correlation matrix.",
+    usage: "Use instead of Structural Equation Model when your indicators are ordinal/Likert-scale (e.g. 1–5 agreement items) rather than continuous — treating ordinal items as continuous in a standard factor model can bias loadings, especially with few response categories or skewed distributions.",
+    assumptions: ["Each item is ordinal with 3+ ordered categories", "At least 10 observations, 3+ items", "Each item's underlying continuous variable is (approximately) normally distributed"],
+    cite: "Muthén, B. (1984). A general structural equation model with dichotomous, ordered categorical, and continuous latent variable indicators. Psychometrika, 49(1), 115–132.",
+  },
   path_analysis: {
     description: "Path analysis fits a system of recursive OLS regression equations among observed variables (no latent factors), then traces indirect and total effects through chained equations via the reduced-form matrix (I − B)⁻¹ − I, where B holds every direct path coefficient in the system.",
     usage: "Use to decompose a variable's total effect on an outcome into its direct effect plus any indirect effects mediated through other variables in a multi-equation causal chain — the multi-equation generalization of a single mediation analysis.",
