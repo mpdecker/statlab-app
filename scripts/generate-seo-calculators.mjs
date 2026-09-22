@@ -6586,6 +6586,520 @@ export const calculatorPages = [
     ],
     workbenchId: 'spc_tolerance_one_sided',
   },
+
+  // --- ITEM RESPONSE THEORY (IRT) & PSYCHOMETRICS FAMILY ---
+  {
+    slug: 'three-parameter-logistic-irt-3pl',
+    title: '3PL IRT item difficulty, discrimination, and guessing calculator',
+    family: 'Psychometrics & scale analysis',
+    description: 'Calculate Three-Parameter Logistic (3PL) Item Response Theory item difficulty (b), discrimination (a), and pseudo-guessing (c) parameters.',
+    keywords: ['3PL IRT calculator', 'three parameter logistic IRT', 'pseudo guessing parameter c', 'item characteristic curve 3PL', 'IRT item calibration'],
+    inputs: ['Binary item response matrix', 'Latent ability estimates θ', 'Estimation method (MML, EAP)'],
+    example: { a: ['Item #8 binary responses', '150 respondents'], result: 'Discrimination a = 1.62, Difficulty b = +0.85, Pseudo-guessing c = 0.18. ICC asymptote c > 0 reflects multiple-choice guessing floor.' },
+    formula: 'P_i(θ) = c_i + (1 - c_i) / [ 1 + exp(-a_i (θ - b_i)) ]',
+    code: {
+      python: `from pyirt import pyirt\n# Fit 3PL IRT model using marginal maximum likelihood (MML)`,
+      r: `library(mirt)\nmirt(data_matrix, 1, itemtype = '3PL')`,
+      ts: `import { fit3PLItem } from '@statlab/core';\nconst res = fit3PLItem(responseVector, abilityVector);`,
+    },
+    useCases: [
+      'Calibrating multiple-choice assessment items where test takers have a non-zero probability (c) of guessing the correct answer.',
+      'Evaluating LLM multiple-choice benchmark questions for floor guessing effects.'
+    ],
+    when: 'Use when items involve multiple-choice selection where low-ability respondents can score correctly by random guessing.',
+    cautions: [
+      'Requires larger sample sizes (N ≥ 500) for stable joint estimation of a, b, and c parameters.',
+      'Pseudo-guessing parameter c should be bounded between 0 and 1/K where K is the number of options.'
+    ],
+    workbenchId: 'psych_irt_3pl',
+  },
+  {
+    slug: 'samejima-graded-response-irt',
+    title: "Samejima's Graded Response Model (GRM) IRT calculator",
+    family: 'Psychometrics & scale analysis',
+    description: "Calculate Samejima's Graded Response Model (GRM) category boundary difficulties b_{k} and discrimination a for polytomous Likert-scale items.",
+    keywords: ['Samejima GRM calculator', 'graded response model IRT', 'polytomous IRT Likert', 'category boundary difficulty', 'item category operating curve'],
+    inputs: ['Polytomous ordinal response matrix (e.g. Likert 1-5)', 'Latent ability estimates θ'],
+    example: { a: ['5-Point Likert item', 'N = 200 respondents'], result: 'Item discrimination a = 1.85. Category boundaries: b_1 = -1.45, b_2 = -0.32, b_3 = +0.68, b_4 = +1.72.' },
+    formula: 'P^*_{ik}(θ) = 1 / [ 1 + exp(-a_i (θ - b_{ik})) ], P_{ik}(θ) = P^*_{ik}(θ) - P^*_{i,k+1}(θ)',
+    code: {
+      python: `import statsmodels.api as sm\n# Fit Graded Response Model (GRM) via ordinal IRT maximum likelihood`,
+      r: `library(mirt)\nmirt(ordinal_data, 1, itemtype = 'graded')`,
+      ts: `import { gradedResponseModel } from '@statlab/core';\nconst res = gradedResponseModel(ordinalMatrix, abilityVector);`,
+    },
+    useCases: [
+      'Calibrating ordinal Likert-scale questionnaire items in survey psychometrics.',
+      'Analyzing rating scale responses (e.g. 1-5 stars, strongly disagree to strongly agree).'
+    ],
+    when: 'Use when item responses are ordered categorical ratings (polytomous ordinal data).',
+    cautions: [
+      'Category boundary parameters b_{ik} must be strictly ordered (b_{i,1} < b_{i,2} < ... < b_{i,K-1}).',
+      'Assumes item category responses satisfy unidimensionality.'
+    ],
+    workbenchId: 'psych_grm_irt',
+  },
+  {
+    slug: 'differential-item-functioning-dif',
+    title: 'Differential Item Functioning (DIF) item bias calculator',
+    family: 'Psychometrics & scale analysis',
+    description: 'Calculate Differential Item Functioning (DIF) Mantel-Haenszel χ²_MH and Raju area statistics for detecting measurement bias across demographic reference vs focal groups.',
+    keywords: ['DIF calculator', 'differential item functioning', 'item bias test', 'Mantel Haenszel DIF', 'Raju area DIF'],
+    inputs: ['Item score vector', 'Total test score (matching criterion)', 'Group indicator (Reference vs Focal group)'],
+    example: { a: ['Reference Group N_R = 300, Focal Group N_F = 300', 'Item #12'], result: 'Mantel-Haenszel χ²_MH = 8.42 (p = .0037), Δ_MH = -1.45. Significant uniform DIF favoring Reference group.' },
+    formula: 'α_{MH} = [ ∑_{j} A_j D_j / N_j ] / [ ∑_{j} B_j C_j / N_j ], Δ_{MH} = -2.35 ln(α_{MH})',
+    code: {
+      python: `from statsmodels.stats.contingency_tables import StratifiedTable\n# Compute Mantel-Haenszel odds ratio across matched ability strata`,
+      r: `library(difR)\ndifMH(Data, group = group_vec, focal.name = "Focal")`,
+      ts: `import { difMantelHaenszel } from '@statlab/core';\nconst res = difMantelHaenszel(itemScores, totalScores, groupVector);`,
+    },
+    useCases: [
+      'Auditing educational and psychological test items for fairness and demographic bias across groups.',
+      'Ensuring AI evaluation benchmark questions do not contain group-specific bias.'
+    ],
+    when: 'Use to test whether an item performs differently for subjects from different sub-groups who possess identical overall ability.',
+    cautions: [
+      'Subjects must be matched on an overall ability criterion (total test score) prior to evaluating DIF.',
+      'Distinguish between Uniform DIF (equal bias across all ability levels) and Non-Uniform DIF (interaction with ability).'
+    ],
+    workbenchId: 'psych_dif_bias',
+  },
+
+  // --- DYNAMIC FACTOR MODELS & MACRO-ECONOMETRICS FAMILY ---
+  {
+    slug: 'dynamic-factor-model-dfm',
+    title: 'Dynamic Factor Model (DFM) latent macro-index calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate Dynamic Factor Model (DFM) unobserved common factors F_t, factor loadings Lambda (Λ), and idiosyncratic residual variances via Kalman filter.',
+    keywords: ['dynamic factor model DFM', 'DFM calculator', 'Kalman filter factor', 'macroeconomic index DFM', 'common factor time series'],
+    inputs: ['Multivariate time series panel Y_t (N series x T timepoints)', 'Number of common factors q', 'VAR factor dynamics lag p'],
+    example: { a: ['N = 12 macroeconomic series, T = 120 months', 'q = 1 common factor'], result: 'First Dynamic Factor F_1(t) accounts for 68.4% total co-movement across 12 series. Kalman Smoother converged.' },
+    formula: 'Y_t = Λ F_t + e_t, F_t = A_1 F_{t-1} + ... + A_p F_{t-p} + u_t',
+    code: {
+      python: `from statsmodels.tsa.dynamic_factor import DynamicFactor\nmodel = DynamicFactor(endog_panel, k_factors=1, factor_order=2).fit()`,
+      r: `library(dfm)\ndfm_fit <- dfm(data_matrix, k = 1, p = 2)`,
+      ts: `import { dynamicFactorModel } from '@statlab/core';\nconst res = dynamicFactorModel(panelMatrix, { nFactors: 1, factorOrder: 2 });`,
+    },
+    useCases: [
+      'Extracting a single latent business cycle or economic activity index from dozens of correlated macro time series.',
+      'Nowcasting economic or high-dimensional system health from mixed-frequency telemetry.'
+    ],
+    when: 'Use when compressing large panels of co-moving time series into a small number of dynamic latent factors.',
+    cautions: [
+      'Requires standardizing all input series to zero mean and unit variance prior to estimation.',
+      'Uses Kalman filter state-space formulation for maximum likelihood parameter estimation.'
+    ],
+    workbenchId: 'ts_dynamic_factor',
+  },
+  {
+    slug: 'threshold-autoregressive-tar',
+    title: 'Threshold Autoregressive (TAR & SETAR) model calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate Threshold Autoregressive (TAR) and Self-Exciting TAR (SETAR) threshold value r, regime-specific AR parameters, and F-test for threshold non-linearity.',
+    keywords: ['TAR model calculator', 'SETAR threshold autoregression', 'regime switching time series', 'non-linear threshold AR', 'Chan threshold search'],
+    inputs: ['Time series Y_t', 'Threshold delay d', 'AR order p per regime', 'Threshold search grid'],
+    example: { a: ['Time series T = 250', 'Delay d = 1, AR(1) per regime'], result: 'Optimal Threshold r = 3.42. Regime 1 (Y_{t-1} ≤ 3.42): AR β_1 = 0.42; Regime 2 (Y_{t-1} > 3.42): AR β_2 = 0.88. Hansen F-test p = .0034.' },
+    formula: 'Y_t = (ϕ_{1,0} + ∑ ϕ_{1,i} Y_{t-i}) I(Y_{t-d} ≤ r) + (ϕ_{2,0} + ∑ ϕ_{2,i} Y_{t-i}) I(Y_{t-d} > r) + e_t',
+    code: {
+      python: `import statsmodels.api as sm\n# Fit SETAR model via grid search over threshold values r`,
+      r: `library(tsDyn)\nsetar(time_series, m = 2, d = 1, thDelay = 1)`,
+      ts: `import { setarModel } from '@statlab/core';\nconst res = setarModel(timeSeries, { delay: 1, arOrder: 1 });`,
+    },
+    useCases: [
+      'Modeling asymmetric time series dynamics that change behavior depending on whether a threshold value r is crossed.',
+      'Capturing economic recession vs expansion regime shifts or system overload thresholds.'
+    ],
+    when: 'Use when time series persistence or autoregressive parameters change abruptly across different regimes.',
+    cautions: [
+      'Use Hansen non-linearity test to verify threshold existence before interpreting multi-regime parameters.',
+      'Grid search for threshold r is restricted to central 70% quantile of the threshold variable.'
+    ],
+    workbenchId: 'ts_tar_setar',
+  },
+  {
+    slug: 'markov-switching-autoregression',
+    title: 'Markov Switching Autoregression (MS-AR) regime calculator',
+    family: 'Time Series & Econometrics',
+    description: 'Calculate Markov Switching Autoregression (MS-AR) transition probability matrix P, regime-specific means/variances, and Hamilton smoothed regime probabilities.',
+    keywords: ['Markov switching calculator', 'MS-AR model', 'Hamilton regime switching', 'transition probability matrix', 'smoothed regime probability'],
+    inputs: ['Time series Y_t', 'Number of regimes K (typically K = 2 or 3)', 'AR lag order p'],
+    example: { a: ['Series T = 300', 'K = 2 Regimes (Low vs High Volatility)'], result: 'Transition Prob P = [[0.95, 0.05], [0.08, 0.92]]. Regime 1 σ_1 = 0.82; Regime 2 σ_2 = 2.45. Avg Regime 1 duration = 20 periods.' },
+    formula: 'Y_t = μ_{S_t} + ∑ ϕ_i (Y_{t-i} - μ_{S_{t-i}}) + e_t, P(S_t = j | S_{t-1} = i) = p_{ij}',
+    code: {
+      python: `from statsmodels.tsa.regime_switching.markov_autoregression import MarkovAutoregression\nmodel = MarkovAutoregression(series, k_regimes=2, order=1).fit()`,
+      r: `library(MSwM)\nmsmFit(lm_model, k = 2, p = 1, sw = c(TRUE, TRUE))`,
+      ts: `import { markovSwitchingAR } from '@statlab/core';\nconst res = markovSwitchingAR(timeSeries, { kRegimes: 2, order: 1 });`,
+    },
+    useCases: [
+      'Detecting unobserved regime transitions between low-volatility and high-volatility states in financial or telemetry metrics.',
+      'Computing smoothed probability profiles for state identification over time.'
+    ],
+    when: 'Use when regime transitions are governed by an unobserved Markov chain state variable rather than a deterministic threshold.',
+    cautions: [
+      'Uses Hamilton filter EM algorithm for maximum likelihood parameter estimation.',
+      'Expected regime duration is given by 1 / (1 - p_{ii}).'
+    ],
+    workbenchId: 'ts_markov_switching',
+  },
+
+  // --- EXTREME VALUE COPULAS & SPATIAL DEPENDENCE FAMILY ---
+  {
+    slug: 'clayton-gumbel-copula-dependence',
+    title: 'Clayton, Gumbel, and Frank Archimedean Copula calculator',
+    family: 'Extreme value & heavy-tailed distributions',
+    description: 'Calculate Clayton (lower tail dependence), Gumbel (upper tail dependence), and Frank Archimedean Copula parameter theta (θ) and Kendall’s Tau.',
+    keywords: ['Copula calculator', 'Clayton copula', 'Gumbel copula upper tail', 'Archimedean copula', 'tail dependence copula'],
+    inputs: ['Uniform marginals U = F_X(X) and V = F_Y(Y)', 'Copula family (Clayton, Gumbel, Frank)'],
+    example: { a: ['N = 300 uniform marginal pairs (U, V)', 'Gumbel Copula'], result: 'Gumbel Copula θ = 1.85 (p < .0001), Kendall’s Tau τ = 0.459. Upper Tail Dependence λ_u = 0.52 (High co-occurrence of extreme highs).' },
+    formula: 'Gumbel: C(u,v) = exp( -[ (-ln u)^θ + (-ln v)^θ ]^{1/θ} ), λ_u = 2 - 2^{1/θ}',
+    code: {
+      python: `from scipy import stats\n# Fit Archimedean copula parameter theta via Kendall's tau inversion`,
+      r: `library(copula)\nfitCopula(gumbelCopula(dim = 2), data = cbind(u, v))`,
+      ts: `import { archimedeanCopula } from '@statlab/core';\nconst res = archimedeanCopula(vectorU, vectorV, { family: 'gumbel' });`,
+    },
+    useCases: [
+      'Modeling joint probability of joint extreme events in risk management (e.g. concurrent server failures or market crashes).',
+      'Flexible joint distribution modeling independent of marginal distribution choices.'
+    ],
+    when: 'Use when joint dependence between variables differs in the upper vs lower tails (asymmetric joint tail dependence).',
+    cautions: [
+      'Clayton copula captures lower tail dependence (joint extreme lows); Gumbel captures upper tail dependence (joint extreme highs).',
+      'Data must be transformed to uniform marginals U, V (via ECDF or parametric CDF).'
+    ],
+    workbenchId: 'evt_copula_dependence',
+  },
+  {
+    slug: 'tail-dependence-coefficient',
+    title: 'Upper and Lower Tail Dependence Coefficient (λu, λl) calculator',
+    family: 'Extreme value & heavy-tailed distributions',
+    description: 'Calculate non-parametric upper tail dependence coefficient λ_u and lower tail dependence coefficient λ_l for bivariate extreme co-movements.',
+    keywords: ['tail dependence coefficient', 'upper tail dependence lambda', 'lower tail dependence', 'extreme co-movement', 'bivariate tail risk'],
+    inputs: ['Bivariate data vectors X and Y', 'Tail threshold quantile q (e.g. 0.95 or 0.99)'],
+    example: { a: ['N = 500 paired observations', 'Quantile threshold q = 0.95'], result: 'Upper Tail Dependence λ_u = 0.42 (42% probability Y is extreme given X is extreme). Lower Tail λ_l = 0.12.' },
+    formula: 'λ_u = lim_{q→1^-} P(Y > F_Y^{-1}(q) | X > F_X^{-1}(q)), λ_l = lim_{q→0^+} P(Y < F_Y^{-1}(q) | X < F_X^{-1}(q))',
+    code: {
+      python: `import numpy as np\ndef tail_dependence(x, y, q=0.95):\n    u_x, u_y = np.quantile(x, q), np.quantile(y, q)\n    both_above = np.sum((x > u_x) & (y > u_y))\n    return both_above / np.sum(x > u_x)`,
+      r: `library(evd)\nchiplot(cbind(x, y))`,
+      ts: `import { tailDependence } from '@statlab/core';\nconst res = tailDependence(vectorX, vectorY, { q: 0.95 });`,
+    },
+    useCases: [
+      'Quantifying extreme joint crash risk or concurrent overload probability between two systems.',
+      'Evaluating bivariate extreme tail dependence without assuming a specific parametric copula family.'
+    ],
+    when: 'Use when measuring the conditional probability that one variable experiences an extreme event given that another variable does.',
+    cautions: [
+      'Requires adequate sample size N in the tail region (q ≥ 0.95 requires N ≥ 200).',
+      'λ = 0 indicates asymptotic tail independence.'
+    ],
+    workbenchId: 'evt_tail_dependence',
+  },
+
+  // --- HIGH-DIMENSIONAL FEATURE SELECTION & REGULARIZATION FAMILY ---
+  {
+    slug: 'scad-smooth-clipped-absolute-deviation',
+    title: 'SCAD non-concave penalty sparse regression calculator',
+    family: 'AI / ML evaluation & robust models',
+    description: 'Calculate Smoothly Clipped Absolute Deviation (SCAD) non-concave penalty regression coefficients, un-biased large coefficient estimates, and optimal tuning parameters.',
+    keywords: ['SCAD calculator', 'smoothly clipped absolute deviation', 'non concave penalty', 'unbiased sparse regression', 'SCAD penalty lambda'],
+    inputs: ['Feature matrix X', 'Target vector Y', 'Tuning parameter lambda (λ)', 'Shape parameter a (typically a = 3.7)'],
+    example: { a: ['N = 80, p = 40 predictors', 'a = 3.7, λ = 0.12'], result: 'SCAD selected 8 non-zero predictors. Large coefficients exhibit zero estimation bias (unlike standard LASSO).' },
+    formula: 'p\'_λ(|β|) = λ [ I(|β| ≤ λ) + max(a λ - |β|, 0)/((a-1) λ) I(|β| > λ) ]',
+    code: {
+      python: `import rpy2.robjects as robjects\n# Fit SCAD penalty model via ncvreg or coordinate descent`,
+      r: `library(ncvreg)\nfit <- ncvreg(X, y, penalty = "SCAD")\nsummary(fit)`,
+      ts: `import { scadRegression } from '@statlab/core';\nconst res = scadRegression(matrixX, vectorY, { lambda: 0.12, a: 3.7 });`,
+    },
+    useCases: [
+      'Performing sparse feature selection without introducing attenuation bias on large true signal coefficients.',
+      'High-dimensional statistical modeling satisfying Fan & Li oracle properties.'
+    ],
+    when: 'Use when LASSO parameter shrinkage excessively biases large coefficient estimates toward zero.',
+    cautions: [
+      'SCAD penalty is non-convex; coordinate descent uses local linear approximation (LLA).',
+      'Fan & Li recommend fixing shape parameter a = 3.7.'
+    ],
+    workbenchId: 'ml_scad_regression',
+  },
+  {
+    slug: 'mcp-minimax-concave-penalty',
+    title: 'MCP Minimax Concave Penalty sparse regression calculator',
+    family: 'AI / ML evaluation & robust models',
+    description: 'Calculate Minimax Concave Penalty (MCP) sparse regression parameters, convexity threshold gamma (γ), and feature selection paths.',
+    keywords: ['MCP calculator', 'minimax concave penalty', 'MCP sparse feature selection', 'non convex regularization', 'MCP vs LASSO'],
+    inputs: ['Feature matrix X', 'Target vector Y', 'Penalty lambda (λ)', 'Convexity parameter gamma (γ, default = 3.0)'],
+    example: { a: ['N = 100, p = 60 features', 'γ = 3.0, λ = 0.08'], result: 'MCP selected 6 non-zero features. Maximum sparse selection accuracy with minimal shrinkage bias.' },
+    formula: 'p\'_λ(|β|) = (λ - |β|/γ) I(|β| < γ λ)',
+    code: {
+      python: `import rpy2.robjects as robjects\n# Fit MCP penalty model via coordinate descent`,
+      r: `library(ncvreg)\nfit <- ncvreg(X, y, penalty = "MCP")\nsummary(fit)`,
+      ts: `import { mcpRegression } from '@statlab/core';\nconst res = mcpRegression(matrixX, vectorY, { lambda: 0.08, gamma: 3.0 });`,
+    },
+    useCases: [
+      'High-dimensional predictor selection in genomic or complex engineering datasets.',
+      'Achieving sparse feature selection with strict oracle properties.'
+    ],
+    when: 'Use as a high-performance alternative to SCAD and LASSO for ultra-high-dimensional feature selection.',
+    cautions: [
+      'Smaller gamma γ values relax penalty faster but increase non-convexity.',
+      'Requires standardized input columns.'
+    ],
+    workbenchId: 'ml_mcp_regression',
+  },
+  {
+    slug: 'group-lasso-categorical',
+    title: 'Group LASSO categorical variable penalty calculator',
+    family: 'AI / ML evaluation & robust models',
+    description: 'Calculate Group LASSO penalty coefficients selecting entire factor groups or dummy variable blocks together in high-dimensional regression.',
+    keywords: ['group LASSO calculator', 'Group LASSO regression', 'categorical dummy penalty', 'block feature selection', 'L1 L2 group penalty'],
+    inputs: ['Feature matrix X (including dummy variable groups)', 'Group index vector g', 'Regularization lambda (λ)'],
+    example: { a: ['p = 30 variables in 6 multi-level categorical groups', 'Group LASSO λ = 0.15'], result: 'Group LASSO selected 3 of 6 categorical groups (All associated dummy columns retained or zeroed jointly).' },
+    formula: 'Loss = 1/(2N) ||Y - X β||₂² + λ ∑_{g=1}^G √(p_g) ||β_g||₂',
+    code: {
+      python: `from group_lasso import GroupLasso\ngl = GroupLasso(groups=group_ids, l1_reg=0.15).fit(X, y)`,
+      r: `library(gglasso)\ncv.gglasso(X, y, group = group_ids)`,
+      ts: `import { groupLasso } from '@statlab/core';\nconst res = groupLasso(matrixX, vectorY, groupIndices, { lambda: 0.15 });`,
+    },
+    useCases: [
+      'Selecting multi-category factors (where all dummy indicator columns must be included or excluded together).',
+      'Grouped feature selection in multi-sensor or multi-resolution signal processing.'
+    ],
+    when: 'Use when features naturally form logical groups (e.g. dummy variables derived from a single categorical factor).',
+    cautions: [
+      'Standard LASSO selects individual dummy columns independently, destroying categorical factor integrity.',
+      'Group penalty scales by square root of group size √(p_g) to adjust for group dimension.'
+    ],
+    workbenchId: 'ml_group_lasso',
+  },
+
+  // --- FUNCTIONAL REGRESSION & WAVELET SMOOTHING FAMILY ---
+  {
+    slug: 'scalar-on-function-regression',
+    title: 'Scalar-on-Function Linear Regression calculator',
+    family: 'Multivariate & Dimensionality Reduction',
+    description: 'Calculate Scalar-on-Function regression coefficient function beta(t), scalar intercept alpha, and functional predictor R-squared.',
+    keywords: ['scalar on function regression', 'functional regression calculator', 'functional coefficient beta(t)', 'FDA linear regression', 'curve predictor model'],
+    inputs: ['Scalar response vector Y (N observations)', 'Functional curve matrix X_i(t) (N x T)', 'Basis dimension K'],
+    example: { a: ['N = 60 scalar outcomes', 'Predictor curves X(t) evaluated across 80 points'], result: 'Functional Regression R² = .742 (p < .0001). Coefficient function β(t) peak positive influence at t = 35.' },
+    formula: 'y_i = α + ∫_0^T x_i(t) β(t) dt + ε_i, where β(t) = ∑ c_k ϕ_k(t)',
+    code: {
+      python: `from skfda.ml.regression import HistoricalLinearRegression\n# Fit scalar-on-function regression model`,
+      r: `library(fda)\nfRegress(y ~ x_fd)`,
+      ts: `import { scalarOnFunctionReg } from '@statlab/core';\nconst res = scalarOnFunctionReg(vectorY, curveMatrix);`,
+    },
+    useCases: [
+      'Predicting a scalar outcome (e.g. daily energy consumption, total product yield) from continuous intraday temperature/latency curves X(t).',
+      'Modeling scalar response as a continuous weighted integral of functional input profiles.'
+    ],
+    when: 'Use when the independent predictor is a continuous curve/function X(t) and the response Y is a single scalar number.',
+    cautions: [
+      'Coefficient function β(t) highlights specific time intervals where the functional predictor positively or negatively impacts Y.',
+      'Apply roughness penalties (smoothing) to prevent noisy oscillations in estimated β(t).'
+    ],
+    workbenchId: 'fda_scalar_on_function',
+  },
+  {
+    slug: 'wavelet-denoising-thresholding',
+    title: 'Discrete Wavelet Transform (DWT) signal denoising calculator',
+    family: 'Signal processing & wavelet analysis',
+    description: 'Calculate Discrete Wavelet Transform (DWT) multi-level decomposition, VisuShrink (Universal) or SureShrink thresholding, and reconstructed denoised signal.',
+    keywords: ['wavelet denoising calculator', 'DWT signal smoothing', 'VisuShrink threshold', 'SureShrink wavelet', 'wavelet detail thresholding'],
+    inputs: ['Noisy signal x(t)', 'Wavelet family (db4, sym8, coif3)', 'Decomposition level J', 'Thresholding rule (Hard, Soft)'],
+    example: { a: ['Noisy signal N = 512', 'Wavelet db4, Level J = 4', 'Soft thresholding'], result: 'Denoised Signal SNR improved from +12.4 dB to +24.8 dB. Detail coefficient noise threshold λ = 1.84.' },
+    formula: 'Universal λ = σ √(2 ln N), Soft: δ_λ(w) = sgn(w) max(0, |w| - λ), Hard: δ_λ(w) = w I(|w| > λ)',
+    code: {
+      python: `import pywt\ncoefficients = pywt.wavedec(signal, 'db4', level=4)\n# Apply soft thresholding to detail coefficients and reconstruct`,
+      r: `library(wavethresh)\nthreshold(wd_obj, policy = "universal", type = "soft")`,
+      ts: `import { dwtDenoise } from '@statlab/core';\nconst denoised = dwtDenoise(noisySignal, { wavelet: 'db4', level: 4 });`,
+    },
+    useCases: [
+      'Removing high-frequency noise from sensor telemetry while preserving sharp transient edge jumps.',
+      'Denoising audio, physiological, or industrial time series signals.'
+    ],
+    when: 'Use when standard moving average or Fourier low-pass filters blur sharp structural step transitions in signals.',
+    cautions: [
+      'Soft thresholding shrinks all coefficients toward zero, introducing mild bias; hard thresholding preserves magnitude but can create small discontinuities.',
+      'Estimate noise standard deviation σ from median absolute deviation (MAD) of finest scale detail coefficients.'
+    ],
+    workbenchId: 'sig_wavelet_denoise',
+  },
+
+  // --- ROBUST QUALITY & RELIABILITY MAINTENANCE FAMILY ---
+  {
+    slug: 'availability-block-diagram-ram',
+    title: 'System Availability & RAM Markov reliability model calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate System Availability A(t), Mean Time Between Failures (MTBF), Mean Time To Repair (MTTR), and Steady-State Availability A_ss.',
+    keywords: ['RAM availability calculator', 'system availability Markov', 'steady state availability', 'MTBF MTTR availability', 'reliability block diagram RAM'],
+    inputs: ['Failure rate lambda (λ) or MTBF', 'Repair rate mu (μ) or MTTR', 'System configuration (Series, Parallel, k-out-of-n)'],
+    example: { a: ['MTBF = 1000 hours (λ = 0.001)', 'MTTR = 4 hours (μ = 0.25)', '2-Node Parallel System'], result: 'Single Node Availability A = 99.601%. Parallel System Steady-State Availability A_ss = 99.9984% (4.4 Nines Uptime).' },
+    formula: 'A_ss = μ / (λ + μ) = MTBF / (MTBF + MTTR), Parallel A_{par} = 1 - ∏ (1 - A_i)',
+    code: {
+      python: `def system_availability(mtbf, mttr):\n    a_single = mtbf / (mtbf + mttr)\n    a_parallel = 1.0 - (1.0 - a_single)**2\n    return a_single, a_parallel`,
+      r: `library(Reliability)\n# Calculate system availability for series-parallel configurations`,
+      ts: `import { ramAvailability } from '@statlab/core';\nconst res = ramAvailability(1000, 4, { config: 'parallel', nodes: 2 });`,
+    },
+    useCases: [
+      'Calculating uptime SLA percentages ("nines of availability") for multi-node redundant server architectures.',
+      'Reliability, Availability, and Maintainability (RAM) engineering audits.'
+    ],
+    when: 'Use to compute system-level uptime metrics given component failure (MTBF) and repair (MTTR) rates.',
+    cautions: [
+      'Assumes independent component failures and exponential failure/repair distributions.',
+      'Parallel configurations require all redundant nodes to fail before system outage occurs.'
+    ],
+    workbenchId: 'spc_ram_availability',
+  },
+  {
+    slug: 'accelerated-degradation-testing-adt',
+    title: 'Accelerated Degradation Testing (ADT) Wiener process calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate Accelerated Degradation Testing (ADT) Wiener process drift parameter mu (μ), diffusion sigma (σ), and critical threshold pseudo-failure times.',
+    keywords: ['ADT calculator', 'accelerated degradation testing', 'Wiener process degradation', 'pseudo failure time', 'degradation threshold reliability'],
+    inputs: ['Degradation measurements y(t)', 'Critical failure threshold D_c', 'Stress levels (Temperatures/Voltages)'],
+    example: { a: ['Degradation readings up to t = 1000 hours', 'Critical Threshold D_c = 20.0 mm'], result: 'Wiener Drift μ = 0.018, Diffusion σ = 0.042. Extrapolated Pseudo Mean Time to Failure MTTF = 1,111 hours.' },
+    formula: 'Y(t) = μ t + σ B(t), Pseudo-Failure Time T_D ~ Inverse Gaussian(D_c / μ, D_c² / σ²)',
+    code: {
+      python: `from scipy import stats\n# Estimate Wiener process drift mu and diffusion sigma via linear regression on degradation paths`,
+      r: `library(Reliability)\n# Fit linear/Wiener degradation path model`,
+      ts: `import { adtWienerModel } from '@statlab/core';\nconst res = adtWienerModel(degradationData, { threshold: 20.0 });`,
+    },
+    useCases: [
+      'Estimating product reliability and lifespan when components experience continuous wear/degradation before ultimate failure.',
+      'Predicting battery capacity loss, structural crack growth, or electronic resistance drift.'
+    ],
+    when: 'Use when products degrade continuously over time and testing until physical failure takes too long.',
+    cautions: [
+      'Pseudo-failure times are defined as the exact moment degradation crosses critical threshold D_c.',
+      'Wiener process assumes linear average degradation with Brownian diffusion noise.'
+    ],
+    workbenchId: 'spc_adt_degradation',
+  },
+  {
+    slug: 'exponentially-weighted-moving-average-spc-mean',
+    title: 'EWMA SPC Mean & Variance control limits calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate Exponentially Weighted Moving Average (EWMA) SPC smoothing parameter lambda (λ), control limit factor L, and Upper/Lower Control Limits (UCL/LCL).',
+    keywords: ['EWMA control limits calculator', 'EWMA SPC mean', 'small shift SPC', 'smoothing lambda EWMA', 'UCL LCL EWMA'],
+    inputs: ['Process sample vector X_t', 'Target mean μ₀', 'Process std dev σ₀', 'Weighting parameter λ (0.05-0.30)', 'Control limit width L (typically L = 2.7 to 3.0)'],
+    example: { a: ['Process readings N = 30', 'Target μ₀ = 100.0, σ₀ = 2.0', 'λ = 0.10, L = 2.7'], result: 'Asymptotic EWMA Control Limits: LCL = 98.49, UCL = 101.51. Process in control.' },
+    formula: 'Z_t = λ X_t + (1-λ) Z_{t-1}, UCL/LCL = μ₀ ± L σ₀ √[ (λ / (2-λ)) (1 - (1-λ)^{2t}) ]',
+    code: {
+      python: `import numpy as np\ndef ewma_spc(x, mu0, sigma0, lam=0.1, L=2.7):\n    z = np.zeros_like(x)\n    z[0] = mu0\n    for t in range(1, len(x)):\n        z[t] = lam * x[t] + (1 - lam) * z[t-1]\n    ucl = mu0 + L * sigma0 * np.sqrt(lam / (2.0 - lam))\n    return z, ucl`,
+      r: `library(qcc)\newma(data, center = 100, std.dev = 2, lambda = 0.1, nsigmas = 2.7)`,
+      ts: `import { ewmaControlLimits } from '@statlab/core';\nconst res = ewmaControlLimits(processData, { mu0: 100, sigma0: 2, lambda: 0.1 });`,
+    },
+    useCases: [
+      'Detecting small persistent process mean shifts (0.5 to 1.5 standard deviations) much faster than standard Shewhart X-bar charts.',
+      'Monitoring high-frequency API latency averages.'
+    ],
+    when: 'Use when early detection of small, persistent process mean shifts is critical.',
+    cautions: [
+      'Use small smoothing λ (e.g. 0.05-0.10) for small shifts; larger λ (0.20-0.30) for larger shifts.',
+      'EWMA chart is robust to mild non-normality due to weighted averaging.'
+    ],
+    workbenchId: 'spc_ewma_limits',
+  },
+
+  // --- NON-PARAMETRIC & CIRCULAR HYPOTHESIS TESTING FAMILY ---
+  {
+    slug: 'kuiper-test-circular-distributions',
+    title: "Kuiper's test for circular distribution equality calculator",
+    family: 'Equivalence & circular statistics',
+    description: "Calculate Kuiper's V statistic and p-value for testing whether a sample of circular/angular observations conforms to a specified theoretical distribution.",
+    keywords: ['Kuipers test calculator', 'circular goodness of fit', 'Kuipers V statistic', 'circular Kolmogorov Smirnov', 'angular distribution test'],
+    inputs: ['Angular observations θ (degrees or radians)', 'Null distribution (Uniform, von Mises)'],
+    example: { a: ['N = 40 angles in degrees'], result: 'Kuiper’s V = 1.84, Modified V* = 1.92, p = .0014. Significant deviation from circular uniformity.' },
+    formula: 'V = D^+ + D^- = max(F(x) - S(x)) + max(S(x) - F(x))',
+    code: {
+      python: `from astropy.stats import kuiper\nD, p = kuiper(angles_data)`,
+      r: `library(circular)\nkuiper.test(circular(angles, units="degrees"))`,
+      ts: `import { kuipersTest } from '@statlab/core';\nconst res = kuipersTest(anglesDegrees);`,
+    },
+    useCases: [
+      'Testing goodness-of-fit for circular or angular data (0° to 360°) where tail and median deviations are equally important.',
+      'Circular equivalent of Kolmogorov-Smirnov test that is invariant under choice of origin/starting point on circle.'
+    ],
+    when: 'Use for circular data goodness-of-fit testing because standard Kolmogorov-Smirnov test depends on arbitrarily chosen zero starting point.',
+    cautions: [
+      'Kuiper’s V statistic sums maximum positive (D^+) and negative (D^-) deviations.',
+      'Equal sensitivity across all points around the circle.'
+    ],
+    workbenchId: 'circ_kuipers_test',
+  },
+  {
+    slug: 'mood-test-scale-homogeneity',
+    title: "Mood's non-parametric scale homogeneity test calculator",
+    family: 'Resampling & non-parametric tests',
+    description: "Calculate Mood's non-parametric rank-based scale test M statistic, z-score, and p-value for comparing scale/dispersion between two independent groups.",
+    keywords: ['Moods scale test calculator', 'Mood scale test', 'non parametric dispersion test', 'variance rank test', 'scale homogeneity Mood'],
+    inputs: ['Group A sample vector', 'Group B sample vector'],
+    example: { a: ['Group A (n=15)', 'Group B (n=15)'], result: 'Mood’s M = 142.5, Z = +2.45, p = .0143. Statistically significant difference in group scale / dispersion.' },
+    formula: 'M = ∑_{i ∈ Group A} (r_i - (N + 1)/2)², where r_i are ranks of combined N = n_A + n_B sample',
+    code: {
+      python: `from scipy import stats\nstat, pval = stats.mood(groupA, groupB)`,
+      r: `mood.test(groupA, groupB)`,
+      ts: `import { moodScaleTest } from '@statlab/core';\nconst res = moodScaleTest(groupA, groupB);`,
+    },
+    useCases: [
+      'Testing equality of scale or dispersion between two independent groups without assuming normal distributions.',
+      'Comparing process variance when data contains non-normal distributions.'
+    ],
+    when: 'Use when testing if two samples differ in scale/dispersion when means/medians are assumed equal or centered.',
+    cautions: [
+      'Samples should be centered (equal medians) prior to running Mood’s scale test.',
+      'Assigns highest score squared weights to extreme rank deviations from median rank.'
+    ],
+    workbenchId: 'nonparam_mood_scale',
+  },
+  {
+    slug: 'ansari-bradley-scale-test',
+    title: 'Ansari-Bradley non-parametric dispersion test calculator',
+    family: 'Resampling & non-parametric tests',
+    description: 'Calculate Ansari-Bradley W statistic, z-score, and p-value for testing equality of scale parameters between two independent samples.',
+    keywords: ['Ansari Bradley test', 'Ansari Bradley calculator', 'non parametric scale test', 'dispersion rank test', 'W statistic scale'],
+    inputs: ['Group A numeric vector', 'Group B numeric vector'],
+    example: { a: ['Group A (n=12)', 'Group B (n=14)'], result: 'Ansari-Bradley W = 112.5, Z = -2.18, p = .0292. Significant scale difference.' },
+    formula: 'Assign ranks 1, 2, ..., N/2 from both extremes inward toward center; W = ∑_{i ∈ Group A} R_i',
+    code: {
+      python: `from scipy import stats\nstat, pval = stats.ansari(groupA, groupB)`,
+      r: `ansari.test(groupA, groupB)`,
+      ts: `import { ansariBradleyTest } from '@statlab/core';\nconst res = ansariBradleyTest(groupA, groupB);`,
+    },
+    useCases: [
+      'Comparing dispersion or spread between two independent sample groups without assuming normality.',
+      'Evaluating scale parameter shifts in non-parametric quality control.'
+    ],
+    when: 'Use when testing for equal scale/variance between two samples with identical medians.',
+    cautions: [
+      'Sensitive to differences in medians; center both samples by subtracting sample medians first if medians differ.',
+      'Ties are handled by average rank assignments.'
+    ],
+    workbenchId: 'nonparam_ansari_bradley',
+  },
+  {
+    slug: 'siegel-tukey-rank-dispersion',
+    title: 'Siegel-Tukey rank test for equal scale and variance calculator',
+    family: 'Resampling & non-parametric tests',
+    description: 'Calculate Siegel-Tukey rank sum statistic R, z-score, and p-value for testing equal dispersion/variability between two independent groups.',
+    keywords: ['Siegel Tukey test calculator', 'Siegel Tukey dispersion', 'rank test scale', 'non parametric variance test', 'alternate rank scale'],
+    inputs: ['Group A sample vector', 'Group B sample vector'],
+    example: { a: ['Group A (n=10)', 'Group B (n=10)'], result: 'Siegel-Tukey R = 82.0, Z = +2.05, p = .0404. Reject equal scale hypothesis.' },
+    formula: 'Rank 1 to lowest, 2 & 3 to highest two, 4 & 5 to next lowest two, etc. R = sum of ranks in Group A',
+    code: {
+      python: `import scipy.stats as stats\n# Assign Siegel-Tukey alternating extreme ranks and evaluate Mann-Whitney U on transformed ranks`,
+      r: `library(statmod)\nsiegel.test(groupA, groupB)`,
+      ts: `import { siegelTukeyTest } from '@statlab/core';\nconst res = siegelTukeyTest(groupA, groupB);`,
+    },
+    useCases: [
+      'Non-parametric test for difference in scale/variance between two independent samples.',
+      'Checking spread differences when standard F-test is invalid due to non-normality.'
+    ],
+    when: 'Use to compare scale/variability between two samples without assuming normal distributions.',
+    cautions: [
+      'Assumes both groups have equal location (median); center data if medians differ.',
+      'Assigns alternating ranks from extremes inward.'
+    ],
+    workbenchId: 'nonparam_siegel_tukey',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
