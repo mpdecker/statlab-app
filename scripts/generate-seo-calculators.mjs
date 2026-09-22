@@ -7600,6 +7600,506 @@ export const calculatorPages = [
     ],
     workbenchId: 'dist_gld',
   },
+  {
+    slug: 'quantile-regression-forests-qrf',
+    title: 'Quantile Regression Forests (QRF) prediction interval calculator',
+    family: 'AI, ML & classification evaluation',
+    description: 'Calculate non-parametric conditional quantiles Q_τ(X) and prediction coverage intervals from random forest leaf weights.',
+    keywords: ['quantile regression forests calculator', 'QRF prediction interval', 'nonparametric conditional quantile', 'random forest quantile', 'QRF uncertainty estimation'],
+    inputs: ['Predictor matrix X', 'Response vector Y', 'Target quantile τ (0.05, 0.50, 0.95)', 'Number of trees n_tree'],
+    example: { a: ['X (500x10)', 'Y latency ms', 'τ = 0.95'], result: 'Conditional 95th percentile latency Q_0.95(X) = 245.8 ms (90% prediction interval: [42.1 ms, 245.8 ms]).' },
+    formula: 'w_i(x, t) = 1(X_i ∈ R_t(x)) / |R_t(x)|; F̂(y|x) = ∑_{i=1}^N w_i(x) 1(Y_i ≤ y); Q_τ(x) = inf { y : F̂(y|x) ≥ τ }',
+    code: {
+      python: `from quantile_forest import RandomForestQuantileRegressor\nqrf = RandomForestQuantileRegressor(n_estimators=100).fit(X, y)\npreds = qrf.predict(X_test, quantiles=[0.05, 0.50, 0.95])`,
+      r: `library(quantregForest)\nqrf <- quantregForest(X, y)\npredict(qrf, X_test, what=c(0.05, 0.5, 0.95))`,
+      ts: `import { quantileRegressionForest } from '@statlab/core';\nconst res = quantileRegressionForest(X, y, { quantiles: [0.05, 0.50, 0.95] });`,
+    },
+    useCases: [
+      'Estimating tail latency SLA upper bounds (P95/P99) under dynamic non-linear server load conditions.',
+      'Predicting non-parametric demand bounds in supply chain inventory optimization.'
+    ],
+    when: 'Use when target response variance is non-constant (heteroskedastic) or non-linearly dependent on features.',
+    cautions: [
+      'Leaf weights require storing all training response values in memory during prediction.',
+      'Calibrate tree depth to avoid over-fitting extreme tail quantiles.'
+    ],
+    workbenchId: 'ml_qrf',
+  },
+  {
+    slug: 'conformal-prediction-coverage-guarantee',
+    title: 'Conformal prediction split conformal coverage interval calculator',
+    family: 'AI, ML & classification evaluation',
+    description: 'Calculate finite-sample distribution-free prediction intervals [y_lower, y_upper] with guaranteed 1 - α coverage probability.',
+    keywords: ['conformal prediction calculator', 'split conformal coverage', 'distribution free prediction interval', 'guaranteed coverage probability', 'conformal quantile interval'],
+    inputs: ['Calibration non-conformity scores S', 'Significance level α (e.g. 0.05)', 'Point prediction f(x)'],
+    example: { a: ['Calibration size n = 500', 'α = 0.05', 'Point estimate = 120.5'], result: 'Conformal quantile q_hat = 14.2. 95% Guaranteed prediction interval: [106.3, 134.7]. Empirical coverage = 95.2%.' },
+    formula: 'q̂ = Quantile_{1-α}(S, (1 + 1/n)); C(x) = [ f(x) - q̂, f(x) + q̂ ]',
+    code: {
+      python: `import numpy as np\nscores = np.abs(y_cal - f_cal)\nq_hat = np.quantile(scores, np.ceil((n + 1) * (1 - alpha)) / n)\ninterval = [f_test - q_hat, f_test + q_hat]`,
+      r: `library(conformalInference)\n# Split conformal prediction using absolute residuals on calibration set`,
+      ts: `import { splitConformalPrediction } from '@statlab/core';\nconst res = splitConformalPrediction(yCal, fCal, fTest, { alpha: 0.05 });`,
+    },
+    useCases: [
+      'Providing rigorous mathematical uncertainty guarantees for machine learning model predictions.',
+      'Constructing reliable SLA bounds for machine-learning-driven auto-scaling triggers.'
+    ],
+    when: 'Use when point predictions require distribution-free finite-sample coverage guarantees without parametric distributional assumptions.',
+    cautions: [
+      'Assumes exchangeability between calibration and test data points.',
+      'Marginal coverage guarantee holds overall, but local conditional coverage may vary across feature space.'
+    ],
+    workbenchId: 'ml_conformal_prediction',
+  },
+  {
+    slug: 'shapley-additive-explanations-shap',
+    title: 'SHAP (Shapley Additive exPlanations) attribution calculator',
+    family: 'AI, ML & classification evaluation',
+    description: 'Calculate exact or KernelSHAP local feature attributions ϕ_i derived from cooperative game theory Shapley values.',
+    keywords: ['SHAP calculator', 'Shapley additive explanations', 'KernelSHAP feature attribution', 'game theory feature importance', 'local model explanation'],
+    inputs: ['Feature vector x', 'Baseline reference dataset B', 'Prediction model function f'],
+    example: { a: ['Base value E[f(x)] = 0.42', 'Model output f(x) = 0.85'], result: 'Top positive attributions: Feature_1 (+0.28), Feature_4 (+0.18); Top negative: Feature_2 (-0.03).' },
+    formula: 'ϕ_i(x) = ∑_{S ⊆ F \\ {i}} [ |S|! (|F| - |S| - 1)! / |F|! ] [ f_x(S ∪ {i}) - f_x(S) ]',
+    code: {
+      python: `import shap\nexplainer = shap.Explainer(model, background_data)\nshap_values = explainer(test_instance)\nprint(shap_values.values)`,
+      r: `library(fastshap)\nexplanation <- explain(model, X = background, newdata = instance)\nprint(explanation)`,
+      ts: `import { kernelShap } from '@statlab/core';\nconst res = kernelShap(modelFn, instance, backgroundData);`,
+    },
+    useCases: [
+      'Explaining complex black-box model decisions for automated credit or compliance audits.',
+      'Decomposing multi-factor risk scores into individual feature contributions for root-cause analysis.'
+    ],
+    when: 'Use to evaluate consistent, fair local feature importance where additive contributions sum to the total prediction delta.',
+    cautions: [
+      'Exact Shapley values require evaluating 2^P feature subsets; use KernelSHAP or TreeSHAP approximations for large P.',
+      'Correlated features can cause out-of-distribution synthetic coalition evaluations.'
+    ],
+    workbenchId: 'ml_shap',
+  },
+  {
+    slug: 'integrated-gradients-attribution',
+    title: 'Integrated Gradients neural network feature attribution calculator',
+    family: 'AI, ML & classification evaluation',
+    description: 'Calculate axiomatic path-integrated gradient attributions along the straight-line trajectory from baseline x\' to input instance x.',
+    keywords: ['Integrated Gradients calculator', 'neural network attribution', 'path integrated gradients', 'deep learning explainability', 'axiomatic attribution'],
+    inputs: ['Baseline input x\'', 'Target instance x', 'Model gradient function ∇f', 'Steps count m'],
+    example: { a: ['Baseline: Zero vector', 'Input: x (dimension 50)', 'Steps m = 50'], result: 'Completeness check: ∑ IntegratedGrads = f(x) - f(x\') = 3.42 (0.01% numerical integration error).' },
+    formula: 'IntegratedGrads_i(x) = (x_i - x\'_i) * ∫₀¹ [ ∂f(x\' + α(x - x\')) / ∂x_i ] dα',
+    code: {
+      python: `import numpy as np\ndef integrated_gradients(model_grad, baseline, target, steps=50):\n    alphas = np.linspace(0, 1, steps)\n    grads = [model_grad(baseline + a * (target - baseline)) for a in alphas]\n    return (target - baseline) * np.mean(grads, axis=0)`,
+      r: `library(innsight)\n# Compute integrated gradients for neural network path integration`,
+      ts: `import { integratedGradients } from '@statlab/core';\nconst res = integratedGradients(gradFn, baseline, target, { steps: 50 });`,
+    },
+    useCases: [
+      'Attributing deep neural network classification decisions back to continuous input features.',
+      'Identifying critical telemetry metrics driving deep learning anomaly detection flags.'
+    ],
+    when: 'Use when explaining differentiable models (e.g. neural networks) requiring Implementation Invariance and Completeness axioms.',
+    cautions: [
+      'Choice of baseline x\' strongly influences attribution results; baseline should represent a neutral reference state.',
+      'Increase integration steps m if completeness error |∑ IG - (f(x) - f(x\'))| is significant.'
+    ],
+    workbenchId: 'ml_integrated_gradients',
+  },
+  {
+    slug: 'fast-independent-component-analysis-fastica',
+    title: 'FastICA (Fast Independent Component Analysis) calculator',
+    family: 'Probability distributions & dimensionality reduction',
+    description: 'Extract statistically independent source signals S from linear mixtures X using fixed-point iteration to maximize non-Gaussianity.',
+    keywords: ['FastICA calculator', 'independent component analysis', 'blind source separation', 'fixed point ICA', 'non gaussianity maximization'],
+    inputs: ['Mixed signal matrix X (N x P)', 'Components count k', 'Non-linearity g(u) (logcosh, exp, cube)'],
+    example: { a: ['X (1000x4 mixtures)', 'k = 3 sources'], result: 'Separated 3 independent sources. Negentropy peak: Source 1 (0.842), Source 2 (0.615), Source 3 (0.490).' },
+    formula: 'w ← E[x g(wᵀx)] - E[g\'(wᵀx)] w; w ← w / ||w|| (Gram-Schmidt orthogonalization)',
+    code: {
+      python: `from sklearn.decomposition import FastICA\nica = FastICA(n_components=3, algorithm='parallel', fun='logcosh').fit(X)\nS = ica.transform(X)`,
+      r: `library(fastICA)\nres <- fastICA(X, n.comp=3, alg.typen="parallel", fun="logcosh")\nS <- res$S`,
+      ts: `import { fastICA } from '@statlab/core';\nconst res = fastICA(X, { nComponents: 3, gFunc: 'logcosh' });`,
+    },
+    useCases: [
+      'Separating overlapping acoustic, EEG, or vibration sensor signals into distinct source components.',
+      'Decomposing multi-channel telemetry streams into un-correlated, independent operational modes.'
+    ],
+    when: 'Use for blind source separation when underlying sources are statistically independent and non-Gaussian.',
+    cautions: [
+      'ICA cannot recover the absolute variance scale or sign polarity of source signals.',
+      'Requires pre-whitening (centering and PCA scaling) of input matrix X.'
+    ],
+    workbenchId: 'dimred_fastica',
+  },
+  {
+    slug: 't-sne-kl-divergence-embedding',
+    title: 't-SNE (t-Distributed Stochastic Neighbor Embedding) calculator',
+    family: 'Probability distributions & dimensionality reduction',
+    description: 'Calculate pairwise high-dimensional probabilities p_ij, low-dimensional Student-t probabilities q_ij, and KL divergence loss.',
+    keywords: ['t-SNE calculator', 't-SNE KL divergence', 'stochastic neighbor embedding', 'manifold visualization', 't-SNE loss calculator'],
+    inputs: ['High-dimensional matrix X', 'Perplexity parameter (e.g. 30)', 'Target dimensions d (2 or 3)'],
+    example: { a: ['X (200x50)', 'Perplexity = 30', 'Target d = 2'], result: 'Final KL divergence loss KL(P||Q) = 0.428 after 1000 iterations. 2D embedding coordinates rendered.' },
+    formula: 'p_{j|i} = exp(-||x_i - x_j||² / 2σ_i²) / ∑_{k≠i} exp(-||x_i - x_k||² / 2σ_i²); q_ij = (1 + ||y_i - y_j||²)⁻¹ / ∑_{k≠l} (1 + ||y_k - y_l||²)⁻¹',
+    code: {
+      python: `from sklearn.manifold import TSNE\ny_embed = TSNE(n_components=2, perplexity=30, random_state=42).fit_transform(X)\nprint(f"KL loss={TSNE().kl_divergence_:.4f}")`,
+      r: `library(Rtsne)\ntsne_out <- Rtsne(X, dims=2, perplexity=30)\nplot(tsne_out$Y)`,
+      ts: `import { tsneEmbedding } from '@statlab/core';\nconst res = tsneEmbedding(X, { perplexity: 30, dimensions: 2 });`,
+    },
+    useCases: [
+      'Visualizing high-dimensional customer segmentation clusters or feature embeddings in 2D maps.',
+      'Exploring complex non-linear cluster topologies in high-dimensional sensor telemetry.'
+    ],
+    when: 'Use to visualize local cluster structure in high-dimensional data.',
+    cautions: [
+      't-SNE preserves local neighborhood structure; inter-cluster distances in 2D cannot be interpreted quantitatively.',
+      'Perplexity parameter controls the effective number of nearest neighbors.'
+    ],
+    workbenchId: 'dimred_tsne',
+  },
+  {
+    slug: 'umap-fuzzy-simplicial-set',
+    title: 'UMAP fuzzy simplicial set metric calculator',
+    family: 'Probability distributions & dimensionality reduction',
+    description: 'Calculate fuzzy simplicial set membership strength μ_ij, Riemannian metric local distance scaling, and cross-entropy manifold loss.',
+    keywords: ['UMAP calculator', 'fuzzy simplicial set', 'uniform manifold approximation', 'UMAP cross entropy loss', 'manifold dimension reduction'],
+    inputs: ['Feature matrix X', 'n_neighbors (e.g. 15)', 'min_dist (e.g. 0.1)', 'Metric (Euclidean, Cosine)'],
+    example: { a: ['X (300x100)', 'n_neighbors = 15', 'min_dist = 0.1'], result: 'Constructed fuzzy simplicial set graph. Cross-entropy loss stabilized at 0.142. 2D manifold generated.' },
+    formula: 'μ_{i|j} = exp( -max(0, d(x_i, x_j) - ρ_i) / σ_i ); μ_ij = μ_{i|j} + μ_{j|i} - μ_{i|j} μ_{j|i}',
+    code: {
+      python: `import umap\nembedding = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='euclidean').fit_transform(X)`,
+      r: `library(umap)\ncustom_umap <- umap(X, config=umap.defaults)\nplot(custom_umap$layout)`,
+      ts: `import { umapEmbedding } from '@statlab/core';\nconst res = umapEmbedding(X, { nNeighbors: 15, minDist: 0.1 });`,
+    },
+    useCases: [
+      'Dimensionality reduction for large-scale embedding visualizations (e.g. LLM vector embeddings).',
+      'Preserving both local and global manifold structure in complex telemetry representations.'
+    ],
+    when: 'Use as a faster alternative to t-SNE that better preserves global continuum structure alongside local clusters.',
+    cautions: [
+      'Results depend on hyper-parameters n_neighbors (global vs local focus) and min_dist (cluster tightness).',
+      'Non-deterministic algorithm unless explicit random seed is fixed.'
+    ],
+    workbenchId: 'dimred_umap',
+  },
+  {
+    slug: 'spatial-autocorrelation-bivariate-geary',
+    title: 'Bivariate Geary’s C spatial dissimilarity calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate bivariate Geary’s C statistic to measure local spatial dissimilarity between variable X at a location and variable Y in surrounding spatial neighborhoods.',
+    keywords: ['bivariate Gearys C calculator', 'spatial dissimilarity index', 'spatial cross dissimilarity', 'Gearys C bivariate', 'spatial association metric'],
+    inputs: ['Spatial weight matrix W', 'Variable vector X', 'Variable vector Y'],
+    example: { a: ['N = 80 spatial locations', 'X: Server Load', 'Y: Temperature'], result: 'Bivariate Geary’s C = 0.42 (C < 1.0 indicates positive spatial co-association, p = .002).' },
+    formula: 'C_xy = [ (N - 1) ∑_i ∑_j w_ij (x_i - x_j)(y_i - y_j) ] / [ 2 S₀ ∑_i (x_i - x̄)(y_i - ȳ) ]',
+    code: {
+      python: `from esda.geary import Geary_BV\nbv_geary = Geary_BV(x, y, w)\nprint(f"C_bv={bv_geary.C:.4f}, p={bv_geary.p_sim:.4f}")`,
+      r: `library(spdep)\n# Compute spatial dissimilarity metric for bivariate Geary C`,
+      ts: `import { bivariateGearyC } from '@statlab/core';\nconst res = bivariateGearyC(X, Y, spatialWeights);`,
+    },
+    useCases: [
+      'Measuring spatial dissimilarity between geographic demographic factors and regional operational demand.',
+      'Detecting spatial discordance between local network traffic density and hardware failure rates.'
+    ],
+    when: 'Use when assessing local squared differences/dissimilarities between two variables across spatial neighbors.',
+    cautions: [
+      'Geary’s C focuses on local differences; C < 1 indicates positive association, C > 1 indicates spatial dissimilarity.',
+      'More sensitive to local spatial variations than Moran’s I.'
+    ],
+    workbenchId: 'spatial_bivariate_geary',
+  },
+  {
+    slug: 'directional-variogram-anisotropy',
+    title: 'Directional Semi-Variogram Spatial Anisotropy Ratio calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate directional semi-variograms γ(h, θ) across specific directional azimuth angles (e.g. 0°, 45°, 90°, 135°) to detect spatial anisotropy.',
+    keywords: ['directional variogram calculator', 'spatial anisotropy ratio', 'directional semi variogram', 'anisotropic kriging', 'ellipse spatial variogram'],
+    inputs: ['Spatial coordinates (X, Y)', 'Value vector Z', 'Azimuth angles θ', 'Angular tolerance Δθ', 'Lag distance h'],
+    example: { a: ['Azimuths: 0° (N-S), 90° (E-W)', 'Lag h = 10'], result: 'Major range (90°) = 45.2 km; Minor range (0°) = 21.0 km. Anisotropy ratio = 2.15 (Geometric Anisotropy present).' },
+    formula: 'γ(h, θ) = 1/(2 N(h, θ)) ∑_{(i,j) ∈ N(h,θ)} (z_i - z_j)²',
+    code: {
+      python: `import skgstat as skg\nV_0 = skg.Variogram(coords, z, azimuth=0, tolerance=22.5)\nV_90 = skg.Variogram(coords, z, azimuth=90, tolerance=22.5)\nprint(V_0.describe(), V_90.describe())`,
+      r: `library(gstat)\nv_dir <- variogram(z ~ 1, locations=~x+y, data=df, alpha=c(0, 45, 90, 135))\nplot(v_dir)`,
+      ts: `import { directionalVariogram } from '@statlab/core';\nconst res = directionalVariogram(coords, Z, { azimuths: [0, 45, 90, 135] });`,
+    },
+    useCases: [
+      'Evaluating directional spatial correlation bias in regional environmental or geological sensor arrays.',
+      'Detecting directional signal propagation bias across wireless mesh network topologies.'
+    ],
+    when: 'Use when spatial dependence varies depending on direction (anisotropy) rather than being purely isotropic.',
+    cautions: [
+      'Requires sufficient spatial point pairs within specified angular tolerance cones.',
+      'Geometric anisotropy rotates the coordinate space before Kriging spatial interpolation.'
+    ],
+    workbenchId: 'spatial_directional_variogram',
+  },
+  {
+    slug: 'spatiotemporal-kriging-interpolation',
+    title: 'Spatiotemporal Kriging (3D Space-Time) variance calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate spatiotemporal Kriging interpolation estimates Ẑ(x_0, t_0) and prediction variances σ²(x_0, t_0) using joint space-time variogram models.',
+    keywords: ['spatiotemporal kriging calculator', 'space time kriging variance', '3D kriging interpolation', 'spatiotemporal variogram', 'space time prediction variance'],
+    inputs: ['Space-time observations (X, Y, T, Z)', 'Target prediction location (x_0, y_0, t_0)', 'Space-time covariance model'],
+    example: { a: ['Locations N = 50, Times T = 24 (1200 points)', 'Target: (x_0, y_0, t=12.5)'], result: 'Interpolated Ẑ = 42.8, Spatiotemporal Kriging variance σ² = 3.14 (95% CI: [39.3, 46.3]).' },
+    formula: 'Ẑ(x_0, t_0) = ∑_{i=1}^N λ_i z(x_i, t_i); [ C_{ST} 1; 1ᵀ 0 ] [ λ; μ ] = [ c_0; 1 ]',
+    code: {
+      python: `from gstat import STVariogram\n# Fit product-sum or metric space-time variogram and evaluate ST Kriging system`,
+      r: `library(gstat)\nst_vgm <- vgmST("sumMetric", space=vgm(1, "Exp", 50), time=vgm(1, "Exp", 5), joint=vgm(1, "Exp", 50), stAni=10)\nkrigeST(z ~ 1, data=st_data, newdata=target, modelList=st_vgm)`,
+      ts: `import { spatiotemporalKriging } from '@statlab/core';\nconst res = spatiotemporalKriging(stObservations, targetPoint, stModel);`,
+    },
+    useCases: [
+      'Predicting continuous air quality or temperature fields across space and time simultaneously.',
+      'Interpolating continuous network latency surfaces across distributed multi-region server nodes over time.'
+    ],
+    when: 'Use when observations vary dynamically across both spatial geographic coordinates and continuous time.',
+    cautions: [
+      'Requires specifying the space-time anisotropy scale factor (stAni) to equate spatial and temporal distances.',
+      'Computationally intensive for large joint N × T matrices.'
+    ],
+    workbenchId: 'spatial_st_kriging',
+  },
+  {
+    slug: 'realized-kernel-volatility-microstructure',
+    title: 'Realized Kernel Volatility microstructure noise calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Calculate Barndorff-Nielsen Realized Kernel volatility estimators robust to market microstructure noise and high-frequency trade frictions.',
+    keywords: ['realized kernel volatility calculator', 'microstructure noise robust volatility', 'Barndorff Nielsen kernel volatility', 'high frequency realized kernel', 'Parzen kernel volatility'],
+    inputs: ['High-frequency log price series p(t)', 'Kernel function (Parzen, Tukey-Hanning)', 'Bandwidth H'],
+    example: { a: ['Tick observations N = 4000', 'Parzen Kernel, H = 14 lags'], result: 'Realized Kernel RK = 0.000185 (Annualized Volatility = 21.6%). Microstructure noise variance bias removed.' },
+    formula: 'RK = ∑_{h=-H}^H k(h/(H+1)) γ_h where γ_h = ∑_{j=1}^{N-h} Δp_j Δp_{j+h}',
+    code: {
+      python: `import numpy as np\ndef realized_kernel(prices, H=10):\n    dp = np.diff(prices)\n    gamma = [np.sum(dp[h:] * dp[:len(dp)-h]) if h>0 else np.sum(dp**2) for h.in range(H+1)]\n    weights = [1 - 6*(h/(H+1))**2 + 6*(h/(H+1))**3 if h <= (H+1)/2 else 2*(1 - h/(H+1))**3 for h in range(1, H+1)]\n    return gamma[0] + 2 * np.sum(np.array(weights) * np.array(gamma[1:]))`,
+      r: `library(highfrequency)\nrk <- rKernel(rData = price_series, kernel = "Parzen")\nprint(rk)`,
+      ts: `import { realizedKernelVolatility } from '@statlab/core';\nconst res = realizedKernelVolatility(prices, { kernel: 'Parzen', H: 12 });`,
+    },
+    useCases: [
+      'Estimating unbiased daily realized volatility from ultra-high-frequency (tick-by-tick) financial prices.',
+      'Measuring true latent operational volatility in high-frequency server throughput metrics.'
+    ],
+    when: 'Use when sampling time series at ultra-high frequencies where market microstructure noise biases standard Realized Variance.',
+    cautions: [
+      'Parzen kernel guarantees non-negative volatility estimates.',
+      'Optimal bandwidth H scales with N^(3/5).'
+    ],
+    workbenchId: 'ts_realized_kernel',
+  },
+  {
+    slug: 'threshold-garch-tarch-zakoian',
+    title: 'Threshold GARCH (TARCH / Zakoian) asymmetric volatility calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Model asymmetric volatility response to negative vs positive return shocks (leverage effect) using Zakoian Threshold GARCH specification.',
+    keywords: ['TARCH calculator', 'Threshold GARCH calculator', 'Zakoian TARCH', 'asymmetric volatility model', 'volatility leverage effect'],
+    inputs: ['Return series r_t', 'GARCH order (1,1)', 'Threshold indicator d_t = 1(ε_{t-1} < 0)'],
+    example: { a: ['Daily returns N = 1000', 'TARCH(1,1)'], result: 'ω = 0.021, α = 0.042, γ = 0.115 (p = .001), β = 0.885. Bad news increases volatility by (α+γ) = 0.157 vs (α) = 0.042 for good news.' },
+    formula: 'σ_t = ω + α |ε_{t-1}| + γ |ε_{t-1}| 1(ε_{t-1} < 0) + β σ_{t-1}',
+    code: {
+      python: `from arch import arch_model\nam = arch_model(returns, p=1, o=1, q=1, power=1.0) # TARCH / Zakoian\nres = am.fit(disp='off')\nprint(res.summary())`,
+      r: `library(rugarch)\nspec <- garchspec(variance.model = list(model = "fGARCH", submodel = "TGARCH"))\nfit <- ugarchfit(spec, data = returns)`,
+      ts: `import { tarchVolatility } from '@statlab/core';\nconst res = tarchVolatility(returns);`,
+    },
+    useCases: [
+      'Quantifying asymmetric risk volatility escalation during financial market downturns.',
+      'Modeling asymmetric latency volatility spikes following system failure events.'
+    ],
+    when: 'Use when negative return shocks produce larger volatility increases than positive shocks of equal magnitude.',
+    cautions: [
+      'Zakoian TARCH models conditional standard deviation σ_t rather than conditional variance σ_t² (Glosten-Jagannathan-Runkle GJR-GARCH).',
+      'Check stationarity condition α + γ/2 + β < 1.'
+    ],
+    workbenchId: 'ts_tarch',
+  },
+  {
+    slug: 'fractionally-integrated-arima-arfima',
+    title: 'ARFIMA long-memory fractional integration calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Calculate fractional differencing parameter d (-0.5 < d < 0.5), Hurst exponent H = d + 0.5, and long-memory autocorrelation decay rates.',
+    keywords: ['ARFIMA calculator', 'fractional integration d', 'long memory time series', 'Hurst exponent calculator', 'fractionally differenced ARIMA'],
+    inputs: ['Time series X(t)', 'AR order p', 'MA order q', 'Differencing parameter d estimate method (GPH / Geweke-Porter-Hudak)'],
+    example: { a: ['N = 1500 log prices', 'GPH log-periodogram'], result: 'Fractional differencing d = +0.342 (95% CI: [0.22, 0.46]). Hurst H = 0.842 (Long-memory persistence).' },
+    formula: '(1 - B)^d = ∑_{k=0}^∞ [ Γ(k-d) / (Γ(-d) k!) ] B^k; H = d + 1/2',
+    code: {
+      python: `from statsmodels.tsa.stattools import gph\n# Compute Geweke-Porter-Hudak estimate of d\nd_gph = gph(series)\nprint(f"d={d_gph:.4f}, Hurst={d_gph + 0.5:.4f}")`,
+      r: `library(fracdiff)\nfd <- fracdiff(series, nar=1, nma=1)\nsummary(fd)`,
+      ts: `import { arfimaFractionalDiff } from '@statlab/core';\nconst res = arfimaFractionalDiff(series, { p: 1, q: 1 });`,
+    },
+    useCases: [
+      'Modeling long-range persistence and slow hyperbolic autocorrelation decay in network traffic volume.',
+      'Analyzing long-memory volatility persistence in high-frequency asset returns.'
+    ],
+    when: 'Use when time series exhibit long-memory persistence where autocorrelations decay hyperbolically rather than exponentially.',
+    cautions: [
+      '0 < d < 0.5 indicates stationary long-memory persistence; -0.5 < d < 0 indicates anti-persistence.',
+      'Standard ARIMA integer differencing (d=1) over-differences long-memory series.'
+    ],
+    workbenchId: 'ts_arfima',
+  },
+  {
+    slug: 'propensity-score-matching-psm-att',
+    title: 'Propensity Score Matching (PSM) ATT causal effect calculator',
+    family: 'Biostatistics, risk & diagnostic metrics',
+    description: 'Calculate propensity scores e(X) = P(D=1|X), balance covariates via nearest-neighbor or caliper matching, and estimate Average Treatment Effect on the Treated (ATT).',
+    keywords: ['PSM calculator', 'propensity score matching', 'ATT causal effect', 'nearest neighbor caliper matching', 'standardized mean difference balance'],
+    inputs: ['Treatment binary vector D', 'Covariate matrix X', 'Outcome vector Y', 'Caliper distance (e.g. 0.2 SD)'],
+    example: { a: ['Treated N = 150, Control N = 450', 'Caliper = 0.05'], result: 'Matched pairs: 142. Max Covariate SMD reduced from 0.45 to 0.03 (< 0.1 balance threshold). ATT = +4.82 (p = .002).' },
+    formula: 'ATT = 1/N_T ∑_{i ∈ T} [ Y_i - Y_{j(i)} ] where j(i) = argmin_j |e_i - e_j|',
+    code: {
+      python: `from psmpy import PsmPy\npsm = PsmPy(df, treatment='D', indep_vars=['x1', 'x2'], exclude=[])\npsm.logistic_ps()\npsm.knn_matched(matcher='propensity_logit', replacement=False)`,
+      r: `library(MatchIt)\nm.out <- matchit(D ~ x1 + x2, data=df, method="nearest", caliper=0.2)\nsummary(m.out)`,
+      ts: `import { propensityScoreMatching } from '@statlab/core';\nconst res = propensityScoreMatching(treatment, X, Y, { caliper: 0.2 });`,
+    },
+    useCases: [
+      'Estimating causal impact of software feature adoption on user retention from observational telemetry data.',
+      'Evaluating causal treatment efficacy in non-randomized observational healthcare cohorts.'
+    ],
+    when: 'Use in observational studies to reduce confounding bias by pairing treated and control subjects with similar baseline covariates.',
+    cautions: [
+      'Requires the Common Support assumption (overlap in propensity score distributions).',
+      'Cannot control for unobserved confounders (unlike randomized controlled trials).'
+    ],
+    workbenchId: 'causal_psm',
+  },
+  {
+    slug: 'inverse-probability-weighting-ipw',
+    title: 'Inverse Probability Weighting (IPW) causal effect calculator',
+    family: 'Biostatistics, risk & diagnostic metrics',
+    description: 'Calculate Horvitz-Thompson and Hajek stabilized inverse probability weights w_i to estimate Average Treatment Effect (ATE) across observational populations.',
+    keywords: ['IPW calculator', 'inverse probability weighting', 'ATE causal effect', 'stabilized weights IPW', 'Horvitz Thompson estimator'],
+    inputs: ['Treatment indicator D (0 or 1)', 'Propensity score e_i = P(D=1|X)', 'Outcome Y_i'],
+    example: { a: ['Total N = 500', 'Treated = 180, Control = 320'], result: 'Stabilized weights range: [0.42, 3.15]. Hajek ATE = +6.45 (95% Robust CI: [2.81, 10.09], p = .0005).' },
+    formula: 'w_i = D_i / e_i + (1 - D_i) / (1 - e_i); ATE_{Hajek} = [ ∑ w_i D_i Y_i / ∑ w_i D_i ] - [ ∑ w_i (1-D_i) Y_i / ∑ w_i (1-D_i) ]',
+    code: {
+      python: `import statsmodels.api as sm\nw = d / ps + (1 - d) / (1 - ps)\n# Estimate weighted OLS model Y ~ D using robust sandwich standard errors`,
+      r: `library(WeightIt)\nw.out <- weightit(D ~ x1 + x2, data=df, method="ps")\nsummary(w.out)`,
+      ts: `import { ipwCausalEffect } from '@statlab/core';\nconst res = ipwCausalEffect(treatment, propensityScores, outcome);`,
+    },
+    useCases: [
+      'Estimating population-wide Average Treatment Effects (ATE) from biased observational user telemetry.',
+      'Correcting sampling bias and non-random loss to follow-up in longitudinal studies.'
+    ],
+    when: 'Use when estimating overall population ATE under positivity and conditional exchangeability assumptions.',
+    cautions: [
+      'Extreme propensity scores near 0 or 1 produce huge weights that destabilize variance; truncate extreme weights if necessary.',
+      'Check weighted covariate balance (standardized mean differences < 0.1).'
+    ],
+    workbenchId: 'causal_ipw',
+  },
+  {
+    slug: 'synthetic-control-method-scm',
+    title: 'Synthetic Control Method (SCM) counterfactual calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Construct a convex combination of control units (donor pool weights W*) to estimate counterfactual trajectories and treatment effects for a single treated unit.',
+    keywords: ['synthetic control method calculator', 'SCM calculator', 'counterfactual synthetic control', 'donor pool weights W', 'placebo test SCM'],
+    inputs: ['Treated unit series Y_1', 'Donor pool matrix Y_donor (T x K)', 'Pre-treatment periods T_pre', 'Post-treatment periods T_post'],
+    example: { a: ['T_pre = 20, T_post = 10', 'Donor pool K = 8 units'], result: 'Synthetic control pre-treatment RMSPE = 0.42. Post-treatment ATT = -15.4 units (Placebo test p = .024).' },
+    formula: 'Min_W || X_1 - X_0 W ||_V² subject to w_k ≥ 0, ∑ w_k = 1; Treatment Effect τ_t = Y_{1,t} - ∑ w_k Y_{k,t}',
+    code: {
+      python: `from SyntheticControlMethods import Synth\nsynth = Synth(df, outcome='Y', unit='ID', time='Year', treated_unit=1, treatment_period=2020)\nsynth.plot(['gaps', 'placebos'])`,
+      r: `library(Synth)\ndataprep.out <- dataprep(foo, predictors=..., dependent="y", unit.variable="id", time.variable="year", treatment.identifier=1, controls.identifier=c(2:9))\nsynth.out <- synth(dataprep.out)`,
+      ts: `import { syntheticControl } from '@statlab/core';\nconst res = syntheticControl(treatedSeries, donorMatrix, { prePeriods: 20 });`,
+    },
+    useCases: [
+      'Evaluating causal impact of policy interventions or major architecture rollouts on a single region or system cluster.',
+      'Quantifying counterfactual revenue or performance impact when a randomized control group is unavailable.'
+    ],
+    when: 'Use for comparative case studies with a single treated unit and multiple control units over pre- and post-treatment time periods.',
+    cautions: [
+      'Requires low pre-treatment root mean squared prediction error (RMSPE) to ensure synthetic control fit validity.',
+      'Run in-space and in-time placebo tests to establish statistical significance.'
+    ],
+    workbenchId: 'causal_scm',
+  },
+  {
+    slug: 'regression-discontinuity-sharp-rdd',
+    title: 'Sharp Regression Discontinuity Design (RDD) calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Calculate local linear treatment effects τ_RDD at a deterministic cutoff threshold c based on running/forcing variable X.',
+    keywords: ['RDD calculator', 'sharp regression discontinuity', 'local linear treatment effect', 'forcing variable cutoff', 'McCrary density test'],
+    inputs: ['Running variable X', 'Outcome Y', 'Cutoff threshold c', 'Bandwidth h (triangular kernel)'],
+    example: { a: ['Cutoff c = 50.0', 'Optimal bandwidth h = 6.4'], result: 'Sharp RDD treatment effect τ = +8.24 (95% Robust CI: [4.12, 12.36], p = .0001). McCrary density p = .58.' },
+    formula: 'τ_RDD = lim_{x ↓ c} E[Y|X=x] - lim_{x ↑ c} E[Y|X=x]; fit local kernel regressions Y ~ α + τ D + β(X-c) + γ D(X-c)',
+    code: {
+      python: `import rdrobust\nrdb = rdrobust.rdrobust(y, x, c=50.0)\nprint(rdb.summary())`,
+      r: `library(rdrobust)\nrd_out <- rdrobust(y = Y, x = X, c = 50.0)\nsummary(rd_out)`,
+      ts: `import { sharpRDD } from '@statlab/core';\nconst res = sharpRDD(X, Y, { cutoff: 50.0 });`,
+    },
+    useCases: [
+      'Estimating causal effect of threshold-based system rules (e.g., credit eligibility or automated rate limiting).',
+      'Analyzing quasi-experimental policy effects at strict numerical decision boundaries.'
+    ],
+    when: 'Use when assignment to treatment is determined strictly by a running variable crossing a deterministic threshold c.',
+    cautions: [
+      'Run McCrary density test to verify no manipulation or sorting of running variable X around cutoff c.',
+      'Results are local to the cutoff threshold (Local Average Treatment Effect - LATE).'
+    ],
+    workbenchId: 'causal_rdd',
+  },
+  {
+    slug: 'generalized-synthetic-control-gsc',
+    title: 'Generalized Synthetic Control (GSC) matrix completion calculator',
+    family: 'Time series, volatility & econometrics',
+    description: 'Estimate counterfactual outcomes for multiple treated units with unobserved time-varying interactive fixed effects using matrix completion / SVD.',
+    keywords: ['generalized synthetic control', 'GSC calculator', 'interactive fixed effects', 'matrix completion causal', 'panel counterfactual estimator'],
+    inputs: ['Panel matrix Y (N x T)', 'Treatment indicator matrix D (N x T)', 'Number of latent factors r'],
+    example: { a: ['Units N = 50, Periods T = 30', 'Treated units N_tr = 5', 'Factors r = 2'], result: 'Counterfactual matrix completed (r=2 factors explain 88% variance). Average ATT = +12.4 (p = .008).' },
+    formula: 'Y_{it} = δ_{it} D_{it} + x_{it}ᵀ β + λ_iᵀ f_t + ε_{it}; solve via nuclear norm matrix completion or EM-SVD algorithm',
+    code: {
+      python: `from gsynth import gsynth\n# Fit generalized synthetic control panel model with interactive fixed effects`,
+      r: `library(gsynth)\nout <- gsynth(Y ~ D + X1 + X2, data = df, index = c("id","time"), force = "two-way", CV = TRUE)\nprint(out)`,
+      ts: `import { generalizedSyntheticControl } from '@statlab/core';\nconst res = generalizedSyntheticControl(panelY, panelD, { nFactors: 2 });`,
+    },
+    useCases: [
+      'Evaluating causal policy impacts across multiple heterogeneous regions or server groups treated at different time steps.',
+      'Estimating panel counterfactuals when unobserved multi-factor confounders vary across space and time.'
+    ],
+    when: 'Use for panel data with multiple treated units, staggered adoption timing, or interactive unobserved confounding factors.',
+    cautions: [
+      'Cross-validate factor count r to prevent over-fitting noise in the control matrix.',
+      'Assumes unobserved confounders can be modeled as low-rank factor structures λ_iᵀ f_t.'
+    ],
+    workbenchId: 'causal_gsc',
+  },
+  {
+    slug: 'inverse-gaussian-wald-distribution',
+    title: 'Inverse Gaussian (Wald) distribution calculator',
+    family: 'Continuous probability distributions',
+    description: 'Calculate PDF, CDF, quantiles, mean μ, shape parameter λ, and first passage time drift probabilities for the Inverse Gaussian distribution.',
+    keywords: ['Inverse Gaussian distribution calculator', 'Wald distribution calculator', 'first passage time distribution', 'drift diffusion model', 'Inverse Gaussian PDF CDF'],
+    inputs: ['Mean μ', 'Shape λ', 'Evaluation x'],
+    example: { a: ['μ = 5.0, λ = 12.0', 'x = 3.5'], result: 'PDF(3.5) = 0.1684, CDF(3.5) = 0.3241, Mode = 3.61. Mean = 5.0, Variance = μ³/λ = 10.42.' },
+    formula: 'f(x; μ, λ) = √(λ / (2π x³)) exp[ -λ (x - μ)² / (2 μ² x) ] for x > 0',
+    code: {
+      python: `from scipy.stats import invgauss\n# SciPy uses mu_scaled = mu / scale\nrv = invgauss(mu=5.0/12.0, scale=12.0)\nprint(f"PDF={rv.pdf(3.5):.4f}, CDF={rv.cdf(3.5):.4f}")`,
+      r: `library(statmod)\ndinvgauss(3.5, mean=5.0, shape=12.0)\npinvgauss(3.5, mean=5.0, shape=12.0)`,
+      ts: `import { inverseGaussian } from '@statlab/core';\nconst res = inverseGaussian({ mean: 5.0, shape: 12.0 });`,
+    },
+    useCases: [
+      'Modeling first passage times of Brownian motion with positive drift in financial barrier options.',
+      'Fitting right-skewed cognitive decision response time and queueing latency distributions.'
+    ],
+    when: 'Use when modeling positive continuous right-skewed variables representing first passage times or queue completion durations.',
+    cautions: [
+      'As shape parameter λ → ∞, the Inverse Gaussian distribution approaches a Normal distribution.',
+      'Do not confuse with the Inverse Normal / Folded Normal distribution.'
+    ],
+    workbenchId: 'dist_inverse_gaussian',
+  },
+  {
+    slug: 'generalized-hyperbolic-distribution',
+    title: 'Generalized Hyperbolic (GH) distribution calculator',
+    family: 'Continuous probability distributions',
+    description: 'Calculate PDF, CDF, heavy-tailed log-density, and 5-parameter moments (λ, α, β, δ, μ) for Barndorff-Nielsen’s Generalized Hyperbolic distribution.',
+    keywords: ['generalized hyperbolic distribution calculator', 'GH distribution heavy tails', 'Barndorff Nielsen GH', 'hyperbolic distribution PDF', 'financial heavy tail fitting'],
+    inputs: ['Index λ', 'Shape α', 'Asymmetry β', 'Scale δ', 'Location μ', 'Evaluation x'],
+    example: { a: ['λ = 1.0 (Hyperbolic)', 'α = 3.0, β = 0.5', 'δ = 1.0, μ = 0.0'], result: 'Mean = +0.177, Variance = 0.421, Heavy-tail log-density is linear in tails.' },
+    formula: 'f(x) = a(λ,α,β,δ) (δ² + (x-μ)²)^{(λ-1/2)/2} K_{λ-1/2}(α √(δ² + (x-μ)²)) exp(β (x-μ))',
+    code: {
+      python: `from scipy.stats import genhyperbolic\n# Fit or evaluate Generalized Hyperbolic distribution using scipy.stats`,
+      r: `library(ghyp)\ngh_spec <- ghyp(lambda=1, alpha.bar=3, mu=0, sigma=1, gamma=0.5)\ndghyp(1.0, gh_spec)`,
+      ts: `import { generalizedHyperbolic } from '@statlab/core';\nconst res = generalizedHyperbolic({ lambda: 1, alpha: 3, beta: 0.5, delta: 1, mu: 0 });`,
+    },
+    useCases: [
+      'Modeling financial return distributions with heavy tails, skewness, and high peakiness (kurtosis).',
+      'Accurate Value at Risk (VaR) and Expected Shortfall calculations under non-Gaussian tail behavior.'
+    ],
+    when: 'Use when financial asset returns or extreme operational metrics exhibit semi-heavy power-law log-density tails.',
+    cautions: [
+      'Includes special cases: Student’s t (λ = -ν/2, β=0), Normal Inverse Gaussian (λ = -1/2), Hyperbolic (λ = 1).',
+      'Requires modified Bessel functions of the third kind K_ν(z).'
+    ],
+    workbenchId: 'dist_generalized_hyperbolic',
+  },
 ];
 
 const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
