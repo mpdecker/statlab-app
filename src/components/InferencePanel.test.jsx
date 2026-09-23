@@ -478,9 +478,17 @@ describe('InferencePanel', () => {
     it('shows the rescaled (not raw) standard error for SEM loadings', () => {
       const irisRows = makeIris();
       const irisDs = { numeric: ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'], categorical: ['species'] };
-      render(<InferencePanel data={irisRows} ds={irisDs} active="sem" setActive={vi.fn()} />);
-      expect(screen.getByText('0.102124')).toBeTruthy();
-      expect(screen.queryByText('0.881467')).toBeNull();
+      const { container } = render(<InferencePanel data={irisRows} ds={irisDs} active="sem" setActive={vi.fn()} />);
+      const row = [...container.querySelectorAll('table tr')].find(tr => tr.textContent.includes('sepalWidth'));
+      const se = parseFloat(row.children[2].textContent);
+      // A range, not an exact pin: the iterative optimizer's finite-difference
+      // Hessian can differ by a fraction of a percent across V8 builds
+      // (confirmed: vitest/Node gave 0.102124, a live Chromium render of the
+      // same seeded fixture gave 0.101703 -- both far below the raw,
+      // uncorrected 0.881467 and both z ~ -6.6, the same conclusion). This
+      // range comfortably separates "correctly rescaled" from "still raw".
+      expect(se).toBeGreaterThan(0.05);
+      expect(se).toBeLessThan(0.2);
     });
   });
 
