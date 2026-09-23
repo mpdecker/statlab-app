@@ -1440,6 +1440,18 @@ export const METHOD_NOTES = {
     assumptions: ["Dissimilarities are at least ordinally meaningful", "At least 6 observations, 2+ numeric variables"],
     cite: "Kruskal, J. B. (1964). Nonmetric multidimensional scaling: A numerical method. Psychometrika, 29(2), 115–129.",
   },
+  sem: {
+    description: "Structural equation modeling combines an optional latent-factor measurement model with structural regressions among factors and/or observed variables, fit by maximum likelihood, yielding standardized fit indices for how well the specified model reproduces the observed covariance structure.",
+    usage: "Use to test a hypothesized causal/measurement structure among several variables at once (e.g. does a single latent construct explain the correlations among 3+ indicators, and does it predict an outcome) rather than testing each relationship in isolation.",
+    assumptions: ["Multivariate normality of observed variables (approximately)", "At least 10 observations, 3+ observed variables", "Model is identified (enough constraints for a unique solution)", "Observed variables are standardized (z-scored) internally before fitting, so loadings are in standardized-metric units, not the original scale"],
+    cite: "Bollen, K. A. (1989). Structural equations with latent variables. Wiley.",
+  },
+  ordinal_sem: {
+    description: "Ordinal SEM fits a one-factor measurement model to ordinal/Likert items by first estimating polychoric correlations between items (which model each item as a coarsened observation of an underlying continuous normal variable), then fitting the same maximum-likelihood factor model used by Structural Equation Model to that polychoric correlation matrix.",
+    usage: "Use instead of Structural Equation Model when your indicators are ordinal/Likert-scale (e.g. 1–5 agreement items) rather than continuous — treating ordinal items as continuous in a standard factor model can bias loadings, especially with few response categories or skewed distributions.",
+    assumptions: ["Each item is ordinal with 3+ ordered categories", "At least 20 observations, 4+ items (3 items produce a just-identified model with no testable fit)", "Each item's underlying continuous variable is (approximately) normally distributed"],
+    cite: "Muthén, B. (1984). A general structural equation model with dichotomous, ordered categorical, and continuous latent variable indicators. Psychometrika, 49(1), 115–132.",
+  },
   path_analysis: {
     description: "Path analysis fits a system of recursive OLS regression equations among observed variables (no latent factors), then traces indirect and total effects through chained equations via the reduced-form matrix (I − B)⁻¹ − I, where B holds every direct path coefficient in the system.",
     usage: "Use to decompose a variable's total effect on an outcome into its direct effect plus any indirect effects mediated through other variables in a multi-equation causal chain — the multi-equation generalization of a single mediation analysis.",
@@ -1455,7 +1467,7 @@ export const METHOD_NOTES = {
   bifactor: {
     description: "A bifactor model decomposes each item's variance into a general factor (loading on every item) and a specific group factor (loading only on its own item subset), extracted via eigendecomposition with a target (Procrustes) rotation toward that general-plus-groups pattern.",
     usage: "Use when you suspect items measure both one broad overall construct AND their own narrower sub-domain simultaneously (e.g. a wellbeing scale with a general wellbeing factor plus separate physical/emotional/social sub-factors) — omega hierarchical tells you how much of the total reliable variance is attributable to the general factor alone.",
-    assumptions: ["Each item belongs to exactly one specified group", "At least 20 observations", "2+ groups with 2+ items each recommended for a meaningful general/group split", "ω total and per-item communality are currently unreliable in @statlab/core (the group loading is never capped, so both routinely exceed their defined [0,1] range) and are hidden from the results pending an upstream fix — ω hierarchical and the general/group loadings are unaffected."],
+    assumptions: ["Each item belongs to exactly one specified group", "At least 20 observations", "2+ groups with 2+ items each recommended for a meaningful general/group split"],
     cite: "Reise, S. P. (2012). The rediscovery of bifactor measurement models. Multivariate Behavioral Research, 47(5), 667–696.",
   },
 };

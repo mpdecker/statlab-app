@@ -25,13 +25,13 @@ import {
 import { pca, efa, manova, canonicalCorr, linearDiscriminant, cronbachAlpha, splitHalf, icc, cohensKappa, metaAnalysis, differencesInDifferences, convertEffectSize } from '@statlab/core/methods/multivariate';
 import { weightedMean, weightedVar, weightedCorrelation, designEffect, taylorLinearization } from '@statlab/core/methods/survey';
 import { classicalMDS, sammonMapping, nonMetricMDS } from '@statlab/core/methods/mds';
-import { pathAnalysis, latentGrowthModel, bifactorModel } from '@statlab/core/methods/sem';
+import { sem, pathAnalysis, latentGrowthModel, bifactorModel, ordinalSEM } from '@statlab/core/methods/sem';
 import { omegaMcDonald, parallelAnalysis, irtRasch1PL, irt2PL, scaleScore } from '@statlab/core/methods/psychometrics';
 import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/methods/clustering';
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
 import { propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity } from '@statlab/core/methods/causal';
 import { centralityMeasures, communityDetection, sociogramLayout, networkFromEdgeList } from '@statlab/core/methods/network';
-import { normalityDP, shapiroWilk, computePowerT, requiredN, requiredNCorr } from '@statlab/core/math/distributions';
+import { normalityDP, shapiroWilk, computePowerT, requiredN, requiredNCorr, chiPVal } from '@statlab/core/math/distributions';
 import { avg, sampleSD, median } from '@statlab/core/math/core';
 import { parseFinite, barHeightPct, finiteNums, rowFinite, parseNumList } from '../utils/parse.js';
 import {
@@ -594,6 +594,8 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
   const [p2x, setP2x] = useState('30'); const [p2n, setP2n] = useState('100');
   const [binoK, setBinoK] = useState('15'); const [binoN, setBinoN] = useState('30'); const [binoP, setBinoP] = useState('0.5');
   const [metaInput, setMetaInput] = useState('Study1,0.5,0.20\nStudy2,0.3,0.25\nStudy3,0.8,0.18\nStudy4,0.4,0.22\nStudy5,0.6,0.19');
+  const [semEquations, setSemEquations] = useState(numeric.length >= 3 ? `f1 =~ ${numeric.slice(0, Math.min(4, numeric.length)).join(' + ')}` : '');
+  const [ordinalFactorName, setOrdinalFactorName] = useState('f1');
   const [pathEquations, setPathEquations] = useState(numeric.length >= 2 ? `${numeric[1]} ~ ${numeric[0]}` : '');
   const [semTimes, setSemTimes] = useState('');
   const [bifactorGroups, setBifactorGroups] = useState(() => {
@@ -989,16 +991,61 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'mds_classical') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(classicalMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
       if (a === 'mds_sammon')    { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(sammonMapping(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
       if (a === 'mds_nonmetric') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(nonMetricMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
+      function zscoreCols(rows, cols) {
+        const stats = {};
+        for (const c of cols) {
+          const vals = rows.map(r => +r[c]).filter(Number.isFinite);
+          const m = vals.reduce((a, b) => a + b, 0) / vals.length;
+          const sd = Math.sqrt(vals.reduce((a, b) => a + (b - m) ** 2, 0) / vals.length) || 1;
+          stats[c] = { m, sd };
+        }
+        return rows.map(r => {
+          const out = { ...r };
+          for (const c of cols) if (Number.isFinite(+r[c])) out[c] = (+r[c] - stats[c].m) / stats[c].sd;
+          return out;
+        });
+      }
+      // @statlab/core's SEM optimizer returns loading/path standard errors as
+      // the raw sqrt(diag(Hessian^-1)) of its unscaled ML discrepancy
+      // function, without the sqrt(2/(n-1)) asymptotic-covariance factor
+      // standard ML-SEM theory requires (matching the package's own chi2
+      // convention of chi2 = (n-1)*fML). Left uncorrected, every SE is
+      // inflated ~8-9x at n=150, making real loadings look non-significant.
+      function rescaleSemCoefs(coeffs, n) {
+        const factor = Math.sqrt(2 / (n - 1));
+        return (coeffs ?? []).map(c => {
+          if (!Number.isFinite(c.se)) return c;
+          const se = c.se * factor;
+          const z = se > 0 ? c.estimate / se : 0;
+          const p = chiPVal(z * z, 1);
+          return { ...c, se: +se.toFixed(6), z: +z.toFixed(4), p };
+        });
+      }
+      function semResultOrError(r) {
+        if (!r) return r;
+        const fitFinite = [r.fit?.chi2, r.fit?.cfi, r.fit?.tli, r.fit?.rmsea, r.fit?.srmr].every(Number.isFinite);
+        const coefsFinite = [...(r.loadings ?? []), ...(r.paths ?? [])].every(c => Number.isFinite(c.se) && c.se > 0);
+        return fitFinite && coefsFinite ? r : { error: 'SEM model did not converge — try a simpler model or check for near-collinear variables.' };
+      }
+      if (a === 'sem') {
+        const r0 = sem({ equations: semEquations.trim().split('\n').map(l => l.trim()).filter(Boolean), data: zscoreCols(data, numeric), method: 'ML' });
+        const r = r0 ? { ...r0, loadings: rescaleSemCoefs(r0.loadings, r0.model?.n), paths: rescaleSemCoefs(r0.paths, r0.model?.n) } : r0;
+        return semResultOrError(r);
+      }
+      if (a === 'ordinal_sem') {
+        const vars = scaleVars.filter(c => numeric.includes(c));
+        const m = vars.length;
+        if (m * (m - 3) / 2 <= 0) return { error: 'Ordinal SEM needs 4+ items to test model fit — 3 items produce a just-identified model with no testable degrees of freedom.' };
+        const r0 = ordinalSEM(data, vars, ordinalFactorName.trim() || 'f1');
+        if (!r0) return null;
+        const r = { ...r0, loadings: rescaleSemCoefs(r0.loadings, r0.n) };
+        const fitFinite = Number.isFinite(r.fit?.chisq);
+        const coefsFinite = (r.loadings ?? []).every(l => Number.isFinite(l.se) && l.se > 0);
+        return fitFinite && coefsFinite ? r : { error: 'Ordinal SEM model did not converge — try fewer items or a simpler factor structure.' };
+      }
       if (a === 'path_analysis') return pathAnalysis(data, pathEquations.trim().split('\n').map(l => l.trim()).filter(Boolean));
       if (a === 'latent_growth') { const vars = scaleVars.filter(c => numeric.includes(c)); const times = semTimes.trim() ? parseNumList(semTimes) : null; return latentGrowthModel(data, vars, times && times.length === vars.length ? times : null); }
-      if (a === 'bifactor') {
-        const r = bifactorModel(data, [], bifactorGroups.filter(g => g.items.length));
-        return r ? {
-          ...r,
-          apa: `Bifactor: omega_h = ${r.omegaHierarchical.toFixed(3)}, n = ${r.n}`,
-          warning: 'ω total and per-item communality are not shown: @statlab/core does not cap the group loading, so these routinely exceed the [0,1] range they are defined to stay within. ω hierarchical and the general/group loadings below are unaffected.',
-        } : r;
-      }
+      if (a === 'bifactor') return bifactorModel(data, [], bifactorGroups.filter(g => g.items.length));
       if (a === 'efa')       return efa(data, scaleVars.filter(c => numeric.includes(c)), parseInt(nFactors) || 2);
       if (a === 'manova') {
         const ys = scaleVars.filter(c => numeric.includes(c));
@@ -1369,7 +1416,7 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     active, g1vals, g2vals, allTgt, mu0, sigma, groups, getVals, data,
     cat1, cat2, xy, xyz, medXMY, modXZY, preds, yVar, xVar, mVar, zVar,
     grpVar, tgtVar, tostL, tostH, bfPrior, aval, scaleVars, scaleMatrix,
-    rmMatrix, rmCols, polDeg, metaInput, pathEquations, semTimes, bifactorGroups, didPCStr, didPOStr, didPTStr, didPTtStr,
+    rmMatrix, rmCols, polDeg, metaInput, semEquations, ordinalFactorName, pathEquations, semTimes, bifactorGroups, didPCStr, didPOStr, didPTStr, didPTtStr,
     fx_a, fx_b, fx_c, fx_d, p1x, p1n, p2x, p2n, binoK, binoN, binoP,
     nFactors, ssType, ssPow, ssD, ssR, effFrom, effVal, pairsInput, corrMeth,
     numeric, groups, leveneTest, bartlettTest,
@@ -1424,6 +1471,8 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
     didPCStr, setDidPCStr, didPOStr, setDidPOStr,
     didPTStr, setDidPTStr, didPTtStr, setDidPTtStr,
     metaInput, setMetaInput,
+    semEquations, setSemEquations,
+    ordinalFactorName, setOrdinalFactorName,
     pathEquations, setPathEquations,
     semTimes, setSemTimes,
     bifactorGroups, setBifactorGroups,

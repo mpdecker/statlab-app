@@ -191,5 +191,5 @@ export const CHART_FOR_TEST = {
   // ── MDS ──────────────────────────────────────────────────────────────
   mds_classical: 'mdsplot', mds_sammon: 'mdsplot', mds_nonmetric: 'mdsplot',
   // ── SEM ──────────────────────────────────────────────────────────────
-  path_analysis: 'histogram', latent_growth: 'histogram', bifactor: 'histogram',
+  sem: 'histogram', ordinal_sem: 'histogram', path_analysis: 'histogram', latent_growth: 'histogram', bifactor: 'histogram',
 };

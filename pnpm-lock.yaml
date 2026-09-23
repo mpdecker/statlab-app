@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@statlab/core':
-        specifier: ^0.1.1
-        version: 0.1.1
+        specifier: ^0.1.2
+        version: 0.1.2
       papaparse:
         specifier: ^5.5.3
         version: 5.5.4
@@ -446,8 +446,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@statlab/core@0.1.1':
-    resolution: {integrity: sha512-zIz30XzGO3+PuSoC2rp7T60CfGn+rqlt5MB3pXQnwfDdUXMDrRVxoMEpyaZT8QniAGfBmKem3rXLzfQim1PdwA==}
+  '@statlab/core@0.1.2':
+    resolution: {integrity: sha512-wSbFRp0T+S2BITAjgXb14GoaxAmrZ1gPSUEuzm18pZeRgGxEXcyCOBy+yPKaeSVX3JTpkf4apKz5U697V9ni0w==}
 
   '@testing-library/dom@9.3.4':
     resolution: {integrity: sha512-FlS4ZWlp97iiNWig0Muq8p+3rVDjRiYE+YKGbAqXOu9nwJFFOdL00kFpz42M+4huzYi86vAK1sOOfyOG45muIQ==}
@@ -1712,7 +1712,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.62.2':
     optional: true
 
-  '@statlab/core@0.1.1': {}
+  '@statlab/core@0.1.2': {}
 
   '@testing-library/dom@9.3.4':
     dependencies:

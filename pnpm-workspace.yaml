@@ -2,3 +2,4 @@ allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
   - statlab@0.1.0
+  - '@statlab/core@0.1.2'

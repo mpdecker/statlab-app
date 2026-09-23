@@ -392,6 +392,8 @@ export const TREE = [
   },
   { cat: "SEM", color: '#c4b5fd',
     tests: [
+      { id: "sem", label: "Structural Equation Model", tag: "CFA · path model · fit indices" },
+      { id: "ordinal_sem", label: "Ordinal SEM", tag: "polychoric correlations · Likert factor model" },
       { id: "path_analysis", label: "Path Analysis", tag: "direct · indirect · total effects" },
       { id: "latent_growth", label: "Latent Growth Model", tag: "intercept · slope · growth factors" },
       { id: "bifactor", label: "Bifactor Model", tag: "general + group factors · ω hierarchical" },

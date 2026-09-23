@@ -76,16 +76,34 @@ function PathCoeffTable({ coeffs }) {
   );
 }
 
+function SemCoeffTable({ coeffs }) {
+  if (!coeffs?.length) return null;
+  const headers = ['parameter', 'estimate', 'SE', 'z', 'p'];
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', ...mono, fontSize: 9, width: '100%' }}>
+        <thead>
+          <tr>{headers.map(h => <th key={h} style={{ padding: '2px 6px', textAlign: 'left', color: C.dim, borderBottom: `1px solid ${C.border}`, fontSize: 7, textTransform: 'uppercase' }}>{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {coeffs.map((c, i) => (
+            <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : C.panel }}>
+              <td style={{ padding: '2px 6px', color: PAL[i % PAL.length] }}>{c.from}</td>
+              <td style={{ padding: '2px 6px', color: C.text }}>{c.estimate}</td>
+              <td style={{ padding: '2px 6px', color: C.dim }}>{c.se ?? '—'}</td>
+              <td style={{ padding: '2px 6px', color: C.dim }}>{c.z ?? '—'}</td>
+              <td style={{ padding: '2px 6px', color: c.p != null ? (sig(c.p) ? C.ok : C.neg) : C.dim }}>{c.p != null ? fmtP(c.p) : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function BifactorTable({ loadings }) {
   if (!loadings?.length) return null;
-  // 'communality' (general^2 + group^2) is omitted: @statlab/core@0.1.1's
-  // bifactorModel caps the general loading at 0.99 but never caps the
-  // group loading, so communality (and omegaTotal, similarly omitted from
-  // the chip row below) routinely exceeds 1 -- a value that's supposed to
-  // be a bounded proportion of variance by definition. Confirmed against
-  // the real package on well-behaved, same-scale inputs, not just an edge
-  // case. general/group/omegaHierarchical stay correctly bounded.
-  const headers = ['item', 'general', 'group'];
+  const headers = ['item', 'general', 'group', 'communality'];
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ borderCollapse: 'collapse', ...mono, fontSize: 9, width: '100%' }}>
@@ -98,6 +116,7 @@ function BifactorTable({ loadings }) {
               <td style={{ padding: '2px 6px', color: PAL[i % PAL.length] }}>{l.item}</td>
               <td style={{ padding: '2px 6px', color: C.text }}>{l.general}</td>
               <td style={{ padding: '2px 6px', color: C.text }}>{l.group}</td>
+              <td style={{ padding: '2px 6px', color: C.dim }}>{l.communality}</td>
             </tr>
           ))}
         </tbody>
@@ -822,6 +841,40 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         </Row>
       </>}
 
+      {(r.test === 'SEM' || r.test?.startsWith('SEM (')) && <>
+        <SectionHead label={`${r.test} · N=${r.model?.n}`} />
+        <Row>
+          <Chip label="χ²" value={r.fit?.chi2} sub={`df=${r.fit?.df}`} color={C.dim} />
+          <Chip label="p" value={r.fit?.p != null ? fmtP(r.fit.p) : '—'} color={sig(r.fit?.p) ? C.neg : C.ok} />
+          <Chip label="CFI" value={r.fit?.cfi} color={r.fit?.cfi >= .95 ? C.ok : r.fit?.cfi >= .90 ? C.warn : C.neg} />
+          <Chip label="TLI" value={r.fit?.tli} color={C.dim} />
+          <Chip label="RMSEA" value={r.fit?.rmsea} color={r.fit?.rmsea <= .06 ? C.ok : r.fit?.rmsea <= .08 ? C.warn : C.neg} />
+          <Chip label="SRMR" value={r.fit?.srmr} color={r.fit?.srmr <= .08 ? C.ok : C.warn} />
+          <Chip label="AIC" value={r.fit?.aic} color={C.dim} />
+          <Chip label="BIC" value={r.fit?.bic} color={C.dim} />
+        </Row>
+        {r.loadings?.length > 0 && <>
+          <div style={{ fontSize: 8, color: C.dim, ...mono, textTransform: 'uppercase', margin: '6px 0 2px' }}>Loadings</div>
+          <SemCoeffTable coeffs={r.loadings} />
+        </>}
+        {r.paths?.length > 0 && <>
+          <div style={{ fontSize: 8, color: C.dim, ...mono, textTransform: 'uppercase', margin: '6px 0 2px' }}>Paths</div>
+          <SemCoeffTable coeffs={r.paths} />
+        </>}
+      </>}
+
+      {r.test === 'Ordinal SEM' && <>
+        <SectionHead label={`Ordinal SEM · n=${r.n}`} />
+        <Row>
+          <Chip label="χ²" value={r.fit?.chisq} sub={`df=${r.fit?.df}`} color={C.dim} />
+          <Chip label="p" value={r.fit?.p != null ? fmtP(r.fit.p) : '—'} color={sig(r.fit?.p) ? C.neg : C.ok} />
+          <Chip label="CFI" value={r.fit?.cfi} color={r.fit?.cfi >= .95 ? C.ok : r.fit?.cfi >= .90 ? C.warn : C.neg} />
+          <Chip label="TLI" value={r.fit?.tli} color={C.dim} />
+          <Chip label="RMSEA" value={r.fit?.rmsea} color={r.fit?.rmsea <= .06 ? C.ok : r.fit?.rmsea <= .08 ? C.warn : C.neg} />
+        </Row>
+        <SemCoeffTable coeffs={(r.loadings ?? []).map(l => ({ from: l.indicator, estimate: l.estimate, se: l.se, z: l.z, p: l.p }))} />
+      </>}
+
       {r.test === 'Path Analysis' && <>
         <SectionHead label={`Path Analysis · n=${r.n}`} />
         <Row>
@@ -841,6 +894,7 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
         <SectionHead label={`Bifactor Model · n=${r.n}`} />
         <Row>
           <Chip label="ω hierarchical" value={r.omegaHierarchical} color={r.omegaHierarchical >= .5 ? C.ok : C.warn} />
+          <Chip label="ω total" value={r.omegaTotal} color={C.dim} />
         </Row>
         <BifactorTable loadings={r.loadings} />
       </>}

@@ -3,6 +3,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, within, fireEvent, waitFor, cleanup, renderHook, act } from '@testing-library/react';
 import { InferencePanel, useInference } from './InferencePanel.jsx';
+import { makeIris } from '../data/datasets.js';
 
 afterEach(cleanup);
 
@@ -331,15 +332,14 @@ describe('InferencePanel', () => {
       expect(screen.getAllByText('yrs').length).toBeGreaterThan(0);
     });
 
-    it('does not leak the unbounded omega_t into the APA citation, only into the raw package result', () => {
-      // Confirmed directly against the real package: this exact fixture's
-      // default 2-group split ({yrs,svc},{sal}) produces omega_t = 8256.245
-      // -- the same unbounded-group-loading failure mode documented in the
-      // spec Status and hidden from the chip row/table. The APA citation
-      // (rendered at the top of every result, and reused by "copy",
-      // "copy all", and the Markdown export) must not leak it either.
+    it('shows bounded omega_t in the APA citation now that @statlab/core@0.1.2 caps general+group loadings', () => {
+      // @statlab/core@0.1.2 now standardizes to a correlation matrix before
+      // extraction and jointly caps general+group loadings, so omega_t and
+      // per-item communality are correctly bounded to [0,1]. The APA citation
+      // (rendered at the top of every result, and reused by "copy", "copy all",
+      // and the Markdown export) now correctly includes omega_t.
       render(<InferencePanel data={bifactorSalariesRows} ds={bifactorSalariesDs} active="bifactor" setActive={vi.fn()} />);
-      expect(screen.queryByText(/omega_t/)).toBeNull();
+      expect(screen.getByText(/omega_t/)).toBeTruthy();
       expect(screen.getByText(/omega_h = 0\.746/)).toBeTruthy();
     });
 
@@ -370,6 +370,138 @@ describe('InferencePanel', () => {
       for (const arr of [preds, scaleVars, rmCols]) {
         for (const col of arr) expect(salariesDs.numeric.includes(col)).toBe(true);
       }
+    });
+  });
+
+  describe('SEM non-convergence guard', () => {
+    // The original (pre-0.1.2) fixture for this test rescaled 3 identical-signal
+    // columns across ~16 orders of magnitude to force a negative-determinant NaN
+    // in mlDiscrepancy. @statlab/core@0.1.2 fixed that exact bug (detS || 1e-10
+    // now also catches small negative determinants from floating-point error),
+    // so that fixture no longer reproduces non-convergence — confirmed by
+    // re-running it against the live 0.1.2 package during this plan's own
+    // testing phase (chi2 comes back as a real finite number).
+    //
+    // A new fixture was found empirically against the live 0.1.2 package: a
+    // constant (zero-variance) column mixed with two real-varying columns.
+    // 0.1.2's Newton-step-descent-direction fix makes the optimizer converge to
+    // a genuine (if nonsensical) finite chi2 here, but the model is still
+    // singular enough that both loadings' standard errors come back Infinity —
+    // exactly the case semResultOrError's coefsFinite check exists to catch.
+    const semRows = Array.from({ length: 25 }, (_, i) => ({
+      v1: i + 1,
+      v2: i * 2 + 3,
+      v3: 5,
+    }));
+    const semDs = { numeric: ['v1', 'v2'], categorical: [] };
+
+    it('reports an explicit error, not raw NaN/Infinity, when the model does not converge', () => {
+      const { container } = render(<InferencePanel data={semRows} ds={semDs} active="sem" setActive={vi.fn()} />);
+      const textarea = container.querySelector('textarea');
+      fireEvent.change(textarea, { target: { value: 'f1 =~ v1 + v2 + v3' } });
+      expect(screen.queryByText(/NaN/)).toBeNull();
+      expect(screen.queryByText(/Infinity/)).toBeNull();
+      expect(screen.getByText(/did not converge/i)).toBeTruthy();
+    });
+  });
+
+  describe('Ordinal SEM non-convergence guard', () => {
+    // ordinalSEM() reuses sem()'s _fitRAMByML optimizer internally (confirmed
+    // against the real @statlab/core@0.1.2 package during this plan's testing
+    // phase), so it fails the same way: a constant (zero-variance) column
+    // mixed with varying columns produces a finite fit.chisq but a
+    // degenerate se on the constant column's loading.
+    //
+    // This fixture uses 4 items (not 3) specifically so it exercises the
+    // se<=0 guard (Bug 2) rather than being intercepted earlier by the
+    // item-count/identification guard (Bug 4, see 'Ordinal SEM
+    // identification guard' below) -- confirmed against the live
+    // @statlab/core@0.1.2 package: with columns v1/v2/v3/v4 as below, v4's
+    // loading comes back with se=0 (z=0, p=1), a degenerate "loading" that
+    // is finite and so would pass a naive Number.isFinite(se) check.
+    //
+    // scaleVars defaults to numeric.slice(0, 4) (see InferencePanel.jsx), so
+    // listing all 4 columns in ds.numeric selects them automatically — no
+    // checkbox interaction needed to trigger computation.
+    const ordinalRows = Array.from({ length: 25 }, (_, i) => ({
+      v1: i % 2,
+      v2: (i + 1) % 2,
+      v3: 0,
+      v4: i % 3 === 0 ? 1 : 0,
+    }));
+    const ordinalDs = { numeric: ['v1', 'v2', 'v3', 'v4'], categorical: [] };
+
+    it('reports an explicit error, not raw NaN/Infinity, when the model does not converge', () => {
+      render(<InferencePanel data={ordinalRows} ds={ordinalDs} active="ordinal_sem" setActive={vi.fn()} />);
+      expect(screen.queryByText(/NaN/)).toBeNull();
+      expect(screen.queryByText(/Infinity/)).toBeNull();
+      expect(screen.getByText(/did not converge/i)).toBeTruthy();
+    });
+  });
+
+  describe('SEM scale sensitivity guard', () => {
+    // Verified against the live @statlab/core@0.1.2 package: sem() on RAW
+    // (unstandardized) iris data with the default 4-indicator equation gives
+    // a wrong optimum: chi2=482.09, cfi=0, rmsea=1.27 -- every fit chip would
+    // render red for a model that actually fits well. z-scoring the input
+    // (see zscoreCols in InferencePanel.jsx) fixes this: chi2=2.97, cfi=0.998,
+    // rmsea=0.057, matching the true reference optimum. This test pins that
+    // the app-level z-scoring mitigation is actually wired in, not just
+    // present in isolation.
+    it('does not show a false bad-fit result on real unequal-scale data (iris)', () => {
+      const irisRows = makeIris();
+      const irisDs = { numeric: ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'], categorical: ['species'] };
+      render(<InferencePanel data={irisRows} ds={irisDs} active="sem" setActive={vi.fn()} />);
+      // With ds.numeric having exactly 4 columns, semEquations defaults to
+      // all 4 via numeric.slice(0, Math.min(4, numeric.length)) -- no manual
+      // equation entry needed to trigger this.
+      expect(screen.queryByText(/did not converge/i)).toBeNull();
+      // Chip renders its `value` prop raw (no toFixed formatting — see
+      // ui.jsx's Chip component), so the exact fit.chi2 number (2.97,
+      // confirmed via a live package run against this exact seeded
+      // makeIris() fixture) renders as the literal string "2.97".
+      expect(screen.getByText('2.97')).toBeTruthy();
+    });
+  });
+
+  describe('SEM standard error rescale', () => {
+    // @statlab/core@0.1.2's SEM optimizer returns loading/path SEs as the
+    // raw sqrt(diag(Hessian^-1)) of its unscaled ML discrepancy function,
+    // missing the sqrt(2/(n-1)) asymptotic-covariance factor standard
+    // ML-SEM theory requires -- this inflates every SE by roughly
+    // sqrt((n-1)/2) (about 8.6x at n=150), making genuinely significant
+    // loadings look non-significant. Verified against the live package on
+    // this exact seeded makeIris() fixture: uncorrected se=0.881467 on the
+    // first loading becomes se=0.102124 (z=-6.5751) after rescaling --
+    // this test pins that the app-level rescaleSemCoefs correction in
+    // InferencePanel.jsx is actually wired into the sem() computation path.
+    it('shows the rescaled (not raw) standard error for SEM loadings', () => {
+      const irisRows = makeIris();
+      const irisDs = { numeric: ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'], categorical: ['species'] };
+      const { container } = render(<InferencePanel data={irisRows} ds={irisDs} active="sem" setActive={vi.fn()} />);
+      const row = [...container.querySelectorAll('table tr')].find(tr => tr.textContent.includes('sepalWidth'));
+      const se = parseFloat(row.children[2].textContent);
+      // A range, not an exact pin: the iterative optimizer's finite-difference
+      // Hessian can differ by a fraction of a percent across V8 builds
+      // (confirmed: vitest/Node gave 0.102124, a live Chromium render of the
+      // same seeded fixture gave 0.101703 -- both far below the raw,
+      // uncorrected 0.881467 and both z ~ -6.6, the same conclusion). This
+      // range comfortably separates "correctly rescaled" from "still raw".
+      expect(se).toBeGreaterThan(0.05);
+      expect(se).toBeLessThan(0.2);
+    });
+  });
+
+  describe('Ordinal SEM identification guard', () => {
+    // Verified: a 3-item one-factor model has 0 true degrees of freedom
+    // (df = m*(m-3)/2), but ordinalSEM() internally clamps its reported df
+    // to a minimum of 1 and shows a fake perfect fit (cfi=1, rmsea=0). The
+    // app-level guard rejects this before it ever reaches ordinalSEM().
+    it('rejects a 3-item selection with an explicit identification error, not a fake perfect fit', () => {
+      const rows = Array.from({ length: 25 }, (_, i) => ({ v1: i % 4, v2: (i * 2) % 4, v3: (i * 3) % 4 }));
+      const ds = { numeric: ['v1', 'v2', 'v3'], categorical: [] };
+      render(<InferencePanel data={rows} ds={ds} active="ordinal_sem" setActive={vi.fn()} />);
+      expect(screen.getByText(/needs 4\+ items to test model fit/i)).toBeTruthy();
     });
   });
 });

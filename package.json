@@ -13,7 +13,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@statlab/core": "^0.1.1",
+    "@statlab/core": "^0.1.2",
     "papaparse": "^5.5.3",
     "react": "^18",
     "react-dom": "^18.3.1",
