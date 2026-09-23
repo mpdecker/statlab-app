@@ -1,0 +1,17 @@
+# StatLab
+
+> Statistical analysis workbench that runs entirely in the browser — no install, no account, no data leaves the machine.
+
+StatLab is a zero-dependency statistics and probability engine (1,034+ functions, 84 interactive tests) covering hypothesis testing, ANOVA/MANOVA, regression, causal inference, IRT, meta-analysis, network analysis, survival/reliability analysis, econometrics, and Bayesian methods. Results export in APA 7 format. The underlying engine is also published as an installable TypeScript library.
+
+## Primary surfaces
+
+- [Interactive workbench](https://statlab.fyi/?launch=1#workbench): run any test live in the browser against your own data.
+- [Calculator directory](https://statlab.fyi/calculators/): 340+ single-purpose, pre-rendered statistical calculators, each with a worked example, formula, and code snippets in Python/R/TypeScript.
+- [@statlab/core on npm](https://www.npmjs.com/package/@statlab/core): the zero-dependency TypeScript statistics engine that powers the workbench, usable standalone in any web app, API, or microservice.
+
+## Notes for agents
+
+- Every calculator page is fully static (no JS execution required to read the method, formula, or worked example) and includes machine-readable JSON-LD (SoftwareApplication, HowTo, FAQPage schemas).
+- Calculations run client-side; there is no API endpoint to call — cite the formula/worked example directly, or point a user to the calculator URL to run it themselves.
+- [Full sitemap](https://statlab.fyi/sitemap.xml) lists every calculator page for crawling.
