@@ -31,7 +31,7 @@ import { kmeans, hierarchicalCluster, latentClassAnalysis } from '@statlab/core/
 import { hlmRandomIntercept, hlmRandomSlope, iccMultilevel } from '@statlab/core/methods/multilevel';
 import { propensityScoreMatch, iv2sls, interruptedTimeSeries, regressionDiscontinuity } from '@statlab/core/methods/causal';
 import { centralityMeasures, communityDetection, sociogramLayout, networkFromEdgeList } from '@statlab/core/methods/network';
-import { normalityDP, shapiroWilk, computePowerT, requiredN, requiredNCorr } from '@statlab/core/math/distributions';
+import { normalityDP, shapiroWilk, computePowerT, requiredN, requiredNCorr, chiPVal } from '@statlab/core/math/distributions';
 import { avg, sampleSD, median } from '@statlab/core/math/core';
 import { parseFinite, barHeightPct, finiteNums, rowFinite, parseNumList } from '../utils/parse.js';
 import {
@@ -1005,19 +1005,40 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
           return out;
         });
       }
+      // @statlab/core's SEM optimizer returns loading/path standard errors as
+      // the raw sqrt(diag(Hessian^-1)) of its unscaled ML discrepancy
+      // function, without the sqrt(2/(n-1)) asymptotic-covariance factor
+      // standard ML-SEM theory requires (matching the package's own chi2
+      // convention of chi2 = (n-1)*fML). Left uncorrected, every SE is
+      // inflated ~8-9x at n=150, making real loadings look non-significant.
+      function rescaleSemCoefs(coeffs, n) {
+        const factor = Math.sqrt(2 / (n - 1));
+        return (coeffs ?? []).map(c => {
+          if (!Number.isFinite(c.se)) return c;
+          const se = c.se * factor;
+          const z = se > 0 ? c.estimate / se : 0;
+          const p = chiPVal(z * z, 1);
+          return { ...c, se: +se.toFixed(6), z: +z.toFixed(4), p };
+        });
+      }
       function semResultOrError(r) {
         if (!r) return r;
         const fitFinite = [r.fit?.chi2, r.fit?.cfi, r.fit?.tli, r.fit?.rmsea, r.fit?.srmr].every(Number.isFinite);
         const coefsFinite = [...(r.loadings ?? []), ...(r.paths ?? [])].every(c => Number.isFinite(c.se) && c.se > 0);
         return fitFinite && coefsFinite ? r : { error: 'SEM model did not converge — try a simpler model or check for near-collinear variables.' };
       }
-      if (a === 'sem') return semResultOrError(sem({ equations: semEquations.trim().split('\n').map(l => l.trim()).filter(Boolean), data: zscoreCols(data, numeric), method: 'ML' }));
+      if (a === 'sem') {
+        const r0 = sem({ equations: semEquations.trim().split('\n').map(l => l.trim()).filter(Boolean), data: zscoreCols(data, numeric), method: 'ML' });
+        const r = r0 ? { ...r0, loadings: rescaleSemCoefs(r0.loadings, r0.model?.n), paths: rescaleSemCoefs(r0.paths, r0.model?.n) } : r0;
+        return semResultOrError(r);
+      }
       if (a === 'ordinal_sem') {
         const vars = scaleVars.filter(c => numeric.includes(c));
         const m = vars.length;
         if (m * (m - 3) / 2 <= 0) return { error: 'Ordinal SEM needs 4+ items to test model fit — 3 items produce a just-identified model with no testable degrees of freedom.' };
-        const r = ordinalSEM(data, vars, ordinalFactorName.trim() || 'f1');
-        if (!r) return null;
+        const r0 = ordinalSEM(data, vars, ordinalFactorName.trim() || 'f1');
+        if (!r0) return null;
+        const r = { ...r0, loadings: rescaleSemCoefs(r0.loadings, r0.n) };
         const fitFinite = Number.isFinite(r.fit?.chisq);
         const coefsFinite = (r.loadings ?? []).every(l => Number.isFinite(l.se) && l.se > 0);
         return fitFinite && coefsFinite ? r : { error: 'Ordinal SEM model did not converge — try fewer items or a simpler factor structure.' };

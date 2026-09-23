@@ -464,6 +464,26 @@ describe('InferencePanel', () => {
     });
   });
 
+  describe('SEM standard error rescale', () => {
+    // @statlab/core@0.1.2's SEM optimizer returns loading/path SEs as the
+    // raw sqrt(diag(Hessian^-1)) of its unscaled ML discrepancy function,
+    // missing the sqrt(2/(n-1)) asymptotic-covariance factor standard
+    // ML-SEM theory requires -- this inflates every SE by roughly
+    // sqrt((n-1)/2) (about 8.6x at n=150), making genuinely significant
+    // loadings look non-significant. Verified against the live package on
+    // this exact seeded makeIris() fixture: uncorrected se=0.881467 on the
+    // first loading becomes se=0.102124 (z=-6.5751) after rescaling --
+    // this test pins that the app-level rescaleSemCoefs correction in
+    // InferencePanel.jsx is actually wired into the sem() computation path.
+    it('shows the rescaled (not raw) standard error for SEM loadings', () => {
+      const irisRows = makeIris();
+      const irisDs = { numeric: ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'], categorical: ['species'] };
+      render(<InferencePanel data={irisRows} ds={irisDs} active="sem" setActive={vi.fn()} />);
+      expect(screen.getByText('0.102124')).toBeTruthy();
+      expect(screen.queryByText('0.881467')).toBeNull();
+    });
+  });
+
   describe('Ordinal SEM identification guard', () => {
     // Verified: a 3-item one-factor model has 0 true degrees of freedom
     // (df = m*(m-3)/2), but ordinalSEM() internally clamps its reported df
