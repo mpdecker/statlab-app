@@ -284,7 +284,7 @@ export function InferenceConfig({ active, ds, data, state, set, width = '100%', 
       value={state.semEquations} onChange={state.setSemEquations} rows={7}
     />,
     ordinal_sem: <>
-      <CheckList label="Ordinal / Likert items (3+)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
+      <CheckList label="Ordinal / Likert items (4+ recommended)" items={numeric} selected={scaleVars} onChange={setScaleVars} />
       <Inp label="Factor name" value={state.ordinalFactorName} onChange={state.setOrdinalFactorName} width={100} placeholder="f1" />
     </>,
     path_analysis: <TA

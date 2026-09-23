@@ -1443,13 +1443,13 @@ export const METHOD_NOTES = {
   sem: {
     description: "Structural equation modeling combines an optional latent-factor measurement model with structural regressions among factors and/or observed variables, fit by maximum likelihood, yielding standardized fit indices for how well the specified model reproduces the observed covariance structure.",
     usage: "Use to test a hypothesized causal/measurement structure among several variables at once (e.g. does a single latent construct explain the correlations among 3+ indicators, and does it predict an outcome) rather than testing each relationship in isolation.",
-    assumptions: ["Multivariate normality of observed variables (approximately)", "At least 10 observations, 3+ observed variables", "Model is identified (enough constraints for a unique solution)"],
+    assumptions: ["Multivariate normality of observed variables (approximately)", "At least 10 observations, 3+ observed variables", "Model is identified (enough constraints for a unique solution)", "Observed variables are standardized (z-scored) internally before fitting, so loadings are in standardized-metric units, not the original scale"],
     cite: "Bollen, K. A. (1989). Structural equations with latent variables. Wiley.",
   },
   ordinal_sem: {
     description: "Ordinal SEM fits a one-factor measurement model to ordinal/Likert items by first estimating polychoric correlations between items (which model each item as a coarsened observation of an underlying continuous normal variable), then fitting the same maximum-likelihood factor model used by Structural Equation Model to that polychoric correlation matrix.",
     usage: "Use instead of Structural Equation Model when your indicators are ordinal/Likert-scale (e.g. 1–5 agreement items) rather than continuous — treating ordinal items as continuous in a standard factor model can bias loadings, especially with few response categories or skewed distributions.",
-    assumptions: ["Each item is ordinal with 3+ ordered categories", "At least 10 observations, 3+ items", "Each item's underlying continuous variable is (approximately) normally distributed"],
+    assumptions: ["Each item is ordinal with 3+ ordered categories", "At least 20 observations, 4+ items (3 items produce a just-identified model with no testable fit)", "Each item's underlying continuous variable is (approximately) normally distributed"],
     cite: "Muthén, B. (1984). A general structural equation model with dichotomous, ordered categorical, and continuous latent variable indicators. Psychometrika, 49(1), 115–132.",
   },
   path_analysis: {

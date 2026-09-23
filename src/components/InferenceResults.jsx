@@ -848,7 +848,7 @@ export function InferenceResults({ r, active, alpha, g1, g2, g1vals, g2vals, nor
           <Chip label="p" value={r.fit?.p != null ? fmtP(r.fit.p) : '—'} color={sig(r.fit?.p) ? C.neg : C.ok} />
           <Chip label="CFI" value={r.fit?.cfi} color={r.fit?.cfi >= .95 ? C.ok : r.fit?.cfi >= .90 ? C.warn : C.neg} />
           <Chip label="TLI" value={r.fit?.tli} color={C.dim} />
-          <Chip label="RMSEA" value={r.fit?.rmsea} sub={r.fit?.rmseaCI ? `[${r.fit.rmseaCI[0]}, ${r.fit.rmseaCI[1]}]` : ''} color={r.fit?.rmsea <= .06 ? C.ok : r.fit?.rmsea <= .08 ? C.warn : C.neg} />
+          <Chip label="RMSEA" value={r.fit?.rmsea} color={r.fit?.rmsea <= .06 ? C.ok : r.fit?.rmsea <= .08 ? C.warn : C.neg} />
           <Chip label="SRMR" value={r.fit?.srmr} color={r.fit?.srmr <= .08 ? C.ok : C.warn} />
           <Chip label="AIC" value={r.fit?.aic} color={C.dim} />
           <Chip label="BIC" value={r.fit?.bic} color={C.dim} />

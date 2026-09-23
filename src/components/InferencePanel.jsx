@@ -991,19 +991,35 @@ export function useInference(data, ds, active, setActive, onResultChange, onCont
       if (a === 'mds_classical') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(classicalMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
       if (a === 'mds_sammon')    { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(sammonMapping(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
       if (a === 'mds_nonmetric') { const cols = scaleVars.filter(c => numeric.includes(c)); return mdsResultOrError(nonMetricMDS(data.filter(r => rowFinite(r, cols)), cols, { nDimensions: 2 })); }
+      function zscoreCols(rows, cols) {
+        const stats = {};
+        for (const c of cols) {
+          const vals = rows.map(r => +r[c]).filter(Number.isFinite);
+          const m = vals.reduce((a, b) => a + b, 0) / vals.length;
+          const sd = Math.sqrt(vals.reduce((a, b) => a + (b - m) ** 2, 0) / vals.length) || 1;
+          stats[c] = { m, sd };
+        }
+        return rows.map(r => {
+          const out = { ...r };
+          for (const c of cols) if (Number.isFinite(+r[c])) out[c] = (+r[c] - stats[c].m) / stats[c].sd;
+          return out;
+        });
+      }
       function semResultOrError(r) {
         if (!r) return r;
         const fitFinite = [r.fit?.chi2, r.fit?.cfi, r.fit?.tli, r.fit?.rmsea, r.fit?.srmr].every(Number.isFinite);
-        const coefsFinite = [...(r.loadings ?? []), ...(r.paths ?? [])].every(c => Number.isFinite(c.se));
+        const coefsFinite = [...(r.loadings ?? []), ...(r.paths ?? [])].every(c => Number.isFinite(c.se) && c.se > 0);
         return fitFinite && coefsFinite ? r : { error: 'SEM model did not converge — try a simpler model or check for near-collinear variables.' };
       }
-      if (a === 'sem') return semResultOrError(sem({ equations: semEquations.trim().split('\n').map(l => l.trim()).filter(Boolean), data, method: 'ML' }));
+      if (a === 'sem') return semResultOrError(sem({ equations: semEquations.trim().split('\n').map(l => l.trim()).filter(Boolean), data: zscoreCols(data, numeric), method: 'ML' }));
       if (a === 'ordinal_sem') {
         const vars = scaleVars.filter(c => numeric.includes(c));
+        const m = vars.length;
+        if (m * (m - 3) / 2 <= 0) return { error: 'Ordinal SEM needs 4+ items to test model fit — 3 items produce a just-identified model with no testable degrees of freedom.' };
         const r = ordinalSEM(data, vars, ordinalFactorName.trim() || 'f1');
         if (!r) return null;
         const fitFinite = Number.isFinite(r.fit?.chisq);
-        const coefsFinite = (r.loadings ?? []).every(l => Number.isFinite(l.se));
+        const coefsFinite = (r.loadings ?? []).every(l => Number.isFinite(l.se) && l.se > 0);
         return fitFinite && coefsFinite ? r : { error: 'Ordinal SEM model did not converge — try fewer items or a simpler factor structure.' };
       }
       if (a === 'path_analysis') return pathAnalysis(data, pathEquations.trim().split('\n').map(l => l.trim()).filter(Boolean));

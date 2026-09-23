@@ -3,6 +3,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, within, fireEvent, waitFor, cleanup, renderHook, act } from '@testing-library/react';
 import { InferencePanel, useInference } from './InferencePanel.jsx';
+import { makeIris } from '../data/datasets.js';
 
 afterEach(cleanup);
 
@@ -408,24 +409,71 @@ describe('InferencePanel', () => {
     // ordinalSEM() reuses sem()'s _fitRAMByML optimizer internally (confirmed
     // against the real @statlab/core@0.1.2 package during this plan's testing
     // phase), so it fails the same way: a constant (zero-variance) column
-    // mixed with two varying binary columns produces a finite fit.chisq
-    // (552.6149) but Infinity standard errors on both loadings.
+    // mixed with varying columns produces a finite fit.chisq but a
+    // degenerate se on the constant column's loading.
+    //
+    // This fixture uses 4 items (not 3) specifically so it exercises the
+    // se<=0 guard (Bug 2) rather than being intercepted earlier by the
+    // item-count/identification guard (Bug 4, see 'Ordinal SEM
+    // identification guard' below) -- confirmed against the live
+    // @statlab/core@0.1.2 package: with columns v1/v2/v3/v4 as below, v4's
+    // loading comes back with se=0 (z=0, p=1), a degenerate "loading" that
+    // is finite and so would pass a naive Number.isFinite(se) check.
     //
     // scaleVars defaults to numeric.slice(0, 4) (see InferencePanel.jsx), so
-    // listing all 3 columns in ds.numeric selects them automatically — no
+    // listing all 4 columns in ds.numeric selects them automatically — no
     // checkbox interaction needed to trigger computation.
     const ordinalRows = Array.from({ length: 25 }, (_, i) => ({
       v1: i % 2,
       v2: (i + 1) % 2,
       v3: 0,
+      v4: i % 3 === 0 ? 1 : 0,
     }));
-    const ordinalDs = { numeric: ['v1', 'v2', 'v3'], categorical: [] };
+    const ordinalDs = { numeric: ['v1', 'v2', 'v3', 'v4'], categorical: [] };
 
     it('reports an explicit error, not raw NaN/Infinity, when the model does not converge', () => {
       render(<InferencePanel data={ordinalRows} ds={ordinalDs} active="ordinal_sem" setActive={vi.fn()} />);
       expect(screen.queryByText(/NaN/)).toBeNull();
       expect(screen.queryByText(/Infinity/)).toBeNull();
       expect(screen.getByText(/did not converge/i)).toBeTruthy();
+    });
+  });
+
+  describe('SEM scale sensitivity guard', () => {
+    // Verified against the live @statlab/core@0.1.2 package: sem() on RAW
+    // (unstandardized) iris data with the default 4-indicator equation gives
+    // a wrong optimum: chi2=482.09, cfi=0, rmsea=1.27 -- every fit chip would
+    // render red for a model that actually fits well. z-scoring the input
+    // (see zscoreCols in InferencePanel.jsx) fixes this: chi2=2.97, cfi=0.998,
+    // rmsea=0.057, matching the true reference optimum. This test pins that
+    // the app-level z-scoring mitigation is actually wired in, not just
+    // present in isolation.
+    it('does not show a false bad-fit result on real unequal-scale data (iris)', () => {
+      const irisRows = makeIris();
+      const irisDs = { numeric: ['sepalLength', 'sepalWidth', 'petalLength', 'petalWidth'], categorical: ['species'] };
+      render(<InferencePanel data={irisRows} ds={irisDs} active="sem" setActive={vi.fn()} />);
+      // With ds.numeric having exactly 4 columns, semEquations defaults to
+      // all 4 via numeric.slice(0, Math.min(4, numeric.length)) -- no manual
+      // equation entry needed to trigger this.
+      expect(screen.queryByText(/did not converge/i)).toBeNull();
+      // Chip renders its `value` prop raw (no toFixed formatting — see
+      // ui.jsx's Chip component), so the exact fit.chi2 number (2.97,
+      // confirmed via a live package run against this exact seeded
+      // makeIris() fixture) renders as the literal string "2.97".
+      expect(screen.getByText('2.97')).toBeTruthy();
+    });
+  });
+
+  describe('Ordinal SEM identification guard', () => {
+    // Verified: a 3-item one-factor model has 0 true degrees of freedom
+    // (df = m*(m-3)/2), but ordinalSEM() internally clamps its reported df
+    // to a minimum of 1 and shows a fake perfect fit (cfi=1, rmsea=0). The
+    // app-level guard rejects this before it ever reaches ordinalSEM().
+    it('rejects a 3-item selection with an explicit identification error, not a fake perfect fit', () => {
+      const rows = Array.from({ length: 25 }, (_, i) => ({ v1: i % 4, v2: (i * 2) % 4, v3: (i * 3) % 4 }));
+      const ds = { numeric: ['v1', 'v2', 'v3'], categorical: [] };
+      render(<InferencePanel data={rows} ds={ds} active="ordinal_sem" setActive={vi.fn()} />);
+      expect(screen.getByText(/needs 4\+ items to test model fit/i)).toBeTruthy();
     });
   });
 });
