@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { calculatorPages, generateSeoCalculatorPages, renderCalculatorPage, renderSitemap } from '../scripts/generate-seo-calculators.mjs';
 
 describe('SEO calculator pages', () => {
-  it('declares the milestone 475 statistical calculator suite', () => {
+  it('declares the milestone 500 statistical calculator suite', () => {
     expect(calculatorPages.map((page) => page.slug)).toEqual([
       'welch-t-test',
       'student-t-test',
@@ -482,8 +482,33 @@ describe('SEO calculator pages', () => {
       'clinical-trial-win-ratio',
       'decision-curve-net-benefit',
       'e-value-unmeasured-confounding',
+      'manhattan-city-block-distance',
+      'minkowski-p-norm-distance',
+      'haversine-great-circle-distance',
+      'bhattacharyya-distance-coefficient',
+      'gower-disparity-mixed-data',
+      'hopkins-statistic-clustering',
+      'reliability-block-diagram-rbd',
+      'cox-snell-residuals-survival',
+      'nelson-aalen-hazard-ratio-ci',
+      'semi-variogram-nugget-sill-range',
+      'spatial-lag-error-durbin-selector',
+      'markov-random-field-mrf-spatial',
+      'c-chart-spc-poisson-defects',
+      'shewhart-individuals-chart-i',
+      'process-capability-cpm-taguchi',
+      'bifactor-model-fit-indices',
+      'rasch-1pl-item-difficulty',
+      'cronbachs-alpha-ordinal-likert',
+      'generalized-linear-model-glm-poisson',
+      'generalized-additive-model-gam-spline',
+      'meta-analysis-random-effects-derSimonian',
+      'post-hoc-bonferroni-correction',
+      'post-hoc-holm-sidak-adjustment',
+      'one-way-anova-effect-size-eta',
+      'two-sample-t-test-power-equal',
     ]);
-    expect(calculatorPages.length).toBe(475);
+    expect(calculatorPages.length).toBe(500);
   });
 
   it('renders static HTML with canonical metadata, math formulas, code snippets, JSON-LD, and open CTAs', () => {

@@ -12005,6 +12005,633 @@ export const calculatorPages = [
     ],
     workbenchId: 'e_value_confounding',
   },
+
+  // --- 25 MILESTONE 500 CALCULATORS (476 - 500) ---
+  {
+    slug: 'manhattan-city-block-distance',
+    title: 'Manhattan (City Block L1 norm) distance calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate Manhattan (L1 norm / City Block) distance d_1(u, v) between multi-dimensional numeric feature vectors.',
+    keywords: ['Manhattan distance calculator', 'City Block distance', 'L1 norm vector distance', 'taxicab distance', 'Manhattan metric'],
+    inputs: ['Vector u coordinates', 'Vector v coordinates'],
+    example: { a: ['u = [10, 25, 40]', 'v = [15, 20, 50]'], result: 'Manhattan Distance d_1(u, v) = |10-15| + |25-20| + |40-50| = 5 + 5 + 10 = 20.0.' },
+    formula: 'd_1(u, v) = ∑_{i=1}^n |u_i - v_i|',
+    code: {
+      python: `from scipy.spatial.distance import cityblock\nd = cityblock([10, 25, 40], [15, 20, 50])\nprint(f"L1 Distance={d:.4f}")`,
+      r: `dist(rbind(u, v), method = "manhattan")`,
+      ts: `import { manhattanDistance } from '@statlab/core';\nconst d = manhattanDistance([10, 25, 40], [15, 20, 50]);`,
+    },
+    useCases: [
+      'Calculating grid-constrained travel distance and circuit trace routing distance.',
+      'Measuring high-dimensional vector distance where L1 norm is less susceptible to the curse of dimensionality than L2 Euclidean distance.'
+    ],
+    when: 'Use when vector dimensions are independent grid axes or when high-dimensional distance contrast needs to be preserved.',
+    cautions: [
+      'Manhattan distance is sensitive to coordinate axis rotation.',
+      'Special case of Minkowski distance with p = 1.'
+    ],
+    workbenchId: 'manhattan_distance',
+  },
+  {
+    slug: 'minkowski-p-norm-distance',
+    title: 'Minkowski distance (p-norm metric) calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate Minkowski distance d_p(u, v) for arbitrary order p ≥ 1 generalizing Manhattan (p=1) and Euclidean (p=2) metrics.',
+    keywords: ['Minkowski distance calculator', 'p norm metric', 'generalized vector distance', 'Minkowski order p', 'Lp norm distance'],
+    inputs: ['Vector u coordinates', 'Vector v coordinates', 'Order parameter p ≥ 1'],
+    example: { a: ['u = [1, 3, 5]', 'v = [4, 7, 2]', 'p = 3.0'], result: 'Minkowski Distance (p=3) = ( |3|³ + |4|³ + |-3|³ )^(1/3) = (27 + 64 + 27)^(1/3) = 4.905.' },
+    formula: 'd_p(u, v) = ( ∑_{i=1}^n |u_i - v_i|^p )^(1/p)',
+    code: {
+      python: `from scipy.spatial.distance import minkowski\nd = minkowski([1, 3, 5], [4, 7, 2], p=3)\nprint(f"Minkowski p=3: {d:.4f}")`,
+      r: `dist(rbind(u, v), method = "minkowski", p = 3)`,
+      ts: `import { minkowskiDistance } from '@statlab/core';\nconst d = minkowskiDistance([1, 3, 5], [4, 7, 2], 3);`,
+    },
+    useCases: [
+      'Custom distance metric parameterization in k-Nearest Neighbors (k-NN) classification and clustering.',
+      'Evaluating vector similarity under fractional or high-order norms.'
+    ],
+    when: 'Use when tuning the norm parameter p between 1 (Manhattan) and ∞ (Chebyshev).',
+    cautions: [
+      'Requires p ≥ 1 to satisfy the triangle inequality (p < 1 violates triangle inequality and forms a non-convex semi-metric).',
+      'For p = 1: Manhattan; p = 2: Euclidean; p → ∞: Chebyshev.'
+    ],
+    workbenchId: 'minkowski_distance',
+  },
+  {
+    slug: 'haversine-great-circle-distance',
+    title: 'Haversine great-circle geographic distance calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate Haversine great-circle surface distance in kilometers or miles between two latitude/longitude geographical coordinates.',
+    keywords: ['Haversine distance calculator', 'great circle distance', 'lat long distance calculator', 'geographic surface distance', 'haversine km miles'],
+    inputs: ['Latitude 1 & Longitude 1 (degrees)', 'Latitude 2 & Longitude 2 (degrees)', 'Earth radius (km=6371, miles=3958.8)'],
+    example: { a: ['New York (40.7128°N, 74.0060°W)', 'London (51.5074°N, 0.1278°W)'], result: 'Haversine Great-Circle Distance = 5,570.2 km (3,461.2 miles).' },
+    formula: 'd = 2 R arcsin( √( sin²(Δφ/2) + cos(φ₁) cos(φ₂) sin²(Δλ/2) ) )',
+    code: {
+      python: `import numpy as np\ndef haversine(lat1, lon1, lat2, lon2, r=6371.0):\n    phi1, phi2 = np.radians(lat1), np.radians(lat2)\n    dphi = np.radians(lat2 - lat1)\n    dlam = np.radians(lon2 - lon1)\n    a = np.sin(dphi/2)**2 + np.cos(phi1)*np.cos(phi2)*np.sin(dlam/2)**2\n    return 2 * r * np.arcsin(np.sqrt(a))`,
+      r: `library(geosphere)\ndistHaversine(c(lon1, lat1), c(lon2, lat2))`,
+      ts: `import { haversineDistance } from '@statlab/core';\nconst d = haversineDistance(40.7128, -74.0060, 51.5074, -0.1278);`,
+    },
+    useCases: [
+      'Calculating precise spherical surface distance between geographical server locations and user client IPs.',
+      'Geospatial proximity filtering in spatial database queries.'
+    ],
+    when: 'Use for calculating short to medium spherical surface distances on Earth from latitude/longitude pairs.',
+    cautions: [
+      'Assumes a spherical Earth radius (R ≈ 6,371 km); for extreme geodetic precision on an ellipsoidal Earth, use Vincenty formula.',
+      'Convert input angles from degrees to radians.'
+    ],
+    workbenchId: 'haversine_geo_dist',
+  },
+  {
+    slug: 'bhattacharyya-distance-coefficient',
+    title: 'Bhattacharyya distance and overlap coefficient calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate Bhattacharyya distance D_B and Bhattacharyya coefficient BC measuring statistical overlap between probability distributions.',
+    keywords: ['Bhattacharyya distance', 'Bhattacharyya coefficient', 'distribution overlap metric', 'Bhattacharyya BC calculator', 'class separability metric'],
+    inputs: ['Distribution P vector (or Mean μ₁ & Covariance Σ₁)', 'Distribution Q vector (or Mean μ₂ & Covariance Σ₂)'],
+    example: { a: ['Discrete P = [0.4, 0.4, 0.2]', 'Discrete Q = [0.1, 0.5, 0.4]'], result: 'Bhattacharyya Coefficient BC = 0.887, Bhattacharyya Distance D_B = -ln(0.887) = 0.120.' },
+    formula: 'BC(P, Q) = ∑ √( p_i * q_i ),  D_B(P, Q) = -ln( BC(P, Q) )',
+    code: {
+      python: `import numpy as np\ndef bhattacharyya_distance(p, q):\n    bc = np.sum(np.sqrt(np.array(p) * np.array(q)))\n    return -np.log(bc)\nprint(f"D_B={bhattacharyya_distance([0.4, 0.4, 0.2], [0.1, 0.5, 0.4]):.4f}")`,
+      r: `library(fpc)\n# Compute Bhattacharyya distance`,
+      ts: `import { bhattacharyyaDistance } from '@statlab/core';\nconst db = bhattacharyyaDistance([0.4, 0.4, 0.2], [0.1, 0.5, 0.4]);`,
+    },
+    useCases: [
+      'Measuring feature distribution overlap and class separability in pattern recognition.',
+      'Evaluating signal-to-noise ratio in target detection algorithms.'
+    ],
+    when: 'Use when measuring closeness and relative overlap of two probability distributions.',
+    cautions: [
+      'Bhattacharyya distance does not satisfy triangle inequality (it is a divergence, not a strict metric).',
+      'Directly related to Hellinger distance: H = √(1 - BC).'
+    ],
+    workbenchId: 'bhattacharyya_dist',
+  },
+  {
+    slug: 'gower-disparity-mixed-data',
+    title: 'Gower’s dissimilarity coefficient for mixed data types calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate Gower’s dissimilarity coefficient d_G(i, j) for datasets containing mixed continuous, ordinal, and nominal categorical features.',
+    keywords: ['Gowers distance calculator', 'mixed data dissimilarity', 'Gower coefficient', 'mixed type distance metric', 'Gowers similarity index'],
+    inputs: ['Continuous feature columns', 'Nominal categorical columns', 'Ordinal columns with ranges'],
+    example: { a: ['Subject 1: [Age=25, Gender=M, Income=50k, Education=BS]', 'Subject 2: [Age=35, Gender=M, Income=80k, Education=MS]'], result: 'Gower Dissimilarity d_G = 0.292 (Weights continuous ranges and exact nominal matches).' },
+    formula: 'd_G(i, j) = ∑_{k=1}^p w_k s_{ijk} / ∑_{k=1}^p w_k,  where s_{ijk} = |x_{ik} - x_{jk}| / Range_k (continuous) or I(x_{ik} ≠ x_{jk}) (nominal)',
+    code: {
+      python: `import gower\n# Compute Gower's dissimilarity matrix for mixed-data DataFrames\n# gower_dist = gower.gower_matrix(df)`,
+      r: `library(cluster)\ndaisy(df, metric = "gower")`,
+      ts: `import { gowerDissimilarity } from '@statlab/core';\nconst d = gowerDissimilarity(recordA, recordB, featureSpecs);`,
+    },
+    useCases: [
+      'Clustering user profiles (e.g. PAM / medoid clustering) on datasets containing both numerical metrics and categorical attributes.',
+      'Distance-based record matching in heterogeneous databases.'
+    ],
+    when: 'Use when computing pairwise distances across feature vectors containing a mixture of numeric and categorical variables.',
+    cautions: [
+      'Continuous feature differences are normalized by total attribute range.',
+      'Specify column data types explicitly (numeric, nominal, ordinal).'
+    ],
+    workbenchId: 'gower_dissimilarity',
+  },
+  {
+    slug: 'hopkins-statistic-clustering',
+    title: 'Hopkins statistic clustering tendency assessment calculator',
+    family: 'Vector distances & embedding metrics',
+    description: 'Calculate Hopkins statistic (H) measuring spatial clustering tendency versus uniform randomness prior to running cluster algorithms.',
+    keywords: ['Hopkins statistic calculator', 'clustering tendency metric', 'Hopkins H statistic', 'clusterability test', 'spatial randomness clustering'],
+    inputs: ['Feature matrix X (N observations x d features)', 'Sample size m (typically 10% of N)'],
+    example: { a: ['Dataset N = 500, d = 4', 'Sample m = 50 random points & 50 real points'], result: 'Hopkins Statistic H = 0.842 (H > 0.75 indicates highly clusterable non-random dataset).' },
+    formula: 'H = ∑ u_i^d / ( ∑ u_i^d + ∑ w_i^d ),  where u_i is dist from artificial uniform point, w_i is dist from real point',
+    code: {
+      python: `import numpy as np\nfrom sklearn.neighbors import NearestNeighbors\ndef hopkins_statistic(X):\n    n, d = X.shape\n    m = int(0.1 * n)\n    # Generate uniform random points and compute nearest neighbor distances`,
+      r: `library(factoextra)\nget_clust_tendency(df, n = 50)`,
+      ts: `import { hopkinsStatistic } from '@statlab/core';\nconst h = hopkinsStatistic(dataMatrix);`,
+    },
+    useCases: [
+      'Testing whether a dataset has genuine cluster structure before running k-means or DBSCAN.',
+      'Avoiding false cluster discovery on uniformly distributed random data.'
+    ],
+    when: 'Use prior to exploratory cluster analysis to evaluate clusterability.',
+    cautions: [
+      'H ≈ 0.50 indicates uniformly distributed data (no meaningful clusters).',
+      'H > 0.75 indicates significant clustering tendency; H → 1.0 indicates tight clusters.'
+    ],
+    workbenchId: 'hopkins_clustering',
+  },
+  {
+    slug: 'reliability-block-diagram-rbd',
+    title: 'Reliability Block Diagram (RBD) series-parallel calculator',
+    family: 'Survival & event history analysis',
+    description: 'Calculate system reliability R_sys(t) and Mean Time To Failure (MTTF) for series, parallel, and k-out-of-n redundancy configurations.',
+    keywords: ['Reliability Block Diagram', 'RBD calculator', 'series parallel reliability', 'system availability RBD', 'k out of n redundancy'],
+    inputs: ['Component reliabilities R_i(t)', 'Configuration topology (Series, Parallel, k-out-of-n)'],
+    example: { a: ['3 Components (R1=0.95, R2=0.90, R3=0.92)', 'Configuration: 2-out-of-3 Parallel Redundancy'], result: 'System Reliability R_sys = 0.978 (Higher reliability than individual component baselines).' },
+    formula: 'Series: R = ∏ R_i,  Parallel: R = 1 - ∏ (1 - R_i),  k-out-of-n: R = ∑_{i=k}^n (n choose i) R^i (1-R)^{n-i}',
+    code: {
+      python: `import numpy as np\ndef parallel_reliability(r_list):\n    return 1.0 - np.prod([1.0 - r for r in r_list])\ndef series_reliability(r_list):\n    return np.prod(r_list)`,
+      r: `library(Reliability)\n# Compute series-parallel RBD reliability`,
+      ts: `import { rbdReliability } from '@statlab/core';\nconst r = rbdReliability([0.95, 0.90, 0.92], '2_of_3');`,
+    },
+    useCases: [
+      'Designing fault-tolerant infrastructure systems and multi-node database clusters.',
+      'Evaluating hardware redundancy topologies in mission-critical flight systems.'
+    ],
+    when: 'Use in reliability engineering to calculate total system survival probability from individual component reliability blocks.',
+    cautions: [
+      'Assumes component failures are statistically independent.',
+      'Common cause failures (CCF) reduce actual parallel system reliability below theoretical RBD bounds.'
+    ],
+    workbenchId: 'rbd_series_parallel',
+  },
+  {
+    slug: 'cox-snell-residuals-survival',
+    title: 'Cox-Snell residuals survival model goodness-of-fit calculator',
+    family: 'Survival & event history analysis',
+    description: 'Calculate Cox-Snell residuals r_i and cumulative hazard goodness-of-fit plot parameters for Cox proportional hazards regression.',
+    keywords: ['Cox Snell residuals', 'survival goodness of fit', 'Cox model diagnostic', 'residual cumulative hazard', 'Cox Snell plot'],
+    inputs: ['Observed event times t_i', 'Event status d_i', 'Fitted cumulative hazard H_hat(t_i | X_i)'],
+    example: { a: ['N = 120 fitted survival subjects', 'Cox-Snell residuals r_i = H_hat(t_i)'], result: 'Plot of H_r(r_i) vs r_i follows unit exponential 45° line. Goodness-of-fit model specification verified.' },
+    formula: 'r_i = H_0(t_i) exp(X_i β),  If model is correct, r_i ~ Exponential(1)',
+    code: {
+      python: `from lifelines import CoxPHFitter\ncph = CoxPHFitter().fit(df, 'duration', 'event')\ncs_residuals = cph.compute_residuals(df, 'cox_snell')`,
+      r: `library(survival)\nres <- residuals(cox_fit, type = "coxsnell")`,
+      ts: `import { coxSnellResiduals } from '@statlab/core';\nconst res = coxSnellResiduals(times, status, hazardEstimates);`,
+    },
+    useCases: [
+      'Verifying overall model fit and baseline hazard specification of Cox proportional hazards models.',
+      'Detecting structural mis-specification in complex survival analysis models.'
+    ],
+    when: 'Use as a diagnostic test after fitting a Cox survival model to check overall model adequacy.',
+    cautions: [
+      'If the fitted Cox model is correct, the Cox-Snell residuals r_i behave like a sample from a standard Exponential(1) distribution with unit hazard.',
+      'Censored subjects produce right-censored residuals.'
+    ],
+    workbenchId: 'cox_snell_fit',
+  },
+  {
+    slug: 'nelson-aalen-hazard-ratio-ci',
+    title: 'Nelson-Aalen log-log confidence bounds hazard calculator',
+    family: 'Survival & event history analysis',
+    description: 'Calculate Nelson-Aalen cumulative hazard estimates and log-log transformed confidence bounds to guarantee valid positive hazard intervals.',
+    keywords: ['Nelson Aalen confidence interval', 'log log hazard bounds', 'cumulative hazard CI', 'Nelson Aalen log log', 'survival hazard interval'],
+    inputs: ['Event times t_i', 'Event status', 'Confidence level α (0.05)'],
+    example: { a: ['At t = 18 months: H_hat(18) = 0.350', 'Variance Var(H) = 0.0049'], result: 'Log-Log 95% CI for H(18): [0.231 to 0.512] (Guarantees non-negative lower bound).' },
+    formula: 'CI = H_hat * exp[ ± z_{α/2} * √(Var(H)) / ( H_hat * ln(H_hat) ) ]',
+    code: {
+      python: `from lifelines import NelsonAalenFitter\nnaf = NelsonAalenFitter(confidence_interval_method='log-log').fit(durations, event_observed)`,
+      r: `library(survival)\nsurvfit(Surv(time, status) ~ 1, conf.type = "log-log")`,
+      ts: `import { nelsonAalenLogLogCI } from '@statlab/core';\nconst bounds = nelsonAalenLogLogCI(0.350, 0.0049, 0.05);`,
+    },
+    useCases: [
+      'Reporting robust cumulative hazard confidence intervals for small survival samples.',
+      'Preventing negative lower confidence bounds when hazard rate is small.'
+    ],
+    when: 'Use log-log transformed confidence intervals for cumulative hazard estimation to ensure upper and lower bounds remain strictly positive.',
+    cautions: [
+      'Standard untransformed linear confidence intervals H_hat ± z*SE can produce impossible negative lower limits.',
+      'Log-log transformation is recommended by standard biostatistical guidelines.'
+    ],
+    workbenchId: 'nelson_aalen_ci',
+  },
+  {
+    slug: 'semi-variogram-nugget-sill-range',
+    title: 'Semi-variogram spherical, exponential, and Gaussian model fitting calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate theoretical semi-variogram models γ(h) fitting Nugget effect (c₀), Partial Sill (c), and Spatial Range (a).',
+    keywords: ['variogram model fitting', 'nugget sill range calculator', 'spherical variogram model', 'exponential variogram', 'gaussian variogram spatial'],
+    inputs: ['Lag distance h', 'Nugget c₀', 'Partial Sill c', 'Spatial Range a', 'Model choice (Spherical, Exponential, Gaussian)'],
+    example: { a: ['Lag h = 50m', 'Nugget c₀ = 2.0', 'Sill c = 10.0', 'Range a = 100m', 'Model: Spherical'], result: 'Total Sill = 12.0. Spherical Variogram γ(50) = 2.0 + 10.0 * [ 1.5*(50/100) - 0.5*(50/100)³ ] = 8.25.' },
+    formula: 'Spherical: γ(h) = c₀ + c [ 1.5(h/a) - 0.5(h/a)³ ] for h ≤ a, else c₀ + c',
+    code: {
+      python: `import gstat\n# Theoretical variogram model calculation\n# gamma = gstat.SphericalModel(nugget=2.0, sill=10.0, range=100.0).gamma(h)`,
+      r: `library(gstat)\nvgm(psill = 10, model = "Sph", range = 100, nugget = 2)`,
+      ts: `import { variogramModel } from '@statlab/core';\nconst gamma = variogramModel(50, { c0: 2, c: 10, a: 100, model: 'spherical' });`,
+    },
+    useCases: [
+      'Modeling continuous spatial autocorrelation structures for geostatistical Kriging interpolation.',
+      'Quantifying measurement noise (nugget) vs spatial variance (sill) in environmental sampling.'
+    ],
+    when: 'Use to fit standard parametric variogram models to experimental semi-variogram point clouds.',
+    cautions: [
+      'Theoretical model must be conditionally negative definite to ensure positive Kriging variance.',
+      'Effective range for Exponential and Gaussian models equals distance where γ(h) reaches 95% of total sill.'
+    ],
+    workbenchId: 'variogram_fit',
+  },
+  {
+    slug: 'spatial-lag-error-durbin-selector',
+    title: 'Lagrange Multiplier spatial econometrics model selector calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate Classic and Robust Lagrange Multiplier test statistics (LM-lag, LM-error, R-LM-lag, R-LM-error) to select optimal spatial econometrics models.',
+    keywords: ['LM spatial test selector', 'Lagrange Multiplier spatial', 'LM lag LM error', 'spatial econometrics model choice', 'Anselin spatial selector'],
+    inputs: ['OLS regression residuals e', 'Spatial weight matrix W', 'X design matrix'],
+    example: { a: ['LM-Lag = 14.2 (p < .001)', 'LM-Error = 2.1 (p = .147)', 'Robust R-LM-Lag = 12.8 (p < .001)'], result: 'Decision: Select Spatial Lag Model (SAR) over Spatial Error Model (SEM).' },
+    formula: 'LM_{lag} = [ (eᵀ W y) / s² ]² / [ T_1 + (W X β)ᵀ M (W X β) / s² ]',
+    code: {
+      python: `import libpysal, spreg\n# Compute Anselin directional LM spatial specification tests\n# lm_tests = spreg.LMtests(ols.u, w)`,
+      r: `library(spatialreg)\nlm.LMtests(ols_model, listw = spatial_weights, test = "all")`,
+      ts: `import { lmSpatialSelector } from '@statlab/core';\nconst res = lmSpatialSelector(olsResiduals, yVals, xMatrix, weightsMatrix);`,
+    },
+    useCases: [
+      'Systematically choosing between Spatial Lag (SAR) and Spatial Error (SEM) specifications based on Anselin directional testing decision trees.',
+      'Avoiding spatial model mis-specification in econometric research.'
+    ],
+    when: 'Use after running OLS regression to test whether spatial dependence exists in the response or error terms.',
+    cautions: [
+      'If both classic LM-lag and LM-error are significant, evaluate Robust R-LM-lag and R-LM-error statistics.',
+      'Requires row-standardized spatial weight matrix.'
+    ],
+    workbenchId: 'lm_spatial_selector',
+  },
+  {
+    slug: 'markov-random-field-mrf-spatial',
+    title: 'Spatial Markov Random Field (MRF) neighborhood energy calculator',
+    family: 'Spatial statistics & geostatistics',
+    description: 'Calculate spatial Markov Random Field (MRF) neighborhood energy priors and conditional autoregressive (CAR) probability density.',
+    keywords: ['Markov Random Field', 'MRF spatial calculator', 'CAR spatial model', 'neighborhood energy MRF', 'spatial Potts model'],
+    inputs: ['Node labels/values vector x', 'Neighborhood graph / adjacency matrix W', 'Coupling parameter β'],
+    example: { a: ['N = 100 spatial grid nodes', 'Binary labels x ∈ {-1, +1}', 'Coupling β = 0.80'], result: 'Total MRF Energy E(x) = -45.2. Conditional P(x_i = +1 | neighbors) = 0.88.' },
+    formula: 'E(x) = -β ∑_{(i,j) ∈ E} x_i x_j,  P(x_i | x_{-i}) = exp( β x_i ∑_{j ∈ N(i)} x_j ) / Z_i',
+    code: {
+      python: `import numpy as np\ndef mrf_energy(x, adj_matrix, beta=0.8):\n    return -beta * 0.5 * (x.T @ adj_matrix @ x)`,
+      r: `library(mcmcSA)\n# Compute MRF spatial neighborhood energy`,
+      ts: `import { mrfSpatialEnergy } from '@statlab/core';\nconst e = mrfSpatialEnergy(nodeValues, adjMatrix, 0.8);`,
+    },
+    useCases: [
+      'Spatial image segmentation and noise reduction in medical imaging.',
+      'Modeling disease risk smoothing across geographical regions in spatial epidemiology (CAR/BYM models).'
+    ],
+    when: 'Use when modeling discrete or continuous spatial variables whose probability distribution depends strictly on immediate local spatial neighbors (Markov property).',
+    cautions: [
+      'Normalizing partition function Z requires Gibbs sampling or MCMC simulation for large graphs.',
+      'High coupling parameter β causes phase transitions and oversmoothed spatial regions.'
+    ],
+    workbenchId: 'mrf_spatial_energy',
+  },
+  {
+    slug: 'c-chart-spc-poisson-defects',
+    title: 'c-chart Poisson total defects SPC control chart calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate c-chart control limits (UCL, LCL, Center Line) for attribute total defect count quality control when sample unit size is strictly constant.',
+    keywords: ['c chart calculator', 'c chart control limits', 'Poisson defects SPC', 'total defect count chart', 'attribute c chart'],
+    inputs: ['Defect counts array c_i per sample unit'],
+    example: { a: ['25 inspection units (n=1 constant)', 'Total defects ∑ c_i = 150', 'Average defects c_bar = 6.0'], result: 'Center Line CL = 6.0, UCL = 6.0 + 3√6.0 = 13.348, LCL = max(0, 6.0 - 3√6.0) = 0.0.' },
+    formula: 'CL = c̄,  UCL = c̄ + 3√c̄,  LCL = max(0, c̄ - 3√c̄)',
+    code: {
+      python: `import numpy as np\ndef c_chart_limits(c_counts):\n    c_bar = np.mean(c_counts)\n    ucl = c_bar + 3 * np.sqrt(c_bar)\n    lcl = max(0, c_bar - 3 * np.sqrt(c_bar))\n    return c_bar, ucl, lcl`,
+      r: `library(qcc)\nqcc(defect_counts, type = "c")`,
+      ts: `import { cControlChart } from '@statlab/core';\nconst limits = cControlChart(defectCountsArray);`,
+    },
+    useCases: [
+      'Monitoring total flaw count per inspected item (e.g. scratches per printed circuit board, typos per web page).',
+      'Tracking server error log entry occurrences per fixed 1-hour interval.'
+    ],
+    when: 'Use c-chart when counting total defects (Poisson distribution) and inspection unit size is constant.',
+    cautions: [
+      'Distinguish c-chart (defects per constant unit) from u-chart (defects per variable unit) and p-chart (defective item proportion).',
+      'Assumes defect events follow Poisson distribution.'
+    ],
+    workbenchId: 'c_chart_spc',
+  },
+  {
+    slug: 'shewhart-individuals-chart-i',
+    title: 'Individuals (I-chart / X-chart) SPC control limits calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate Individuals control chart (I-chart) limits (UCL, LCL, X-bar) based on average moving range (MR-bar / d2).',
+    keywords: ['Individuals chart calculator', 'I chart SPC', 'X chart individual measurements', 'I MR control limits', 'd2 moving range factor'],
+    inputs: ['Individual sequential measurements array X_i'],
+    example: { a: ['30 individual observations', 'Mean X_bar = 50.2', 'Average Moving Range MR_bar = 1.84 (span n=2)'], result: 'Center Line = 50.2, Estimated σ = 1.84 / 1.128 = 1.631. UCL = 50.2 + 3(1.631) = 55.093, LCL = 45.307.' },
+    formula: 'CL = X̄,  σ_within = MR̄ / d2 (d2=1.128 for n=2),  UCL = X̄ + 3 σ_within,  LCL = X̄ - 3 σ_within',
+    code: {
+      python: `import numpy as np\ndef i_chart_limits(x):\n    x_bar = np.mean(x)\n    mr_bar = np.mean(np.abs(np.diff(x)))\n    sigma = mr_bar / 1.128\n    ucl = x_bar + 3 * sigma\n    lcl = x_bar - 3 * sigma\n    return x_bar, ucl, lcl`,
+      r: `library(qcc)\nqcc(x_data, type = "xbar.one")`,
+      ts: `import { iControlChart } from '@statlab/core';\nconst limits = iControlChart(individualValues);`,
+    },
+    useCases: [
+      'Monitoring process mean when measurements are taken one at a time (e.g. batch chemical concentration, API response time).',
+      'Tracking daily financial transaction volumes.'
+    ],
+    when: 'Use I-chart paired with Moving Range (MR) chart when subgrouping is impossible or impractical.',
+    cautions: [
+      'Estimate within-process standard deviation using MR-bar / d2 rather than overall sample standard deviation s.',
+      'Check for non-normality before establishing 3-sigma bounds.'
+    ],
+    workbenchId: 'i_chart_spc',
+  },
+  {
+    slug: 'process-capability-cpm-taguchi',
+    title: 'Taguchi Cpm process capability index calculator',
+    family: 'Statistical process control & quality engineering',
+    description: 'Calculate Taguchi process capability index Cpm incorporating process mean target deviation loss (T).',
+    keywords: ['Cpm capability index', 'Taguchi Cpm calculator', 'target capability index', 'Cpm loss function', 'Six Sigma Cpm'],
+    inputs: ['Upper Specification Limit (USL)', 'Lower Specification Limit (LSL)', 'Target value T', 'Process mean X̄', 'Process SD s'],
+    example: { a: ['USL = 10.5', 'LSL = 9.5', 'Target T = 10.0', 'Process Mean X̄ = 10.2', 'SD s = 0.12'], result: 'Cp = 1.389, Cpk = 0.833, Taguchi Cpm = (10.5 - 9.5) / (6 * √(0.12² + (10.2-10.0)²)) = 0.713.' },
+    formula: 'Cpm = (USL - LSL) / ( 6 * √( s² + (X̄ - T)² ) )',
+    code: {
+      python: `import numpy as np\ndef calculate_cpm(usl, lsl, target, mean, sd):\n    tau = np.sqrt(sd**2 + (mean - target)**2)\n    return (usl - lsl) / (6 * tau)`,
+      r: `library(qcc)\n# Compute Taguchi Cpm capability index`,
+      ts: `import { processCapabilityCpm } from '@statlab/core';\nconst cpm = processCapabilityCpm(10.5, 9.5, 10.0, 10.2, 0.12);`,
+    },
+    useCases: [
+      'Evaluating process capability when hitting an exact target benchmark value T is critical (Taguchi loss function philosophy).',
+      'Auditing hardware tolerance capability where off-target drift causes assembly friction.'
+    ],
+    when: 'Use Cpm in preference to Cp/Cpk when process centering on target T is equally as important as minimizing variance.',
+    cautions: [
+      'Cpm is heavily penalized when process mean X̄ drifts away from target T even if total variance s² is small.',
+      'Cpm = Cp when process is perfectly centered on target (X̄ = T).'
+    ],
+    workbenchId: 'cpm_capability',
+  },
+  {
+    slug: 'bifactor-model-fit-indices',
+    title: 'Bi-factor model unidimensionality fit indices calculator',
+    family: 'Psychometrics & scale analysis',
+    description: 'Calculate Explained Common Variance (ECV), Percentage of Uncontaminated Correlations (PUC), and Item ECV (I-ECV) for bi-factor psychometric models.',
+    keywords: ['bifactor model fit', 'ECV calculator', 'PUC index psychometrics', 'unidimensionability bifactor', 'Explained Common Variance'],
+    inputs: ['General factor variance sum', 'Group factor variances sum', 'Item loading matrix'],
+    example: { a: ['15-item scale', 'General factor variance sum = 18.5', 'Group factor variances sum = 6.2'], result: 'Explained Common Variance ECV = 18.5 / (18.5 + 6.2) = 0.749 (74.9% of common variance explained by general factor).' },
+    formula: 'ECV = ∑ λ_{g,i}² / ( ∑ λ_{g,i}² + ∑_k ∑ λ_{s_k,i}² )',
+    code: {
+      python: `import numpy as np\ndef calculate_ecv(general_loadings, specific_loadings_list):\n    gen_var = np.sum(general_loadings**2)\n    spec_var = np.sum([np.sum(s**2) for s in specific_loadings_list])\n    return gen_var / (gen_var + spec_var)`,
+      r: `library(BifactorIndicesCalculator)\nbifactorIndices(lambda_matrix)`,
+      ts: `import { bifactorECV } from '@statlab/core';\nconst ecv = bifactorECV(generalLoadings, specificLoadingsArray);`,
+    },
+    useCases: [
+      'Determining whether a multi-factor questionnaire scale is sufficiently uni-dimensional to justify reporting a single composite score.',
+      'Evaluating structural validity of complex multi-dimensional test batteries.'
+    ],
+    when: 'Use bi-factor fit indices (ECV > 0.70 and PUC > 0.70) to evaluate essential uni-dimensionality.',
+    cautions: [
+      'High ECV (> 0.70) indicates scale can be treated as essentially uni-dimensional despite secondary group factors.',
+      'Calculate Item ECV (I-ECV) to identify individual items that load predominantly on group factors.'
+    ],
+    workbenchId: 'bifactor_indices',
+  },
+  {
+    slug: 'rasch-1pl-item-difficulty',
+    title: '1PL Rasch Item Response Theory difficulty calculator',
+    family: 'Psychometrics & scale analysis',
+    description: 'Calculate 1PL Rasch item success probability P_i(θ) and maximum likelihood item difficulty parameter b_i on logit scale.',
+    keywords: ['Rasch model calculator', '1PL IRT difficulty', 'Rasch item difficulty', 'logit scale Rasch', 'Rasch probability curve'],
+    inputs: ['Latent trait ability θ', 'Item difficulty b_i'],
+    example: { a: ['Ability θ = +1.20 logits', 'Item difficulty b = +0.50 logits'], result: 'Logit Difference (θ - b) = +0.70. Item Success Probability P(θ) = 1 / (1 + exp(-0.70)) = 0.668 (66.8% success chance).' },
+    formula: 'P_i(θ) = 1 / [ 1 + exp( -(θ - b_i) ) ] = exp(θ - b_i) / [ 1 + exp(θ - b_i) ]',
+    code: {
+      python: `import numpy as np\ndef rasch_prob(theta, b):\n    return 1.0 / (1.0 + np.exp(-(theta - b)))`,
+      r: `library(eRm)\nRM(binary_item_matrix)`,
+      ts: `import { rasch1PL } from '@statlab/core';\nconst p = rasch1PL(1.20, 0.50);`,
+    },
+    useCases: [
+      'Constructing linear interval scales in educational testing and health outcome measurement.',
+      'Calibrating test question difficulty banks on a unified logit scale.'
+    ],
+    when: 'Use 1PL Rasch model when assuming all test items have equal discrimination power (a_i = 1.0) and differ only in difficulty b_i.',
+    cautions: [
+      'Rasch model requires items to have equal discrimination; if item discrimination varies significantly, use 2PL IRT model.',
+      'Item difficulty b_i corresponds to ability level θ where success probability P(θ) = 0.50.'
+    ],
+    workbenchId: 'rasch_1pl_irt',
+  },
+  {
+    slug: 'cronbachs-alpha-ordinal-likert',
+    title: 'Ordinal Cronbach’s alpha for Likert scales calculator',
+    family: 'Psychometrics & scale analysis',
+    description: 'Calculate Ordinal Cronbach’s alpha based on polychoric correlation matrix for ordinal Likert rating items.',
+    keywords: ['ordinal cronbach alpha', 'polychoric alpha calculator', 'Likert scale reliability', 'ordinal alpha reliability', 'psychometric ordinal scale'],
+    inputs: ['Polychoric correlation matrix R (K x K items)'],
+    example: { a: ['6 Likert items (5-point ordinal scale)', 'Mean polychoric correlation r_bar = 0.45'], result: 'Standard Alpha = 0.78, Ordinal Cronbach’s Alpha = 0.831 (Accurately reflects ordinal scale reliability).' },
+    formula: 'α_{ordinal} = [ K r̄_{poly} ] / [ 1 + (K - 1) r̄_{poly} ]',
+    code: {
+      python: `import psychopy\n# Compute polychoric correlation matrix and ordinal alpha\n# poly_corr = polychoric_matrix(data)\n# alpha = cronbach_alpha(poly_corr)`,
+      r: `library(psych)\nalpha(polychoric(likert_data)$rho)`,
+      ts: `import { ordinalCronbachAlpha } from '@statlab/core';\nconst alpha = ordinalCronbachAlpha(polychoricMatrix);`,
+    },
+    useCases: [
+      'Accurately estimating internal consistency reliability of ordinal survey questionnaires and Likert scales.',
+      'Avoiding underestimation of scale reliability caused by applying standard Pearson-based alpha to discrete ordinal items.'
+    ],
+    when: 'Use Ordinal Cronbach’s alpha when scale responses consist of discrete ordered categories (e.g. 3- to 7-point Likert items).',
+    cautions: [
+      'Standard Pearson Cronbach’s alpha systematically underestimates reliability for ordinal data with skewed category frequencies.',
+      'Requires computing pairwise polychoric correlations.'
+    ],
+    workbenchId: 'ordinal_cronbach_alpha',
+  },
+  {
+    slug: 'generalized-linear-model-glm-poisson',
+    title: 'Poisson GLM log-link rate ratio calculator',
+    family: 'Generalized linear & additive models (GLM/GAM)',
+    description: 'Calculate Generalized Linear Model (GLM) Poisson regression Incident Rate Ratios (IRR = exp(β)), standard errors, and Wald Z-statistics.',
+    keywords: ['Poisson GLM calculator', 'Incident Rate Ratio IRR', 'GLM log link regression', 'Poisson regression rate ratio', 'count data GLM'],
+    inputs: ['Regression coefficient β', 'Standard error SE', 'Predictor unit change ΔX'],
+    example: { a: ['Count predictor coefficient β = 0.285', 'SE = 0.065'], result: 'Incident Rate Ratio IRR = exp(0.285) = 1.330 (95% CI: 1.17 to 1.51, p < .0001). 1-unit increase multiplies event rate by 1.33x.' },
+    formula: 'IRR = exp(β),  log( μ_i ) = X_i β + offset_i',
+    code: {
+      python: `import statsmodels.api as sm\nglm_poisson = sm.GLM(y, X, family=sm.families.Poisson()).fit()\nirr = np.exp(glm_poisson.params)\nprint(irr)`,
+      r: `glm(count ~ x, family = poisson(link = "log"), data = df)`,
+      ts: `import { poissonGLM } from '@statlab/core';\nconst irr = poissonGLM(0.285, 0.065);`,
+    },
+    useCases: [
+      'Modeling event count data (e.g. API request counts, customer support tickets, hospital readmissions).',
+      'Evaluating rate ratios per unit exposure time.'
+    ],
+    when: 'Use Poisson GLM for non-negative count outcome variables.',
+    cautions: [
+      'Assumes equi-dispersion (Mean = Variance); if Variance > Mean (overdispersion), switch to Negative Binomial GLM or quasi-Poisson model.',
+      'Use offset variable log(Time) to model event rates per unit time.'
+    ],
+    workbenchId: 'poisson_glm_rates',
+  },
+  {
+    slug: 'generalized-additive-model-gam-spline',
+    title: 'Generalized Additive Model (GAM) thin-plate spline smoother calculator',
+    family: 'Generalized linear & additive models (GLM/GAM)',
+    description: 'Calculate Generalized Additive Model (GAM) non-linear smooth term s(X), effective degrees of freedom (EDF), and REML smoothing parameter selection.',
+    keywords: ['GAM calculator', 'Generalized Additive Model', 'thin plate spline GAM', 'smooth function s(x)', 'EDF spline GAM'],
+    inputs: ['Predictor X array', 'Response Y array', 'Spline basis dimension k', 'Smoothing penalty λ'],
+    example: { a: ['N = 250 observations', 'Smooth term s(X)', 'EDF = 3.42 (p < .001)'], result: 'Statistically significant non-linear relationship detected (EDF > 1.0 indicates non-linear spline curve).' },
+    formula: 'y_i = β₀ + ∑ f_j(x_{ij}) + ε_i,  where f_j(x) = ∑ b_k(x) β_k with penalty λ ∫ [f\'\'(x)]² dx',
+    code: {
+      python: `from pygam import GAM, s\ngam = GAM(s(0)).fit(X, y)\nprint(gam.summary())`,
+      r: `library(mgcv)\ngam_model <- gam(y ~ s(x, bs = "tp"), method = "REML", data = df)`,
+      ts: `import { gamSplineSmoother } from '@statlab/core';\nconst res = gamSplineSmoother(xVals, yVals);`,
+    },
+    useCases: [
+      'Modeling non-linear relationship curves without manually specifying arbitrary polynomial terms.',
+      'Analyzing non-linear response relationships in environmental and financial time series.'
+    ],
+    when: 'Use GAMs when relationships between response and continuous predictors exhibit complex non-linear shapes.',
+    cautions: [
+      'Effective degrees of freedom (EDF) = 1.0 indicates a linear relationship; EDF > 1 indicates non-linear curvature.',
+      'REML method prevents over-fitting smoothing parameters.'
+    ],
+    workbenchId: 'gam_spline_model',
+  },
+  {
+    slug: 'meta-analysis-random-effects-derSimonian',
+    title: 'DerSimonian-Laird random-effects meta-analysis calculator',
+    family: 'Meta-analysis & heterogeneity',
+    description: 'Calculate pooled effect size, Cochran’s Q statistic, Higgins I² heterogeneity percentage, and DerSimonian-Laird random-effects weights.',
+    keywords: ['meta analysis calculator', 'DerSimonian Laird random effects', 'I2 heterogeneity meta analysis', 'Cochrans Q meta analysis', 'pooled effect size meta'],
+    inputs: ['Study effect sizes y_i', 'Study standard errors SE_i (or variances v_i)'],
+    example: { a: ['K = 8 studies', 'Effect sizes y_i array', 'SE_i array'], result: 'Pooled Effect Size = 0.42 (95% CI: 0.24 to 0.60), Cochran’s Q = 18.5 (p = .010), I² = 62.2% (Moderate heterogeneity).' },
+    formula: 'τ² = max[ 0, (Q - (K - 1)) / C ],  w_i^* = 1 / ( v_i + τ² ),  Pooled = ∑ w_i^* y_i / ∑ w_i^*',
+    code: {
+      python: `import numpy as np\ndef dersimonian_laird(effects, variances):\n    k = len(effects)\n    w = 1.0 / np.array(variances)\n    p_fixed = np.sum(w * effects) / np.sum(w)\n    q = np.sum(w * (effects - p_fixed)**2)\n    c = np.sum(w) - np.sum(w**2) / np.sum(w)\n    tau2 = max(0.0, (q - (k - 1)) / c)\n    w_random = 1.0 / (np.array(variances) + tau2)\n    p_random = np.sum(w_random * effects) / np.sum(w_random)\n    i2 = max(0.0, (q - (k - 1)) / q) * 100\n    return p_random, tau2, q, i2`,
+      r: `library(metafor)\nrma(yi = effect, vi = var, method = "DL", data = df)`,
+      ts: `import { metaAnalysisDL } from '@statlab/core';\nconst res = metaAnalysisDL(effectsArray, variancesArray);`,
+    },
+    useCases: [
+      'Synthesizing effect sizes across multiple independent research studies in medical or software engineering benchmarks.',
+      'Quantifying between-study heterogeneity variance (τ² and I²).'
+    ],
+    when: 'Use random-effects meta-analysis when study populations or methodologies vary across included studies.',
+    cautions: [
+      'I² values: ~25% (low), ~50% (moderate), ~75% (high heterogeneity).',
+      'Check funnel plot and Egger’s test for publication bias.'
+    ],
+    workbenchId: 'meta_analysis_dl',
+  },
+  {
+    slug: 'post-hoc-bonferroni-correction',
+    title: 'Bonferroni multiple comparison p-value adjustment calculator',
+    family: 'Compare means',
+    description: 'Calculate Bonferroni adjusted p-values (p_adj = min(1, m * p)) and FWER family-wise error rate control boundaries for m hypothesis tests.',
+    keywords: ['Bonferroni correction calculator', 'adjusted p value Bonferroni', 'familywise error rate FWER', 'multiple testing adjustment', 'Bonferroni alpha'],
+    inputs: ['Raw unadjusted p-values array', 'Total number of comparisons m (if evaluating single p-value)'],
+    example: { a: ['m = 10 pairwise comparisons', 'Raw p-values: [0.004, 0.012, 0.045, 0.12]'], result: 'Adjusted p-values: [0.040, 0.120, 0.450, 1.000]. Only first comparison remains significant at α=0.05.' },
+    formula: 'p_{adj, i} = min( 1.0, m * p_i ),  α_{adjusted} = α / m',
+    code: {
+      python: `from statsmodels.stats.multitest import multipletests\nrejected, p_adj, _, _ = multipletests(raw_p_values, alpha=0.05, method='bonferroni')\nprint(p_adj)`,
+      r: `p.adjust(raw_p_values, method = "bonferroni")`,
+      ts: `import { bonferroniAdjust } from '@statlab/core';\nconst pAdj = bonferroniAdjust(pValuesArray);`,
+    },
+    useCases: [
+      'Controlling Family-Wise Error Rate (FWER) when conducting multiple simultaneous hypothesis tests.',
+      'Adjusting significance thresholds in multi-variant A/B test reporting.'
+    ],
+    when: 'Use for strict control of false positive probability when testing a small to moderate number of planned hypotheses.',
+    cautions: [
+      'Bonferroni correction is highly conservative for large m, increasing false negative risk (Type II error).',
+      'For large m, consider Holm-Sidak or False Discovery Rate (FDR / Benjamini-Hochberg).'
+    ],
+    workbenchId: 'bonferroni_adjustment',
+  },
+  {
+    slug: 'post-hoc-holm-sidak-adjustment',
+    title: 'Holm-Sidak step-down sequential post-hoc testing calculator',
+    family: 'Compare means',
+    description: 'Calculate Holm-Sidak step-down adjusted p-values and sequential significance thresholds controlling family-wise error rate.',
+    keywords: ['Holm Sidak calculator', 'Holm Sidak post hoc', 'step down sequential p value', 'Holm Sidak FWER', 'adjusted p value Holm'],
+    inputs: ['Raw unadjusted p-values array', 'Alpha level (0.05)'],
+    example: { a: ['m = 4 comparisons', 'Raw p-values: [0.008, 0.018, 0.035, 0.15]'], result: 'Holm-Sidak Thresholds: [0.0127, 0.0170, 0.0253, 0.0500]. Comparisons 1 & 2 rejected.' },
+    formula: 'α_i = 1 - (1 - α)^{1 / (m - i + 1)}  for rank i=1..m',
+    code: {
+      python: `from statsmodels.stats.multitest import multipletests\nrejected, p_adj, _, _ = multipletests(raw_p_values, alpha=0.05, method='holm-sidak')\nprint(p_adj)`,
+      r: `p.adjust(raw_p_values, method = "holmsidak")`,
+      ts: `import { holmSidakAdjust } from '@statlab/core';\nconst pAdj = holmSidakAdjust(pValuesArray);`,
+    },
+    useCases: [
+      'Step-down sequential post-hoc testing following ANOVA.',
+      'Evaluating multiple secondary endpoints in clinical trials with higher statistical power than Bonferroni.'
+    ],
+    when: 'Use in preference to Bonferroni when hypotheses are independent or positively correlated for higher statistical power while controlling FWER.',
+    cautions: [
+      'Holm-Sidak is a step-down sequential procedure; testing stops at the first unrejected hypothesis.',
+      'Assumes independent test statistics for exact Sidak bound.'
+    ],
+    workbenchId: 'holm_sidak_adjustment',
+  },
+  {
+    slug: 'one-way-anova-effect-size-eta',
+    title: 'One-way ANOVA Eta-squared and Omega-squared calculator',
+    family: 'ANOVA & factorial analysis',
+    description: 'Calculate Eta-squared (η²), Partial Eta-squared (η²_p), and Omega-squared (ω²) effect sizes for one-way ANOVA designs.',
+    keywords: ['ANOVA effect size calculator', 'Eta squared ANOVA', 'Omega squared calculator', 'partial eta squared', 'ANOVA variance explained'],
+    inputs: ['Sum of Squares Between (SS_between)', 'Sum of Squares Total (SS_total)', 'Mean Square Error (MSE)', 'Group count k', 'Total sample size N'],
+    example: { a: ['SS_between = 120.5', 'SS_total = 450.0', 'MSE = 6.25', 'k = 4 groups', 'N = 60'], result: 'Eta-squared η² = 120.5 / 450.0 = 0.268 (26.8% variance explained), Omega-squared ω² = 0.245.' },
+    formula: 'η² = SS_{between} / SS_{total},  ω² = [ SS_{between} - (k - 1) MSE ] / [ SS_{total} + MSE ]',
+    code: {
+      python: `def anova_effect_sizes(ss_between, ss_total, mse, k, n):\n    eta2 = ss_between / ss_total\n    omega2 = (ss_between - (k - 1) * mse) / (ss_total + mse)\n    return eta2, omega2`,
+      r: `library(effectsize)\neta_squared(anova_model); omega_squared(anova_model)`,
+      ts: `import { anovaEffectSizes } from '@statlab/core';\nconst res = anovaEffectSizes(120.5, 450.0, 6.25, 4, 60);`,
+    },
+    useCases: [
+      'Reporting standardized effect size magnitude in one-way ANOVA publications.',
+      'Quantifying proportion of overall performance variance attributable to deployment variant configuration.'
+    ],
+    when: 'Use whenever reporting ANOVA F-test results to convey practical magnitude independent of sample size.',
+    cautions: [
+      'Eta-squared η² is sample-biased and slightly overestimates population variance explained.',
+      'Omega-squared ω² provides an unbiased population estimate and is preferred for small sample sizes.'
+    ],
+    workbenchId: 'anova_effect_sizes',
+  },
+  {
+    slug: 'two-sample-t-test-power-equal',
+    title: 'Balanced two-sample t-test power calculator',
+    family: 'Power & sample size',
+    description: 'Calculate exact statistical power and required sample size per group for balanced two-sample independent Student/Welch t-tests.',
+    keywords: ['two sample t test power', 'balanced t test power', 'sample size two sample t', 't test alpha beta power', 'balanced design sample size'],
+    inputs: ['Effect size Cohen’s d', 'Sample size per group n', 'Alpha level α', 'Alternative hypothesis (two-sided, one-sided)'],
+    example: { a: ['Cohen’s d = 0.60', 'Sample size n = 45 per group', 'α = 0.05 (two-tailed)'], result: 'Statistical Power 1 - β = 80.6% (Study has 80.6% chance of detecting d=0.60).' },
+    formula: 'Non-centrality parameter δ = d * √(n / 2),  df = 2n - 2',
+    code: {
+      python: `from statsmodels.stats.power import TTestIndPower\npower = TTestIndPower().solve_power(effect_size=0.6, nobs1=45, alpha=0.05)\nprint(f"Power={power*100:.1f}%")`,
+      r: `library(pwr)\npwr.t.test(n = 45, d = 0.6, sig.level = 0.05)`,
+      ts: `import { balancedTPower } from '@statlab/core';\nconst p = balancedTPower(0.60, 45, 0.05);`,
+    },
+    useCases: [
+      'Evaluating statistical power of completed or planned balanced A/B testing experiments.',
+      'Verifying microbenchmark sample size sufficiency.'
+    ],
+    when: 'Use for quick power or sample size calculation when both sample groups have equal numbers of observations (n₁ = n₂).',
+    cautions: [
+      'Assumes equal group sample sizes n₁ = n₂.',
+      'Standard 80% power target corresponds to β = 0.20 Type II error probability.'
+    ],
+    workbenchId: 'balanced_t_power',
+  },
 ];
 
 export const CATEGORIES = [
@@ -12098,7 +12725,7 @@ export function getCalculatorCategory(p) {
   const s = (p.slug || '').toLowerCase();
 
   // 1. Survival & Reliability & Risk
-  if (f.includes('survival') || f.includes('reliability') || s.includes('kaplan') || s.includes('weibull') || s.includes('log-rank') || s.includes('hazard') || s.includes('nelson-aalen') || s.includes('mtbf') || s.includes('rmst') || s.includes('frailty') || s.includes('competing-risk') || s.includes('c-index') || (s.includes('var') && s.includes('value-at-risk')) || (s.includes('alt') && s.includes('accelerated')) || s.includes('ram-model') || s.includes('block-diagram')) {
+  if (f.includes('survival') || f.includes('reliability') || s.includes('kaplan') || s.includes('weibull') || s.includes('log-rank') || s.includes('hazard') || s.includes('nelson-aalen') || s.includes('mtbf') || s.includes('rmst') || s.includes('frailty') || s.includes('competing-risk') || s.includes('c-index') || (s.includes('var') && s.includes('value-at-risk')) || (s.includes('alt') && s.includes('accelerated')) || s.includes('ram-model') || s.includes('block-diagram') || s.includes('rbd') || s.includes('cox-snell')) {
     return CATEGORIES.find((c) => c.slug === 'survival-reliability-risk');
   }
 
@@ -12108,12 +12735,12 @@ export function getCalculatorCategory(p) {
   }
 
   // 3. SPC & Quality Control
-  if (f.includes('process control') || f.includes('spc') || (s.includes('cp-') && !s.includes('cpk')) || s.includes('cpk') || s.includes('ppk') || s.includes('xbar') || s.includes('dpmo') || s.includes('gage-rr') || s.includes('p-chart') || s.includes('np-chart') || s.includes('u-chart') || s.includes('c-chart') || s.includes('cusum') || s.includes('moving-range') || s.includes('ewma-control') || s.includes('tolerance-interval') || s.includes('mts') || s.includes('taguchi') || s.includes('plackett') || s.includes('v-mask')) {
+  if (f.includes('process control') || f.includes('spc') || (s.includes('cp-') && !s.includes('cpk')) || s.includes('cpk') || s.includes('ppk') || s.includes('xbar') || s.includes('dpmo') || s.includes('gage-rr') || s.includes('p-chart') || s.includes('np-chart') || s.includes('u-chart') || s.includes('c-chart') || s.includes('cusum') || s.includes('moving-range') || s.includes('ewma-control') || s.includes('tolerance-interval') || s.includes('mts') || s.includes('taguchi') || s.includes('plackett') || s.includes('v-mask') || s.includes('shewhart') || s.includes('cpm')) {
     return CATEGORIES.find((c) => c.slug === 'quality-control-spc');
   }
 
   // 4. Vector Distances & Embeddings
-  if (f.includes('vector distance') || s.includes('cosine-similarity') || s.includes('wasserstein') || s.includes('mahalanobis-distance') || s.includes('euclidean') || s.includes('bray-curtis') || s.includes('minkowski') || s.includes('jaccard') || s.includes('hamming') || s.includes('haversine') || s.includes('bhattacharyya') || s.includes('hellinger') || s.includes('gower') || s.includes('hopkins') || s.includes('overlap') || s.includes('poincare') || s.includes('jensen-shannon') || s.includes('total-variation') || s.includes('soergel') || s.includes('canberra') || s.includes('chebyshev')) {
+  if (f.includes('vector distance') || s.includes('cosine-similarity') || s.includes('wasserstein') || s.includes('mahalanobis-distance') || s.includes('euclidean') || s.includes('bray-curtis') || s.includes('minkowski') || s.includes('jaccard') || s.includes('hamming') || s.includes('haversine') || s.includes('bhattacharyya') || s.includes('hellinger') || s.includes('gower') || s.includes('hopkins') || s.includes('overlap') || s.includes('poincare') || s.includes('jensen-shannon') || s.includes('total-variation') || s.includes('soergel') || s.includes('canberra') || s.includes('chebyshev') || s.includes('manhattan') || s.includes('city-block')) {
     return CATEGORIES.find((c) => c.slug === 'vector-distances-embeddings');
   }
 
