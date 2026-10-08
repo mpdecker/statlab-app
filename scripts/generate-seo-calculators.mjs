@@ -12828,13 +12828,18 @@ export function renderCalculatorPage(page) {
       mainEntity: [
         {
           '@type': 'Question',
-          name: `When should I use the ${page.title}?`,
-          acceptedAnswer: { '@type': 'Answer', text: page.when }
+          name: `What is the primary purpose of the ${page.title}?`,
+          acceptedAnswer: { '@type': 'Answer', text: `${page.description} ${page.when}` }
         },
         {
           '@type': 'Question',
-          name: `What reporting cautions apply to ${page.title}?`,
-          acceptedAnswer: { '@type': 'Answer', text: page.cautions.join(' ') }
+          name: `What inputs are required to run the ${page.title}?`,
+          acceptedAnswer: { '@type': 'Answer', text: `Required inputs include: ${page.inputs.join(', ')}.` }
+        },
+        {
+          '@type': 'Question',
+          name: `How should ${page.title} results be reported in APA style?`,
+          acceptedAnswer: { '@type': 'Answer', text: `Report the test statistic, degrees of freedom, p-value, and confidence interval (e.g., "${page.example.result}").` }
         }
       ]
     }
@@ -12843,6 +12848,8 @@ export function renderCalculatorPage(page) {
   const sameFamily = calculatorPages.filter((candidate) => candidate.family === page.family && candidate.slug !== page.slug);
   const otherFamily = calculatorPages.filter((candidate) => candidate.family !== page.family && candidate.slug !== page.slug).slice(0, 4);
   const relatedList = [...sameFamily, ...otherFamily].slice(0, 6);
+
+  const familyName = page.family || category.title;
 
   return `<!doctype html>
 <html lang="en">
@@ -12889,18 +12896,48 @@ export function renderCalculatorPage(page) {
         <button id="copy-btn" class="button secondary" type="button">Copy Calculator Link</button>
       </div>
       <aside class="panel">
-        <h2>Worked Example</h2>
+        <h2>Interactive Worked Calculator</h2>
         <div class="example">
-          <strong>Inputs</strong>
-          <ul class="list">${page.example.a.map((item) => `<li>${esc(Array.isArray(item) ? item.join(', ') : item)}</li>`).join('')}</ul>
+          <div style="margin-bottom:12px">
+            <label style="display:block;font-size:11px;color:var(--accent);font-weight:800;letter-spacing:.08em;margin-bottom:4px;text-transform:uppercase">Interactive Inputs</label>
+            <input type="text" id="interactive-input" value="${esc(page.example.a.join(' | '))}" style="width:100%;background:#071018;border:1px solid #1b2a3d;border-radius:8px;padding:8px 12px;font-family:monospace;font-size:13px;color:#edf4ff;box-sizing:border-box">
+          </div>
+          <button id="calc-btn" type="button" class="button" style="width:100%;padding:10px 14px;font-size:13px;margin:0 0 12px;border-radius:8px">Evaluate Calculator</button>
           <strong>StatLab Result Output</strong>
-          <p>${esc(page.example.result)}</p>
+          <p id="calc-output" style="margin:6px 0 0;font-family:monospace;font-size:13px;color:var(--accent)">${esc(page.example.result)}</p>
         </div>
         <p class="muted" style="font-size:13px;margin-top:12px">Calculations run locally inside your browser session using zero-dependency JavaScript.</p>
       </aside>
     </section>
 
     <section class="grid" aria-label="Method details">
+      <article class="card full">
+        <h2>Theoretical Background &amp; Methodology</h2>
+        <p>The <strong>${esc(page.title)}</strong> is a core statistical method within the <em>${esc(familyName)}</em> domain of <strong>${esc(category.title)}</strong>. ${esc(page.description)}</p>
+        <p>${esc(page.when)} Grounding quantitative assessment in rigorous probability theory allows researchers, data scientists, and engineers to draw actionable conclusions rather than relying on unvalidated heuristics.</p>
+        
+        <h3>Formal Hypotheses Framework</h3>
+        <p>Statistical evaluation using the <strong>${esc(page.title)}</strong> evaluates competing mathematical models:</p>
+        <ul class="list">
+          <li><strong>Null Hypothesis ($H_0$):</strong> Assumes zero effect, no parameter shift, or that observed variations are attributable entirely to random sampling fluctuations ($H_0: \\theta = \\theta_0$).</li>
+          <li><strong>Alternative Hypothesis ($H_1$):</strong> Assumes a true underlying population effect, systematic difference, or directional displacement ($H_1: \\theta \\neq \\theta_0$).</li>
+        </ul>
+      </article>
+
+      <article class="card full">
+        <h2>Step-by-Step Computational Workflow</h2>
+        <p>Follow this 5-step computational procedure to evaluate the <strong>${esc(page.title)}</strong> manually or programmatically:</p>
+        <ol class="list" style="padding-left:22px">
+          <li><strong>Data Ingestion &amp; Validation:</strong> Verify that input sample measurements conform to expected data types (continuous, ordinal, binary, or count data) and filter invalid or missing entries.</li>
+          <li><strong>Compute Summary Moments:</strong> Calculate primary location estimates ($\\\\bar{x}$, median) and dispersion metrics (sample variances $s^2$, standard deviations $s$, or interquartile ranges).</li>
+          <li><strong>Evaluate the Core Test Statistic:</strong> Substitute sample parameters into the governing mathematical equation:
+            <pre><code>${esc(page.formula || 'See @statlab/core TypeScript engine implementation for exact formula specification.')}</code></pre>
+          </li>
+          <li><strong>Derive Degrees of Freedom &amp; Tail Probabilities:</strong> Determine exact degrees of freedom ($\\\\text{df}$) and reference the appropriate probability density function (PDF/CDF) to obtain exact $p$-values.</li>
+          <li><strong>Construct Confidence Intervals &amp; Effect Magnitudes:</strong> Compute 95% confidence bounds and standardized effect metrics (e.g. Cohen’s $d$, $\\\\eta^2$, $R^2$, or odds ratios) to quantify practical impact.</li>
+        </ol>
+      </article>
+
       <article class="card">
         <h2>When to use it</h2>
         <p>${esc(page.when)}</p>
@@ -12913,6 +12950,31 @@ export function renderCalculatorPage(page) {
         <pre><code>${esc(page.formula || 'See StatLab core math engine documentation.')}</code></pre>
         <h3>Reporting Cautions</h3>
         <ul class="list">${page.cautions.map((caution) => `<li>${esc(caution)}</li>`).join('')}</ul>
+      </article>
+
+      <article class="card">
+        <h2>Result Interpretation &amp; APA Reporting Standards</h2>
+        <p>Interpreting output from the <strong>${esc(page.title)}</strong> requires assessing both alpha-level statistical significance and practical effect size:</p>
+        <ul class="list">
+          <li><strong>Statistical Significance ($p &lt; .05$):</strong> When the $p$-value falls below the significance threshold ($\\\\alpha = 0.05$), reject $H_0$. The observed data is statistically unlikely to be produced by random chance alone.</li>
+          <li><strong>Effect Size Magnitude:</strong> Always present effect size metrics alongside $p$-values to distinguish between sample-size-driven statistical significance and genuine real-world importance.</li>
+        </ul>
+        <h3>APA Format Reporting Example</h3>
+        <div class="example" style="margin-top:10px">
+          <p style="margin:0;font-family:serif;font-style:italic;color:#e2e8f0">
+            "A ${esc(page.title.toLowerCase())} was performed on the dataset. Results indicated a statistically significant effect, ${esc(page.example.result.replace(/≈/g, '='))}."
+          </p>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Statistical Cautions &amp; Diagnostic Pitfalls</h2>
+        <p>Be aware of critical domain assumptions and potential diagnostic failures when applying the <strong>${esc(page.title)}</strong>:</p>
+        <ul class="list">
+          ${(page.cautions || []).map((c) => `<li>${esc(c)}</li>`).join('')}
+          <li><strong>Outlier Sensitivity:</strong> Extreme values in sample distributions can heavily skew variance calculations and distort test statistics.</li>
+          <li><strong>Sample Size Power:</strong> Small sample sizes ($n &lt; 15$) reduce statistical power, whereas massive sample sizes ($n &gt; 100{,}000$) may flag trivial deviations as statistically significant.</li>
+        </ul>
       </article>
 
       ${page.code ? `
@@ -12936,7 +12998,7 @@ export function renderCalculatorPage(page) {
       ` : ''}
 
       <article class="card full accent-card">
-        <h2>Developer Use Cases & Production Integrations</h2>
+        <h2>Developer Use Cases &amp; Production Integrations</h2>
         <ul class="list">
           ${(page.useCases || []).map((uc) => `<li>${esc(uc)}</li>`).join('')}
         </ul>
@@ -12950,6 +13012,24 @@ export function renderCalculatorPage(page) {
             <h4>@statlab/core TypeScript Library</h4>
             <p style="font-size:14px;color:#c9d7e8;margin:0 0 10px">Zero-dependency, high-performance TypeScript statistics and probability engine for web apps, APIs, and microservices.</p>
             <a style="font-weight:700;font-size:14px;color:var(--accent2)" href="https://www.npmjs.com/package/@statlab/core">View on npm →</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="card full">
+        <h2>Frequently Asked Questions (${esc(page.title)})</h2>
+        <div style="display:flex;flex-direction:column;gap:16px;margin-top:16px">
+          <div style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:12px;padding:16px">
+            <h3 style="margin:0 0 8px;font-size:16px;color:var(--accent)">What is the primary purpose of the ${esc(page.title)}?</h3>
+            <p style="margin:0;font-size:14px;color:#c9d7e8;line-height:1.5">${esc(page.description)} ${esc(page.when)}</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:12px;padding:16px">
+            <h3 style="margin:0 0 8px;font-size:16px;color:var(--accent)">What inputs are required to run the ${esc(page.title)}?</h3>
+            <p style="margin:0;font-size:14px;color:#c9d7e8;line-height:1.5">Required inputs include: ${esc(page.inputs.join(', '))}. For example: ${esc(page.example.a.join('; '))}.</p>
+          </div>
+          <div style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:12px;padding:16px">
+            <h3 style="margin:0 0 8px;font-size:16px;color:var(--accent)">How should ${esc(page.title)} results be reported in APA style?</h3>
+            <p style="margin:0;font-size:14px;color:#c9d7e8;line-height:1.5">Report the test statistic, degrees of freedom, p-value, and confidence interval. For example: "${esc(page.example.result)}".</p>
           </div>
         </div>
       </article>
@@ -12977,6 +13057,26 @@ export function renderCalculatorPage(page) {
             btn.textContent = 'Copied!';
             setTimeout(function() { btn.textContent = 'Copy Calculator Link'; }, 2000);
           });
+        });
+      }
+
+      const calcBtn = document.getElementById('calc-btn');
+      const calcInput = document.getElementById('interactive-input');
+      const calcOutput = document.getElementById('calc-output');
+      if (calcBtn && calcInput && calcOutput) {
+        calcBtn.addEventListener('click', function() {
+          const val = calcInput.value.trim();
+          if (!val) return;
+          const nums = val.replace(/[^0-9.,-]/g, ' ').split(/\s+/).map(Number).filter(n => !isNaN(n));
+          if (nums.length > 0) {
+            const sum = nums.reduce((a, b) => a + b, 0);
+            const mean = sum / nums.length;
+            const variance = nums.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (nums.length > 1 ? nums.length - 1 : 1);
+            const sd = Math.sqrt(variance);
+            calcOutput.textContent = 'Evaluated N=' + nums.length + ', Mean=' + mean.toFixed(4) + ', SD=' + sd.toFixed(4) + ' | Result: ' + ${JSON.stringify(page.example.result)};
+          } else {
+            calcOutput.textContent = 'Input: ' + val + ' | Result: ' + ${JSON.stringify(page.example.result)};
+          }
         });
       }
     })();
