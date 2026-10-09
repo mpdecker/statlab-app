@@ -13292,7 +13292,7 @@ export function renderCalculatorIndex() {
       '@context': 'https://schema.org',
       '@type': 'CollectionPage',
       name: 'StatLab Statistical Test Calculators',
-      description: 'Browse 376 free, shareable statistical test calculators classified by use case.',
+      description: `Browse ${calculatorPages.length} free, shareable statistical test calculators classified by use case.`,
       url: `${ORIGIN}/calculators/`
     }
   ];
@@ -13303,16 +13303,16 @@ export function renderCalculatorIndex() {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>StatLab Statistical Test Calculators | pSEO Directory</title>
-  <meta name="description" content="Browse 376 free, shareable statistical test calculators classified by use case: hypothesis testing, causal inference, time series, AI/ML evaluation, survival, spatial statistics, SPC, and probability distributions.">
+  <meta name="description" content="Browse ${calculatorPages.length} free, shareable statistical test calculators classified by use case: hypothesis testing, causal inference, time series, AI/ML evaluation, survival, spatial statistics, SPC, and probability distributions.">
   <link rel="canonical" href="${ORIGIN}/calculators/">
   <meta property="og:title" content="StatLab Statistical Test Calculators | pSEO Directory">
-  <meta property="og:description" content="Browse 376 free, shareable statistical test calculators classified by use case: hypothesis testing, causal inference, time series, AI/ML evaluation, survival, spatial statistics, SPC, and probability distributions.">
+  <meta property="og:description" content="Browse ${calculatorPages.length} free, shareable statistical test calculators classified by use case: hypothesis testing, causal inference, time series, AI/ML evaluation, survival, spatial statistics, SPC, and probability distributions.">
   <meta property="og:url" content="${ORIGIN}/calculators/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="StatLab">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="StatLab Statistical Test Calculators | pSEO Directory">
-  <meta name="twitter:description" content="Browse 376 free, shareable statistical test calculators classified by use case: hypothesis testing, causal inference, time series, AI/ML evaluation, survival, spatial statistics, SPC, and probability distributions.">
+  <meta name="twitter:description" content="Browse ${calculatorPages.length} free, shareable statistical test calculators classified by use case: hypothesis testing, causal inference, time series, AI/ML evaluation, survival, spatial statistics, SPC, and probability distributions.">
   <script type="application/ld+json">${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>
   <style>
     body{margin:0;background:#080b10;color:#edf4ff;font-family:Inter,ui-sans-serif,system-ui,sans-serif;line-height:1.5}.wrap{max-width:1120px;margin:auto;padding:40px 20px}a{color:#5df2b6}.brand{font-weight:900;letter-spacing:.08em;text-decoration:none;color:#edf4ff;font-size:20px}.brand span{color:#5df2b6}h1{font-size:clamp(36px,6vw,68px);line-height:.95;margin:16px 0 12px;letter-spacing:-.04em}.eyebrow{color:#5df2b6;font-size:12px;text-transform:uppercase;letter-spacing:.14em;font-weight:800}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:24px}.card{display:block;text-decoration:none;color:#edf4ff;background:#111722;border:1px solid #243246;border-radius:18px;padding:22px;transition:border-color .15s ease}.card:hover{border-color:#5df2b6}.cat-btn{display:inline-block;font-weight:700;font-size:13px;color:#5df2b6;text-decoration:none;padding:8px 14px;background:rgba(93,242,182,0.08);border:1px solid rgba(93,242,182,0.3);border-radius:6px}.banner{background:linear-gradient(135deg,#111722 0%,#0d1420 100%);border:1px solid #243246;border-radius:20px;padding:24px;margin-top:36px;display:grid;grid-template-columns:1fr 1fr;gap:20px}@media(max-width:760px){.grid,.banner{grid-template-columns:1fr}}
@@ -13322,11 +13322,11 @@ export function renderCalculatorIndex() {
   <main class="wrap">
     <a class="brand" href="/">STAT<span>LAB</span></a>
     <h1>Statistical Calculators</h1>
-    <p style="font-size:19px;color:#9db0c7;max-width:760px">376 static, shareable method pages classified by statistical use case. Backed by the zero-dependency StatLab inference engine.</p>
+    <p style="font-size:19px;color:#9db0c7;max-width:760px">${calculatorPages.length} static, shareable method pages classified by statistical use case. Backed by the zero-dependency StatLab inference engine.</p>
     
     <div style="margin:24px 0 28px">
       <div style="position:relative;max-width:760px">
-        <input type="text" id="calculator-search" placeholder="🔍  Search 376 calculators by name, keyword, method, or use case (e.g. t-test, GARCH, CQR, Cpk)..." style="width:100%;background:#111722;border:1px solid #243246;border-radius:12px;padding:14px 18px;font-size:15px;color:#edf4ff;box-sizing:border-box;outline:none;box-shadow:0 4px 20px rgba(0,0,0,0.25)">
+        <input type="text" id="calculator-search" placeholder="🔍  Search ${calculatorPages.length} calculators by name, keyword, method, or use case (e.g. t-test, GARCH, CQR, Cpk)..." style="width:100%;background:#111722;border:1px solid #243246;border-radius:12px;padding:14px 18px;font-size:15px;color:#edf4ff;box-sizing:border-box;outline:none;box-shadow:0 4px 20px rgba(0,0,0,0.25)">
         <span id="search-count" style="position:absolute;right:16px;top:15px;font-size:13px;color:#5df2b6;font-weight:700"></span>
       </div>
     </div>
@@ -13336,7 +13336,7 @@ export function renderCalculatorIndex() {
     <section id="category-section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
         <h2 style="font-size:22px;margin:0;color:#fff">Calculators by Category Use Case (12 Hubs)</h2>
-        <span style="font-size:13px;color:#9db0c7">376 Calculators</span>
+        <span style="font-size:13px;color:#9db0c7">${calculatorPages.length} Calculators</span>
       </div>
       <div class="grid">
         ${categoryCards}
